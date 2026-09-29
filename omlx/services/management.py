@@ -16,6 +16,7 @@ from ..model_profiles import filter_profile_fields
 from ..model_settings import (
     ModelSettings,
     ModelSettingsManager,
+    validate_ane_prefill,
     validate_moe_expert_offload,
 )
 from ..server_metrics import get_server_metrics
@@ -263,6 +264,7 @@ class ManagementService:
         validate_moe_expert_offload(
             values, model_type=getattr(entry, "config_model_type", None)
         )
+        validate_ane_prefill(values, getattr(entry, "config_model_type", None))
         if settings.moe_expert_offload_enabled:
             from ..patches.moe_offload_compat import moe_offload_compatibility
 

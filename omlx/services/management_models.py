@@ -49,6 +49,12 @@ class ModelSettingsPatch(BaseModel):
     qwen4_ple_ssd_offload: bool | None = None
     deepseek_v41_engram_ssd_offload: bool | None = None
     deepseek_v41_ced_prefill_enabled: bool | None = None
+    qwen35_ane_prefill_enabled: bool | None = None
+    qwen35_ane_prefill_fraction: float | None = None
+    qwen35_ane_prefill_shared_fraction: float | None = None
+    qwen35_ane_prefill_sequence_length: int | None = None
+    qwen35_ane_prefill_cpu_enabled: bool | None = None
+    qwen35_ane_prefill_gdn: bool | None = None
     turboquant_kv_enabled: bool | None = None
     turboquant_kv_bits: float | None = None
     moe_expert_offload_enabled: bool | None = None

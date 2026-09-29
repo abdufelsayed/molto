@@ -7,6 +7,21 @@ import pytest
 
 from omlx.engine_pool import EnginePool
 from omlx.model_settings import ModelSettings, ModelSettingsManager
+from omlx.services.management import ManagementContext, ManagementError, ManagementService
+from omlx.services.management_models import ModelSettingsPatch
+
+
+def _service(pool, manager):
+    return ManagementService(
+        ManagementContext(
+            engine_pool=pool,
+            settings_manager=manager,
+            global_settings=None,
+            get_default_model=lambda: None,
+            set_default_model=lambda _: None,
+            apply_sampling=lambda: None,
+        )
+    )
 
 
 @pytest.fixture
@@ -138,30 +153,22 @@ async def test_k2_unload_checks_weights_not_ane_admission_reserve(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("enabled", [False, True])
-async def test_admin_rejects_invalid_k2_ane_settings(
-    models, tmp_path, monkeypatch, enabled
-):
-    from fastapi import HTTPException
-
-    from omlx.admin import routes
-
+async def test_management_rejects_invalid_k2_ane_settings(models, tmp_path, enabled):
     base = models
     pool = EnginePool()
     pool.discover_models(str(tmp_path))
     manager = ModelSettingsManager(tmp_path / "settings")
-    monkeypatch.setattr(routes, "_get_engine_pool", lambda: pool)
-    monkeypatch.setattr(routes, "_get_settings_manager", lambda: manager)
-    monkeypatch.setattr(routes, "_get_server_state", lambda: None)
+    service = _service(pool, manager)
     for values in (
         {"qwen35_ane_prefill_fraction": 0},
         {"qwen35_ane_prefill_sequence_length": 7},
     ):
-        request = routes.ModelSettingsRequest(
+        request = ModelSettingsPatch(
             qwen35_ane_prefill_enabled=enabled, **values
         )
-        with pytest.raises(HTTPException) as error:
-            await routes.update_model_settings(base.name, request, is_admin=True)
-        assert error.value.status_code == 400
+        with pytest.raises(ManagementError) as error:
+            await service.update_model_settings(base.name, request)
+        assert error.value.code == "invalid_configuration"
         assert not manager.get_settings(base.name).qwen35_ane_prefill_enabled
 
 
@@ -179,50 +186,6 @@ def test_k2_ane_profile_persists_without_becoming_a_global_template(tmp_path):
     restored = ModelSettingsManager(tmp_path).apply_profile("mova", "ane")
     assert all(getattr(restored, key) == value for key, value in fields.items())
     assert filter_universal_fields(fields) == {}
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "model_type,forced,backend",
-    [("k2_horizon", True, "k2"), ("qwen3_5", False, "qwen"),
-     ("qwen3-6_moe", False, "qwen"), ("qwen3_8", False, "qwen"),
-     ("llama", False, None), ("unknown", False, None)],
-)
-async def test_admin_model_response_describes_controls(
-    tmp_path, monkeypatch, model_type, forced, backend
-):
-    from unittest.mock import MagicMock
-
-    from omlx.admin import routes
-
-    pool = MagicMock()
-    pool.get_status.return_value = {"models": [{"id": "model", "config_model_type": model_type}]}
-    manager = ModelSettingsManager(tmp_path)
-    monkeypatch.setattr(routes, "_get_engine_pool", lambda: pool)
-    monkeypatch.setattr(routes, "_get_settings_manager", lambda: manager)
-    monkeypatch.setattr(routes, "_get_server_state", lambda: None)
-    monkeypatch.setattr(routes, "_get_global_settings", lambda: None)
-    model = (await routes.list_models(is_admin=True))["models"][0]
-    assert model["thinking_forced"] is forced
-    assert model["thinking_modes"] == (
-        ["auto", "on_limit"] if forced else ["auto", "on_unlimit", "on_limit", "off"]
-    )
-    assert model["reasoning_effort_options"] == (
-        ["low", "medium", "high"] if forced else ["low", "medium", "high", "xhigh", "max"]
-    )
-    assert model["reasoning_effort_default"] == ("high" if forced else "low")
-    assert model["reasoning_effort_custom"] is not forced
-    assert model["ane_prefill_backend"] == backend
-    assert model["ane_prefill_mlp_fractions"] == ([1 / 3, 0.5] if forced else [])
-    assert model["ane_prefill_shared_fractions"] == ([0, 1 / 3, 1] if forced else [])
-
-
-def test_helper_model_does_not_offer_k2_ane():
-    from omlx.admin.routes import _model_options
-
-    assert _model_options(
-        {"config_model_type": "k2_horizon", "is_helper": True}, None
-    )["ane_prefill_backend"] is None
 
 
 @pytest.mark.parametrize(
@@ -286,24 +249,19 @@ def test_shared_ane_signature_uses_only_effective_backend_controls(
     "model_type,width,fraction", [("k2_horizon", 32, 1.0), ("qwen3_5", 1024, 0.53)]
 )
 async def test_shared_ane_manual_enable_and_profile_validation(
-    models, tmp_path, monkeypatch, model_type, width, fraction
+    models, tmp_path, model_type, width, fraction
 ):
-    from fastapi import HTTPException
-    from omlx.admin import routes
-
     pool = EnginePool()
     pool.discover_models(str(tmp_path))
     pool.get_entry(models.name).config_model_type = model_type
     manager = ModelSettingsManager(tmp_path / "settings")
-    monkeypatch.setattr(routes, "_get_engine_pool", lambda: pool)
-    monkeypatch.setattr(routes, "_get_settings_manager", lambda: manager)
-    monkeypatch.setattr(routes, "_get_server_state", lambda: None)
-    request = routes.ModelSettingsRequest(
+    service = _service(pool, manager)
+    request = ModelSettingsPatch(
         qwen35_ane_prefill_enabled=True,
         qwen35_ane_prefill_sequence_length=width,
         qwen35_ane_prefill_fraction=fraction,
     )
-    await routes.update_model_settings(models.name, request, is_admin=True)
+    await service.update_model_settings(models.name, request)
     saved = manager.get_settings(models.name)
     assert saved.qwen35_ane_prefill_enabled
     assert saved.qwen35_ane_prefill_sequence_length == width
@@ -311,9 +269,9 @@ async def test_shared_ane_manual_enable_and_profile_validation(
     manager.save_profile(
         models.name, "bad", "Bad", None, {"qwen35_ane_prefill_fraction": 2}
     )
-    with pytest.raises(HTTPException) as error:
-        await routes.apply_model_profile(models.name, "bad", is_admin=True)
-    assert error.value.status_code == 400
+    with pytest.raises(ManagementError) as error:
+        service.apply_profile(models.name, "bad")
+    assert error.value.code == "invalid_configuration"
     assert manager.get_settings(models.name).to_dict() == saved.to_dict()
 
 

@@ -379,42 +379,12 @@ class TestSkipApiKeyVerification:
         assert auth.skip_api_key_verification is False
 
 
-class TestAdminAuth:
-    """Tests for admin authentication functions."""
-
-    def test_create_session_token(self):
-        """Test session token creation."""
-        from omlx.admin.auth import create_session_token
-
-        token = create_session_token()
-        assert token is not None
-        assert isinstance(token, str)
-        assert len(token) > 0
-
-    def test_verify_session_token_valid(self):
-        """Test valid session token verification."""
-        from omlx.admin.auth import create_session_token, verify_session_token
-
-        token = create_session_token()
-        assert verify_session_token(token) is True
-
-    def test_verify_session_token_invalid(self):
-        """Test invalid session token verification."""
-        from omlx.admin.auth import verify_session_token
-
-        assert verify_session_token("invalid-token") is False
-
-    def test_verify_session_token_expired(self):
-        """Test expired session token verification."""
-        from omlx.admin.auth import create_session_token, verify_session_token
-
-        token = create_session_token()
-        # A negative max_age is expired immediately and does not need a delay.
-        assert verify_session_token(token, max_age=-1) is False
+class TestKeyComparison:
+    """Tests for the independent API-key comparator."""
 
     def test_verify_api_key_constant_time(self):
         """Test that API key comparison uses constant time."""
-        from omlx.admin.auth import verify_api_key
+        from omlx.auth import verify_api_key
         import secrets
 
         server_key = "test-api-key-12345"
@@ -439,19 +409,19 @@ class TestNonAsciiApiKeys:
 
     def test_compare_keys_non_ascii_mismatch(self):
         """Non-ASCII client key against ASCII server key returns False."""
-        from omlx.admin.auth import compare_keys
+        from omlx.auth import compare_keys
 
         assert compare_keys("café-key", "secret123") is False
 
     def test_compare_keys_non_ascii_match(self):
         """Matching non-ASCII keys compare equal."""
-        from omlx.admin.auth import compare_keys
+        from omlx.auth import compare_keys
 
         assert compare_keys("clé-secrète-héhé", "clé-secrète-héhé") is True
 
     def test_verify_api_key_non_ascii_client_key(self):
         """verify_api_key must not raise on a non-ASCII client key."""
-        from omlx.admin.auth import verify_api_key
+        from omlx.auth import verify_api_key
 
         assert verify_api_key("café", "secret123") is False
 
@@ -462,7 +432,7 @@ class TestNonAsciiApiKeys:
         latin-1, so a client sending UTF-8 non-ASCII bytes will not match a
         configured non-ASCII key anyway. The point here is no TypeError.
         """
-        from omlx.admin.auth import verify_api_key
+        from omlx.auth import verify_api_key
 
         assert verify_api_key("pässwörd", "pässwörd") is True
         assert verify_api_key("password", "pässwörd") is False
@@ -476,7 +446,7 @@ class TestNonAsciiApiKeys:
         """
         import json
 
-        from omlx.admin.auth import compare_keys
+        from omlx.auth import compare_keys
 
         surrogate_key = json.loads('"\\ud800abcd"')
         assert compare_keys(surrogate_key, "secret123") is False
@@ -485,7 +455,7 @@ class TestNonAsciiApiKeys:
 
     def test_verify_any_api_key_non_ascii_sub_keys(self):
         """verify_any_api_key must not raise when sub keys are checked."""
-        from omlx.admin.auth import verify_any_api_key
+        from omlx.auth import verify_any_api_key
         from unittest.mock import MagicMock
 
         sub_key = MagicMock()
@@ -527,7 +497,7 @@ class TestRejectedKeyFingerprint:
 
     def test_fingerprint_key_short_hex(self):
         """fingerprint_key returns 8 lowercase hex characters."""
-        from omlx.admin.auth import fingerprint_key
+        from omlx.auth import fingerprint_key
 
         fp = fingerprint_key("super-secret-key")
         assert len(fp) == 8
@@ -535,13 +505,13 @@ class TestRejectedKeyFingerprint:
 
     def test_fingerprint_key_deterministic(self):
         """The same key always fingerprints to the same value."""
-        from omlx.admin.auth import fingerprint_key
+        from omlx.auth import fingerprint_key
 
         assert fingerprint_key("abc123") == fingerprint_key("abc123")
 
     def test_fingerprint_key_does_not_contain_secret(self):
         """The fingerprint never leaks the raw key material."""
-        from omlx.admin.auth import fingerprint_key
+        from omlx.auth import fingerprint_key
 
         secret = "sk-live-0123456789abcdef"
         fp = fingerprint_key(secret)
@@ -550,7 +520,7 @@ class TestRejectedKeyFingerprint:
 
     def test_fingerprint_key_distinguishes_keys(self):
         """Different keys produce different fingerprints."""
-        from omlx.admin.auth import fingerprint_key
+        from omlx.auth import fingerprint_key
 
         assert fingerprint_key("key-a") != fingerprint_key("key-b")
 
@@ -562,7 +532,7 @@ class TestRejectedKeyFingerprint:
         """
         import json
 
-        from omlx.admin.auth import fingerprint_key
+        from omlx.auth import fingerprint_key
 
         assert len(fingerprint_key("clé-secrète-héhé")) == 8
         assert len(fingerprint_key("")) == 8
@@ -577,7 +547,7 @@ class TestRejectedKeyFingerprint:
         from fastapi import HTTPException
         from fastapi.security import HTTPAuthorizationCredentials
 
-        from omlx.admin.auth import fingerprint_key
+        from omlx.auth import fingerprint_key
         from omlx.server import verify_api_key, _server_state
 
         original_key = _server_state.api_key
@@ -611,7 +581,6 @@ class TestUnauthenticatedInference:
     @pytest.fixture
     def configured_server(self, monkeypatch, tmp_path):
         from omlx import server
-        from omlx.admin import auth
         from omlx.settings import GlobalSettings
 
         settings = GlobalSettings(base_path=tmp_path)
@@ -621,7 +590,6 @@ class TestUnauthenticatedInference:
         monkeypatch.setattr(server._server_state, "global_settings", settings)
         monkeypatch.setattr(server._server_state, "api_key", "management-key")
         monkeypatch.setattr(server._server_state, "bind_host", "0.0.0.0")
-        monkeypatch.setattr(auth, "_get_global_settings", lambda: settings)
         return server, settings
 
     @pytest.mark.parametrize(
@@ -653,12 +621,11 @@ class TestUnauthenticatedInference:
     @pytest.mark.parametrize(
         "method,path",
         [
-            ("GET", "/api/status"),
             ("GET", "/v1/models/status"),
             ("POST", "/v1/models/example/load"),
             ("POST", "/v1/models/example/unload"),
-            ("GET", "/admin/api/global-settings"),
-            ("POST", "/admin/api/server/restart"),
+            ("GET", "/management/v1/state"),
+            ("GET", "/management/v1/models"),
         ],
     )
     def test_management_routes_still_reject_anonymous_requests(
