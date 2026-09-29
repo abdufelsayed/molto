@@ -35,20 +35,24 @@ class RequestContextFilter(logging.Filter):
         return True
 
 
-class AdminStatsAccessFilter(logging.Filter):
-    """Suppress repetitive uvicorn access logs for admin polling endpoints."""
+class ManagementAccessFilter(logging.Filter):
+    """Suppress successful polling while retaining errors and mutations."""
 
     def filter(self, record: logging.LogRecord) -> bool:
-        msg = record.getMessage()
-        if "/admin/api/stats" in msg or "/admin/api/usage" in msg:
-            return False
-        if "/admin/api/login" in msg:
-            return False
-        if "/admin/api/hf/tasks" in msg:
-            return False
-        if "/admin/api/oq/tasks" in msg:
-            return False
-        return True
+        # Uvicorn passes client, method, path, HTTP version and status as args.
+        # Leave unfamiliar log formats untouched rather than hiding failures.
+        args = record.args
+        if not isinstance(args, tuple) or len(args) != 5:
+            return True
+        _, method, path, _, status = args
+        if not isinstance(path, str) or not isinstance(status, int):
+            return True
+        polling = path.partition("?")[0] in {
+            "/management/v1/state",
+            "/management/v1/stats",
+            "/management/v1/cache",
+        }
+        return not (method == "GET" and polling and 200 <= status < 300)
 
 
 class ColoredFormatter(logging.Formatter):

@@ -177,10 +177,10 @@ def serve_command(args):
     import os
     import uvicorn
 
-    from ._version import __version__
     from . import process_title
+    from ._version import __version__
+    from .logging_config import ManagementAccessFilter, configure_file_logging
     from .settings import burst_decode_env, init_settings
-    from .logging_config import configure_file_logging, AdminStatsAccessFilter
 
     process_title.set_process_title()
 
@@ -234,8 +234,8 @@ def serve_command(args):
     ]:
         logging.getLogger(name).setLevel(log_level)
 
-    # Suppress repetitive admin stats access logs
-    logging.getLogger("uvicorn.access").addFilter(AdminStatsAccessFilter())
+    # Suppress repetitive successful management polling access logs
+    logging.getLogger("uvicorn.access").addFilter(ManagementAccessFilter())
 
     # Suppress noisy third-party loggers unless trace level
     if log_level > TRACE:
@@ -526,7 +526,7 @@ def launch_command(args, extra_args: list[str] | None = None):
         resp.raise_for_status()
     except Exception:
         print(f"oMLX server is not running at {base_url}")
-        print("Start the server first: omlx start")
+        print("Start the server first: omlx serve")
         sys.exit(1)
 
     # Get API key: CLI args > settings.json > empty
@@ -677,85 +677,6 @@ def launch_command(args, extra_args: list[str] | None = None):
     integration.launch(ctx)
 
 
-def _app_control_socket_path():
-    from pathlib import Path
-
-    return Path.home() / "Library" / "Application Support" / "oMLX" / "control.sock"
-
-
-def _app_bundle_path():
-    from pathlib import Path
-
-    from .utils.install import get_app_bundle_cli_path
-
-    cli_path = get_app_bundle_cli_path()
-    try:
-        return cli_path.parents[2]
-    except IndexError:
-        return Path("/Applications/oMLX.app")
-
-
-def _open_macos_app() -> None:
-    import subprocess
-
-    app_path = _app_bundle_path()
-    subprocess.run(
-        ["/usr/bin/open", "-gj", str(app_path)],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=False,
-    )
-
-
-def _send_app_control(command: str, timeout: float = 2.0) -> dict:
-    import json
-    import socket
-
-    sock_path = _app_control_socket_path()
-    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
-        sock.settimeout(timeout)
-        sock.connect(str(sock_path))
-        sock.sendall(json.dumps({"command": command}).encode("utf-8") + b"\n")
-        chunks: list[bytes] = []
-        while True:
-            chunk = sock.recv(4096)
-            if not chunk:
-                break
-            chunks.append(chunk)
-            if b"\n" in chunk:
-                break
-    raw = b"".join(chunks).split(b"\n", 1)[0]
-    return json.loads(raw.decode("utf-8"))
-
-
-def _send_app_control_with_launch(command: str, timeout: float) -> dict:
-    import time
-
-    deadline = time.monotonic() + timeout
-    last_error: Exception | None = None
-    _open_macos_app()
-    while time.monotonic() < deadline:
-        try:
-            return _send_app_control(command)
-        except OSError as exc:
-            last_error = exc
-            time.sleep(0.2)
-    raise RuntimeError(f"Could not reach oMLX.app control socket: {last_error}")
-
-
-def _wait_app_control_state(states: set[str], timeout: float) -> dict:
-    import time
-
-    deadline = time.monotonic() + timeout
-    last: dict = {}
-    while time.monotonic() < deadline:
-        last = _send_app_control("status")
-        if last.get("state") in states:
-            return last
-        time.sleep(0.5)
-    return last
-
-
 def _run_brew_services(command: str) -> int:
     import shutil
     import subprocess
@@ -769,159 +690,19 @@ def _run_brew_services(command: str) -> int:
 
 
 def lifecycle_command(args) -> int:
-    """Run background lifecycle commands for the current installation."""
-    from .utils.install import is_app_bundle, is_homebrew
+    """Run Homebrew service commands when oMLX is installed through Homebrew."""
+    from .utils.install import is_homebrew
 
     command = args.command
-    timeout = getattr(args, "timeout", 60.0)
-    no_wait = getattr(args, "no_wait", False)
-
-    if is_app_bundle():
-        try:
-            if command == "stop":
-                try:
-                    response = _send_app_control(command)
-                except OSError:
-                    print("oMLX stopped")
-                    return 0
-            else:
-                response = _send_app_control_with_launch(command, timeout=timeout)
-            if not response.get("ok"):
-                print(response.get("message") or f"oMLX {command} failed")
-                return 1
-
-            if command in {"start", "restart"} and not no_wait:
-                response = _wait_app_control_state({"running", "unresponsive"}, timeout)
-                if response.get("state") not in {"running", "unresponsive"}:
-                    print(
-                        f"oMLX server is {response.get('state', 'unknown')} "
-                        f"after {int(timeout)}s."
-                    )
-                    return 1
-
-            if command == "stop":
-                print("oMLX stopped")
-            elif command == "start":
-                print(
-                    f"oMLX server {response.get('state')} on port {response.get('port')}"
-                )
-            elif command == "restart":
-                print(f"oMLX server restarted on port {response.get('port')}")
-            return 0
-        except Exception as exc:
-            print(f"Failed to control oMLX.app: {exc}")
-            return 1
 
     if is_homebrew():
-        mapping = {"start": "start", "stop": "stop", "restart": "restart"}
-        return _run_brew_services(mapping[command])
+        return _run_brew_services(command)
 
     if command == "start":
-        print("Background start is available for the macOS app and Homebrew installs.")
-        print("For this install, run foreground server mode with: omlx serve")
+        print("Start the server in the foreground with: omlx serve")
     else:
-        print("Background stop/restart requires the macOS app or Homebrew service.")
-    return 1
-
-
-def diagnose_menubar() -> int:
-    """Diagnose why the oMLX menubar icon might be missing.
-
-    Reports macOS version, app install path, running menubar process, and the
-    most recent visibility warning from the log. Prints manual recovery steps
-    since Tahoe's ControlCenter doesn't expose a public API to re-enable a
-    hidden status item.
-    """
-    import platform
-    import subprocess
-    from pathlib import Path
-
-    print("oMLX menubar diagnostics")
-    print("=" * 40)
-
-    mac_ver = platform.mac_ver()[0] or "unknown"
-    print(f"macOS:          {mac_ver}")
-    print(f"Bundle ID:      app.omlx")
-
-    app_path = Path("/Applications/oMLX.app")
-    print(f"App installed:  {'yes' if app_path.exists() else 'NO (install DMG first)'}")
-
-    try:
-        res = subprocess.run(
-            ["pgrep", "-af", "oMLX"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        running = bool(res.stdout.strip())
-        print(f"Menubar app:    {'running' if running else 'NOT running'}")
-        if running:
-            first_line = res.stdout.strip().splitlines()[0]
-            pid = first_line.split()[0] if first_line else "?"
-            print(f"PID:            {pid}")
-    except (subprocess.SubprocessError, FileNotFoundError) as e:
-        print(f"Menubar app:    check failed ({e})")
-
-    # `menubar.log` is the Swift app's own visibility-probe log — every line
-    # in it is relevant. `server.log` is the Python child's stdout/stderr, so
-    # only lines that mention the menubar are worth pulling out of it.
-    log_dir = Path.home() / "Library" / "Application Support" / "oMLX" / "logs"
-    log_candidates = [(log_dir / "menubar.log", False), (log_dir / "server.log", True)]
-    print(f"Log dir:        {log_dir}")
-
-    hits: list[tuple[str, str]] = []
-    for path, needs_filter in log_candidates:
-        if not path.exists():
-            continue
-        try:
-            with open(path, "rb") as f:
-                f.seek(0, 2)
-                size = f.tell()
-                f.seek(max(0, size - 131072))
-                tail = f.read().decode("utf-8", errors="replace")
-        except OSError as e:
-            print(f"Could not read {path.name}: {e}")
-            continue
-        for ln in tail.splitlines():
-            if not ln.strip():
-                continue
-            if needs_filter and not (
-                "menubar visibility probe" in ln
-                or "NSStatusItem" in ln
-                or "ControlCenter" in ln
-                or "Menu Bar" in ln
-            ):
-                continue
-            hits.append((path.name, ln))
-
-    if hits:
-        print("\nRecent visibility log entries (last 10):")
-        for src, ln in hits[-10:]:
-            print(f"  [{src}] {ln}")
-    else:
-        print("\nNo visibility log entries found (app may not have probed yet).")
-
-    print()
-    print("If the icon is missing on macOS Tahoe (26.x):")
-    print("  1. In the oMLX app: Settings > Appearance > Menu Bar Icon > Restore")
-    print("  2. Or turn it back on in System Settings > Menu Bar")
-    print(
-        "     open 'x-apple.systempreferences:com.apple.ControlCenter-Settings.extension?MenuBar'"
-    )
-    print("  3. If oMLX isn't in the list, quit the app and relaunch oMLX.app")
-    print()
-    print("Note: Restore edits ControlCenter's own StatusKit approval, which")
-    print("needs Full Disk Access. Without it, use the System Settings toggle.")
-    return 0
-
-
-def diagnose_command(args) -> int:
-    """Dispatch 'omlx diagnose <target>' to the appropriate subcommand."""
-    target = getattr(args, "target", None)
-    if target == "menubar":
-        return diagnose_menubar()
-    print(f"Unknown diagnose target: {target}")
-    print("Available: menubar")
+        print("Background stop/restart is available for Homebrew services only.")
+        print("For a foreground server, stop it in its terminal with Ctrl+C.")
     return 1
 
 
@@ -1112,27 +893,15 @@ Examples:
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
     for name, help_text in (
-        ("start", "Start oMLX as a managed background server"),
-        ("stop", "Stop the managed background oMLX server"),
-        ("restart", "Restart the managed background oMLX server"),
+        ("start", "Start the Homebrew service"),
+        ("stop", "Stop the Homebrew service"),
+        ("restart", "Restart the Homebrew service"),
     ):
-        lifecycle_parser = subparsers.add_parser(
+        subparsers.add_parser(
             name,
             help=help_text,
             description=help_text,
         )
-        lifecycle_parser.add_argument(
-            "--timeout",
-            type=float,
-            default=60.0,
-            help="Seconds to wait for the macOS app/server to reach the requested state",
-        )
-        if name in {"start", "restart"}:
-            lifecycle_parser.add_argument(
-                "--no-wait",
-                action="store_true",
-                help="Return after sending the request without waiting for server health",
-            )
 
     # Serve command (multi-model)
     serve_parser = subparsers.add_parser(
@@ -1468,19 +1237,6 @@ Example directory structure:
         ),
     )
 
-    # Diagnose command
-    diagnose_parser = subparsers.add_parser(
-        "diagnose",
-        help="Diagnose installation or runtime issues",
-        description="Run diagnostic checks and print recovery steps.",
-    )
-    diagnose_parser.add_argument(
-        "target",
-        type=str,
-        choices=["menubar"],
-        help="What to diagnose. 'menubar' checks Tahoe ControlCenter visibility.",
-    )
-
     # Cluster diagnostics and planning for the first implementation slice.
     cluster_parser = subparsers.add_parser(
         "cluster",
@@ -1637,8 +1393,6 @@ Example directory structure:
             serve_command(args)
         elif args.command in {"start", "stop", "restart"}:
             sys.exit(lifecycle_command(args))
-        elif args.command == "diagnose":
-            sys.exit(diagnose_command(args))
         elif args.command == "mflux-save":
             sys.exit(mflux_save_command(args))
         elif args.command == "cluster":

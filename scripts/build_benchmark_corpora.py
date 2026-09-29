@@ -82,7 +82,6 @@ def _python_corpus() -> str:
 def _mixed_corpus() -> str:
     buckets = [
         sorted((REPO_ROOT / "omlx").rglob("*.py")),
-        sorted((REPO_ROOT / "apps" / "omlx-mac" / "Sources").rglob("*.swift")),
         sorted((REPO_ROOT / "omlx" / "admin" / "static" / "js").rglob("*.js"))
         + sorted((REPO_ROOT / "omlx" / "admin" / "templates").rglob("*.html")),
         sorted((REPO_ROOT / "omlx" / "custom_kernels").rglob("*.cpp"))

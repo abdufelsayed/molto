@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Minimal ``torch`` stub for the DMG bundle.
+"""Minimal ``torch`` stub for xgrammar when torch is not installed.
 
 xgrammar 0.2.3 declares ``torch>=1.10.0`` as a runtime dep, but oMLX never
 exercises its torch-backed code paths: bitmasks are allocated as numpy
@@ -8,12 +8,11 @@ mask. The torch dep is load-bearing only at *import time* — module-level code
 in ``xgrammar.matcher``, ``xgrammar.testing``, ``xgrammar.contrib.hf`` and
 ``tvm_ffi.core`` does ``import torch`` plus a handful of attribute lookups.
 
-Real torch is ~500 MB unpacked on macOS arm64 — too heavy to ship in the DMG.
 This stub provides just enough of the torch surface for those modules to
 finish loading. Code paths that would actually call into torch raise
 ``RuntimeError`` from the helpers below; oMLX never reaches them.
 
-When a real torch is installed (pip / Homebrew flow) the stub is a no-op:
+When a real torch is installed, the stub is a no-op:
 ``install()`` checks ``importlib.util.find_spec('torch')`` first.
 """
 
@@ -31,9 +30,8 @@ import types
 logger = logging.getLogger(__name__)
 
 # xgrammar / tvm-ffi versions this stub is known to cover.
-# This module is the *single source of truth* — packaging/build.py imports
-# these constants to keep the DMG install pin in sync with the stub. Update
-# both tuples here when bumping; the build script auto-tracks.
+# Update these tuples when bumping the optional xgrammar and tvm-ffi versions.
+# The stub checks the installed versions before registering torch modules.
 #
 # Reachable-but-stubbed torch surface to be aware of when upgrading:
 #   - ``torch.full``: ``xgrammar.allocate_token_bitmask`` calls it. oMLX
@@ -223,9 +221,6 @@ def _build_modules() -> dict[str, types.ModuleType]:
         setattr(torch, alias, _StubTensor)
     torch.dtype = _StubDtype
     torch.__version__ = "0.0.0+omlx-stub"
-    # Pin the stub as the source of truth for the xgrammar version it
-    # targets; packaging/build.py imports this constant to stay in sync.
-    # (Module-level constant lives at the top of this file.)
     for canonical, aliases in _DTYPE_ALIASES:
         dt = _StubDtype(canonical)
         setattr(torch, canonical, dt)

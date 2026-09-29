@@ -12,7 +12,6 @@ from .install import (
     get_cli_command_prefix,
     get_cli_prefix,
     get_install_method,
-    is_app_bundle,
     is_homebrew,
 )
 from .hardware import (
@@ -55,6 +54,5 @@ __all__ = [
     "get_cli_command_prefix",
     "get_cli_prefix",
     "get_install_method",
-    "is_app_bundle",
     "is_homebrew",
 ]

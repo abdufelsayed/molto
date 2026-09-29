@@ -1851,15 +1851,7 @@ class VLMBatchedEngine(BaseEngine):
             from ..utils.install import get_install_method
 
             method = get_install_method()
-            if method == "dmg":
-                logger.warning(
-                    "GrammarCompiler initialization failed for %s on the "
-                    "DMG build. The bundle ships xgrammar against a torch "
-                    "stub; this usually means the bundled xgrammar / tvm-"
-                    "ffi version drifted past what the stub covers.",
-                    self._model_name,
-                )
-            elif method == "homebrew":
+            if method == "homebrew":
                 logger.info(
                     "Structured output requires xgrammar. "
                     "Reinstall with: brew reinstall omlx --with-grammar"

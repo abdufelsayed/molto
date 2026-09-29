@@ -1,54 +1,40 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for logging configuration filters."""
+"""Polling logs must not hide failed authentication or state mutations."""
 
 import logging
 
-from omlx.logging_config import AdminStatsAccessFilter
+import pytest
+
+from omlx.logging_config import ManagementAccessFilter
 
 
-class TestAdminStatsAccessFilter:
-    """Tests for the admin polling access log filter."""
+@pytest.mark.parametrize("path", ["state", "stats", "stats?scope=alltime", "cache"])
+def test_suppresses_successful_management_polling(path: str) -> None:
+    record = logging.LogRecord(
+        "uvicorn.access", logging.INFO, "", 0,
+        '%s - "%s %s HTTP/%s" %d',
+        ("127.0.0.1", "GET", f"/management/v1/{path}", "1.1", 200), None,
+    )
+    assert ManagementAccessFilter().filter(record) is False
 
-    def setup_method(self):
-        self.filter = AdminStatsAccessFilter()
 
-    def _make_record(self, msg: str) -> logging.LogRecord:
-        return logging.LogRecord(
-            name="uvicorn.access",
-            level=logging.INFO,
-            pathname="",
-            lineno=0,
-            msg=msg,
-            args=(),
-            exc_info=None,
-        )
+@pytest.mark.parametrize("method,path,status", [
+    ("GET", "/management/v1/stats", 401),
+    ("GET", "/management/v1/stats", 500),
+    ("POST", "/management/v1/cache/hot/clear", 200),
+    ("GET", "/v1/models", 200),
+    ("GET", "/health", 200),
+    ("POST", "/v1/chat/completions", 200),
+])
+def test_preserves_failures_mutations_and_inference(method: str, path: str, status: int) -> None:
+    record = logging.LogRecord(
+        "uvicorn.access", logging.INFO, "", 0,
+        '%s - "%s %s HTTP/%s" %d',
+        ("127.0.0.1", method, path, "1.1", status), None,
+    )
+    assert ManagementAccessFilter().filter(record) is True
 
-    def test_suppresses_admin_stats(self):
-        record = self._make_record('127.0.0.1 - "GET /admin/api/stats HTTP/1.1" 200')
-        assert self.filter.filter(record) is False
 
-    def test_suppresses_admin_stats_with_params(self):
-        record = self._make_record(
-            '127.0.0.1 - "GET /admin/api/stats?scope=alltime HTTP/1.1" 200'
-        )
-        assert self.filter.filter(record) is False
-
-    def test_suppresses_admin_login(self):
-        record = self._make_record(
-            '127.0.0.1 - "POST /admin/api/login HTTP/1.1" 200'
-        )
-        assert self.filter.filter(record) is False
-
-    def test_allows_other_requests(self):
-        record = self._make_record('127.0.0.1 - "GET /v1/models HTTP/1.1" 200')
-        assert self.filter.filter(record) is True
-
-    def test_allows_health_check(self):
-        record = self._make_record('127.0.0.1 - "GET /health HTTP/1.1" 200')
-        assert self.filter.filter(record) is True
-
-    def test_allows_chat_completions(self):
-        record = self._make_record(
-            '127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200'
-        )
-        assert self.filter.filter(record) is True
+def test_preserves_unrecognized_log_format() -> None:
+    record = logging.LogRecord("uvicorn.access", logging.INFO, "", 0, "message", (), None)
+    assert ManagementAccessFilter().filter(record) is True

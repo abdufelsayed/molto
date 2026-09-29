@@ -83,7 +83,7 @@ class TestCLIHelp:
         assert "model-dir" in stdout_lower
 
     def test_lifecycle_commands_in_main_help(self):
-        """Test start/stop/restart lifecycle commands are exposed."""
+        """Homebrew service commands remain available."""
         result = subprocess.run(
             [sys.executable, "-m", "omlx.cli", "--help"],
             capture_output=True,
@@ -95,59 +95,63 @@ class TestCLIHelp:
         assert "start" in stdout_lower
         assert "stop" in stdout_lower
         assert "restart" in stdout_lower
+        assert "diagnose" not in stdout_lower
+
+    def test_homebrew_start_help_has_no_app_wait_flags(self):
+        result = subprocess.run(
+            [sys.executable, "-m", "omlx.cli", "start", "--help"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        assert result.returncode == 0
+        assert "Homebrew service" in result.stdout
+        assert "--timeout" not in result.stdout
+        assert "--no-wait" not in result.stdout
 
 
 class TestLifecycleCommand:
-    """Tests for managed background server lifecycle commands."""
+    """Tests for Homebrew service commands and foreground guidance."""
 
     @staticmethod
     def _args(command, **overrides):
-        values = {"command": command, "timeout": 1.0, "no_wait": False}
+        values = {"command": command}
         values.update(overrides)
         return SimpleNamespace(**values)
 
-    def test_app_bundle_stop_without_running_app_is_success(self, monkeypatch, capsys):
-        """`omlx stop` must not launch the macOS app just to stop it."""
-        from omlx import cli
-        import omlx.utils.install as install
-
-        monkeypatch.setattr(install, "is_app_bundle", lambda: True)
-        monkeypatch.setattr(install, "is_homebrew", lambda: False)
-        monkeypatch.setattr(cli, "_send_app_control", MagicMock(side_effect=OSError))
-        monkeypatch.setattr(cli, "_open_macos_app", MagicMock())
-
-        assert cli.lifecycle_command(self._args("stop")) == 0
-        assert capsys.readouterr().out.strip() == "oMLX stopped"
-        cli._open_macos_app.assert_not_called()
-
-    def test_app_bundle_start_sends_command_and_waits(self, monkeypatch):
-        """`omlx start` asks the app to start and waits for a running state."""
-        from omlx import cli
-        import omlx.utils.install as install
-
-        monkeypatch.setattr(install, "is_app_bundle", lambda: True)
-        monkeypatch.setattr(install, "is_homebrew", lambda: False)
-        send = MagicMock(return_value={"ok": True, "state": "starting", "port": 8000})
-        wait = MagicMock(return_value={"ok": True, "state": "running", "port": 8000})
-        monkeypatch.setattr(cli, "_send_app_control_with_launch", send)
-        monkeypatch.setattr(cli, "_wait_app_control_state", wait)
-
-        assert cli.lifecycle_command(self._args("start")) == 0
-        send.assert_called_once_with("start", timeout=1.0)
-        wait.assert_called_once_with({"running", "unresponsive"}, 1.0)
-
-    def test_homebrew_start_delegates_to_brew_services(self, monkeypatch):
+    @pytest.mark.parametrize("command", ["start", "stop", "restart"])
+    def test_homebrew_lifecycle_delegates_to_brew_services(
+        self, command, monkeypatch
+    ):
         """Homebrew installs use the Homebrew service supervisor."""
-        from omlx import cli
         import omlx.utils.install as install
+        from omlx import cli
 
-        monkeypatch.setattr(install, "is_app_bundle", lambda: False)
         monkeypatch.setattr(install, "is_homebrew", lambda: True)
         run_brew = MagicMock(return_value=0)
         monkeypatch.setattr(cli, "_run_brew_services", run_brew)
 
-        assert cli.lifecycle_command(self._args("start")) == 0
-        run_brew.assert_called_once_with("start")
+        assert cli.lifecycle_command(self._args(command)) == 0
+        run_brew.assert_called_once_with(command)
+
+    def test_pip_start_points_to_foreground_serve(self, monkeypatch, capsys):
+        import omlx.utils.install as install
+        from omlx import cli
+
+        monkeypatch.setattr(install, "is_homebrew", lambda: False)
+        assert cli.lifecycle_command(self._args("start")) == 1
+        assert "omlx serve" in capsys.readouterr().out
+
+    @pytest.mark.parametrize("command", ["stop", "restart"])
+    def test_pip_stop_restart_points_to_terminal(self, command, monkeypatch, capsys):
+        import omlx.utils.install as install
+        from omlx import cli
+
+        monkeypatch.setattr(install, "is_homebrew", lambda: False)
+        assert cli.lifecycle_command(self._args(command)) == 1
+        output = capsys.readouterr().out
+        assert "Homebrew services only" in output
+        assert "Ctrl+C" in output
 
 
 class TestCLIEntryPoint:

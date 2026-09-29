@@ -213,14 +213,6 @@ class BatchedEngine(BaseEngine):
                     "tool calls with normal API parsing. Install omlx[grammar] "
                     "to enable tool-name constraints."
                 )
-            elif method == "dmg":
-                logger.warning(
-                    "GrammarCompiler initialization failed for %s on the "
-                    "DMG build. The bundle ships xgrammar against a torch "
-                    "stub; this usually means the bundled xgrammar / tvm-"
-                    "ffi version drifted past what the stub covers.",
-                    self._model_name,
-                )
             elif method == "homebrew":
                 logger.info(
                     "Structured output requires xgrammar. "
