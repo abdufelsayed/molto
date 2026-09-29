@@ -4,6 +4,11 @@ Status: outer-Ring compatibility path implemented; hierarchical gateway planned
 
 Date: 2026-08-10
 
+Interface note: the bundled Cluster dashboard has been removed. The cluster
+backend and `/admin/api/cluster/*` routes remain available to authenticated
+clients. References to how a future dashboard should present cluster state are
+design guidance; operator actions below use the retained API.
+
 ## Decision
 
 oMLX should support one model sharded across a mixed pool of Apple Silicon and
@@ -244,19 +249,28 @@ network reachability, and output latency are best.
 
 ## Automatic discovery and trust
 
-### GUI-managed CUDA worker enrollment
+### API-managed CUDA worker enrollment
 
-The Cluster dashboard now has an **Add a CUDA worker** card. Enter the
-coordinator Studio's private LAN IPv4 address and select **Generate join
-command**. Paste that command into one Ubuntu/Debian CUDA box. Generate a fresh
-command for every additional box; each credential is single-use and expires
-after thirty minutes.
+Send the coordinator's private LAN IPv4 address to
+`POST /admin/api/cluster/join-keys` using the main bearer key. The response
+contains the join command. Paste that command into one Ubuntu/Debian CUDA box.
+Request a fresh command for every additional box; each credential is
+single-use and expires after thirty minutes. Poll
+`GET /admin/api/cluster/join-status` for enrollment state.
+
+```json
+{
+  "controller_ip": "10.0.0.5",
+  "controller_port": 8000,
+  "scheme": "http"
+}
+```
 
 The generated command is intentionally not `curl | sudo`. It downloads a
 standalone standard-library bootstrap to a temporary file, verifies its
-SHA-256 digest from the admin-generated command, and only then runs it through
-`sudo`. The command separately pins the SHA-256 of the exact oMLX worker source
-bundle and the coordinator's SSH public-key fingerprint. The bootstrap then:
+SHA-256 digest from the controller-generated command, and only then runs it
+through `sudo`. The command separately pins the SHA-256 of the exact oMLX worker
+source bundle and the coordinator's SSH public-key fingerprint. The bootstrap then:
 
 1. installs Python, Git, and OpenSSH prerequisites on Ubuntu/Debian;
 2. adds the pinned coordinator key to the invoking Linux user's
@@ -267,7 +281,8 @@ bundle and the coordinator's SSH public-key fingerprint. The bootstrap then:
    complete;
 5. reports the worker's Ed25519 host key and installs that exact identity in
    the coordinator's `known_hosts`; and
-6. adds the credential-free node record to the dashboard and active pool.
+6. adds the credential-free node record to the coordinator registry and active
+   pool.
 
 Join keys and post-claim sessions exist only in coordinator memory. Restarting
 oMLX invalidates them. Completed records contain addresses, runtime path, and
@@ -277,14 +292,13 @@ identity-mutated, source-mismatched, or host-fingerprint-mismatched requests
 fail closed.
 
 The coordinator web port must be reachable from the CUDA LAN. Configure the
-main API key first, or save it together with the oMLX **Server host** set to
-`0.0.0.0` in Settings. Then restart and enter the Studio's LAN address in the
-enrollment card. oMLX refuses a non-loopback bind until an API key is
-configured. Plain HTTP is appropriate only on a trusted private LAN; use the
-dashboard's HTTPS origin
-when the network is not trusted. The one-time secret is present in the pasted
-shell command and may therefore remain in that worker user's shell history
-until the short expiry passes.
+main API key first and set `server.host` to `0.0.0.0` in `settings.json`, or
+pass the equivalent CLI flags. Then restart and use the coordinator's LAN
+address when requesting the join command. oMLX refuses a non-loopback bind
+until an API key is configured. Plain HTTP is appropriate only on a trusted
+private LAN; terminate TLS in a reverse proxy on untrusted networks. The
+one-time secret is present in the pasted shell command and may therefore
+remain in that worker user's shell history until the short expiry passes.
 
 Every headless Linux worker should advertise the existing `_omlx._tcp` service
 through Avahi/mDNS and expose the same bounded capability endpoint as a Mac.
@@ -470,12 +484,11 @@ proves the link before each launch. See [RDMA stage links](rdma-links.md).
 
 ## Hardware feasibility probe
 
-The normal path is entirely in the Cluster dashboard. When two CUDA workers
-advertise ConnectX and NCCL, **Verify ConnectX** launches an isolated two-rank
-NCCL check through the authenticated admin API. **Start Cluster** runs that
-verification automatically when the pair is still unverified. The result is
-accepted only when both ranks answer and the measured large-payload rate clears
-the configured floor.
+When two CUDA workers advertise ConnectX and NCCL,
+`POST /admin/api/cluster/cuda-fabric/verify` launches an isolated two-rank NCCL
+check. Deployment activation also runs this verification when the pair is
+still unverified. The result is accepted only when both ranks answer and the
+measured large-payload rate clears the configured floor.
 
 [`benchmarks/heterogeneous_pool_probe.py`](../benchmarks/heterogeneous_pool_probe.py)
 remains a developer and recovery diagnostic. It has no oMLX server dependency;

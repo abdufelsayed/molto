@@ -15,7 +15,7 @@ layers, while rank zero remains the API coordinator.
 
 Experimental Mac + NVIDIA execution is available through the outer MLX Ring
 compatibility path. See the [heterogeneous model-pool guide](heterogeneous-cluster.md)
-for the logical Metal/CUDA memory pool, automatic placement, GUI worker
+for the logical Metal/CUDA memory pool, automatic placement, worker
 enrollment, hardware gates, and the still-pending hierarchical Ring/NCCL
 gateway.
 
@@ -23,8 +23,8 @@ The implementation currently provides:
 
 - read-only Thunderbolt, RDMA interface, IP, route, memory, and runtime probes;
 - untrusted Bonjour suggestions for Macs advertising SSH;
-- GUI-generated, ten-minute, single-use CUDA worker enrollment with pinned
-  bootstrap/source digests and pinned SSH identities;
+- API-generated, single-use CUDA worker enrollment with a thirty-minute
+  default lifetime, pinned bootstrap/source digests, and pinned SSH identities;
 - prompt-free SSH trust-on-first-use: new peer aliases are recorded in the
   user's `known_hosts`, while changed keys are still refused;
 - exact oMLX, MLX, MLX-LM, cluster-protocol, remote model-path, and bounded
@@ -98,17 +98,22 @@ On every Mac:
 5. For JACCL, configure Thunderbolt RDMA outside oMLX and confirm `rdma_ctl
    status` and `ibv_devices` report the link.
 
-Rank zero is the Mac whose dashboard activates the deployment. It owns the
+Rank zero is the Mac whose coordinator API activates the deployment. It owns the
 late pipeline layers and the private inference coordinator. For a 256 GiB Mac
 paired with a 128 GiB Mac, rank zero should normally be the larger machine.
 
 For an Ubuntu/Debian CUDA worker, no oMLX desktop installation is required.
-Use **Cluster > Add a CUDA worker** on the coordinator and paste its generated
-command into the Linux account the worker should use. The installer creates a
-minimal environment at `/opt/omlx-cluster-worker/venv`, verifies it, and adds
-the worker to the pool. Use one newly generated command per physical box.
+Request a join command from `POST /admin/api/cluster/join-keys` on the
+coordinator and paste it into the Linux account the worker should use. The
+installer creates a minimal environment at `/opt/omlx-cluster-worker/venv`,
+verifies it, and adds the worker to the pool. Use one newly generated command
+per physical box.
 
-## Use the GUI
+## Historical GUI workflow
+
+The following describes the removed bundled dashboard and is retained only to
+explain the pairing protocol. It is not an operational setup procedure for the
+current backend. The equivalent client must call the retained cluster routes.
 
 Start this source build on both Macs. In **Settings > Advanced**, enable
 **Distributed Inference**, save, and restart oMLX. The **Cluster** tab, cluster
@@ -267,9 +272,9 @@ Only safetensors headers are read. Fixed weights such as embeddings and the
 language-model head are conservatively accounted on every rank. The plan
 contains a SHA-256 digest checked by every worker before loading.
 
-## Admin API
+## Cluster API
 
-All cluster endpoints use the existing oMLX admin authentication:
+All cluster endpoints use the main oMLX bearer key:
 
 ```text
 GET    /admin/api/cluster/status
@@ -293,11 +298,11 @@ assignments, and the plan hash. They never contain passwords, private keys, or
 SSH options. The registry is written atomically with mode `0600`.
 
 The bootstrap transport endpoints live under `/cluster/join`. They do not use
-the browser admin cookie: `/claim` consumes the one-time bearer key, while
+the main API bearer key: `/claim` consumes the one-time join key, while
 `/source` and `/complete` require the resulting short-lived session. The
 bootstrap program itself is public only while Distributed Inference is enabled
 and is sent with no-store headers; its exact digest is embedded in the
-authenticated admin command before it is executed.
+authenticated join command before it is executed.
 
 ## Current compatibility
 

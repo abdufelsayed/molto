@@ -29,8 +29,9 @@ queue pair behind.
   to that user).
 - `libmcdma-rpc` on both hosts. oMLX looks in `/usr/local/lib` and `/usr/lib`,
   or at the path in `OMLX_MCDMA_RPC_LIBRARY`.
-- The worker enrolled in the Cluster dashboard. The daemon's peer host must
-  match exactly one enrolled worker by SSH target, address or hostname.
+- The worker enrolled in the coordinator registry through the retained cluster
+  API. The daemon's peer host must match exactly one enrolled worker by SSH
+  target, address or hostname.
 
 The daemon must speak mailbox protocol 1: its `STATUS` reply carries `host=`,
 `device=`, `req_mib=`, `rep_mib=` and `since=` for every peer. A link whose

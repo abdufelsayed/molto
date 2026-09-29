@@ -60,8 +60,8 @@ On NAX GPUs (the M5 family) the hybrid GPU suffix runs on dedicated NAX
 qmm kernels (group sizes 64 and 128), which resolves the prefill regression
 that early field testing saw when the suffix competed with tensor-unit
 prefill. The optimal ANE/GPU balance sits well below the classic ~50%
-optimum there, so use the Tune ANE Split utility in the model settings to
-measure the split for the specific machine before enabling. If the NAX
+optimum there, so benchmark the split for the specific machine before enabling
+and set the measured fractions in the model settings. If the NAX
 metallib is missing at runtime, the suffix quietly falls back to the
 classic Metal kernels, and `OMLX_QWEN35_QMM_NAX=0` forces that fallback.
 `OMLX_QWEN35_ANE_PREFILL=0` keeps the whole feature off everywhere
@@ -123,8 +123,12 @@ prioritizes MLPs within its 120-program budget and logs when GDN layers are
 dropped instead of leaving them silently on the GPU, and benchmark traces
 report the compiled MLP and GDN counts alongside the configured ones.
 
-The management API exposes these controls for detected Qwen3.5/3.6/3.8 models.
-Changing them reloads a resident model when the updated settings are applied.
+The management API exposes the enable flag, sequence length, main ANE fraction,
+shared fraction, CPU enable flag, and GDN enable flag for detected
+Qwen3.5/3.6/3.8 models. Changing those HTTP fields reloads a resident model
+when the updated settings are applied. The other experimental fields remain
+persisted model settings rather than part of the current HTTP contract; manual
+edits require a server restart and model reload.
 Defaults use the measured 2,048-token, 53% MLP / 50% GDN ceiling, dual-ANE,
 64/48-layer configuration above; the feature itself stays off until explicitly
 enabled. The runtime reports when it caps that requested GDN fraction at the

@@ -58,7 +58,7 @@ DFlashEngine is a `BaseEngine` implementation that:
 | `omlx/patches/dflash_mimo_v2.py` | MiMo V2 target adapter, trained-mask loader, draft attention, and mixed-cache rollback |
 | `omlx/engine/__init__.py` | DFlashEngine export (required dependency) |
 | `omlx/engine_pool.py` | DFlash routing: checks `dflash_enabled` before engine type switch |
-| `omlx/model_settings.py` | Per-model settings: `dflash_enabled`, `dflash_draft_model`, `dflash_draft_quant_bits` |
+| `omlx/model_settings.py` | Per-model settings, including DFlash enablement, draft selection, quantization, caches, and verification |
 | `omlx/services/management.py` | Settings validation, persistence, and reload handling |
 | `omlx/api/management_routes.py` | Typed management HTTP contract |
 | `tests/test_dflash_engine.py` | DFlash engine and routing tests |
@@ -133,7 +133,17 @@ Note: the `-DFlash` suffix is specific to DFlash draft checkpoints. Gemma4 also 
 | `dflash_in_memory_cache` | bool | Enable DFlash L1 prefix snapshots |
 | `dflash_ssd_cache` | bool | Enable DFlash L2 snapshot spill |
 
-Configured via web admin UI → Model Settings → Experimental Features → DFlash.
+The public management API exposes `dflash_enabled` and
+`dflash_draft_model` through
+`PATCH /management/v1/models/{model_id}/settings`:
+
+```json
+{
+  "dflash_enabled": true,
+  "dflash_draft_model": "org/model-DFlash"
+}
+```
+
 MiMo V2.6 repositories can bundle their trained drafter under `dflash/`. When
 that directory contains the drafter weights and `mask_embedding.pt`, enabling
 DFlash finds it automatically; an explicitly configured draft path still wins.
@@ -280,15 +290,12 @@ DFlash check runs **before** engine type routing in `_load_engine()`. If `dflash
 | `DFLASH_DRAFT_WINDOW` | 1024 | Draft KV cache window size |
 | `DFLASH_QUANTIZE_DRAFT` | false | Enable draft int4 quantization |
 
-### Admin UI settings
+### Management settings
 
-Located in Model Settings → Advanced Settings → Experimental Features → DFlash:
-- **Toggle**: enable/disable DFlash
-- **Draft Model**: dropdown of available models
-- **Draft Quantization**: Disabled (default)
-  - **Weight Bits**: 2-bit / 4-bit (default) / 8-bit
-  - **Activation Bits**: 16-bit (default) / 32-bit
-  - **Group Size**: 32 / 64 (default) / 128
+Use the management endpoint above for the supported public controls. Draft
+quantization, cache, and verification tuning remain persisted experimental
+fields in `model_settings.json`; they are not part of the current management
+API contract.
 
 ### Logging
 
@@ -315,11 +322,15 @@ DFlash context fallback: 5120 >= 4096, evicting dflash models and switching to v
 
 ### Manual testing
 
-1. Enable DFlash in admin UI for a supported model
-2. Set the matching draft model path (for example, `poolside/Laguna-S-2.1-DFlash-NVFP4` for an NVFP4 Laguna S target)
-3. Reload model
-4. Send short prompt → verify DFlash logs (acceptance ratio, tok/s)
-5. Configure `dflash_max_ctx`, then send a prompt at or above it → verify fallback logs
+1. PATCH the target model settings with `dflash_enabled: true` and the matching
+   `dflash_draft_model` (for example,
+   `poolside/Laguna-S-2.1-DFlash-NVFP4` for an NVFP4 Laguna S target).
+2. Check the response's reload fields; load the model again if reload was
+   deferred while requests were active.
+3. Send a short prompt and verify DFlash logs (acceptance ratio and tok/s).
+4. Set the persisted `dflash_max_ctx`, refresh settings and reload the model (or
+   restart the server), then send a prompt at or above it and verify the
+   fallback logs.
 
 ---
 
