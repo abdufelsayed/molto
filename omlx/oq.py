@@ -3008,20 +3008,7 @@ class _DiscoveredPlan:
         meta = self._lazy._index.get(src_key)
         if meta is None:
             raise KeyError(f"source tensor {src_key!r} not in lazy index")
-        sf_path, data_offset, start, end, shape, dtype = meta
-        if len(shape) == 0:
-            import numpy as _np
-
-            with open(sf_path, "rb") as f:
-                f.seek(data_offset + start)
-                raw = f.read(end - start)
-            lt_tmp = _LazyTensor(sf_path, data_offset, start, end, (1,), dtype)
-            np_view = _np.frombuffer(raw, dtype=lt_tmp._np_view_dtype())
-            arr = mx.array(np_view).view(lt_tmp._mlx_dtype()).reshape(())
-            mx.eval(arr)
-            return arr
-        lt = _LazyTensor(sf_path, data_offset, start, end, shape, dtype)
-        arr = lt[:]
+        arr = self._lazy._load_raw(src_key)
         mx.eval(arr)
         return arr
 
@@ -4895,14 +4882,8 @@ class _LazyTensorIndex:
         sk = self._fp8_pairs[wk]
         w_meta = self._index[wk]
         s_meta = self._index[sk]
-        w_lt = _LazyTensor(
-            w_meta[0], w_meta[1], w_meta[2], w_meta[3], w_meta[4], w_meta[5]
-        )
-        s_lt = _LazyTensor(
-            s_meta[0], s_meta[1], s_meta[2], s_meta[3], s_meta[4], s_meta[5]
-        )
-        weight_raw = w_lt[:]
-        scale_raw = s_lt[:]
+        weight_raw = self._load_raw(wk)
+        scale_raw = self._load_raw(sk)
         mx.eval(weight_raw, scale_raw)
         info = self._src_quant.get(wk)
         if info is not None and info["kind"] == "mxfp4":
@@ -5016,6 +4997,15 @@ class _LazyTensorIndex:
 
     def _load_raw(self, key):
         sf_path, data_offset, start, end, shape, dtype = self._index[key]
+        if not shape:
+            with open(sf_path, "rb") as f:
+                f.seek(data_offset + start)
+                raw = f.read(end - start)
+            lt = _LazyTensor(sf_path, data_offset, start, end, (1,), dtype)
+            np_view = _np.frombuffer(raw, dtype=lt._np_view_dtype())
+            arr = mx.array(np_view).view(lt._mlx_dtype()).reshape(())
+            mx.eval(arr)
+            return arr
         lt = _LazyTensor(sf_path, data_offset, start, end, shape, dtype)
         return lt[:]
 
@@ -5086,9 +5076,8 @@ class _LazyTensorIndex:
             self._index.pop(key, None)
             self._index.pop(sk, None)
             return result
-        sf_path, data_offset, start, end, shape, dtype = self._index.pop(key)
-        lt = _LazyTensor(sf_path, data_offset, start, end, shape, dtype)
-        arr = lt[:]
+        arr = self._load_raw(key)
+        self._index.pop(key)
         mx.eval(arr)
         return arr
 
