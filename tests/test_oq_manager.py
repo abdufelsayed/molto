@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from omlx.admin.oq_manager import OQManager, QuantStatus, QuantTask
+from omlx.services.oq_manager import OQManager, QuantStatus, QuantTask
 
 
 @pytest.fixture

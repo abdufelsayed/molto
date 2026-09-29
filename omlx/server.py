@@ -58,7 +58,7 @@ from fastapi import Request as FastAPIRequest
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from omlx._version import __version__
@@ -183,6 +183,7 @@ from .api.utils import (
     cache_reasoning_output,
     uses_native_reasoning_content,
 )
+from .auth import AuthContext, fingerprint_key, require_management_key, verify_any_api_key
 from .engine import BaseEngine, VLMBatchedEngine
 from .engine.distributed import DistributedInferenceError
 from .engine.embedding import EmbeddingEngine
@@ -203,6 +204,7 @@ from .exceptions import (
 )
 from .model_settings import forced_ct_keys, merge_chat_template_request_kwargs
 from .server_metrics import get_server_metrics, reset_server_metrics
+from .services.management import ManagementContext, ManagementError
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -270,12 +272,9 @@ class ServerState:
     bind_host: str | None = None
     settings_manager: Optional[object] = None  # ModelSettingsManager
     global_settings: Optional[object] = None  # GlobalSettings
-    hf_downloader: Optional[object] = None  # HFDownloader
-    ms_downloader: Optional[object] = None  # MSDownloader
     process_memory_enforcer: Optional[object] = None  # ProcessMemoryEnforcer
     responses_store: ResponseStore = field(default_factory=ResponseStore)
-    oq_manager: Optional[object] = None  # OQManager
-    hf_uploader: Optional[object] = None  # HFUploader
+    oq_manager: Optional[object] = None  # No quantizer is started by the server.
     # False while the startup pinned-model preload is still running.
     # /health returns 503 with status "loading" until it flips to True so
     # port watchdogs see liveness instead of a closed port (#2184).
@@ -292,6 +291,24 @@ _server_state: ServerState = ServerState()
 def get_server_state() -> ServerState:
     """Get the global server state."""
     return _server_state
+
+
+def _apply_global_sampling() -> None:
+    """Apply persisted sampling defaults to the active request state."""
+    settings = _server_state.global_settings
+    if settings is None:
+        _server_state.sampling = SamplingDefaults()
+        return
+    sampling = settings.sampling
+    _server_state.sampling = SamplingDefaults(
+        max_context_window=sampling.max_context_window,
+        max_context_window_policy=sampling.max_context_window_policy,
+        max_tokens=sampling.max_tokens,
+        temperature=sampling.temperature,
+        top_p=sampling.top_p,
+        top_k=sampling.top_k,
+        repetition_penalty=sampling.repetition_penalty,
+    )
 
 
 def get_engine_pool() -> EnginePool:
@@ -329,7 +346,6 @@ async def verify_api_key(
     Checks the provided Bearer token against the main API key and all sub keys.
     Also accepts the x-api-key header as a fallback (Anthropic SDK compatibility).
     """
-    from .admin.auth import fingerprint_key, verify_any_api_key
     from .utils.network import is_loopback_bind
 
     global_settings = _server_state.global_settings
@@ -700,12 +716,6 @@ async def lifespan(app: FastAPI):
         if _server_state.engine_pool is not None:
             _server_state.engine_pool._process_memory_enforcer = None
         logger.info("Process memory enforcer stopped")
-    if _server_state.hf_downloader is not None:
-        await _server_state.hf_downloader.shutdown()
-        logger.info("HF Downloader stopped")
-    if _server_state.ms_downloader is not None:
-        await _server_state.ms_downloader.shutdown()
-        logger.info("MS Downloader stopped")
     if _server_state.mcp_manager is not None:
         await _server_state.mcp_manager.stop()
         logger.info("MCP manager stopped")
@@ -760,18 +770,39 @@ try:
 except ImportError:
     pass
 
-# Include admin routes
-from .admin.auth import _RedirectToLogin, require_admin
-from .admin.routes import router as admin_router
-from .admin.routes import set_admin_getters
+def _management_context() -> ManagementContext:
+    pool = _server_state.engine_pool
+    manager = _server_state.settings_manager
+    if pool is None or manager is None:
+        raise HTTPException(status_code=503, detail="Server not initialized")
+    return ManagementContext(
+        engine_pool=pool,
+        settings_manager=manager,
+        global_settings=_server_state.global_settings,
+        get_default_model=lambda: _server_state.default_model,
+        set_default_model=lambda model_id: setattr(_server_state, "default_model", model_id),
+        apply_sampling=_apply_global_sampling,
+    )
 
-set_admin_getters(
-    get_server_state,
-    get_engine_pool,
-    lambda: _server_state.settings_manager,
-    lambda: _server_state.global_settings,
-)
-app.include_router(admin_router)
+
+def _management_auth_context() -> AuthContext:
+    settings = _server_state.global_settings
+    return AuthContext(
+        main_key=_server_state.api_key,
+        sub_keys=settings.auth.sub_keys if settings is not None else [],
+        bind_host=_server_state.bind_host,
+        skip_api_key_verification=(
+            settings.auth.skip_api_key_verification if settings is not None else False
+        ),
+    )
+
+
+app.state.management_context_provider = _management_context
+app.state.management_auth_provider = _management_auth_context
+
+from .api.management_routes import router as management_router
+
+app.include_router(management_router)
 
 _cluster_routes_registered = False
 
@@ -790,7 +821,7 @@ def _register_cluster_routes() -> None:
     app.include_router(
         cluster_router,
         dependencies=[
-            Depends(require_admin),
+            Depends(require_management_key),
             Depends(require_distributed_inference_enabled),
         ],
     )
@@ -803,7 +834,7 @@ def _register_cluster_routes() -> None:
     app.include_router(
         cluster_manifest_router,
         dependencies=[
-            Depends(require_admin),
+            Depends(require_management_key),
             Depends(require_distributed_inference_enabled),
         ],
     )
@@ -836,17 +867,23 @@ def _register_cluster_routes() -> None:
     app.include_router(
         pair_admin_router,
         dependencies=[
-            Depends(require_admin),
+            Depends(require_management_key),
             Depends(require_distributed_inference_enabled),
         ],
     )
     _cluster_routes_registered = True
 
 
-@app.exception_handler(_RedirectToLogin)
-async def redirect_to_login_handler(request, exc):
-    """Redirect unauthenticated browser requests to the admin login page."""
-    return RedirectResponse(url="/admin", status_code=302)
+@app.exception_handler(ManagementError)
+async def management_error_handler(request: FastAPIRequest, exc: ManagementError):
+    status = {
+        "not_found": 404,
+        "invalid_configuration": 400,
+        "busy": 409,
+        "conflict": 409,
+        "unavailable": 503,
+    }.get(exc.code, 500)
+    return JSONResponse(status_code=status, content={"detail": exc.detail})
 
 
 def _status_to_error_type(status_code: int) -> str:
@@ -895,28 +932,24 @@ def _openai_error_body(message, status_code: int, param=None, code=None) -> dict
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: FastAPIRequest, exc: HTTPException):
     """Log all HTTP errors (4xx/5xx) before returning the response."""
-    # Admin session expiry from dashboard polling — not worth logging.
-    # But keep /admin/api/login 401s visible (possible brute force attempts).
-    _is_admin_session_expiry = (
-        request.url.path.startswith("/admin/")
-        and request.url.path != "/admin/api/login"
-        and exc.status_code == 401
+    logger.warning(
+        "%s %s → %d: %s",
+        request.method,
+        request.url.path,
+        exc.status_code,
+        exc.detail,
     )
-    if not _is_admin_session_expiry:
-        logger.warning(
-            "%s %s → %d: %s",
-            request.method,
-            request.url.path,
-            exc.status_code,
-            exc.detail,
-        )
     if _is_api_route(request):
         content = _openai_error_body(
             exc.detail, exc.status_code, code=getattr(exc, "code", None)
         )
     else:
         content = {"detail": exc.detail}
-    return JSONResponse(status_code=exc.status_code, content=content)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=content,
+        headers=exc.headers,
+    )
 
 
 @app.exception_handler(RequestValidationError)
@@ -2123,7 +2156,7 @@ def init_server(
         global_settings: GlobalSettings instance (optional)
 
     Note:
-        - Pinned models and default model are managed via admin page (model_settings.json)
+        - Pinned models and default model are managed in model_settings.json
         - Sampling parameters (max_tokens, temperature, etc.) are per-model settings
 
     Raises:
@@ -2174,25 +2207,6 @@ def init_server(
         )
     _server_state.responses_store = ResponseStore(state_dir=response_state_dir)
 
-    # Refresh i18n with loaded language setting
-    from .admin.routes import _refresh_i18n_globals
-
-    _refresh_i18n_globals()
-
-    # Initialize auth with persistent secret key
-    if global_settings:
-        if not global_settings.auth.secret_key:
-            import secrets as _secrets
-
-            global_settings.auth.secret_key = _secrets.token_hex(32)
-            global_settings.save()
-            logger.info("Generated and saved new auth secret key")
-        from .admin.auth import init_auth
-
-        init_auth(
-            global_settings.auth.secret_key, lambda: _server_state.global_settings
-        )
-
     # Configure CORS middleware from settings
     cors_origins = global_settings.server.cors_origins if global_settings else ["*"]
     app.add_middleware(
@@ -2210,30 +2224,15 @@ def init_server(
     )
     _server_state.settings_manager = ModelSettingsManager(base_path)
 
-    # Get pinned models from settings file only (managed via admin page)
+    # Get pinned models from persisted settings.
     pinned_models = _server_state.settings_manager.get_pinned_model_ids()
 
-    # Get default model from settings file only (managed via admin page)
+    # Get default model from persisted settings.
     settings_default = _server_state.settings_manager.get_default_model_id()
 
     # Load default sampling values from global settings
     # Per-model settings will override these via get_sampling_params()
-    if global_settings and global_settings.sampling:
-        _server_state.sampling = SamplingDefaults(
-            max_context_window=global_settings.sampling.max_context_window,
-            max_context_window_policy=getattr(
-                global_settings.sampling, "max_context_window_policy", None
-            ),
-            max_tokens=global_settings.sampling.max_tokens,
-            temperature=global_settings.sampling.temperature,
-            top_p=global_settings.sampling.top_p,
-            top_k=global_settings.sampling.top_k,
-            repetition_penalty=getattr(
-                global_settings.sampling, "repetition_penalty", 1.0
-            ),
-        )
-    else:
-        _server_state.sampling = SamplingDefaults()
+    _apply_global_sampling()
 
     # Normalize model_dirs to list
     if isinstance(model_dirs, str):
@@ -2355,67 +2354,6 @@ def init_server(
     logger.info(f"Default max tokens: {_server_state.sampling.max_tokens}")
     if api_key:
         logger.info("API key authentication: enabled")
-
-    # Initialize HuggingFace downloader
-    from .admin.hf_downloader import HFDownloader
-    from .admin.routes import set_hf_downloader
-
-    async def _refresh_models_after_download():
-        """Re-discover models when a HuggingFace download completes."""
-        if _server_state.engine_pool and _server_state.settings_manager:
-            pinned = _server_state.settings_manager.get_pinned_model_ids()
-            _server_state.engine_pool.discover_models(dir_list, pinned)
-            _server_state.engine_pool.apply_settings_overrides(
-                _server_state.settings_manager
-            )
-            logger.info("Model pool refreshed after download completion")
-
-    _server_state.hf_downloader = HFDownloader(
-        model_dir=dir_list[0],  # Downloads go to primary directory
-        on_complete=_refresh_models_after_download,
-    )
-    set_hf_downloader(_server_state.hf_downloader)
-    logger.info("HF Downloader initialized")
-
-    # Initialize ModelScope downloader (optional - requires modelscope SDK)
-    try:
-        from .admin.ms_downloader import MS_SDK_AVAILABLE, MSDownloader
-
-        if MS_SDK_AVAILABLE:
-            from .admin.routes import set_ms_downloader
-
-            _server_state.ms_downloader = MSDownloader(
-                model_dir=dir_list[0],
-                on_complete=_refresh_models_after_download,
-            )
-            set_ms_downloader(_server_state.ms_downloader)
-            logger.info("ModelScope Downloader initialized")
-        else:
-            logger.info("ModelScope SDK not installed, MS downloader disabled")
-    except ImportError:
-        logger.info("ModelScope support not available")
-
-    # Initialize oQ Quantizer
-    from .admin.oq_manager import OQManager
-    from .admin.routes import set_oq_manager
-
-    _server_state.oq_manager = OQManager(
-        model_dirs=[str(d) for d in dir_list],
-        on_complete=_refresh_models_after_download,
-    )
-    set_oq_manager(_server_state.oq_manager)
-    logger.info("oQ Quantizer initialized")
-
-    # Initialize HuggingFace uploader
-    from .admin.hf_uploader import HFUploader
-    from .admin.routes import set_hf_uploader
-
-    _server_state.hf_uploader = HFUploader(
-        model_dirs=[str(d) for d in dir_list],
-    )
-    set_hf_uploader(_server_state.hf_uploader)
-    logger.info("HF Uploader initialized")
-
 
 _KEEPALIVE_SENTINEL = object()
 
@@ -3420,7 +3358,7 @@ async def list_models_status(_: bool = Depends(verify_api_key)):
 
 
 @app.post("/v1/models/{model_id}/unload")
-async def unload_model(model_id: str, _: bool = Depends(verify_api_key)):
+async def unload_model(model_id: str, _: bool = Depends(require_management_key)):
     """Manually unload a model from memory."""
     if _server_state.engine_pool is None:
         raise HTTPException(status_code=503, detail="Server not initialized")
@@ -4814,15 +4752,6 @@ def _compile_grammar_for_request(
                 detail = (
                     "Structured output requires xgrammar. "
                     "Reinstall with: brew reinstall omlx --with-grammar"
-                )
-            elif method == "dmg":
-                # DMG bundles xgrammar with a torch stub; reaching this
-                # branch means the bundled load failed (e.g. native binding
-                # incompatibility). Surface it instead of pointing users to
-                # a different install method.
-                detail = (
-                    "Structured output is unavailable: xgrammar failed to "
-                    "load in this build. Please report this issue."
                 )
             else:
                 detail = (
@@ -8318,13 +8247,8 @@ model and sampling defaults are managed via the admin page.
     if args.mcp_config:
         os.environ["OMLX_MCP_CONFIG"] = args.mcp_config
 
-    # Load settings and hand them to init_server the way the omlx CLI
-    # does. The admin page resolves settings through
-    # _server_state.global_settings, so booting without them leaves
-    # _get_global_settings() returning None and the initial API-key
-    # setup form crashing with a 500 (#2282). Passing api_key keeps the
-    # two entry points enforcing the same auth. Scheduler/cache wiring
-    # stays CLI-only on purpose; this entry point remains minimal.
+    # Pass loaded settings and the API key to the same server initializer
+    # used by the CLI. This entry point keeps scheduler/cache wiring minimal.
     from .settings import init_settings
 
     settings = init_settings()
@@ -8363,14 +8287,8 @@ model and sampling defaults are managed via the admin page.
 
 
 if __name__ == "__main__":
-    # ``python -m omlx.server`` executes this file as the ``__main__``
-    # module, but the admin routes import it back as ``omlx.server`` at
-    # request time. Without this alias that import executes the module a
-    # SECOND time, and the fresh copy's module-level set_admin_getters()
-    # call repoints the admin state getters at a server state that
-    # init_server() never touched, so the settings main() wires in are
-    # invisible to /admin (#2282). Alias the canonical name to this
-    # instance so every later import resolves to the running server.
+    # Other inference modules resolve omlx.server lazily. Reuse this module
+    # when invoked with -m so they observe the active ServerState.
     import sys
 
     sys.modules.setdefault("omlx.server", sys.modules[__name__])

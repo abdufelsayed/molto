@@ -879,6 +879,7 @@ class ModelSettingsManager:
             settings: The settings to apply.
         """
         with self._lock:
+            previous = copy.deepcopy(self._settings)
             # Handle exclusive default constraint
             if settings.is_default:
                 for mid, s in self._settings.items():
@@ -893,7 +894,11 @@ class ModelSettingsManager:
             self._settings[model_id] = ModelSettings.from_dict(settings.to_dict())
             logger.info(f"Updated settings for model '{model_id}'")
 
-            self._save()
+            try:
+                self._save()
+            except Exception:
+                self._settings = previous
+                raise
 
     def delete_settings(self, model_id: str) -> bool:
         """Remove all persisted state for a model (settings + profiles).

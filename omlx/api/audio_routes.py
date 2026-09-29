@@ -635,7 +635,7 @@ def _verify_ws_api_key(api_key: Optional[str]) -> bool:
     if not api_key:
         return False
 
-    from omlx.admin.auth import verify_any_api_key
+    from omlx.auth import verify_any_api_key
 
     sub_keys = gs.auth.sub_keys if gs is not None else []
     return verify_any_api_key(api_key, _server_state.api_key, sub_keys)

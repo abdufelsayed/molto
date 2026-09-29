@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from omlx.admin.hf_uploader import (
+from omlx.services.hf_uploader import (
     HFUploader,
     UploadStatus,
     UploadTask,

@@ -1,16 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for the engine-neutral web model control center."""
+"""Tests for model-control services."""
 
-import asyncio
 import json
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
-import omlx.server  # noqa: F401 - initialize admin route dependencies
-from omlx.admin import routes
-from omlx.admin.model_control import (
+from omlx.services.model_control import (
     ModelControl,
     ModelControlStore,
     artifact_characteristics,
@@ -24,8 +21,6 @@ from omlx.admin.model_control import (
     source_metadata,
     verify_model_files,
 )
-from omlx.engine_pool import EngineEntry, EnginePool
-from omlx.model_settings import ModelSettingsManager
 
 
 def _model(path: Path, **overrides):
@@ -62,29 +57,6 @@ def test_capabilities_cover_every_engine_model_type():
     }
     for model_type, endpoint in expected.items():
         assert endpoint in capabilities_for(model_type)["endpoints"]
-
-
-@pytest.mark.parametrize("name", [".", "..", "nested/model"])
-def test_mflux_conversion_output_stays_inside_model_root(name):
-    with pytest.raises(ValueError):
-        routes.ControlMFluxConvertRequest(source="/local/model", output_name=name)
-
-
-def test_mflux_conversion_does_not_accept_quantization():
-    with pytest.raises(ValueError):
-        routes.ControlMFluxConvertRequest(
-            source="/local/model",
-            output_name="converted",
-            quantize=4,
-        )
-
-
-def test_generic_conversion_derives_output_name_server_side():
-    with pytest.raises(ValueError):
-        routes.ControlConvertRequest(
-            source="/local/model",
-            output_name="user-entered-name",
-        )
 
 
 def test_control_store_persists_and_marks_abandoned_operation(tmp_path):
@@ -148,27 +120,6 @@ def test_artifact_characteristics_detect_mflux_quantization_metadata(tmp_path):
         "quantized": True,
         "quantization_bits": 4,
     }
-
-
-@pytest.mark.asyncio
-async def test_web_mflux_conversion_rejects_implicit_download_alias(tmp_path):
-    settings = MagicMock()
-    settings.base_path = tmp_path
-    settings.model.get_model_dirs.return_value = [tmp_path / "models"]
-    request = routes.ControlMFluxConvertRequest(
-        source="z-image-turbo",
-        output_name="z-image-turbo-mflux-8bit",
-    )
-
-    with (
-        patch("omlx.admin.routes._get_global_settings", return_value=settings),
-        patch("omlx.admin.routes._control_registry", new=AsyncMock(return_value=[])),
-        pytest.raises(routes.HTTPException) as exc_info,
-    ):
-        await routes.control_convert_mflux(request, is_admin=True)
-
-    assert exc_info.value.status_code == 400
-    assert "preparation catalog" in exc_info.value.detail
 
 
 def test_preparation_catalog_keeps_every_model_in_one_inventory(tmp_path):
@@ -238,7 +189,7 @@ def test_preparation_catalog_keeps_every_model_in_one_inventory(tmp_path):
         "is_vlm": False,
     }
 
-    with patch("omlx.admin.model_control.importlib.util.find_spec", return_value=object()):
+    with patch("omlx.services.model_control.importlib.util.find_spec", return_value=object()):
         catalog = build_preparation_catalog(
             records, [oq_text, oq_audio], [oq_text, oq_audio]
         )
@@ -270,35 +221,6 @@ def test_preparation_catalog_keeps_every_model_in_one_inventory(tmp_path):
     assert raw_audio["modality"] == "audio"
     assert raw_audio["conversion"]["available"] is False
     assert "No converter is registered" in raw_audio["conversion"]["reason"]
-
-
-@pytest.mark.parametrize(
-    ("adapter", "target"),
-    [
-        ("mlx-lm", "mlx_lm.convert.convert"),
-        ("mlx-vlm", "mlx_vlm.convert.convert"),
-        ("mlx-embeddings", "mlx_embeddings.convert.convert"),
-        ("mlx-audio", "mlx_audio.convert.convert"),
-    ],
-)
-def test_family_converter_preserves_precision_and_does_not_quantize(
-    tmp_path, adapter, target
-):
-    source = tmp_path / "source"
-    output = tmp_path / "output"
-    source.mkdir()
-
-    with patch(target) as convert:
-        result = routes._convert_local_model(adapter, source, output)
-
-    convert.assert_called_once_with(
-        hf_path=str(source),
-        mlx_path=str(output),
-        quantize=False,
-        dtype=None,
-    )
-    assert result["adapter"] == adapter
-    assert result["quantize"] is False
 
 
 def test_lineage_resolves_draft_by_path_and_repo(tmp_path):
@@ -357,7 +279,7 @@ def test_incomplete_model_stays_visible_with_operation_blocker(tmp_path):
     [artifact] = discover_unmanaged_artifacts([tmp_path], set())
     control = ModelControl(tmp_path / "state")
     record = build_registry_record(artifact, control.store)
-    with patch("omlx.admin.model_control.importlib.util.find_spec", return_value=object()):
+    with patch("omlx.services.model_control.importlib.util.find_spec", return_value=object()):
         [prepared] = build_preparation_catalog([record], [], [])
 
     assert record["kind"] == "artifact"
@@ -466,113 +388,3 @@ async def test_control_operation_records_success(tmp_path):
     assert saved["status"] == "succeeded"
     assert saved["result"] == {"ok": True}
     assert saved["progress"] == 100.0
-
-
-@pytest.mark.asyncio
-async def test_task_smoke_probe_validates_embedding_shape():
-    engine = MagicMock()
-    output = MagicMock(embeddings=[[0.1, 0.2, 0.3]])
-    engine.embed = MagicMock(return_value=asyncio.sleep(0, result=output))
-
-    result = await routes._run_control_smoke(engine, "embedding")
-
-    assert result["dimensions"] == 3
-    assert result["input_count"] == 1
-
-
-@pytest.mark.asyncio
-async def test_task_smoke_probe_rejects_invalid_image_bytes():
-    engine = MagicMock()
-    engine.generate_image = MagicMock(return_value=asyncio.sleep(0, result=b"bad"))
-
-    with pytest.raises(RuntimeError, match="invalid PNG"):
-        await routes._run_control_smoke(engine, "image_generation")
-
-
-@pytest.mark.asyncio
-async def test_policy_route_updates_persistent_settings_and_pool(tmp_path):
-    pool = EnginePool()
-    pool._entries["model"] = EngineEntry(
-        model_id="model",
-        model_path=str(tmp_path / "model"),
-        model_type="llm",
-        engine_type="batched",
-        estimated_size=1,
-    )
-    manager = ModelSettingsManager(tmp_path / "settings")
-    global_settings = MagicMock(base_path=tmp_path / "state")
-
-    with (
-        patch("omlx.admin.routes._get_engine_pool", return_value=pool),
-        patch("omlx.admin.routes._get_settings_manager", return_value=manager),
-        patch("omlx.admin.routes._get_global_settings", return_value=global_settings),
-        patch("omlx.admin.routes._model_control", None),
-    ):
-        result = await routes.control_set_policy(
-            "model",
-            routes.ControlPolicyRequest(mode="keep_warm", ttl_seconds=600),
-            is_admin=True,
-        )
-
-    assert result["policy"]["ttl_seconds"] == 600
-    assert manager.get_settings("model").ttl_seconds == 600
-    assert pool.get_entry("model").is_pinned is False
-
-
-@pytest.mark.asyncio
-async def test_storage_payload_caches_disk_scan_until_invalidated(tmp_path):
-    root = tmp_path / "models"
-    root.mkdir()
-    settings = MagicMock(base_path=tmp_path / "state")
-    settings.model.get_model_dirs.return_value = [root]
-    usage = {
-        "logical_bytes": 1,
-        "allocated_bytes": 1,
-        "physical_bytes": 1,
-        "file_count": 1,
-        "broken_links": [],
-    }
-
-    with (
-        patch("omlx.admin.routes._get_global_settings", return_value=settings),
-        patch("omlx.admin.routes._model_control", None),
-        patch("omlx.admin.routes.directory_usage", return_value=usage) as scan,
-    ):
-        first = await routes._control_storage_payload([])
-        second = await routes._control_storage_payload([])
-        routes._get_model_control().invalidate_storage_cache()
-        third = await routes._control_storage_payload([])
-
-    assert first == second == third
-    assert scan.call_count == 2
-
-
-def test_control_center_is_exposed_only_in_web_dashboard():
-    models_template = Path("omlx/admin/templates/dashboard/_models.html").read_text()
-    control_template = Path(
-        "omlx/admin/templates/dashboard/_model_control.html"
-    ).read_text()
-    dashboard_js = Path("omlx/admin/static/js/dashboard.js").read_text()
-
-    assert "dashboard/_model_control.html" in models_template
-    assert "Model library" in control_template
-    assert "Add model" in control_template
-    assert "Activity" in control_template
-    assert "setModelsTab('library')" in models_template
-    assert "setModelsTab('add')" in models_template
-    assert "setModelsTab('activity')" in models_template
-    assert "setModelsTab('manager')" not in models_template
-    assert "Model control center" not in control_template
-    assert '<select x-model="prepareSourcePath"' in control_template
-    assert '<option value="">Select a model…</option>' in control_template
-    assert '<select x-model="oqSelectedModelPath"' not in models_template
-    assert "Convert & Quantize" in control_template
-    assert "addModelMode === 'prepare'" in models_template
-    assert "controlMfluxQuantize" not in control_template
-    assert "controlMfluxQuantize" not in dashboard_js
-    assert "download automatically" not in dashboard_js
-    assert "prepareSourcePath: ''" in dashboard_js
-    assert "/admin/api/control/prepare-models" in dashboard_js
-    assert "/admin/api/control/convert" in dashboard_js
-    assert "loadControlCenter" in dashboard_js
-    assert "apps/omlx-mac" not in control_template

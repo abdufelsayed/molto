@@ -21,7 +21,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from .._version import __version__
-from ..admin.auth import require_admin
+from ..auth import require_management_key
 from .discovery import local_addr_dicts
 from .identity import get_node_identity
 from .registry import get_device_registry
@@ -108,7 +108,7 @@ async def cluster_node_id_probe(request: Request):
 
 
 @discovery_router.get("/discovery/health")
-async def cluster_discovery_health(is_admin: bool = Depends(require_admin)):
+async def cluster_discovery_health(is_admin: bool = Depends(require_management_key)):
     """Local-network self-test for the wizard's checks row.
 
     ``multicast_rx_within_5s`` is False when no foreign HELLO arrived in the
@@ -136,7 +136,7 @@ async def cluster_discovery_health(is_admin: bool = Depends(require_admin)):
 
 @discovery_router.get("/discovery/health/detail")
 async def cluster_discovery_health_detail(
-    is_admin: bool = Depends(require_admin),
+    is_admin: bool = Depends(require_management_key),
 ):
     """Extended discovery self-diagnostics (loop liveness, TX health).
 
@@ -154,7 +154,7 @@ async def cluster_discovery_health_detail(
 
 @discovery_router.post("/devices/manual")
 async def cluster_add_manual_peer(
-    request: Request, is_admin: bool = Depends(require_admin)
+    request: Request, is_admin: bool = Depends(require_management_key)
 ):
     """Manually add a peer by IP — the deterministic path over Thunderbolt.
 
@@ -277,7 +277,7 @@ def _enrich_paired_row(row: dict[str, Any], record: dict[str, Any] | None) -> No
 
 
 @discovery_router.get("/devices")
-async def cluster_devices(is_admin: bool = Depends(require_admin)):
+async def cluster_devices(is_admin: bool = Depends(require_management_key)):
     """Cluster device inventory for the wizard UI.
 
     ``multicast_ok`` is the macOS Local Network permission signal: it is
