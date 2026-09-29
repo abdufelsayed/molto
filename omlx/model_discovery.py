@@ -25,8 +25,68 @@ from typing import Literal
 
 logger = logging.getLogger(__name__)
 
-ModelType = Literal["llm", "vlm", "embedding", "reranker", "audio_stt", "audio_tts", "audio_sts"]
-EngineType = Literal["batched", "vlm", "embedding", "reranker", "audio_stt", "audio_tts", "audio_sts"]
+ModelType = Literal[
+    "llm",
+    "vlm",
+    "embedding",
+    "reranker",
+    "audio_stt",
+    "audio_tts",
+    "audio_sts",
+    "image_generation",
+]
+EngineType = Literal[
+    "batched",
+    "vlm",
+    "embedding",
+    "reranker",
+    "audio_stt",
+    "audio_tts",
+    "audio_sts",
+    "image_generation",
+]
+
+MFLUX_MANIFEST_NAME = "omlx-mflux.json"
+_MFLUX_Z_IMAGE_COMPONENTS = ("vae", "transformer", "text_encoder")
+
+
+def read_mflux_manifest(model_path: Path) -> dict | None:
+    """Read an oMLX mflux manifest, returning None for invalid manifests."""
+    manifest_path = model_path / MFLUX_MANIFEST_NAME
+    if not manifest_path.is_file():
+        return None
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(manifest, dict) or manifest.get("backend") != "mflux":
+        return None
+    if manifest.get("model_family") != "z-image-turbo":
+        return None
+    return manifest
+
+
+def is_mflux_image_model_dir(model_path: Path) -> bool:
+    """Recognize the first supported mflux checkpoint family.
+
+    ``mflux-save`` writes component directories but no root config file, so
+    discovery accepts either an explicit oMLX manifest or a complete Z-Image
+    component layout whose directory name identifies the family.
+    """
+    manifest = read_mflux_manifest(model_path)
+    if manifest is not None:
+        return True
+
+    directory_name = _model_name_hint(model_path).replace("_", "-")
+    if "z-image-turbo" not in directory_name and "zimage-turbo" not in directory_name:
+        return False
+    if not (model_path / "tokenizer").is_dir():
+        return False
+    return all(
+        component.is_dir() and any(component.glob("*.safetensors"))
+        for component in (model_path / name for name in _MFLUX_Z_IMAGE_COMPONENTS)
+    )
+
 
 # Known VLM (Vision-Language Model) types from mlx-vlm
 VLM_MODEL_TYPES = {
@@ -631,8 +691,11 @@ def detect_model_type(model_path: Path) -> ModelType:
         model_path: Path to model directory
 
     Returns:
-        Model type: "llm", "vlm", "embedding", "reranker", "audio_stt", "audio_tts", or "audio_sts"
+        Model type supported by an oMLX engine, including image generation.
     """
+    if is_mflux_image_model_dir(model_path):
+        return "image_generation"
+
     config_path = model_path / "config.json"
     if not config_path.exists():
         return "llm"
@@ -1117,8 +1180,10 @@ def _is_adapter_dir(path: Path) -> bool:
 
 
 def _is_model_dir(path: Path) -> bool:
-    """Check if a directory contains a valid model (has config.json)."""
-    return (path / "config.json").exists() and not _is_adapter_dir(path)
+    """Check if a directory contains a supported model checkpoint."""
+    return (
+        (path / "config.json").exists() or is_mflux_image_model_dir(path)
+    ) and not _is_adapter_dir(path)
 
 
 _SHARD_FILE_RE = re.compile(r"-(\d+)-of-(\d+)\.safetensors$")
@@ -1601,6 +1666,8 @@ def _register_model(
             engine_type = "audio_tts"
         elif model_type == "audio_sts":
             engine_type = "audio_sts"
+        elif model_type == "image_generation":
+            engine_type = "image_generation"
         else:
             engine_type = "batched"
         estimated_size = estimate_model_size(model_dir)
@@ -1624,6 +1691,8 @@ def _register_model(
             is_helper = is_helper_model_config(_config)
         except Exception:
             pass
+        if model_type == "image_generation":
+            config_model_type = "z_image_turbo"
 
         # Keep text-only capability metadata when selecting the VLM MTP engine.
         if model_type == "llm" and _gemma4_text_only_wants_vlm_engine(_config):
@@ -1779,7 +1848,9 @@ def discover_models(model_dir: Path) -> dict[str, DiscoveredModel]:
             # HF Hub cache entry: models--Org--Name/snapshots/<hash>/
             hf_resolved = _resolve_hf_cache_entry(subdir)
             if hf_resolved is not None:
-                if _is_hf_cache_mlx_compatible(
+                if is_mflux_image_model_dir(
+                    hf_resolved.snapshot_path
+                ) or _is_hf_cache_mlx_compatible(
                     hf_resolved.snapshot_path,
                     hf_resolved.source_repo_id,
                 ):

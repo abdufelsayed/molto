@@ -2646,7 +2646,7 @@
             },
 
             // VLM Detection State
-            modelTypeMap: {},            // { modelId: "llm"|"vlm"|"embedding"|"reranker" }
+            modelTypeMap: {},            // { modelId: "llm"|"vlm"|"embedding"|"reranker"|"image_generation" }
             aliasToGateway: {},          // { aliasName: gatewayId } maps alias to directory name
 
             // Session Prompt
@@ -4796,7 +4796,11 @@
                 allModels.filter(m => {
                     const gatewayId = this.aliasToGateway[m.id] || m.id;
                     const t = (this.modelTypeMap[gatewayId] || '').toLowerCase();
-                    return t !== 'audio_tts' && t !== 'audio_sts' && t !== 'embedding' && t !== 'reranker';
+                    return t !== 'audio_tts'
+                        && t !== 'audio_sts'
+                        && t !== 'embedding'
+                        && t !== 'reranker'
+                        && t !== 'image_generation';
                 }).map(m => ({
                     id: this.aliasToGateway[m.id] || m.id, // gateway id for API calls
                     name: m.id, // original name (alias or directory name) for display

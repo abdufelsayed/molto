@@ -85,6 +85,7 @@ git clone https://github.com/jundot/omlx.git
 cd omlx
 pip install -e .          # Core only
 pip install -e ".[mcp]"   # With MCP (Model Context Protocol) support
+pip install -e ".[image]" # With mflux image generation
 
 # GLM-5.2 / MiniMax M3 / Qwen3.5 native custom kernels (strongly recommended
 # if you serve those families -- see note below)
@@ -184,6 +185,38 @@ checklist.
 
 Run VLMs with the same continuous batching and tiered KV cache stack as text LLMs. Supports multi-image chat, base64/URL/file image inputs, and tool calling with vision context. MiMo V2.6 checkpoints with bundled sidecars also accept sampled-frame video and 24 kHz audio. oQ conversion of official MiMo V2.6 checkpoints preserves image and audio support. OCR models (DeepSeek-OCR, DOTS-OCR, GLM-OCR) are auto-detected with optimized prompts.
 
+### Image Generation with mflux
+
+The optional `image` extra adds managed Z-Image Turbo generation through
+mflux. Convert and quantize a checkpoint into your model directory, then reload
+models from the dashboard:
+
+```bash
+omlx mflux-save \
+  --model z-image-turbo \
+  --quantize 8 \
+  --output ~/.omlx/models/z-image-turbo-8bit
+```
+
+Image models use the same load, unload, pinning, memory admission, and LRU
+eviction controls as other oMLX models. Generate from the model manager or call
+the OpenAI-compatible endpoint:
+
+```bash
+curl http://localhost:8000/v1/images/generations \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "model": "z-image-turbo-8bit",
+    "prompt": "A puffin standing on a basalt cliff",
+    "size": "1024x1024",
+    "steps": 9,
+    "response_format": "b64_json"
+  }'
+```
+
+This first integration supports Z-Image Turbo text-to-image checkpoints.
+Other mflux architectures and image editing require dedicated engine adapters.
+
 ### Tiered KV Cache (Hot + Cold)
 
 Block-based KV cache management inspired by vLLM, with prefix sharing and Copy-on-Write. The cache operates across two tiers:
@@ -277,6 +310,7 @@ Drop-in replacement for OpenAI and Anthropic APIs. Supports streaming usage stat
 | `POST /v1/messages` | Anthropic Messages API |
 | `POST /v1/embeddings` | Text embeddings |
 | `POST /v1/rerank` | Document reranking |
+| `POST /v1/images/generations` | Image generation through mflux |
 | `GET /v1/models` | List available models |
 
 ### Tool Calling & Structured Output

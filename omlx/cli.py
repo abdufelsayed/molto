@@ -42,6 +42,55 @@ def _positive_int(value: str) -> int:
     return parsed
 
 
+def mflux_save_command(args) -> int:
+    """Convert and save a supported diffusion checkpoint for oMLX discovery."""
+    import json
+    from pathlib import Path
+
+    try:
+        from mflux.models.common.config import ModelConfig
+        from mflux.models.z_image import ZImageTurbo
+    except ImportError:
+        print(
+            'mflux is not installed. Install it with: pip install "omlx[image]"',
+            file=sys.stderr,
+        )
+        return 1
+
+    output = Path(args.output).expanduser().resolve()
+    if output.exists():
+        if not output.is_dir():
+            print(f"Output path is not a directory: {output}", file=sys.stderr)
+            return 1
+        if any(output.iterdir()):
+            print(f"Output directory is not empty: {output}", file=sys.stderr)
+            return 1
+    output.mkdir(parents=True, exist_ok=True)
+
+    source = args.model
+    model_path = None if source == "z-image-turbo" else source
+    model = ZImageTurbo(
+        model_config=ModelConfig.z_image_turbo(),
+        model_path=model_path,
+        quantize=args.quantize,
+    )
+    model.save_model(str(output))
+    manifest = {
+        "version": 1,
+        "backend": "mflux",
+        "model_family": "z-image-turbo",
+        "source": source,
+        # Saved weights already carry their quantization metadata. Loading the
+        # resulting checkpoint must not quantize them a second time.
+        "quantize": None,
+    }
+    (output / "omlx-mflux.json").write_text(
+        json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+    )
+    print(f"Saved oMLX mflux model to {output}")
+    return 0
+
+
 def _has_cli_overrides(args) -> bool:
     """Check if CLI args contain non-default values that should be saved.
 
@@ -1025,7 +1074,9 @@ def cluster_command(args) -> int:
             for rank, definition in enumerate(args.node or []):
                 node_id, separator, raw_size = definition.rpartition("=")
                 if not separator or not node_id.strip() or not raw_size.strip():
-                    raise ValueError("--node must use NAME=SIZE (for example studio=256GB)")
+                    raise ValueError(
+                        "--node must use NAME=SIZE (for example studio=256GB)"
+                    )
                 nodes.append(
                     NodeBudget(
                         node_id=node_id.strip(),
@@ -1335,6 +1386,42 @@ Example directory structure:
         help="API key for authentication (required for non-loopback binds)",
     )
 
+    mflux_save_parser = subparsers.add_parser(
+        "mflux-save",
+        help="Convert and quantize a supported diffusion model for oMLX",
+        description=(
+            "Load Z-Image Turbo through mflux, optionally quantize it, and "
+            "save a local checkpoint with the metadata oMLX uses for discovery."
+        ),
+    )
+    mflux_save_parser.add_argument(
+        "--model",
+        default="z-image-turbo",
+        help=(
+            "mflux model alias, Hugging Face repo, or local checkpoint "
+            "(default: z-image-turbo)"
+        ),
+    )
+    mflux_save_parser.add_argument(
+        "--output",
+        required=True,
+        help="Empty output directory to create",
+    )
+    mflux_save_parser.add_argument(
+        "--quantize",
+        type=int,
+        choices=[3, 4, 5, 6, 8],
+        default=8,
+        help="Quantization bits for the saved checkpoint (default: 8)",
+    )
+    mflux_save_parser.add_argument(
+        "--no-quantize",
+        dest="quantize",
+        action="store_const",
+        const=None,
+        help="Save the checkpoint without MLX quantization",
+    )
+
     # Launch command
     launch_parser = subparsers.add_parser(
         "launch",
@@ -1588,6 +1675,8 @@ Example directory structure:
             sys.exit(lifecycle_command(args))
         elif args.command == "diagnose":
             sys.exit(diagnose_command(args))
+        elif args.command == "mflux-save":
+            sys.exit(mflux_save_command(args))
         elif args.command == "cluster":
             sys.exit(cluster_command(args))
         else:

@@ -16,6 +16,7 @@ from ..engine_core import AsyncEngineCore, EngineConfig, EngineCore
 from .base import BaseEngine, BaseNonStreamingEngine, GenerationOutput
 from .batched import BatchedEngine
 from .embedding import EmbeddingEngine
+from .image_generation import MFluxImageEngine
 
 from .dflash import DFlashEngine
 from .reranker import RerankerEngine
@@ -32,6 +33,7 @@ __all__ = [
     "DFlashEngine",
     "VLMBatchedEngine",
     "EmbeddingEngine",
+    "MFluxImageEngine",
     "RerankerEngine",
     "STTEngine",
     "STSEngine",

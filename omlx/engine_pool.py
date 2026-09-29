@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 import mlx.core as mx
 
-from .engine import BaseEngine, BatchedEngine
+from .engine import BaseEngine, BatchedEngine, MFluxImageEngine
 from .engine.embedding import EmbeddingEngine
 from .engine.reranker import RerankerEngine
 from .engine.sts import STSEngine
@@ -55,6 +55,7 @@ from .model_discovery import (
     VLM_NATIVE_TEXT_MODEL_TYPES,
     discover_models,
     format_size,
+    is_mflux_image_model_dir,
     is_realtime_stt_model,
 )
 from .model_settings import (
@@ -240,7 +241,14 @@ class EngineEntry:
     model_id: str  # Directory name (e.g., "llama-3b")
     model_path: str  # Full path to model directory
     model_type: Literal[
-        "llm", "vlm", "embedding", "reranker", "audio_stt", "audio_tts", "audio_sts"
+        "llm",
+        "vlm",
+        "embedding",
+        "reranker",
+        "audio_stt",
+        "audio_tts",
+        "audio_sts",
+        "image_generation",
     ]  # Model type
     engine_type: Literal[
         "batched",
@@ -251,6 +259,7 @@ class EngineEntry:
         "audio_stt",
         "audio_tts",
         "audio_sts",
+        "image_generation",
     ]  # Engine type to use
     estimated_size: int  # Pre-calculated from safetensors (bytes)
     text_only_size: int = 0  # Language-only estimate for VLM checkpoints (0 = n/a)
@@ -279,6 +288,7 @@ class EngineEntry:
         | STTEngine
         | STSEngine
         | TTSEngine
+        | MFluxImageEngine
         | None
     ) = None  # Loaded engine instance
     last_access: float = 0.0  # Timestamp for LRU (0 if never loaded)
@@ -1287,6 +1297,7 @@ class EnginePool:
         "audio_stt": "audio_stt",
         "audio_tts": "audio_tts",
         "audio_sts": "audio_sts",
+        "image_generation": "image_generation",
     }
 
     @staticmethod
@@ -1523,7 +1534,13 @@ class EnginePool:
     ) -> None:
         """Drop stale unloaded entries whose backing model directory vanished."""
         model_path = Path(entry.model_path)
-        if model_path.exists() and (model_path / "config.json").exists():
+        if model_path.exists() and (
+            (model_path / "config.json").exists()
+            or (
+                entry.engine_type == "image_generation"
+                and is_mflux_image_model_dir(model_path)
+            )
+        ):
             return
 
         if entry.engine is None:
@@ -1979,6 +1996,7 @@ class EnginePool:
         | STTEngine
         | STSEngine
         | TTSEngine
+        | MFluxImageEngine
     ):
         """
         Get or load engine for the specified model.
@@ -2884,6 +2902,12 @@ class EnginePool:
         )
         pre_unload_active = 0 if distributed else mx.get_active_memory()
         pre_unload_footprint = 0 if distributed else get_phys_footprint()
+        if entry.engine_type == "image_generation":
+            # mflux checkpoints are lazily materialized and can have a much
+            # smaller live MLX allocation than their on-disk admission size.
+            # Never ask the Metal settle barrier to observe more released
+            # bytes than were active immediately before this unload.
+            settle_size = min(settle_size, pre_unload_active)
 
         try:
             await entry.engine.stop()
@@ -3374,6 +3398,8 @@ class EnginePool:
                         model_name=entry.model_path,
                         config_model_type=entry.config_model_type,
                     )
+                elif entry.engine_type == "image_generation":
+                    engine = MFluxImageEngine(model_name=entry.model_path)
                 else:
                     engine = BatchedEngine(
                         model_name=entry.model_path,

@@ -736,6 +736,12 @@ from .api.websearch_routes import set_global_settings_getter as _set_websearch_s
 _set_websearch_settings(lambda: _server_state.global_settings)
 app.include_router(websearch_router, dependencies=[Depends(verify_inference_api_key)])
 
+# Image routes are always registered. The engine imports mflux lazily and
+# returns an actionable install error only when an image model is loaded.
+from .api.image_routes import router as image_router
+
+app.include_router(image_router, dependencies=[Depends(verify_inference_api_key)])
+
 # Include audio routes only when mlx-audio is installed.
 # audio_routes.py itself only imports fastapi/stdlib at module level, so it
 # would always import successfully — we need an explicit mlx-audio check.
@@ -1500,6 +1506,10 @@ def _suggest_endpoint_for_engine(engine: object) -> str:
         from omlx.engine.sts import STSEngine as sts_engine_cls
     except Exception:  # pragma: no cover - defensive
         sts_engine_cls = None
+    try:
+        from omlx.engine.image_generation import MFluxImageEngine as image_engine_cls
+    except Exception:  # pragma: no cover - defensive
+        image_engine_cls = None
 
     if stt_engine_cls is not None and isinstance(engine, stt_engine_cls):
         return "Use /v1/audio/transcriptions for speech-to-text models."
@@ -1507,6 +1517,8 @@ def _suggest_endpoint_for_engine(engine: object) -> str:
         return "Use /v1/audio/speech for text-to-speech models."
     if sts_engine_cls is not None and isinstance(engine, sts_engine_cls):
         return "Use /v1/audio/process for speech-to-speech / audio processing models."
+    if image_engine_cls is not None and isinstance(engine, image_engine_cls):
+        return "Use /v1/images/generations for image-generation models."
     if isinstance(engine, EmbeddingEngine):
         return "Use /v1/embeddings for embedding models."
     if isinstance(engine, RerankerEngine):

@@ -202,6 +202,15 @@
             managerSortBy: localStorage.getItem('omlx_manager_sort_by') || MANAGER_SORT_DEFAULT.by,
             managerSortOrder: localStorage.getItem('omlx_manager_sort_order') || MANAGER_SORT_DEFAULT.order,
             managerSearch: '',
+            imageGeneratorOpen: false,
+            imageGeneratorModel: '',
+            imagePrompt: '',
+            imageSize: '1024x1024',
+            imageSteps: 9,
+            imageSeed: '',
+            imageGenerating: false,
+            imageError: '',
+            imageResult: '',
 
             // Auth UI state
             showApiKey: false,
@@ -6163,6 +6172,56 @@
             openModelSettingsFromManager(name) {
                 const model = this.managerModelInfo(name);
                 if (model) this.openModelSettings(model);
+            },
+
+            openImageGenerator(name) {
+                this.imageGeneratorModel = name;
+                this.imagePrompt = '';
+                this.imageSeed = '';
+                this.imageError = '';
+                this.imageResult = '';
+                this.imageGeneratorOpen = true;
+            },
+
+            async generateImage() {
+                const prompt = this.imagePrompt.trim();
+                if (!prompt || this.imageGenerating) return;
+                this.imageGenerating = true;
+                this.imageError = '';
+                this.imageResult = '';
+                const body = {
+                    model: this.imageGeneratorModel,
+                    prompt,
+                    size: this.imageSize,
+                    steps: Number(this.imageSteps),
+                    response_format: 'b64_json',
+                };
+                if (String(this.imageSeed).trim() !== '') {
+                    body.seed = Number(this.imageSeed);
+                }
+                try {
+                    const response = await fetch('/admin/api/images/generations', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body),
+                    });
+                    const data = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                        const detail = data.detail;
+                        this.imageError = Array.isArray(detail)
+                            ? detail.map(item => item.msg || String(item)).join(', ')
+                            : (detail || 'Image generation failed');
+                        return;
+                    }
+                    const encoded = data.data?.[0]?.b64_json;
+                    if (!encoded) throw new Error('The server returned no image data');
+                    this.imageResult = `data:image/png;base64,${encoded}`;
+                    this.imageSeed = data.data[0].seed;
+                } catch (error) {
+                    this.imageError = error.message || 'Image generation failed';
+                } finally {
+                    this.imageGenerating = false;
+                }
             },
 
             // Theme select

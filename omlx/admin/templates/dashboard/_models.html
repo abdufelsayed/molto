@@ -162,6 +162,13 @@
                                             <div class="hidden sm:block w-24 text-center text-xs text-neutral-500 tabular-nums" x-text="model.size_formatted"></div>
                                             <!-- Actions -->
                                             <div class="flex items-center justify-end gap-1 shrink-0">
+                                                <template x-if="managerModelInfo(model.name)?.model_type === 'image_generation'">
+                                                    <button @click="openImageGenerator(model.name)"
+                                                            class="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-all"
+                                                            title="Generate image">
+                                                        <i data-lucide="image" class="w-4 h-4"></i>
+                                                    </button>
+                                                </template>
                                                 <template x-if="managerModelInfo(model.name)">
                                                     <button @click="openModelSettingsFromManager(model.name)"
                                                             class="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-all"
@@ -2196,6 +2203,71 @@
                                 </div>
                             </div>
                         </template>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="imageGeneratorOpen" x-cloak
+                 class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+                 @keydown.escape.window="imageGeneratorOpen = false">
+                <div class="w-full max-w-3xl max-h-[92vh] overflow-y-auto bg-white rounded-2xl border border-neutral-200 shadow-2xl"
+                     @click.outside="imageGeneratorOpen = false">
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
+                        <div>
+                            <h3 class="text-lg font-bold text-neutral-900">Generate image</h3>
+                            <p class="text-xs text-neutral-500 mt-1" x-text="imageGeneratorModel"></p>
+                        </div>
+                        <button @click="imageGeneratorOpen = false"
+                                class="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Prompt</label>
+                            <textarea x-model="imagePrompt" rows="4" autofocus
+                                      placeholder="Describe the image to generate"
+                                      class="w-full px-4 py-3 border border-neutral-200 rounded-xl text-sm focus:ring-2 focus:ring-neutral-900 focus:border-transparent"></textarea>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Size</label>
+                                <select x-model="imageSize" class="w-full px-3 py-2.5 border border-neutral-200 rounded-xl text-sm bg-white">
+                                    <option value="512x512">512 x 512</option>
+                                    <option value="768x768">768 x 768</option>
+                                    <option value="1024x1024">1024 x 1024</option>
+                                    <option value="1280x720">1280 x 720</option>
+                                    <option value="720x1280">720 x 1280</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Steps</label>
+                                <input x-model.number="imageSteps" type="number" min="1" max="100"
+                                       class="w-full px-3 py-2.5 border border-neutral-200 rounded-xl text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-neutral-500 mb-1.5">Seed</label>
+                                <input x-model="imageSeed" type="number" min="0" max="4294967295" placeholder="Random"
+                                       class="w-full px-3 py-2.5 border border-neutral-200 rounded-xl text-sm">
+                            </div>
+                        </div>
+                        <div x-show="imageError" x-cloak class="px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl" x-text="imageError"></div>
+                        <div x-show="imageResult" x-cloak class="space-y-3">
+                            <img :src="imageResult" alt="Generated image" class="w-full rounded-xl border border-neutral-200 bg-neutral-50">
+                            <a :href="imageResult" :download="`omlx-${imageSeed || 'image'}.png`"
+                               class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border border-neutral-200 rounded-full hover:bg-neutral-50">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                                Download PNG
+                            </a>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 px-6 py-4 border-t border-neutral-200 bg-neutral-50">
+                        <button @click="imageGeneratorOpen = false"
+                                class="px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100 rounded-full">Close</button>
+                        <button @click="generateImage()" :disabled="imageGenerating || !imagePrompt.trim()"
+                                class="px-5 py-2 text-sm font-semibold text-white bg-neutral-900 hover:bg-neutral-800 rounded-full disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span x-text="imageGenerating ? 'Generating…' : 'Generate'"></span>
+                        </button>
                     </div>
                 </div>
             </div>

@@ -33,6 +33,8 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ..api.image_models import ImageGenerationRequest, ImageGenerationResponse
+from ..api.image_routes import create_image as _create_image
 from ..api.markitdown import MARKITDOWN_MODEL_ID, markitdown_model_visible
 from ..api.openai_models import _coerce_tool_call_arguments
 from ..api.utils import _try_parse_json
@@ -1494,6 +1496,17 @@ def _apply_sampling_settings_runtime(
 # =============================================================================
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@router.post("/api/images/generations", response_model=ImageGenerationResponse)
+async def admin_create_image(
+    request: ImageGenerationRequest,
+    is_admin: bool = Depends(require_admin),
+) -> ImageGenerationResponse:
+    """Run the image endpoint from the authenticated admin dashboard."""
+    return await _create_image(request)
+
+
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 static_dir = Path(__file__).parent / "static"
 
@@ -2788,6 +2801,7 @@ async def update_model_settings(
             "audio_stt",
             "audio_tts",
             "audio_sts",
+            "image_generation",
         }
         # Treat empty string as None (auto-detect)
         override_value = request.model_type_override or None
@@ -2806,6 +2820,7 @@ async def update_model_settings(
             "audio_stt": "audio_stt",
             "audio_tts": "audio_tts",
             "audio_sts": "audio_sts",
+            "image_generation": "image_generation",
         }
         if override_value:
             entry.model_type = override_value
@@ -7678,7 +7693,7 @@ async def list_hf_models(is_admin: bool = Depends(require_admin)):
 
     model_dirs = global_settings.model.get_model_dirs(global_settings.base_path)
 
-    from ..model_discovery import _resolve_hf_cache_entry
+    from ..model_discovery import _is_model_dir, _resolve_hf_cache_entry
 
     def _add_model(
         model_path: Path,
@@ -7714,14 +7729,14 @@ async def list_hf_models(is_admin: bool = Depends(require_admin)):
             if not subdir.is_dir() or subdir.name.startswith("."):
                 continue
 
-            if (subdir / "config.json").exists():
+            if _is_model_dir(subdir):
                 # Level 1: direct model folder
                 _add_model(subdir, subdir.name)
             else:
                 # HF Hub cache entry: models--Org--Name/snapshots/<hash>/
                 hf_resolved = _resolve_hf_cache_entry(subdir)
                 if hf_resolved is not None:
-                    if (hf_resolved.snapshot_path / "config.json").exists():
+                    if _is_model_dir(hf_resolved.snapshot_path):
                         _add_model(
                             hf_resolved.snapshot_path,
                             hf_resolved.model_id,
@@ -7733,7 +7748,7 @@ async def list_hf_models(is_admin: bool = Depends(require_admin)):
                 for child in sorted(subdir.iterdir()):
                     if not child.is_dir() or child.name.startswith("."):
                         continue
-                    if (child / "config.json").exists():
+                    if _is_model_dir(child):
                         _add_model(child, child.name)
 
     # Sort by the UI display name so organization prefixes group together.
