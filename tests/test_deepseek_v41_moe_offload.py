@@ -202,19 +202,14 @@ def test_converted_draft_weights_are_not_loaded_with_offload(tmp_path):
 
 
 @pytest.mark.parametrize("fraction", [0, -0.25, 1.01, float("nan")])
-def test_offload_api_rejects_invalid_fraction(fraction):
-    from types import SimpleNamespace
+def test_offload_settings_reject_invalid_fraction(fraction):
+    from omlx.model_settings import validate_moe_expert_offload
 
-    from fastapi import HTTPException
-
-    from omlx.admin.routes import _validate_model_settings
-
-    with pytest.raises(HTTPException) as error:
-        _validate_model_settings(
-            SimpleNamespace(config_model_type="deepseek_v41"),
+    with pytest.raises(ValueError, match="moe_expert_offload_resident_fraction"):
+        validate_moe_expert_offload(
             {"moe_expert_offload_resident_fraction": fraction},
+            model_type="deepseek_v41",
         )
-    assert error.value.status_code == 400
 
 
 def test_loader_never_reads_nonresident_stacked_experts(tmp_path, monkeypatch):
@@ -852,32 +847,11 @@ def test_load_time_gate_allows_v41_rejects_other_lightning_family(tmp_path):
         maybe_apply_pre_load_patches(other, Settings())
 
 
-def test_admin_validate_offload_mtp_family_gate(tmp_path, monkeypatch):
-    from types import SimpleNamespace
+def test_offload_mtp_family_gate():
+    from omlx.model_settings import validate_moe_expert_offload
 
-    from fastapi import HTTPException
-
-    from omlx.admin.routes import _validate_model_settings
-
-    # Isolate the family gate from the checkpoint-layout inspection.
-    monkeypatch.setattr(
-        "omlx.patches.moe_offload_compat.moe_offload_compatibility",
-        lambda *_a, **_k: (True, ""),
-    )
     settings = {"moe_expert_offload_enabled": True, "mtp_enabled": True}
-    # V4.1: allowed, no HTTPException.
-    _validate_model_settings(
-        SimpleNamespace(model_path=str(tmp_path), config_model_type="deepseek-v41"),
-        settings,
-    )
-    _validate_model_settings(
-        SimpleNamespace(model_path=str(tmp_path), config_model_type="glm5-next"),
-        settings,
-    )
-    # Any other lightning family: rejected at save time.
-    with pytest.raises(HTTPException) as error:
-        _validate_model_settings(
-            SimpleNamespace(model_path=str(tmp_path), config_model_type="qwen3_5_moe"),
-            settings,
-        )
-    assert error.value.status_code == 400
+    validate_moe_expert_offload(settings, model_type="deepseek-v41")
+    validate_moe_expert_offload(settings, model_type="glm5-next")
+    with pytest.raises(ValueError, match="MoE expert offload cannot"):
+        validate_moe_expert_offload(settings, model_type="qwen3_5_moe")

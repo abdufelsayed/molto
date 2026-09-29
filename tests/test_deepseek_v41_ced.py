@@ -106,11 +106,11 @@ def test_dspark_ring_and_rollback_after_ced_prefill():
 
 @pytest.mark.asyncio
 async def test_clear_ssd_removes_both_modes_when_model_is_unloaded(
-    tmp_path, monkeypatch
+    tmp_path,
 ):
     from types import SimpleNamespace
 
-    from omlx.admin import routes
+    from omlx.services.management import ManagementContext, ManagementService
 
     files = []
     for root in (tmp_path, tmp_path / "deepseek_v41_ced_v1"):
@@ -119,22 +119,6 @@ async def test_clear_ssd_removes_both_modes_when_model_is_unloaded(
         file = folder / "abc.safetensors"
         file.write_bytes(b"cache")
         files.append(file)
-    monkeypatch.setattr(
-        routes,
-        "_get_engine_pool",
-        lambda: SimpleNamespace(get_status=lambda: {"models": []}, _entries={}),
-    )
-    monkeypatch.setattr(
-        routes,
-        "_get_global_settings",
-        lambda: SimpleNamespace(
-            base_path=tmp_path,
-            cache=SimpleNamespace(get_ssd_cache_dir=lambda _: tmp_path),
-        ),
-    )
-    monkeypatch.setattr(
-        routes, "_clear_cold_remote_cluster_cache_roots", lambda _: (0, 0)
-    )
     settings = SimpleNamespace(
         base_path=tmp_path,
         cache=SimpleNamespace(
@@ -143,9 +127,16 @@ async def test_clear_ssd_removes_both_modes_when_model_is_unloaded(
             get_ssd_cache_max_size_bytes=lambda _: 1024,
         ),
     )
-    stats = routes._build_runtime_cache_observability(settings)
-    assert stats["total_num_files"] == 2
-    assert stats["total_size_bytes"] == 10
-    result = await routes.clear_ssd_cache(is_admin=True)
-    assert result["total_deleted"] == 2
+    service = ManagementService(
+        ManagementContext(
+            engine_pool=SimpleNamespace(get_loaded_model_ids=lambda: []),
+            settings_manager=SimpleNamespace(),
+            global_settings=settings,
+            get_default_model=lambda: None,
+            set_default_model=lambda _: None,
+            apply_sampling=lambda: None,
+        )
+    )
+    result = await service.clear_cache("ssd")
+    assert result["total_cleared"] == 2
     assert not any(file.exists() for file in files)
