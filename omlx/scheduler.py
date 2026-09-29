@@ -2056,15 +2056,6 @@ class Scheduler:
         # directly.
         self._pending_pressure_clear: bool = False
 
-        # Lock-free admin snapshot. Published at the end of each step() while
-        # the engine thread is the sole writer of running/waiting; the admin
-        # endpoint reads the dict reference atomically (GIL) and never iterates
-        # the live mutable structures.
-        self._admin_snapshot: dict[str, Any] = {
-            "running_by_id": {},
-            "waiting": [],
-        }
-
         # Memory limits for inline prefill checking.
         # Set by ProcessMemoryEnforcer; propagated to BatchGenerator.
         self._memory_limit_bytes: int = 0  # soft limit (dynamic, jittery)
@@ -10848,16 +10839,10 @@ class Scheduler:
         # behind (auto-removal only fires at processed >= total). The local
         # RuntimeError handlers in the prefill paths cover the common memory
         # errors (#1405), but any other exception type bubbles up here and
-        # would leak a phantom "PP" row on the dashboard.
+        # would leak a phantom prefill-progress record.
         tracker = get_prefill_tracker()
         for rid in failed_ids:
             tracker.remove(rid)
-        # Republish the admin snapshot now that the queues are empty. The
-        # snapshot is normally published at the end of a successful step();
-        # when step() raises, the last published snapshot still lists the
-        # failed requests, so the dashboard and the macOS app keep showing
-        # them as "generating" until the next successful step (#2126).
-        self._publish_admin_snapshot()
         return failed_ids
 
     def get_num_waiting(self) -> int:
@@ -13629,30 +13614,7 @@ class Scheduler:
         ):
             gc.collect()
 
-        self._publish_admin_snapshot()
-
         return output
-
-    def _publish_admin_snapshot(self) -> None:
-        """Atomically publish a fresh admin-visible snapshot.
-
-        Called from step() on the engine thread, where running/waiting are
-        not concurrently mutated. The admin endpoint reads the reference via
-        snapshot_for_admin() and never iterates the live structures.
-        """
-        self._admin_snapshot = {
-            "running_by_id": dict(self.running),
-            "waiting": list(self.waiting),
-        }
-
-    def snapshot_for_admin(self) -> dict[str, Any]:
-        """Return the most recently published admin snapshot.
-
-        Reference read is GIL-atomic; the dict itself is no longer mutated
-        after publication. May be one step stale, which is fine for dashboard
-        polling.
-        """
-        return self._admin_snapshot
 
     def get_request(self, request_id: str) -> Request | None:
         """Get a request by ID."""

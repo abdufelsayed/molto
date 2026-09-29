@@ -1592,7 +1592,7 @@ class _LLMEngineLease:
 
 async def _raise_if_llm_lease_abort_requested(lease: _LLMEngineLease) -> None:
     reason = lease.abort_reason()
-    if reason == "manual admin unload":
+    if reason == "manual management unload":
         raise HTTPException(
             status_code=409,
             detail="Request aborted because this model is being unloaded.",

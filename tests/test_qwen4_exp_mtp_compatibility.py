@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Regression tests for the admin Lightning-MTP gates with qwen4_exp.
+"""Regression tests for Lightning-MTP compatibility with qwen4_exp.
 
 Qwen3.8 Flash Next (``model_type == "qwen4_exp"``) attaches its Lightning
 MTP head through the dedicated VLM path in ``omlx.utils.model_loading``
@@ -7,10 +7,10 @@ MTP head through the dedicated VLM path in ``omlx.utils.model_loading``
 deliberately absent from the mlx-lm ``_is_mtp_compatible`` whitelist, which
 is the runtime gate for the *generic* text-model patch.
 
-Both admin gates reused that whitelist, so the Lightning MTP toggle reported
+The old settings validation reused that whitelist, so Lightning MTP reported
 "model_type='qwen4_exp' is not on the MTP whitelist" and saving the setting
 returned 400 even though the runtime supports the head as shipped by the
-#3174 converter. The admin gates must instead accept qwen4_exp and fall
+#3174 converter. Validation must instead accept qwen4_exp and fall
 through to the embedded ``mtp.*`` weight check — the same condition the
 runtime path applies.
 """

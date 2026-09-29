@@ -56,7 +56,6 @@ def test_worker_bundle_contains_runtime_source_but_no_native_controller_binary()
     assert "omlx/cluster/inference_worker.py" in names
     assert "omlx/adapter/output_parser.py" in names
     assert not any(name.endswith((".so", ".dylib", ".pyc")) for name in names)
-    assert not any("tailwindcss-macos-arm64" in name for name in names)
     assert hashlib.sha256(bundle).hexdigest() == worker_source_digest()
 
 

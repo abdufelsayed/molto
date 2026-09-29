@@ -21,8 +21,8 @@ import pytest
 
 # Install the torch stub before any test imports xgrammar (e.g. via @patch
 # decorators that resolve the target at collection time). When real torch is
-# present this is a no-op; in the DMG layout it satisfies xgrammar's
-# import-time torch references so the package can load.
+# present this is a no-op; otherwise it satisfies xgrammar's import-time torch
+# references so the package can load without a full PyTorch installation.
 from omlx._torch_stub import install as _install_torch_stub
 _install_torch_stub()
 

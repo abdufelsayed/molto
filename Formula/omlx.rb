@@ -126,7 +126,7 @@ class Omlx < Formula
     system libexec/"bin/python", "-c",
            "import spacy; spacy.load('en_core_web_sm')"
 
-    # python-multipart is declared in omlx's [audio] extra, not in mlx-audio
+    # Keep the audio upload parser explicit for formula installations.
     system(*pip_install, "python-multipart>=0.0.5")
 
     bin.install_symlink Dir[libexec/"bin/omlx"]
@@ -153,8 +153,8 @@ class Omlx < Formula
   # installs its native lib, and the dist-info is missing a RECORD
   # entry for the dylib so tvm_ffi's manifest-based lookup fails.
   # Both manifest as RuntimeError("Cannot find library: ...") at
-  # `import xgrammar`, which crashes /admin/api/grammar/parsers and
-  # hides the Reasoning Parser dropdown. Tracking upstream:
+  # `import xgrammar`, which breaks structured output initialization.
+  # Tracking upstream:
   # jundot/omlx#1005.
   def patch_xgrammar(python, site)
     ohai "Patching xgrammar macOS arm64 wheel"

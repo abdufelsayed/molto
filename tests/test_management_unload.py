@@ -46,7 +46,7 @@ async def test_unload_reports_whether_teardown_has_finished(unloaded, status):
         "model_id": "model-a",
     }
     pool.request_unload.assert_awaited_once_with(
-        "model-a", reason="manual admin unload"
+        "model-a", reason="manual management unload"
     )
 
 
@@ -119,7 +119,7 @@ def test_unload_route_returns_accepted_while_requests_drain():
 @pytest.mark.asyncio
 async def test_lease_rejected_during_manual_unload_uses_unload_error():
     pool = MagicMock()
-    pool.get_abort_requested_reason.return_value = "manual admin unload"
+    pool.get_abort_requested_reason.return_value = "manual management unload"
     lease = server._LLMEngineLease(model_id="model-a")
     original = server._server_state.engine_pool
     server._server_state.engine_pool = pool

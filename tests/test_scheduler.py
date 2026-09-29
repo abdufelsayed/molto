@@ -383,35 +383,6 @@ class TestSchedulerInitialization:
         assert scheduler.total_prompt_tokens == 0
         assert scheduler.total_completion_tokens == 0
 
-    def test_snapshot_for_admin_is_isolated_from_live_state(
-        self, mock_model, mock_tokenizer
-    ):
-        """Published admin snapshot must not mutate when live state changes."""
-        scheduler = Scheduler(model=mock_model, tokenizer=mock_tokenizer)
-
-        request = Request(
-            request_id="req-snap",
-            prompt=[1, 2, 3],
-            sampling_params=SamplingParams(max_tokens=8),
-        )
-        request.prompt_token_ids = [1, 2, 3]
-        request.num_prompt_tokens = 3
-
-        scheduler.waiting.append(request)
-        scheduler.running["req-snap"] = request
-        scheduler._publish_admin_snapshot()
-
-        snap = scheduler.snapshot_for_admin()
-        assert snap["running_by_id"] == {"req-snap": request}
-        assert snap["waiting"] == [request]
-
-        scheduler.running.clear()
-        scheduler.waiting.clear()
-        # Snapshot reflects the published moment, not the live state.
-        assert snap["running_by_id"] == {"req-snap": request}
-        assert snap["waiting"] == [request]
-
-
 class TestSchedulerAddRequest:
     """Tests for Scheduler.add_request()."""
 
@@ -5538,27 +5509,6 @@ class TestCacheCorruptionRecovery:
         # Verify requests dict is also cleaned up (no memory leak)
         for rid in failed_ids:
             assert rid not in scheduler.requests
-
-    def test_fail_all_requests_republishes_admin_snapshot(
-        self, mock_model, mock_tokenizer
-    ):
-        """fail_all_requests must publish a fresh (empty) admin snapshot.
-
-        The snapshot is normally published at the end of a successful step().
-        When step() raises and fail_all_requests() clears the queues, the
-        stale snapshot would keep listing the dead requests, so the dashboard
-        and the macOS app show them as "generating" forever (#2126).
-        """
-        scheduler = self._make_scheduler(mock_model, mock_tokenizer)
-        # Simulate the last successful step publishing the running requests.
-        scheduler._publish_admin_snapshot()
-        assert len(scheduler.snapshot_for_admin()["running_by_id"]) == 3
-
-        scheduler.fail_all_requests()
-
-        snap = scheduler.snapshot_for_admin()
-        assert snap["running_by_id"] == {}
-        assert snap["waiting"] == []
 
     def test_fail_all_requests_removes_prefill_tracker_entries(
         self, mock_model, mock_tokenizer

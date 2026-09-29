@@ -641,8 +641,8 @@ def _patch_text_model(q35: Any) -> None:
                 "converters strip them; you need a converter that preserves "
                 "MTP weights (or a Qwen3.6 / DeepSeek-V4 checkpoint that "
                 "already preserves them). To recover without re-converting, "
-                "open the model's settings in the oMLX admin UI and toggle "
-                "'Lightning MTP' off, then retry."
+                "set mtp_enabled to false through the model management API, "
+                "then retry."
             )
 
         if self.args.tie_word_embeddings:

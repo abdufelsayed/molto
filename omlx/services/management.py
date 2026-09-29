@@ -124,7 +124,7 @@ class ManagementService:
         if entry.is_loading:
             raise ManagementError("busy", f"Model still loading: {model_id}")
         unloaded = await self.pool.request_unload(
-            model_id, reason="manual admin unload"
+            model_id, reason="manual management unload"
         )
         if not unloaded:
             return {"status": "unloading", "model_id": model_id}
