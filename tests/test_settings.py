@@ -3004,48 +3004,26 @@ class TestCORSMiddleware:
             assert resp.headers["access-control-allow-origin"] == "*"
 
 
-class TestUISettings:
-    """UISettings carries the admin dashboard layout next to the language."""
+def test_legacy_ui_settings_are_ignored_and_not_rewritten(tmp_path):
+    """Retired dashboard preferences do not survive the next backend save."""
 
-    def test_defaults(self):
-        from omlx.settings import UISettings
+    path = tmp_path / "settings.json"
+    path.write_text(
+        json.dumps(
+            {
+                "ui": {
+                    "language": "ko",
+                    "dashboard_layout": {"version": 1, "blocks": []},
+                },
+                "sampling": {"temperature": 0.25},
+            }
+        )
+    )
 
-        settings = UISettings()
-        assert settings.language == "en"
-        assert settings.dashboard_layout is None
-
-    def test_to_dict_includes_layout(self):
-        from omlx.settings import UISettings
-
-        layout = {"version": 1, "width": "wide", "blocks": []}
-        result = UISettings(language="ko", dashboard_layout=layout).to_dict()
-        assert result == {"language": "ko", "dashboard_layout": layout}
-
-    def test_from_dict_legacy_without_layout(self):
-        from omlx.settings import UISettings
-
-        settings = UISettings.from_dict({"language": "ko"})
-        assert settings.language == "ko"
-        assert settings.dashboard_layout is None
-
-    def test_from_dict_ignores_non_dict_layout(self):
-        from omlx.settings import UISettings
-
-        assert UISettings.from_dict({"dashboard_layout": "x"}).dashboard_layout is None
-        assert UISettings.from_dict({"dashboard_layout": []}).dashboard_layout is None
-
-    def test_layout_round_trips_through_settings_file(self, tmp_path):
-        layout = {
-            "version": 1,
-            "width": "full",
-            "blocks": [{"id": "serving_stats", "x": 0, "y": 0, "w": 12}],
-        }
-        gs = GlobalSettings(base_path=tmp_path)
-        gs.ui.dashboard_layout = layout
-        gs.save()
-
-        restored = GlobalSettings.load(base_path=tmp_path)
-        assert restored.ui.dashboard_layout == layout
+    settings = GlobalSettings.load(base_path=tmp_path)
+    assert settings.sampling.temperature == 0.25
+    settings.save()
+    assert "ui" not in json.loads(path.read_text())
 
 
 @pytest.mark.parametrize("value", ["false", "true", 0, 1, None])

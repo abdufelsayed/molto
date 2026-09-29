@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Exercise the UI's actual backend contracts and delayed-response boundaries."""
+"""Exercise cluster HTTP contracts and delayed-response boundaries."""
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor

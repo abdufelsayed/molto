@@ -455,7 +455,7 @@ def serve_command(args):
             mx.set_cache_limit(total_mem)
 
         # Initialize server
-        # Note: pinned_models and default_model are managed via admin page (model_settings.json)
+        # pinned_models and default_model are managed through model settings.
         # Sampling parameters (max_tokens, temperature, etc.) are per-model settings
         init_server(
             model_dirs=[str(d) for d in model_dirs],

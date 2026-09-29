@@ -534,7 +534,7 @@ class TestExceptionHandlers:
         """A ValueError-raising validator on a non-/v1/ route must 422, not 500.
 
         Pydantic v2 stashes the raw exception in ``ctx``, which ``JSONResponse``
-        cannot serialize, so the admin handler used to die building the body
+        cannot serialize, so the API handler used to die building the body
         ("Object of type ValueError is not JSON serializable") and the client
         saw a 500 with no detail.
         """
@@ -562,7 +562,7 @@ class TestExceptionHandlers:
 
         request = SimpleNamespace(
             method="PUT",
-            url=SimpleNamespace(path="/admin/api/models/x/settings"),
+            url=SimpleNamespace(path="/management/v1/models/x/settings"),
         )
         response = asyncio.run(
             validation_exception_handler(request, RequestValidationError(errors))

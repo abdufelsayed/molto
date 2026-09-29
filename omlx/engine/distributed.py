@@ -934,7 +934,7 @@ raise SystemExit(2)
         return None
 
     def get_live_metrics(self) -> dict[str, Any] | None:
-        """Rank zero's latest telemetry snapshot for the admin dashboard.
+        """Rank zero's latest telemetry snapshot for management status.
 
         The coordinator owns no scheduler, so the only truthful live rates
         (decode/prefill tok/s, prefill progress, prompt-cache stats) are the

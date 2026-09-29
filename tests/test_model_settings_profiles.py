@@ -446,9 +446,7 @@ class TestProfileFieldFiltering:
 
 class TestTemplatesCRUD:
     def test_list_templates_empty_by_default(self, mgr):
-        # Shipped builtins were retired in favor of the client-side preset
-        # bundle (`omlx/admin/static/omlx_preset.json`); the server's
-        # /api/profile-templates surface now exposes user templates only.
+        # Shipped builtins were retired; the service exposes user templates only.
         assert mgr.list_templates() == []
 
     def test_save_template_universal_only(self, mgr):
@@ -508,10 +506,7 @@ class TestTemplatesCRUD:
 
 
 class TestTemplatesPersistence:
-    """The on-disk template file holds only user-created entries. Built-in
-    seed templates were retired in favor of the client-side preset bundle
-    (`omlx/admin/static/omlx_preset.json`); /api/profile-templates is now a
-    pure user-store surface."""
+    """The on-disk template file holds only user-created entries."""
 
     def test_no_file_created_when_empty(self, tmp_path):
         ModelSettingsManager(tmp_path)
@@ -529,9 +524,7 @@ class TestTemplatesPersistence:
         m2 = ModelSettingsManager(tmp_path)
         names = {t["name"] for t in m2.list_templates()}
         assert names == {"custom"}
-        # No `is_builtin` is emitted now that builtins are retired; preset
-        # vs user classification lives on the client (preset bundle), not
-        # on this response.
+        # No `is_builtin` is emitted now that builtins are retired.
         assert "is_builtin" not in m2.get_template("custom")
 
 

@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Cluster deployments on the main dashboard: live stats, badge, cache row.
+"""Cluster deployment status, live metrics, and cache reporting.
 
-The Active Models card and runtime-cache observability are fed by
-``GET /admin/api/stats``; distributed engines own no local scheduler, so the
-rows are adapted from rank zero's telemetry marker instead.
+Distributed engines own no local scheduler, so management status adapts their
+rows from rank zero's telemetry marker instead.
 """
 
 import json
@@ -28,7 +27,7 @@ def _deployment(
 ) -> ClusterDeployment:
     node_ids = ["local"] + [f"peer-{i}" for i in range(1, host_count)]
     return ClusterDeployment(
-        deployment_id="dash-test",
+        deployment_id="status-test",
         model=model_path,
         backend="ring",
         hosts=tuple(
@@ -106,7 +105,7 @@ def _metrics_payload(**overrides) -> dict:
 
 def test_get_live_metrics_reads_rank_zero_marker(tmp_path):
     engine = _engine_with_marker(tmp_path)
-    _write_marker(tmp_path, "dash-test", _metrics_payload())
+    _write_marker(tmp_path, "status-test", _metrics_payload())
 
     live = engine.get_live_metrics()
 
@@ -123,7 +122,7 @@ def test_get_live_metrics_marks_old_heartbeat_stale(tmp_path):
     payload["updated_at"] = (
         datetime.now(UTC) - timedelta(seconds=120)
     ).isoformat()
-    _write_marker(tmp_path, "dash-test", payload)
+    _write_marker(tmp_path, "status-test", payload)
 
     live = engine.get_live_metrics()
 
@@ -137,10 +136,10 @@ def test_get_live_metrics_returns_none_without_marker_or_metrics(tmp_path):
 
     assert engine.get_live_metrics() is None
 
-    _write_marker(tmp_path, "dash-test", {"updated_at": "now"})
+    _write_marker(tmp_path, "status-test", {"updated_at": "now"})
     assert engine.get_live_metrics() is None
 
-    (tmp_path / "dash-test-rank-0.json").write_text("not json")
+    (tmp_path / "status-test-rank-0.json").write_text("not json")
     assert engine.get_live_metrics() is None
 
 
@@ -172,7 +171,7 @@ def test_pool_status_cluster_payload_pipeline_strategy(tmp_path):
 
     assert model["distributed"] is True
     assert model["cluster"] == {
-        "deployment_id": "dash-test",
+        "deployment_id": "status-test",
         "world_size": 2,
         "tensor_parallel_size": 1,
         "pipeline_stages": 2,

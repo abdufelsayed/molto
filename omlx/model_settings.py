@@ -1643,11 +1643,8 @@ class ModelSettingsManager:
             raise
 
     def list_templates(self) -> list[dict]:
-        # Shipped JSON seeds were retired in favor of the client-side preset
-        # bundle (`omlx/admin/static/omlx_preset.json`); every entry on this
-        # surface is user-created. Callers that distinguish presets from
-        # user templates do so via the preset bundle, not an `is_builtin`
-        # flag on this response.
+        # Shipped JSON seeds were retired; every entry on this surface is
+        # user-created, so no `is_builtin` flag is needed.
         with self._lock:
             return [dict(t) for t in self._templates.values()]
 

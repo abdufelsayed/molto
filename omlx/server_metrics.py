@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """
-Server-level metrics for the oMLX admin dashboard.
+Server-level metrics for management clients.
 
 Provides a thread-safe singleton that aggregates serving metrics
 across all engines/models. Session metrics reset on server start,
@@ -25,7 +25,7 @@ _SAVE_INTERVAL = 300
 
 class ServerMetrics:
     """
-    Global server-level metrics for the Status dashboard.
+    Global server-level metrics for status reporting.
 
     Thread-safe: uses threading.Lock since scheduler runs in ThreadPoolExecutor.
     Tracks cumulative totals and average speeds across all requests,

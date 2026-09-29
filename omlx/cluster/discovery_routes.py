@@ -109,13 +109,12 @@ async def cluster_node_id_probe(request: Request):
 
 @discovery_router.get("/discovery/health")
 async def cluster_discovery_health(is_admin: bool = Depends(require_management_key)):
-    """Local-network self-test for the wizard's checks row.
+    """Return local-network discovery health for management clients.
 
     ``multicast_rx_within_5s`` is False when no foreign HELLO arrived in the
     last five seconds — on macOS that is how a denied Local Network
-    permission presents, so the UI pairs it with actionable guidance instead
-    of a silently empty device list. Shape is pinned by the wizard fixture
-    (tests/ui/fixtures/cluster_v2/discovery_health_ok.json).
+    permission presents. Clients can pair it with actionable guidance instead
+    of showing a silently empty device list.
     """
 
     service = discovery_service_or_none()
@@ -355,8 +354,8 @@ async def cluster_devices(is_admin: bool = Depends(require_management_key)):
         discovered_records.pop(node_id, None)
 
     # Seam with Module B: a posted pair/request must surface in the device
-    # list as an awaiting_approval row so the wizard renders code entry +
-    # approve/deny (fixture: tests/ui/.../devices_pending_approval.json).
+    # list as an awaiting_approval row so clients can offer code entry and
+    # approve/deny actions.
     # Pending state wins over a plain discovered record for the same node.
     try:
         from .pairing import get_pairing_manager

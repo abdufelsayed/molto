@@ -463,7 +463,7 @@ class ProcessMemoryEnforcer:
         # _check_and_enforce.
         self._pressure_reclaim_grace_polls: int = 0
         # Last value passed to mx.set_wired_limit (0 if not yet applied
-        # or the call failed). Used by the admin dashboard to surface a
+        # or the call failed). Used by management status to surface a
         # warning when the kernel iogpu.wired_limit_mb is below this.
         self._metal_wired_limit_request: int = 0
         # Cached Metal cap used by the background poll loop. Reading the Apple

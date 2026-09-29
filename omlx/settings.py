@@ -850,31 +850,6 @@ class LoggingSettings:
 
 
 @dataclass
-class UISettings:
-    """Admin UI settings."""
-
-    language: str = "en"
-    # Admin dashboard block layout. None means the built-in default layout.
-    dashboard_layout: dict[str, Any] | None = None
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary."""
-        return {
-            "language": self.language,
-            "dashboard_layout": self.dashboard_layout,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> UISettings:
-        """Create from dictionary."""
-        layout = data.get("dashboard_layout")
-        return cls(
-            language=data.get("language", "en"),
-            dashboard_layout=layout if isinstance(layout, dict) else None,
-        )
-
-
-@dataclass
 class UsageSettings:
     """Local usage history settings."""
 
@@ -1036,7 +1011,6 @@ class GlobalSettings:
     logging: LoggingSettings = field(default_factory=LoggingSettings)
     claude_code: ClaudeCodeSettings = field(default_factory=ClaudeCodeSettings)
     integrations: IntegrationSettings = field(default_factory=IntegrationSettings)
-    ui: UISettings = field(default_factory=UISettings)
     usage: UsageSettings = field(default_factory=UsageSettings)
     idle_timeout: ModelIdleTimeoutSettings = field(
         default_factory=ModelIdleTimeoutSettings
@@ -1132,8 +1106,6 @@ class GlobalSettings:
                 self.claude_code = ClaudeCodeSettings.from_dict(data["claude_code"])
             if "integrations" in data:
                 self.integrations = IntegrationSettings.from_dict(data["integrations"])
-            if "ui" in data:
-                self.ui = UISettings.from_dict(data["ui"])
             if "usage" in data:
                 self.usage = UsageSettings.from_dict(data["usage"])
             if "idle_timeout" in data:
@@ -1513,7 +1485,6 @@ class GlobalSettings:
             "logging": self.logging.to_dict(),
             "claude_code": self.claude_code.to_dict(),
             "integrations": self.integrations.to_dict(),
-            "ui": self.ui.to_dict(),
             "usage": self.usage.to_dict(),
             "idle_timeout": self.idle_timeout.to_dict(),
         }
@@ -1928,7 +1899,6 @@ class GlobalSettings:
             "logging": self.logging.to_dict(),
             "claude_code": self.claude_code.to_dict(),
             "integrations": self.integrations.to_dict(),
-            "ui": self.ui.to_dict(),
             "usage": self.usage.to_dict(),
             "idle_timeout": self.idle_timeout.to_dict(),
         }

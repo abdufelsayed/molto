@@ -3912,7 +3912,7 @@ class EnginePool:
 
     @staticmethod
     def _cluster_status_payload(deployment: ClusterDeployment) -> dict:
-        """Badge/cluster topology summary for dashboard model rows."""
+        """Cluster topology summary for model status rows."""
 
         world_size = deployment.world_size
         tensor_parallel_size = deployment.tensor_parallel_size

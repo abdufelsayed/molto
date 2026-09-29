@@ -1,10 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """
-Lightweight prefill progress tracker for dashboard display.
+Lightweight prefill progress tracker for status reporting.
 
 Updated by BatchGenerator's prompt_progress_callback (CPU counters only,
-zero GPU overhead). Read by admin stats API to show per-request PP progress
-in the Active Models card.
+zero GPU overhead). Read by management status to show per-request progress.
 """
 
 from __future__ import annotations

@@ -361,11 +361,11 @@ class DFlashEngine(ActivityTrackingMixin, BaseEngine):
         # Detected once in start() after the target model is loaded; None means
         # the streaming detokenizer is used as-is (qwen, llama, etc.).
         self._output_parser_factory: Any | None = None
-        # Session-scope hit/eviction rates for the admin cache observability
-        # panel, fed from the dflash-mlx runtime cache manager counters.
+        # Session-scope hit/eviction rates for cache observability, fed from
+        # the dflash-mlx runtime cache manager counters.
         self._cache_rate_tracker = CacheRateTracker()
         # Draft/target precision pairing warning (set in start(), surfaced in
-        # the dashboard) and per-session speculation counters fed from each
+        # model status) and per-session speculation counters fed from each
         # request's SummaryEvent.
         self._pairing_warning: str | None = None
         self._spec_stats_lock = threading.Lock()
@@ -2154,11 +2154,11 @@ class DFlashEngine(ActivityTrackingMixin, BaseEngine):
             self._spec_totals["cycles"] += cycles
 
     def get_speculation_stats(self) -> dict[str, Any] | None:
-        """Session speculation counters for the admin dashboard.
+        """Session speculation counters for management status.
 
         The runtime's acceptance ratio is the share of output tokens supplied
         by the draft, while tokens_per_cycle includes the target-owned token.
-        Expose accepted_draft_tokens_per_cycle separately so the dashboard does
+        Expose accepted_draft_tokens_per_cycle separately so clients do
         not conflate those two quantities (issue #2398).
         """
         with self._spec_stats_lock:

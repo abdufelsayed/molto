@@ -7,7 +7,7 @@ enters the caution zone (>= hard_cap * safe_zone_ratio), the next chunk
 is sized so its predicted transient stays under the remaining headroom.
 
 Owned by each Scheduler instance (one EWMA per loaded model), distinct
-from the global PrefillProgressTracker which feeds the admin dashboard.
+from the global PrefillProgressTracker which feeds management status.
 """
 
 from __future__ import annotations

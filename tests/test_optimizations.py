@@ -71,9 +71,7 @@ class TestGetOptimizationStatus:
             assert mem[key] >= 0
 
     def test_mlx_lm_features_static_strings(self):
-        """These strings appear in the admin dashboard. Pin them so a
-        typo or accidental rewording shows up as a test failure rather
-        than a confusing UI change."""
+        """Pin the public status strings returned to management clients."""
         features = get_optimization_status()["mlx_lm_features"]
         assert features["metal_kernels"] == "optimized for Apple Silicon"
         assert features["kv_cache"] == "managed by mlx-lm"

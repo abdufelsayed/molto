@@ -59,18 +59,15 @@ DFlashEngine is a `BaseEngine` implementation that:
 | `omlx/engine/__init__.py` | DFlashEngine export (required dependency) |
 | `omlx/engine_pool.py` | DFlash routing: checks `dflash_enabled` before engine type switch |
 | `omlx/model_settings.py` | Per-model settings: `dflash_enabled`, `dflash_draft_model`, `dflash_draft_quant_bits` |
-| `omlx/admin/routes.py` | Admin API: settings CRUD + `requires_reload` on dflash changes |
-| `omlx/admin/templates/dashboard/_modal_model_settings.html` | UI: toggle, draft model dropdown, quantization selector |
-| `omlx/admin/static/js/dashboard.js` | Frontend settings binding |
-| `omlx/admin/benchmark.py` | Batch test skip guard for DFlashEngine |
+| `omlx/services/management.py` | Settings validation, persistence, and reload handling |
+| `omlx/api/management_routes.py` | Typed management HTTP contract |
 | `tests/test_dflash_engine.py` | DFlash engine and routing tests |
 | `tests/test_dflash_laguna.py` | Laguna adapter parity, cache rollback, config, and checkpoint-layout tests |
 
 ### Dependency
 
-- `dflash-mlx` pinned to `jundot/dflash-mlx` (v0.1.10+omlx.4)
-- Listed as required dependency in `pyproject.toml`; the mac-app release
-  lockfiles are regenerated from it by the packaging pipeline
+- `dflash-mlx` pinned to the `jundot/dflash-mlx` compatibility fork
+- Listed as a required dependency in `pyproject.toml` and resolved by `uv.lock`
 
 ### Supported models
 
@@ -106,7 +103,7 @@ use Poolside's quantization-matched draft when one is published (for example,
 declares a different precision from the target may reduce acceptance; issue
 #2398 motivates checking this, but does not isolate pairing as the sole cause.
 The engine warns only when both target and draft expose contradictory precision
-metadata, and shows the warning in the dashboard together with acceptance and
+metadata, and exposes the warning through status together with acceptance and
 separate accepted-draft/output tokens-per-cycle counters. A generic `-DFlash`
 suffix is not treated as proof of a BF16-only draft. Poolside also publishes
 INT4/FP8 drafters; their vLLM-format
@@ -120,7 +117,7 @@ are deliberately disabled for Laguna until they have dedicated
 numerical-parity coverage; ordinary adaptive DFlash verification remains
 available.
 
-Note: the `-DFlash` suffix is specific to DFlash draft checkpoints. Gemma4 also ships an `-assistant` variant (e.g. `gemma-4-26B-A4B-it-assistant`) that targets MTP speculative decoding via mlx-vlm — do not mix these in the DFlash toggle. Meta breaks this naming convention: `Muse-Glimmer-30B-assistant` IS a DFlash drafter (block-diffusion, `block_size` 16), not an MTP checkpoint. Drafter routing therefore keys on `config_model_type` (`muse_glimmer_assistant` is in the dashboard's DFlash drafter set), not on the checkpoint name. The Muse Glimmer target is a VLM: DFlash drives its text backbone through dflash-mlx's bundled text-only mlx-lm module, and image requests divert to the VLM fallback engine as usual.
+Note: the `-DFlash` suffix is specific to DFlash draft checkpoints. Gemma4 also ships an `-assistant` variant (e.g. `gemma-4-26B-A4B-it-assistant`) that targets MTP speculative decoding via mlx-vlm — do not mix these in the DFlash setting. Meta breaks this naming convention: `Muse-Glimmer-30B-assistant` IS a DFlash drafter (block-diffusion, `block_size` 16), not an MTP checkpoint. Drafter routing therefore keys on `config_model_type` (`muse_glimmer_assistant` is in the DFlash drafter set), not on the checkpoint name. The Muse Glimmer target is a VLM: DFlash drives its text backbone through dflash-mlx's bundled text-only mlx-lm module, and image requests divert to the VLM fallback engine as usual.
 
 ### Per-model settings
 

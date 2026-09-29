@@ -111,14 +111,8 @@ omlx/_engine_commits.json
 # Generated build info (build-time artifact)
 omlx/_build_info.py
 
-# Tailwind CSS standalone CLI binary (download on demand via build_css.py)
-omlx/admin/tailwindcss-*
-
 # Git worktrees
 .worktrees/
-
-# Swift rewrite architecture notes — kept locally for reference, not tracked.
-docs/native_app_architecture.md
 
 # UV lockfile
 # generated TurboQuant memory report (machine-specific)

@@ -123,13 +123,12 @@ prioritizes MLPs within its 120-program budget and logs when GDN layers are
 dropped instead of leaving them silently on the GPU, and benchmark traces
 report the compiled MLP and GDN counts alongside the configured ones.
 
-The macOS app exposes the same controls under **Models → model settings →
-Advanced → Experimental → Qwen ANE Prefill** for detected Qwen3.5/3.6/3.8
-models. Enabling or changing a control reloads a resident model when the
-working profile is applied. The editor starts from the measured 2,048-token,
-53% MLP / 50% GDN ceiling, dual-ANE, 64/48-layer configuration above; the
-feature itself stays off until explicitly enabled. The runtime reports when it
-caps that requested GDN fraction at the model-specific z boundary.
+The management API exposes these controls for detected Qwen3.5/3.6/3.8 models.
+Changing them reloads a resident model when the updated settings are applied.
+Defaults use the measured 2,048-token, 53% MLP / 50% GDN ceiling, dual-ANE,
+64/48-layer configuration above; the feature itself stays off until explicitly
+enabled. The runtime reports when it caps that requested GDN fraction at the
+model-specific z boundary.
 
 The split tuner calibrates five workload controls: MLP gate/up work on ANE,
 MLP gate/up work on CPU, MLP down-projection work on CPU, GDN work on ANE, and
