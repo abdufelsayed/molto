@@ -1,19 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for server alias support: /admin/api/server-info endpoint and
-``server_aliases`` save/validate path in /admin/api/global-settings."""
+"""Tests for retained network host validation and alias discovery."""
 
-import asyncio
 import threading
 import time
-from contextlib import contextmanager
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 
 import omlx.utils.network as network
-from omlx.settings import GlobalSettings
 from omlx.utils.network import (
     detect_server_aliases,
     is_loopback_bind,
@@ -24,47 +17,6 @@ from omlx.utils.network import (
     is_valid_ip,
     network_auth_error,
 )
-
-# =============================================================================
-# Helpers
-# =============================================================================
-
-
-def _make_global_settings(
-    server_aliases: list[str] | None = None, host: str = "127.0.0.1"
-):
-    """Build a MagicMock GlobalSettings with the fields the alias paths touch."""
-    gs = MagicMock()
-    gs.server.host = host
-    gs.server.port = 8000
-    gs.server.log_level = "info"
-    gs.server.server_aliases = list(server_aliases or [])
-    gs.server.preserve_mid_system_cache = True
-    gs.auth.api_key = None
-    gs.auth.skip_api_key_verification = False
-    # Validation is invoked at the end of update_global_settings; return no errors.
-    gs.validate.return_value = []
-    gs.save.return_value = None
-    return gs
-
-
-@contextmanager
-def _patched_global_settings(gs):
-    """Patch the module-level _get_global_settings getter without disturbing others."""
-    if isinstance(gs, MagicMock):
-        if not isinstance(gs.server.host, str):
-            gs.server.host = "127.0.0.1"
-        if not isinstance(gs.auth.api_key, (str, type(None))):
-            gs.auth.api_key = None
-        if not isinstance(gs.auth.skip_api_key_verification, bool):
-            gs.auth.skip_api_key_verification = False
-    original = admin_routes._get_global_settings
-    admin_routes._get_global_settings = lambda: gs
-    try:
-        yield
-    finally:
-        admin_routes._get_global_settings = original
-
 
 # =============================================================================
 # Unit tests for omlx.utils.network
@@ -366,8 +318,3 @@ class TestDetectServerAliases:
             assert "slow.example" not in aliases
         finally:
             release.set()
-
-
-# =============================================================================
-# /admin/api/server-info endpoint
-# =============================================================================

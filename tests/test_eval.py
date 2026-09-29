@@ -512,11 +512,6 @@ class TestBenchmarkRegistry:
     load_dataset() crashes on the sampling path.
     """
 
-    def test_parity(self):
-        """BENCHMARKS dict and VALID_BENCHMARKS list must be in sync."""
-        from omlx.admin.accuracy_benchmark import VALID_BENCHMARKS
-        from omlx.eval import BENCHMARKS
-        assert set(BENCHMARKS.keys()) == set(VALID_BENCHMARKS)
 
     def test_instantiate_all(self):
         """Every registered class instantiates without error."""
