@@ -2,6 +2,10 @@
 
 Status: experimental, off unless MCDMA's link daemon is running
 
+The Cluster dashboard mentioned below is no longer bundled with this backend.
+The experimental cluster API routes remain; dashboard-specific steps in this
+guide describe the earlier interface.
+
 In a mixed Mac and CUDA deployment every pipeline activation normally crosses
 MLX's TCP Ring, and the Mac's side of that Ring is usually 10 GbE. A Mac with a
 ConnectX card driven by [MCDMA](https://github.com/ashhart/MCDMA) has an RDMA
@@ -44,8 +48,8 @@ A link carries activations only after three independent checks agree.
    that the launch will use for rank 1, then sends content-checked round
    trips, a bulk transfer to the worker that must come back with a matching
    CRC-32, and a bulk transfer from the worker that must match a seeded
-   pattern. One wrong byte fails the probe. The **Verify** button runs the full
-   probe; every launch runs a quick one first.
+   pattern. One wrong byte fails the probe. The verification API below runs the
+   full probe; every launch runs a quick one first.
 3. **Rank agreement.** After loading, every rank attaches its end of the
    mailbox and votes. An edge uses RDMA only when both ends attached and both
    daemons report the link up; a rank that cannot load the helper or reach its
@@ -68,11 +72,10 @@ after 24 hours, or as soon as any of these change: the daemon version, the peer
 host or node, the RDMA device, the mailbox sizes, the time the link came up, or
 the loaded MCDMA driver's version and UUID.
 
-## Dashboard and API
+## Cluster API
 
-The Cluster dashboard shows an **RDMA links** card whenever the Mac's daemon
-answers. Each row lists the link, the worker it reaches, whether it is verified,
-the measured round-trip latency and throughput in each direction, and the
+The API reports the link, the worker it reaches, whether it is verified,
+measured round-trip latency and throughput in each direction, and the
 deployment currently using it.
 
 | Method | Route | Purpose |

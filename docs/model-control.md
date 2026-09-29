@@ -1,131 +1,98 @@
-# Web model workspace
+# Model control without the web admin app
 
-The model workspace is available under **Models** in the web admin app. It has
-three views:
+Use this guide to inspect and control models on a running oMLX server. The
+backend no longer serves the Models workspace. A separate dashboard can use
+the [management API](management-api.md); these examples use `curl`.
 
-- **Library** is the single registry and entry point for model management.
-- **Add model** contains download, a shared Convert & Quantize view, and
-  publishing.
-- **Activity** contains the shared operation queue.
+Start `omlx serve` with a model directory as shown in the
+[quickstart](../README.md#quickstart), then set the same main key in the shell
+where you send requests:
 
-The workspace uses the same engine pool as the OpenAI-compatible APIs, so a
-policy or collection changed in the browser affects the running server.
+```bash
+export OMLX_API_KEY=replace-with-your-main-key
+BASE=http://127.0.0.1:8000/management/v1
+curl "$BASE/models" -H "Authorization: Bearer $OMLX_API_KEY"
+```
 
-## Registry and capabilities
+The inventory lists discovered models, load state, and their persisted model
+settings. `GET /state` gives a compact view of the default model, model
+count, memory ceiling, and loading states. After adding or removing a model
+directory, call `POST /models/refresh` to rescan it.
 
-`GET /admin/api/control/registry` returns one normalized record for every
-physical or virtual model. Each record includes:
+## Load and unload
 
-- model, engine, and checkpoint type;
-- accepted inputs, produced outputs, supported tasks, and API endpoints;
-- local path, Hugging Face repository, active revision, cached revisions,
-  license metadata, architecture, and quantization metadata;
-- estimated, observed, and resident memory;
-- load state, policy, health, update state, cluster placement, profiles, and
-  helper or variant relationships.
+Use a model ID from the inventory:
 
-The server derives this record at runtime. It does not modify downloaded model
-directories.
+```bash
+MODEL=my-model
+curl -X POST "$BASE/models/$MODEL/load" \
+  -H "Authorization: Bearer $OMLX_API_KEY"
+curl -X POST "$BASE/models/$MODEL/unload" \
+  -H "Authorization: Bearer $OMLX_API_KEY"
+```
 
-## Health checks
+Load can return an error if the model is unknown or already loading. Unload
+can return HTTP 202 while active use drains. The server's existing engine
+pool enforces memory admission and eviction. `GET /state` shows the later
+load state. All management routes, including load, require the main key when
+authentication is active. Inference subkeys can load through the retained
+`POST /v1/models/{model_id}/load` endpoint. The retained inference unload
+endpoint now requires the main key.
 
-**Verify files** checks the model descriptor, indexed weight shards, broken
-links, required Python package, and checksums for small configuration files.
+## Change settings and profiles
 
-**Verify load** also loads the engine and runs the smallest useful task probe:
+Read `GET /settings` for global sampling and selected scheduler settings.
+`PATCH /settings` accepts a flat JSON object with supported fields. A
+response with `requires_restart: true` means a scheduler construction change
+will take effect after a server restart. A model-specific patch returns
+`requires_reload` if a loaded engine's runtime configuration differs from
+the saved settings:
 
-| Model type | Probe |
-|---|---|
-| LLM or VLM | Generate one token |
-| Embedding | Embed one short string |
-| Reranker | Rank two documents |
-| TTS | Synthesize a short sample |
-| Image generation | Generate a 256 × 256 PNG with one denoising step |
-| STT or speech-to-speech | Load validation; a real audio sample is required for inference |
+```bash
+curl -X PATCH "$BASE/models/$MODEL/settings" \
+  -H "Authorization: Bearer $OMLX_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"is_pinned":true,"ttl_seconds":300}'
+```
 
-The result records load time, probe time, observed resident memory, and output
-dimensions or bytes where applicable. If verification loaded an otherwise idle
-model, it unloads the model afterward.
+An omitted field stays unchanged. For model settings, an explicit `null`
+restores that field's default. `GET /models/{model_id}/settings` returns the
+current values. The API does not offer every field from the old web admin
+pages; its accepted patch schema is in
+`omlx/services/management_models.py`.
 
-## Memory plans and collections
+When `requires_reload` is true, the backend requests an unload without
+aborting active requests. If the model is idle, `auto_unloaded` is true; a
+pinned model is then loaded again and `auto_reloaded` is true. If requests
+are still running, `reload_deferred` is true and unload waits for them to
+finish. The response also includes `reload_error` if that transition fails.
+The saved settings may already have changed in that case, so inspect
+`GET /state` before sending another request. A deferred pinned model is not
+immediately reloaded by this PATCH response; load it again after it unloads
+if needed.
 
-In Library, select models and choose **Plan memory** to calculate their additional resident
-memory and the exact LRU eviction order under the current memory ceiling. The
-plan excludes pinned, loading, selected, and in-use models. The engine pool
-performs its normal admission check again during the real load because memory
-can change after a dry run.
+Profiles save a named set of allowed model settings. Create one with
+`POST /models/{model_id}/profiles`, list them with `GET`, update with `PUT`
+at `/profiles/{name}`, apply with `POST /profiles/{name}/apply`, and delete
+with `DELETE /profiles/{name}`. The body for creation includes `name` and
+`settings`. Profiles can optionally expose a separate API model ID. See the
+[management API](management-api.md#load-and-settings-example) for a request.
 
-A collection stores a named set of models. Loading it uses the current plan,
-loads each member, and unloads only the newly loaded members if a later member
-fails. Models that were already resident stay resident.
+## Inspect and clear cache
 
-**Convert** and **Quantize** are separate operations in one view and use one
-source selector. `GET /admin/api/control/prepare-models` merges the serving
-registry with the oQ scan, so text, vision, audio, embedding, reranking, and
-image models remain visible even when one operation cannot handle them. Each
-row reports its model type, modality, format, precision, conversion route,
-quantization route, and an exact reason for any unavailable operation.
+`GET /cache` reports cache statistics for loaded models and the configured
+SSD cache directory. `POST /cache/hot/clear` reclaims hot cache. `POST
+/cache/ssd/clear` deletes known saved SSD blocks, including blocks for
+unloaded models. A later matching prompt may have to recompute its prefix.
+`GET /stats` reports session counters by default and accepts
+`scope=alltime` or a `model_id` query.
 
-Conversion changes the runtime format while preserving source precision. It
-dispatches LLMs to `mlx-lm`, VLMs to `mlx-vlm`, embedding and reranking models
-to `mlx-embeddings`, audio models to `mlx-audio`, and supported image models to
-`mflux`. Quantization uses oMLX's oQ implementation and accepts only sources
-that oQ identifies as quantizable. A Hugging Face source is converted to MLX
-automatically inside the oQ job before the quantized output is written, while
-an MLX source proceeds directly to oQ.
+## Limits of this API
 
-Neither operation downloads a source model implicitly. Downloads remain a
-separate Add model action, and completed outputs appear in the registry after
-discovery refreshes.
-
-## Lifecycle policies
-
-The model drawer maps its policies to the existing persisted model settings:
-
-| Policy | Stored behavior |
-|---|---|
-| On demand | Not pinned and no model TTL |
-| Keep warm | Not pinned, with the selected TTL |
-| Always resident | Pinned and loaded immediately |
-| Unload after request | Not pinned, with a one-second idle TTL |
-
-The normal TTL polling interval still determines the exact unload time.
-
-## Operations
-
-`GET /admin/api/control/operations` normalizes Hugging Face downloads,
-ModelScope downloads, oQ conversions, Hugging Face uploads, health checks,
-update checks, and storage moves into `queued`, `running`, `succeeded`, `failed`,
-`cancelled`, or `interrupted` states.
-
-Control-center operation history is stored atomically in
-`<base_path>/model_control.json`. If the server exits during an operation, the
-record becomes `interrupted` on the next start and can be retried. Hugging Face
-and ModelScope retries reuse their existing partial downloads.
-
-## Storage and revisions
-
-The storage view reports logical bytes, allocated bytes, unique file bytes,
-file count, broken links, and free space for every configured model root. A
-deletion preview lists profiles and helper relationships that depend on the
-model and flags loaded, pinned, or default models.
-
-Models can move between configured roots. oMLX unloads the model first, moves
-the local directory or complete Hugging Face cache entry, refreshes discovery,
-and records the operation.
-
-For Hugging Face cache entries, **Check update** compares the active snapshot
-with the repository's current commit. **Stage update** downloads the candidate
-snapshot without changing the active `main` reference. Activating a cached
-revision updates that reference and refreshes discovery, so any older cached
-revision is also a rollback target.
-
-## Portable configuration
-
-Export downloads a JSON bundle containing source and capability metadata,
-model settings, profiles, policies, and collections. Import always runs a dry
-run in the browser first. It applies settings only to model IDs present on the
-target server and reports missing models without creating placeholder entries.
-
-All control endpoints require an authenticated admin session. Load access from
-the existing bearer-token endpoint remains unchanged.
+The former workspace also offered checkpoint verification, downloads,
+conversion, quantization, update staging, storage moves, collections, and a
+shared job queue. They are not part of the current management API. Do not
+assume an operation record is a resumable background job. Model loading and
+settings use the running engine pool and persisted settings; restarting the
+server does not keep a model resident. Experimental cluster protocol routes
+remain separate from this API.

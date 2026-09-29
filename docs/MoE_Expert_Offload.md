@@ -25,14 +25,21 @@ larger than physical memory load at all.
 
 ## Enabling it
 
-Per model, in the admin dashboard: **Model Settings → MoE Expert Offload**,
-with a resident-fraction field accepting 5% to 95%, including fractional percentages such as 12.5%. The API accepts any fraction in (0, 1]. Values outside the UI range are preserved until the field is edited. The following example uses the settings API.
+Use the management API with the main API key and a model ID from
+`GET /management/v1/models`. The resident fraction must be greater than zero
+and at most one. For 25% residency:
 
-```json
-{"moe_expert_offload_enabled": true, "moe_expert_offload_resident_fraction": 0.25}
+```bash
+MODEL=your-model-id
+curl -X PATCH "http://127.0.0.1:8000/management/v1/models/$MODEL/settings" \
+  -H "Authorization: Bearer $OMLX_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"moe_expert_offload_enabled":true,"moe_expert_offload_resident_fraction":0.25}'
 ```
 
-Toggling triggers an engine reload (it is a load-time transform). The env
+This is a load-time transform. The response reports whether the loaded engine
+was unloaded, reloaded, or is waiting for active requests to finish. Check
+`GET /management/v1/state` after a deferred reload. The env
 kill switch `OMLX_MOE_EXPERT_OFFLOAD=0` disables it regardless of settings.
 
 Two env vars tune the reader, and neither changes what is computed:

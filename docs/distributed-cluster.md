@@ -2,6 +2,12 @@
 
 Status: experimental, source-build preview
 
+The dashboard workflow described below belongs to an earlier release. This
+backend no longer includes the web or macOS dashboard, so its GUI enrollment
+and activation steps cannot be followed here. Experimental cluster protocol
+routes remain, but this guide has not been converted into a complete
+backend-only setup procedure.
+
 oMLX can run one downloaded MLX model across two unequal-memory Macs while
 preserving its existing OpenAI-compatible API. The first implementation uses
 contiguous pipeline stages: each rank loads only its assigned transformer
