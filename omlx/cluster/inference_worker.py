@@ -1631,7 +1631,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--state-dir",
         default="~/.omlx/cluster/runtime",
-        help="Local state directory shown by the oMLX GUI on each node",
+        help="Local directory for cluster runtime state",
     )
     parser.add_argument("--control-host", default="")
     parser.add_argument("--control-port", type=int, default=0)

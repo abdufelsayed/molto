@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""oQ Quantization task manager for the admin panel.
+"""oQ quantization task manager for model-management clients.
 
 Manages quantization tasks with progress tracking, following the same pattern
 as hf_downloader.py (DownloadTask / HFDownloader).

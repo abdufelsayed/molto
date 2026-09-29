@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""HuggingFace model downloader for oMLX admin panel.
+"""Hugging Face model downloader for model-management clients.
 
 Downloads models with huggingface_hub's snapshot_download, filesystem-based
 progress polling, and an isolated HTTP retry for xet transport failures.
@@ -215,7 +215,7 @@ def _make_cancellable_tqdm(should_cancel: Callable[[], bool]) -> type:
 def _get_hf_api() -> tuple[HfApi, str | None]:
     """Create HfApi instance with configured endpoint.
 
-    Only the admin UI's `huggingface.endpoint` setting is honored here.
+    Only the persisted `huggingface.endpoint` setting is honored here.
     When that's empty, return `HfApi()` with no explicit endpoint so
     `huggingface_hub` falls back to its own resolution (which already
     honors the `HF_ENDPOINT` env var). The configured endpoint, when

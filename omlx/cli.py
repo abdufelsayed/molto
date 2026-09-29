@@ -128,7 +128,8 @@ def _migrate_saved_network_auth(settings, args) -> None:
         "API key authentication is required for access from other devices. "
         "The server is now limited to this Mac. Your other settings and models "
         "have been preserved. To allow access from other devices, set an API "
-        "key and enable authentication in Settings, then change the server address."
+        "key with --api-key or OMLX_API_KEY, keep API-key verification enabled "
+        "in settings.json, then restore server.host."
     )
     notice_path = os.environ.get("OMLX_STARTUP_NOTICE_PATH")
     if not notice_path:

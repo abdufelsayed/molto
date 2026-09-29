@@ -227,11 +227,11 @@ def test_a_link_carrying_another_deployment_is_left_alone():
     assert report["reason"] == "link linka is in use by deployment other"
 
 
-def test_a_link_under_dashboard_verification_is_left_alone():
+def test_a_link_under_verification_is_left_alone():
     launch_links.claim_link("linka", launch_links.VERIFYING)
     deployment, report, _ = _attach(verify=_verify(True))
     assert deployment.stage_links == ()
-    assert report["reason"] == "link linka is in use by a dashboard verification"
+    assert report["reason"] == "link linka is in use by a link verification"
 
 
 @pytest.mark.parametrize(

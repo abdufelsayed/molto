@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""HuggingFace model uploader for oMLX admin panel.
+"""Hugging Face model uploader for model-management clients.
 
 Uploads oQ-quantized models to HuggingFace Hub with queue-based sequential
 processing, following the same pattern as hf_downloader.py.

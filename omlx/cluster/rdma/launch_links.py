@@ -21,8 +21,8 @@ from .words import load_word_ops
 
 logger = logging.getLogger(__name__)
 DISABLE_ENV = "OMLX_RDMA_STAGE_LINKS"
-# The owner recorded while the dashboard verifies a link.
-VERIFYING = "a dashboard verification"
+# The owner recorded while the controller verifies a link.
+VERIFYING = "a link verification"
 # One owner per link at a time: a second probe would take the worker's service end away.
 _claims_lock = threading.Lock()
 _claims: dict[str, str] = {}

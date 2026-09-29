@@ -63,7 +63,7 @@ MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 MAX_REDIRECTS = 3
 DEFAULT_FETCH_CONTENT_CHARS = 20_000
 
-_SETTINGS_HINT = "Dashboard -> Settings -> Integrations -> Web Search"
+_SETTINGS_HINT = "the integrations.web_search_* fields in settings.json"
 
 _FETCHABLE_CONTENT_TYPES = {
     "text/html",

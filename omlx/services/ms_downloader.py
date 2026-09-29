@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""ModelScope model downloader for oMLX admin panel.
+"""ModelScope model downloader for model-management clients.
 
 Downloads models from ModelScope Hub using the modelscope SDK's snapshot_download
 with directory-size-based progress polling.

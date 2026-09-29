@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Bounded two-rank NCCL probe used by the dashboard's fabric verifier."""
+"""Bounded two-rank NCCL probe used by cluster fabric verification."""
 
 from __future__ import annotations
 

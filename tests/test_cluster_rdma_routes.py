@@ -196,7 +196,7 @@ def test_inventory_marks_a_link_under_verification(client):
         (
             lambda mp: launch_links.claim_link("linka", launch_links.VERIFYING),
             409,
-            "in use by a dashboard verification",
+            "in use by a link verification",
         ),
         (
             lambda mp: mp.setattr(link_routes, "enrolled_node_addresses", lambda: ()),

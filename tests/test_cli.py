@@ -1600,7 +1600,7 @@ class TestSavedNetworkAuthMigration:
         self.data["server"]["host"] = "127.0.0.1"
         assert json.loads(self.path.read_text()) == self.data
         assert settings.server.host == "127.0.0.1"
-        assert "enable authentication" in capsys.readouterr().out
+        assert "API-key verification enabled in settings.json" in capsys.readouterr().out
 
     @pytest.mark.parametrize(
         "case", ["cli", "env", "authenticated", "loopback", "invalid"]

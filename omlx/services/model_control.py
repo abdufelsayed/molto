@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Shared model-management primitives for the web admin application.
+"""Shared model-management primitives for management clients.
 
 The inference engines keep their own runtime state.  This module adds the
-durable, engine-neutral state needed by the web control center: policies,
+durable, engine-neutral state needed by control clients: policies,
 health reports, update reports, operation history, and model collections.
 """
 

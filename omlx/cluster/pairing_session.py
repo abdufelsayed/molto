@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Serialized, admin-owned joiner session for the dashboard."""
+"""Serialized, controller-owned cluster join session."""
 
 from __future__ import annotations
 

@@ -44,7 +44,7 @@ def _build_test_app():
                 "Request aborted: process memory limit exceeded "
                 "(usage 4.4 GB, abort threshold (hard watermark) 4.1 GB, "
                 "dynamic ceiling 4.3 GB). "
-                "Raise custom_ceiling_bytes in admin Memory settings."
+                "Raise memory.memory_guard_custom_ceiling_gb in settings.json."
             ),
             request_id="req-abort",
             limit_bytes=4_100_000_000,

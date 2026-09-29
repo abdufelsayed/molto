@@ -539,7 +539,7 @@ def classify_link(
             detail=(
                 "RDMA is enabled and the Thunderbolt ports are active, but they "
                 "have no IP address, so the RDMA queue pairs cannot be "
-                "established. Start Cluster will ask macOS for administrator "
+                "established. Cluster activation will ask macOS for administrator "
                 "approval, configure the link, verify it, and continue."
             ),
             backend="jaccl",
@@ -784,7 +784,7 @@ def _authorized_ifconfig(host: str, interface: str, address: str) -> None:
         except subprocess.TimeoutExpired as exc:
             raise LinkSetupError(
                 f"{host} did not answer the macOS authorization request. "
-                "Make sure it is awake and signed in, then try Start Cluster again."
+                "Make sure it is awake and signed in, then retry cluster activation."
             ) from exc
         except OSError as exc:
             raise LinkSetupError(
@@ -803,7 +803,7 @@ def _authorized_ifconfig(host: str, interface: str, address: str) -> None:
     except subprocess.TimeoutExpired as exc:
         raise LinkSetupError(
             f"{host} did not answer the macOS authorization request. "
-            "Make sure it is awake and signed in, then try Start Cluster again."
+            "Make sure it is awake and signed in, then retry cluster activation."
         ) from exc
     except OSError as exc:
         raise LinkSetupError(f"Could not open macOS authorization on {host}: {exc}") from exc
@@ -845,7 +845,7 @@ def configure_link(hosts: list[str] | tuple[str, ...]) -> LinkStatus:
         if any(port is None for port in active_ports.values()):
             raise LinkSetupError(
                 "The Thunderbolt RDMA port changed while it was being configured. "
-                "Check the cable and try Start Cluster again."
+                "Check the cable and retry cluster activation."
             )
         current_ips = {
             host: _interface_ip(host, active_ports[host] or "")

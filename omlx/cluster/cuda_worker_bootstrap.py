@@ -521,7 +521,7 @@ def main(argv: list[str] | None = None) -> int:
     if complete.get("status") != "joined":
         raise BootstrapError("controller did not confirm the joined worker")
     print(f"oMLX worker joined as {ssh_user}@{local_ip}")
-    print("Return to the Cluster dashboard; hardware verification will continue there.")
+    print("Return to the cluster controller and continue hardware verification.")
     return 0
 
 

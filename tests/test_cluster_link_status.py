@@ -75,7 +75,7 @@ def test_ports_without_an_ip_are_prepared_by_start_cluster():
     assert status.ready is False
     assert status.setup_available is True
     assert status.commands == ()
-    assert "Start Cluster" in status.detail
+    assert "Cluster activation" in status.detail
     assert "administrator" in status.detail
     assert status.doc_url
 

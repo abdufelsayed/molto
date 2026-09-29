@@ -100,7 +100,7 @@ def describe_ceiling_binding(
     is_custom = (tier or "").strip().lower() == "custom"
     if "dynamic" in binding and is_custom:
         remedies.append(
-            f"raise custom_ceiling_bytes in admin Memory settings "
+            f"raise memory.memory_guard_custom_ceiling_gb in settings.json "
             f"(currently pinned at {fmt(dynamic)})"
         )
     elif "dynamic" in binding and static and static > dynamic:

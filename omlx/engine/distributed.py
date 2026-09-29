@@ -287,7 +287,7 @@ class DistributedBatchedEngine(BatchedEngine):
         return False
 
     def cluster_status(self) -> dict[str, Any]:
-        """Return the bounded launcher/rank state used by the admin UI."""
+        """Return the bounded launcher/rank state used by management clients."""
 
         return self._supervisor.status().to_dict()
 
