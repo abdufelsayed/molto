@@ -518,7 +518,7 @@ class TestCeilingBindingAdvice:
         assert "iogpu.wired_limit_mb" in advice
         assert "close other apps" not in advice.lower()
 
-    def test_dynamic_binding_under_custom_names_admin_setting(self):
+    def test_dynamic_binding_under_custom_names_persisted_setting(self):
         binding, advice = describe_ceiling_binding(
             static=24 * 1024**3,
             dynamic=4 * 1024**3,
@@ -528,7 +528,7 @@ class TestCeilingBindingAdvice:
             fmt=self._fmt,
         )
         assert binding == "dynamic"
-        assert "custom_ceiling_bytes" in advice
+        assert "memory.memory_guard_custom_ceiling_gb" in advice
         assert "close other apps" not in advice.lower()
 
     def test_static_binding_falls_back_to_the_tier_lever(self):

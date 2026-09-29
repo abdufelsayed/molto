@@ -895,7 +895,7 @@ class TestRejectionMessageNamesBindingCeiling:
         assert "metal_cap ceiling" in rej.message
         assert "caps Metal at 16.00 GB" in rej.message
 
-    def test_dynamic_binding_under_custom_names_admin_setting(self, monkeypatch):
+    def test_dynamic_binding_under_custom_names_persisted_setting(self, monkeypatch):
         sched = _make_scheduler()
         self._arm_ceilings(
             sched,
@@ -905,9 +905,9 @@ class TestRejectionMessageNamesBindingCeiling:
             tier="custom",
         )
         rej = self._force_rejection(sched, monkeypatch)
-        assert "custom_ceiling_bytes" in rej.message, (
-            "dynamic binding under custom tier must point at the admin "
-            f"Memory setting, not 'close other apps'; got: {rej.message}"
+        assert "memory.memory_guard_custom_ceiling_gb" in rej.message, (
+            "dynamic binding under custom tier must point at the persisted "
+            f"memory setting, not 'close other apps'; got: {rej.message}"
         )
         assert "close other apps" not in rej.message.lower()
 
@@ -955,4 +955,4 @@ class TestRejectionMessageNamesBindingCeiling:
         rej = self._force_rejection(sched, monkeypatch)
         assert "memory_guard_tier" in rej.message
         assert "iogpu.wired_limit_mb" not in rej.message
-        assert "custom_ceiling_bytes" not in rej.message
+        assert "memory.memory_guard_custom_ceiling_gb" not in rej.message
