@@ -326,7 +326,7 @@ def get_mcp_manager():
 def mcp_tools_exposed() -> bool:
     """Whether backend MCP tools are exposed to clients.
 
-    Controlled by the dashboard toggle (Settings > Global Settings > MCP).
+    Controlled by mcp.expose_tools in the global settings file.
     Defaults to True (backward compatible) when global settings are
     unavailable, e.g. when MCP was started via env var/CLI without a
     settings file.
@@ -452,8 +452,7 @@ async def lifespan(app: FastAPI):
 
     bonjour_publisher = None
     bonjour_task = None
-    # Startup: Auto-populate server aliases for the admin dashboard
-    # so users get sensible hostname/IP options for API URL hints
+    # Startup: Auto-populate server aliases for advertised API addresses
     # without manual configuration. Only runs when the persisted list
     # is empty so user-curated aliases are never overwritten.
     if (
@@ -2054,7 +2053,7 @@ def get_max_context_window(model_id: str | None = None) -> int | None:
     Get effective max context window limit.
 
     Resolution:
-        1. **Per-model override** (admin UI / settings.json) — always
+        1. **Per-model override** (management API / model settings) — always
            wins. An operator who has set a per-model number knows what
            they want; ``max_context_window_policy`` does not clamp it.
         2. **Model-config-discovered native context length** (#1308),
@@ -8207,7 +8206,7 @@ Examples:
     python -m omlx.server --model-dir /path/to/models --mcp-config mcp.json
 
 Note: Use the omlx CLI for full feature support. Pinned models, default
-model and sampling defaults are managed via the admin page.
+model and sampling defaults are managed via the management API.
         """,
     )
     parser.add_argument(

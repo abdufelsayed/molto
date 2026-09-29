@@ -33,14 +33,13 @@ def _configured_stores(tmp_path):
     discovery_routes.probe_rate_limiter._buckets.clear()
     identity = configure_node_identity(tmp_path)
     registry = configure_device_registry(tmp_path / "devices.json")
-    # Bypass admin auth for the inventory endpoint in these unit tests;
-    # admin wiring is exercised by the existing admin auth test suite.
+    # Bypass main-key auth for inventory behavior; auth is tested separately.
     app = FastAPI()
 
     async def _allow():
         return True
 
-    app.dependency_overrides[discovery_routes.require_admin] = _allow
+    app.dependency_overrides[discovery_routes.require_management_key] = _allow
     app.include_router(discovery_routes.discovery_router)
     client = TestClient(app)
     yield identity, registry, client
@@ -258,16 +257,21 @@ def test_cluster_name_persisted_config(tmp_path, monkeypatch):
     assert load_cluster_name(tmp_path) == "omlx"
 
 
-def test_devices_requires_admin_auth(tmp_path):
+def test_devices_requires_main_key(tmp_path):
+    from omlx.auth import AuthContext
+
     # Without the dependency override, an unauthenticated call is rejected.
     reset_configured_identity()
     configure_node_identity(tmp_path)
     app = FastAPI()
+    app.state.management_auth_provider = lambda: AuthContext(
+        main_key="main-key", sub_keys=[], bind_host="127.0.0.1"
+    )
     app.include_router(discovery_routes.discovery_router)
     client = TestClient(app, raise_server_exceptions=False)
     try:
         response = client.get("/api/cluster/devices")
-        assert response.status_code in {401, 302, 307}
+        assert response.status_code == 401
     finally:
         reset_configured_identity()
 

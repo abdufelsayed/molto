@@ -1113,34 +1113,15 @@ class TestMemorySettings:
         settings = MemorySettings.from_dict({"prefill_memory_guard": False})
         assert settings.prefill_memory_guard is False
 
-    def test_admin_rejects_custom_tier_without_ceiling_before_applying(
-        self, tmp_path, monkeypatch
-    ):
-        """A zero custom ceiling must never reach the live enforcer."""
-        import asyncio
-
-        from fastapi import HTTPException
-
-        from omlx.admin import routes as admin_routes
-        from omlx.server import _server_state
-
+    def test_custom_tier_requires_positive_ceiling(self, tmp_path):
+        """Settings validation rejects a custom tier with no usable ceiling."""
         gs = GlobalSettings(base_path=tmp_path)
-        enforcer = MagicMock()
-        enforcer.memory_guard_tier = "balanced"
-        monkeypatch.setattr(admin_routes, "_get_global_settings", lambda: gs)
-        monkeypatch.setattr(_server_state, "process_memory_enforcer", enforcer)
-
-        request = admin_routes.GlobalSettingsRequest.model_validate(
-            {"memory_guard_tier": "custom", "memory_guard_custom_ceiling_gb": 0}
+        gs.memory.memory_guard_tier = "custom"
+        gs.memory.memory_guard_custom_ceiling_gb = 0
+        assert any(
+            "memory_guard_custom_ceiling_gb must be > 0" in error
+            for error in gs.validate()
         )
-        with pytest.raises(HTTPException) as exc:
-            asyncio.run(
-                admin_routes.update_global_settings(request=request, is_admin=True)
-            )
-
-        assert exc.value.status_code == 400
-        assert gs.memory.memory_guard_tier == "balanced"
-        assert enforcer.memory_guard_tier == "balanced"
 
 
 class TestGlobalSettings:
@@ -2936,8 +2917,8 @@ class TestClaudeCodeValidation:
         assert len(mode_errors) == 1
 
 
-class TestClaudeCodeRouteIntegration:
-    """Integration tests for the settings chain: dataclass <-> dict <-> routes."""
+class TestClaudeCodePersistence:
+    """Claude Code model choices survive settings serialization and reload."""
 
     def test_claude_code_to_dict_has_four_keys(self):
         """to_dict must include all four keys so GlobalSettings.save() persists them."""
@@ -2977,39 +2958,17 @@ class TestClaudeCodeRouteIntegration:
         assert reloaded.mode == "cloud"
         assert reloaded.opus_model is None
 
-    def test_post_handler_model_fields_set_explicit_null(self):
-        """
-        GlobalSettingsRequest.model_validate with explicit null must include
-        the field in model_fields_set so the POST handler can clear it.
-        """
-        from omlx.admin.routes import GlobalSettingsRequest
-
-        r = GlobalSettingsRequest.model_validate({"claude_code_opus_model": None})
-        assert "claude_code_opus_model" in r.model_fields_set
-        assert r.claude_code_opus_model is None
-
-    def test_post_handler_model_fields_set_absent_field(self):
-        """
-        GlobalSettingsRequest() with no claude_code_opus_model must NOT include it
-        in model_fields_set — POST handler must not apply it (leave server value alone).
-        """
-        from omlx.admin.routes import GlobalSettingsRequest
-
-        r = GlobalSettingsRequest()
-        assert "claude_code_opus_model" not in r.model_fields_set
-
-    def test_post_handler_model_fields_set_explicit_value(self):
-        """
-        GlobalSettingsRequest with an explicit model ID must include the field
-        in model_fields_set and carry the value.
-        """
-        from omlx.admin.routes import GlobalSettingsRequest
-
-        r = GlobalSettingsRequest(
-            claude_code_opus_model="mlx-community/Qwen3-30B-A3B-4bit"
+    def test_global_settings_file_persists_model_choice_and_clear(self, tmp_path):
+        gs = GlobalSettings(base_path=tmp_path)
+        gs.claude_code.opus_model = "mlx-community/Qwen3-30B-A3B-4bit"
+        gs.save()
+        assert GlobalSettings.load(base_path=tmp_path).claude_code.opus_model == (
+            "mlx-community/Qwen3-30B-A3B-4bit"
         )
-        assert "claude_code_opus_model" in r.model_fields_set
-        assert r.claude_code_opus_model == "mlx-community/Qwen3-30B-A3B-4bit"
+
+        gs.claude_code.opus_model = None
+        gs.save()
+        assert GlobalSettings.load(base_path=tmp_path).claude_code.opus_model is None
 
 
 class TestCORSMiddleware:
@@ -3087,127 +3046,6 @@ class TestUISettings:
 
         restored = GlobalSettings.load(base_path=tmp_path)
         assert restored.ui.dashboard_layout == layout
-
-
-class TestDashboardLayoutRoute:
-    """/api/global-settings validates and persists ui_dashboard_layout."""
-
-    @staticmethod
-    def _layout(**overrides):
-        layout = {
-            "version": 1,
-            "width": "wide",
-            "blocks": [
-                {"id": "serving_stats", "x": 0, "y": 0, "w": 12},
-                {"id": "active_models", "x": 12, "y": 0, "w": 12},
-            ],
-        }
-        layout.update(overrides)
-        return layout
-
-    def test_get_exposes_layout(self, tmp_path, monkeypatch):
-        import asyncio
-
-        from omlx.admin import routes as admin_routes
-
-        gs = GlobalSettings(base_path=tmp_path)
-        gs.ui.dashboard_layout = self._layout()
-        monkeypatch.setattr(admin_routes, "_get_global_settings", lambda: gs)
-
-        result = asyncio.run(admin_routes.get_global_settings(is_admin=True))
-        assert result["ui"]["dashboard_layout"] == self._layout()
-
-    def test_post_persists_layout(self, tmp_path, monkeypatch):
-        import asyncio
-
-        from omlx.admin import routes as admin_routes
-
-        gs = GlobalSettings(base_path=tmp_path)
-        monkeypatch.setattr(admin_routes, "_get_global_settings", lambda: gs)
-
-        request = admin_routes.GlobalSettingsRequest.model_validate(
-            {"ui_dashboard_layout": self._layout()}
-        )
-        result = asyncio.run(
-            admin_routes.update_global_settings(request=request, is_admin=True)
-        )
-        assert result["success"] is True
-        assert "ui_dashboard_layout" in result["runtime_applied"]
-        assert gs.ui.dashboard_layout == self._layout()
-        assert GlobalSettings.load(base_path=tmp_path).ui.dashboard_layout == (
-            self._layout()
-        )
-
-    def test_post_explicit_null_restores_default(self, tmp_path, monkeypatch):
-        import asyncio
-
-        from omlx.admin import routes as admin_routes
-
-        gs = GlobalSettings(base_path=tmp_path)
-        gs.ui.dashboard_layout = self._layout()
-        monkeypatch.setattr(admin_routes, "_get_global_settings", lambda: gs)
-
-        request = admin_routes.GlobalSettingsRequest.model_validate(
-            {"ui_dashboard_layout": None}
-        )
-        asyncio.run(admin_routes.update_global_settings(request=request, is_admin=True))
-        assert gs.ui.dashboard_layout is None
-
-    def test_post_without_layout_keeps_current(self, tmp_path, monkeypatch):
-        import asyncio
-
-        from omlx.admin import routes as admin_routes
-
-        gs = GlobalSettings(base_path=tmp_path)
-        gs.ui.dashboard_layout = self._layout()
-        monkeypatch.setattr(admin_routes, "_get_global_settings", lambda: gs)
-
-        request = admin_routes.GlobalSettingsRequest()
-        result = asyncio.run(
-            admin_routes.update_global_settings(request=request, is_admin=True)
-        )
-        assert "ui_dashboard_layout" not in result["runtime_applied"]
-        assert gs.ui.dashboard_layout == self._layout()
-
-    def test_unknown_and_duplicate_blocks_are_dropped(self):
-        from omlx.admin.routes import DashboardLayoutRequest
-
-        layout = DashboardLayoutRequest.model_validate(
-            self._layout(
-                blocks=[
-                    {"id": "serving_stats", "x": 0, "y": 0, "w": 24},
-                    {"id": "not_a_block", "x": 0, "y": 1, "w": 24},
-                    {"id": "serving_stats", "x": 0, "y": 2, "w": 12},
-                ]
-            )
-        )
-        assert [b.id for b in layout.blocks] == ["serving_stats"]
-        assert layout.blocks[0].w == 24
-
-    @pytest.mark.parametrize(
-        "block",
-        [
-            {"id": "serving_stats", "x": 20, "y": 0, "w": 12},  # x + w > 24
-            {"id": "serving_stats", "x": 0, "y": 0, "w": 5},  # below min width
-            {"id": "serving_stats", "x": 0, "y": 0, "w": 25},  # above column count
-            {"id": "serving_stats", "x": -1, "y": 0, "w": 12},
-        ],
-    )
-    def test_invalid_block_geometry_is_rejected(self, block):
-        import pydantic
-
-        from omlx.admin.routes import DashboardLayoutRequest
-
-        with pytest.raises(pydantic.ValidationError):
-            DashboardLayoutRequest.model_validate(self._layout(blocks=[block]))
-
-    def test_invalid_width_is_rejected(self):
-        import pydantic
-
-        from omlx.admin.routes import DashboardLayoutRequest
-
-        with pytest.raises(pydantic.ValidationError):
-            DashboardLayoutRequest.model_validate(self._layout(width="huge"))
 
 
 @pytest.mark.parametrize("value", ["false", "true", 0, 1, None])

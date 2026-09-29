@@ -3524,15 +3524,3 @@ def test_warn_gdn_below_floor_stays_quiet_when_the_fraction_is_viable(
         ane_patch._warn_gdn_below_floor(model, True, 12, 0.15, True)
 
     assert "floor" not in caplog.text
-
-
-def test_tuner_floor_delegates_to_the_patch_rule():
-    """One implementation of the bank rule, so the tuner grid clamp and the
-    enable-path warning cannot disagree."""
-    from omlx.admin import ane_tuning
-    from omlx.patches import qwen35_ane_prefill as patch
-
-    gdn = _floor_gdn(512, 1536)
-    assert ane_tuning._min_viable_gdn_fraction(
-        patch, gdn, 128
-    ) == patch._min_viable_gdn_fraction(gdn, 128)
