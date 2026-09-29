@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-    "setuptools>=61.0",
+    "setuptools>=77.0",
     "wheel",
     "cmake>=3.27",
     # Pin nanobind to match the ABI version MLX 0.32.2 was built with
@@ -18,7 +18,7 @@ name = "omlx"
 dynamic = ["version"]
 description = "LLM inference server, optimized for your Mac"
 readme = "README.md"
-license = {text = "Apache-2.0"}
+license = "Apache-2.0"
 requires-python = ">=3.11,<3.14"
 authors = [
     {name = "omlx contributors"}
@@ -28,10 +28,8 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: Apache Software License",
     "Operating System :: MacOS",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -73,8 +71,6 @@ dependencies = [
     "numpy>=1.24.0,<2.4",
     "tqdm>=4.66.0",
     "pyyaml>=6.0",
-    "itsdangerous>=2.0",
-    "jinja2>=3.0",
     # mlx-lm 0.31.3 imports rich from mlx_lm.cli_ui for chat/lora entrypoints.
     "rich>=13.0.0",
     "sentencepiece",
@@ -87,11 +83,7 @@ dependencies = [
     "httpx>=0.27.0,<1",
     # SOCKS proxy support (used by httpx via huggingface-hub)
     "socksio>=1.0.0",
-    # DuckDuckGo backend for the chat web_search tool. Pinned to 9.14.1:
-    # the last release inside packaging/venvstacks.toml's exclude-newer
-    # cutoff (2026-04-23), and the last with the minimal dep tree
-    # (click/primp/lxml only; 9.14.2+ adds fake-useragent and httpx
-    # extras). Bump together with the cutoff.
+    # DuckDuckGo backend for the chat web_search tool.
     "ddgs==9.16.0",
     "tabulate>=0.9.0",
     # Resource monitoring
@@ -133,9 +125,9 @@ dependencies = [
 [project.optional-dependencies]
 grammar = [
     # Grammar-constrained decoding for structured output (requires torch ~2GB)
-    # Keep this native pair aligned with omlx/_torch_stub.py and the DMG
-    # build. xgrammar 0.2.3 crashes at import with apache-tvm-ffi 0.1.13
-    # on macOS arm64, so an open-ended resolver can break Homebrew installs
+    # Keep this native pair aligned with omlx/_torch_stub.py.
+    # xgrammar 0.2.3 crashes at import with apache-tvm-ffi 0.1.13
+    # on macOS arm64, so an open-ended resolver can break installs
     # without any oMLX source change (#2428).
     "xgrammar==0.2.3",
     "apache-tvm-ffi==0.1.11",
@@ -178,70 +170,18 @@ paroquant = [
     # ParoQuant runtime loader for paroquant-quantized models. Installed
     # with --no-deps semantics here because the official [mlx] extra pulls
     # torchvision, which the load path doesn't actually use (verified end
-    # to end on 0.1.14). The DMG build installs the same pin via build.py.
+    # to end on 0.1.14).
     "paroquant==0.1.16; python_version >= '3.11'",
 ]
-# Internal extra consumed by packaging/build.py to populate the
-# venvstacks mlx-base layer's requirements list. Listed here as the
-# single source of truth so the layer-template venvstacks.toml stays
-# version-free. End-users don't `pip install omlx[bundle]`; this is for
-# the macOS .app build pipeline.
-#
-# Audio runtime dependencies are explicit because build.py installs the audio wheel
-# separately with --no-deps after the shared layer resolves.
-bundle = [
-    "mcp>=2.0.0,<3",
-    "modelscope>=1.10.0",
-    # mlx-audio[tts,stt,sts] transitives:
-    "scipy>=1.11.0",
-    "librosa>=0.10.0",
-    "miniaudio>=1.59",
-    "numba>=0.59.0",
-    "pyloudnorm>=0.1.0",
-    "sounddevice>=0.4.6",
-    "misaki>=0.9.4",
-    "num2words>=0.5.14",
-    "spacy>=3.8.4",
-    "phonemizer-fork>=3.3.2",
-    "espeakng-loader>=0.2.4",
-    "webrtcvad>=2.0.10",
-    # [audio] extra on top of pyproject's plain mistral-common>=1.10
-    "mistral-common[audio]>=1.10",
-    # realtime STT WebSocket endpoint
-    "wsproto==1.2.0",
-]
-dev = [
-    "pytest>=7.0.0",
-    "pytest-asyncio>=0.21.0",
-    "black>=23.0.0",
-    "ruff>=0.1.0",
-    "mypy>=1.0.0",
-    "mcp>=2.0.0,<3",
-    "venvstacks>=0.7.0",
-    # The torch-stub smoke test (tests/test_torch_stub.py) gates
-    # xgrammar / tvm-ffi version bumps. It skips when these aren't
-    # importable, which silently hides regressions — install no-deps
-    # in the dev environment so the test actually runs.
-    #
-    # Held at 0.2.3: xgrammar 0.2.4/0.2.5 cap transformers at <5,
-    # which conflicts with our transformers>=5.12.1 pin and makes
-    # pip/uv dev installs unresolvable (#2289). Bump again once
-    # upstream lifts the cap.
-    "xgrammar==0.2.3",
-    "apache-tvm-ffi==0.1.11",
-]
-# PEP 735 dependency groups — consumed by `uv sync --dev`.
-# Keep in sync with [project.optional-dependencies] dev above
-# (pip/legacy toolchains use that section instead).
+# PEP 735 dependency group for development. `uv sync` includes it by default.
 [dependency-groups]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
-    "black>=23.0.0",
     "ruff>=0.1.0",
     "mypy>=1.0.0",
     "mcp>=2.0.0,<3",
-    "venvstacks>=0.7.0",
+    # The torch-stub smoke test must exercise the pinned native pair.
     "xgrammar==0.2.3",
     "apache-tvm-ffi==0.1.11",
 ]
@@ -263,14 +203,9 @@ include = ["omlx*"]
 
 [tool.setuptools.package-data]
 "omlx" = ["oq_calibration_data.json", "oqe_calibration_data.json"]
-"omlx.admin" = [
-    "templates/**/*.html",
-    "static/**/*",
-    "i18n/*.json",
-    "bench_corpora/*",
-]
 "omlx.eval" = ["data/*.jsonl"]
 "omlx.patches.deepseek_v41" = ["LICENSE"]
+"omlx.custom_kernels.bonsai" = ["*.metallib", "*.dylib", "*.so"]
 "omlx.custom_kernels.glm_moe_dsa" = ["*.metallib", "*.dylib", "*.so"]
 "omlx.custom_kernels.decode_fast" = ["*.metallib", "*.dylib", "*.so"]
 "omlx.custom_kernels.minimax_m3" = ["*.metallib", "*.dylib", "*.so"]
@@ -284,20 +219,23 @@ override-dependencies = [
     "mlx-lm @ git+https://github.com/ml-explore/mlx-lm@872ae88d1fac77350db23c8c04fe8dd372a9e3e8",
 ]
 
-[tool.black]
-line-length = 88
-target-version = ["py310", "py311", "py312", "py313"]
-
 [tool.ruff]
 line-length = 88
-select = ["E", "F", "W", "I", "N", "UP", "B", "SIM"]
-ignore = ["E501", "B905"]
+target-version = "py311"
 # Vendored upstream files (mlx-vlm copies under patches) keep their
 # original formatting for pin-bump diffability.
 extend-exclude = ["omlx/patches/*/vendor"]
 
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM"]
+ignore = ["E501", "B905"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI resolves these injection descriptors when it handles a request.
+extend-immutable-calls = ["fastapi.Depends"]
+
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
@@ -305,4 +243,17 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+pythonpath = ["."]
 asyncio_mode = "auto"
+markers = [
+    "slow: requires model loading",
+    "integration: requires a running server",
+    "turboquant: TurboQuant KV cache tests",
+]
+addopts = '-v --tb=short -m "not slow and not integration"'
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning",
+]

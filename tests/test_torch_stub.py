@@ -1,11 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for omlx._torch_stub.
 
-The stub is load-bearing for the DMG flow: it satisfies xgrammar /
-tvm_ffi's import-time torch references without the real ~500 MB torch
-wheel. Direct tests here catch the realistic regression where a future
-xgrammar / tvm_ffi version starts touching a new torch attribute at
-import.
+The stub satisfies xgrammar / tvm_ffi's import-time torch references
+without the real torch wheel. Direct tests catch a future version that
+touches a new torch attribute at import.
 """
 
 from __future__ import annotations
@@ -575,10 +573,9 @@ def _load_pyproject():
 
 
 def _pyproject_dev_pins(package):
-    """Collect pins from the [dev] extra and PEP 735 dependency group."""
+    """Collect pins from the PEP 735 dev dependency group."""
     data = _load_pyproject()
-    specs = list(data["project"]["optional-dependencies"]["dev"])
-    specs += [s for s in data["dependency-groups"]["dev"] if isinstance(s, str)]
+    specs = [s for s in data["dependency-groups"]["dev"] if isinstance(s, str)]
     return _package_pins(specs, package)
 
 
@@ -590,20 +587,14 @@ def _pyproject_grammar_pins(package):
 
 
 def test_pyproject_dev_pins_match_stub_targets(stub_module):
-    """Dependabot bumps the pyproject dev pins but cannot touch this stub,
-    and packaging/build.py ships _TARGET_*_VERSIONS[0] in the DMG. Without
-    this check a bare pyproject bump silently makes dev/CI test a version
-    the bundle does not ship. Bump _TARGET_XGRAMMAR_VERSIONS /
-    _TARGET_TVM_FFI_VERSIONS in omlx/_torch_stub.py alongside the pin.
-    """
+    """Keep dev test dependencies aligned with the torch stub's ABI targets."""
     for package, targets in (
         ("xgrammar", stub_module._TARGET_XGRAMMAR_VERSIONS),
         ("apache-tvm-ffi", stub_module._TARGET_TVM_FFI_VERSIONS),
     ):
         pins = _pyproject_dev_pins(package)
         assert len(pins) == 1, (
-            f"{package}: expected one identical pin across both pyproject "
-            f"dev lists, got {sorted(pins) or 'none'}"
+            f"{package}: expected one dev-group pin, got {sorted(pins) or 'none'}"
         )
         assert pins == {targets[0]}, (
             f"{package}: pyproject dev pin {sorted(pins)} != stub target "
@@ -612,7 +603,7 @@ def test_pyproject_dev_pins_match_stub_targets(stub_module):
 
 
 def test_pyproject_grammar_pins_match_stub_targets(stub_module):
-    """Homebrew grammar installs must use the native pair tested by the DMG.
+    """Homebrew grammar installs must use the native pair tested in development.
 
     xgrammar links dynamically against apache-tvm-ffi, so allowing either
     package to resolve independently can produce an import-time segfault even
@@ -625,6 +616,6 @@ def test_pyproject_grammar_pins_match_stub_targets(stub_module):
         pins = _pyproject_grammar_pins(package)
         assert pins == {targets[0]}, (
             f"{package}: grammar extra pin {sorted(pins) or 'none'} != "
-            f"stub target {targets[0]} — keep the Homebrew, DMG, and dev "
+            f"stub target {targets[0]} — keep the Homebrew and dev "
             "native dependency pair aligned"
         )
