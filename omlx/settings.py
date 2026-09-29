@@ -194,9 +194,7 @@ class ServerSettings:
     port: int = 8000
     log_level: str = "info"
     cors_origins: list[str] = field(default_factory=lambda: ["*"])
-    server_aliases: list[str] = field(default_factory=list)
     sse_keepalive_mode: str = "chunk"
-    auto_start_on_launch: bool = True
     burst_decode_mode: str = DEFAULT_BURST_DECODE_MODE
     preserve_mid_system_cache: bool = True
     qwen4_gdn_decode_wide_proj: bool = False
@@ -241,9 +239,7 @@ class ServerSettings:
             port=data.get("port", 8000),
             log_level=data.get("log_level", "info"),
             cors_origins=data.get("cors_origins", ["*"]),
-            server_aliases=data.get("server_aliases", []),
             sse_keepalive_mode=data.get("sse_keepalive_mode", "chunk"),
-            auto_start_on_launch=data.get("auto_start_on_launch", True),
             burst_decode_mode=data.get("burst_decode_mode", DEFAULT_BURST_DECODE_MODE),
             preserve_mid_system_cache=data.get("preserve_mid_system_cache", True),
             qwen4_gdn_decode_wide_proj=data.get("qwen4_gdn_decode_wide_proj", False),

@@ -50,7 +50,6 @@ class TestServerSettings:
         assert settings.log_level == "info"
         assert settings.cors_origins == ["*"]
         assert settings.sse_keepalive_mode == "chunk"
-        assert settings.auto_start_on_launch is True
         assert settings.burst_decode_mode == "balanced"
         assert settings.preserve_mid_system_cache is True
         assert settings.qwen4_gdn_decode_wide_proj is False
@@ -83,9 +82,7 @@ class TestServerSettings:
             "port": 8000,
             "log_level": "info",
             "cors_origins": ["*"],
-            "server_aliases": [],
             "sse_keepalive_mode": "chunk",
-            "auto_start_on_launch": True,
             "burst_decode_mode": "balanced",
             "preserve_mid_system_cache": True,
             "qwen4_gdn_decode_wide_proj": False,
@@ -142,11 +139,13 @@ class TestServerSettings:
         settings = ServerSettings.from_dict({})
         assert settings.preserve_mid_system_cache is True
 
-    def test_from_dict_auto_start_on_launch(self):
-        """auto_start_on_launch round-trips through from_dict / to_dict."""
-        settings = ServerSettings.from_dict({"auto_start_on_launch": False})
-        assert settings.auto_start_on_launch is False
-        assert settings.to_dict()["auto_start_on_launch"] is False
+    def test_from_dict_drops_retired_desktop_fields(self):
+        settings = ServerSettings.from_dict(
+            {"auto_start_on_launch": False, "server_aliases": ["host.local"]}
+        )
+
+        assert "auto_start_on_launch" not in settings.to_dict()
+        assert "server_aliases" not in settings.to_dict()
 
     def test_from_dict_max_audio_upload_size(self):
         """max_audio_upload_size round-trips through from_dict / to_dict."""

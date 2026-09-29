@@ -1,20 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for retained network host validation and alias discovery."""
-
-import threading
-import time
+"""Tests for server bind-host validation and network authentication."""
 
 import pytest
 
-import omlx.utils.network as network
 from omlx.utils.network import (
-    detect_server_aliases,
     is_loopback_bind,
     is_loopback_bind_host,
-    is_valid_alias,
     is_valid_bind_host,
     is_valid_hostname,
-    is_valid_ip,
     network_auth_error,
 )
 
@@ -24,15 +17,7 @@ from omlx.utils.network import (
 
 
 class TestNetworkValidation:
-    """Validation primitives used by the alias save path."""
-
-    def test_valid_ipv4(self):
-        assert is_valid_ip("192.168.1.10")
-        assert is_valid_ip("127.0.0.1")
-
-    def test_valid_ipv6(self):
-        assert is_valid_ip("::1")
-        assert is_valid_ip("fe80::1")
+    """Validation primitives used by server startup."""
 
     @pytest.mark.parametrize(
         "host",
@@ -82,18 +67,6 @@ class TestNetworkValidation:
         assert error is not None
         assert "cannot be skipped" in error
 
-    def test_rejects_unspecified_ipv4(self):
-        """0.0.0.0 parses as a valid IP but is not routable as an alias."""
-        assert not is_valid_ip("0.0.0.0")
-
-    def test_rejects_unspecified_ipv6(self):
-        """:: is the IPv6 unspecified address — also not usable as an alias."""
-        assert not is_valid_ip("::")
-
-    def test_rejects_garbage(self):
-        assert not is_valid_ip("not-an-ip")
-        assert not is_valid_ip("999.999.999.999")
-
     def test_valid_hostname(self):
         assert is_valid_hostname("example.local")
         assert is_valid_hostname("my-mac")
@@ -119,28 +92,12 @@ class TestNetworkValidation:
         assert is_valid_hostname("192-168-1-1")
         assert is_valid_hostname("web1")
 
-    def test_alias_accepts_either(self):
-        assert is_valid_alias("localhost")
-        assert is_valid_alias("192.168.1.10")
-        assert is_valid_alias("foo.local")
-        assert is_valid_alias("::1")
-
-    def test_alias_rejects_unspecified(self):
-        assert not is_valid_alias("0.0.0.0")
-        assert not is_valid_alias("::")
-
-    def test_alias_rejects_non_string(self):
-        assert not is_valid_alias(None)  # type: ignore[arg-type]
-        assert not is_valid_alias(123)  # type: ignore[arg-type]
-
-
 class TestIsValidBindHost:
     """is_valid_bind_host() accepts IPs (including unspecified) and hostnames,
     but must reject IP-shaped values that fail IP parsing."""
 
     # ------------------------------------------------------------------
-    # Valid IPv4 — including unspecified/wildcard addresses that are
-    # rejected by is_valid_alias() but are legitimate bind targets.
+    # Valid IPv4 — including unspecified/wildcard bind addresses.
     # ------------------------------------------------------------------
 
     def test_accepts_regular_ipv4(self):
@@ -267,54 +224,3 @@ class TestIsValidBindHost:
     def test_strips_surrounding_whitespace(self):
         assert is_valid_bind_host("  127.0.0.1  ")
         assert is_valid_bind_host("  localhost  ")
-
-
-class TestDetectServerAliases:
-    """Auto-detection should always return at least loopback when bound to localhost."""
-
-    def test_localhost_includes_loopback(self):
-        aliases = detect_server_aliases(host="127.0.0.1")
-        assert "localhost" in aliases
-        assert "127.0.0.1" in aliases
-
-    def test_no_unspecified_in_output(self):
-        """Even when bound to 0.0.0.0, detection should not return 0.0.0.0 itself."""
-        aliases = detect_server_aliases(host="0.0.0.0")
-        assert "0.0.0.0" not in aliases
-        assert "::" not in aliases
-
-    def test_returns_unique_values(self):
-        aliases = detect_server_aliases()
-        assert len(aliases) == len(set(aliases))
-
-    def test_comma_separated_host_includes_loopback(self):
-        """Comma-separated bind hosts containing a loopback must not drop localhost aliases."""
-        aliases = detect_server_aliases(host="127.0.0.1, ::1")
-        assert "localhost" in aliases
-        assert "127.0.0.1" in aliases
-
-    def test_comma_separated_wildcard_includes_loopback(self):
-        aliases = detect_server_aliases(host="0.0.0.0, ::1")
-        assert "localhost" in aliases
-        assert "127.0.0.1" in aliases
-
-    def test_comma_separated_non_loopback_skips_loopback(self):
-        """If no part of the comma-separated host is a loopback/wildcard, no loopback aliases."""
-        aliases = detect_server_aliases(host="192.168.1.10, 10.0.0.1")
-        assert "localhost" not in aliases
-
-    def test_slow_reverse_lookup_does_not_block(self, monkeypatch):
-        """A resolver that never answers costs the FQDN alias, not server startup."""
-        release = threading.Event()
-        monkeypatch.setattr(network, "_FQDN_TIMEOUT_S", 0.05)
-        monkeypatch.setattr(
-            network.socket, "getfqdn", lambda: release.wait(5) and "slow.example"
-        )
-        try:
-            start = time.monotonic()
-            aliases = detect_server_aliases(host="127.0.0.1")
-            assert time.monotonic() - start < 1.0
-            assert "localhost" in aliases
-            assert "slow.example" not in aliases
-        finally:
-            release.set()
