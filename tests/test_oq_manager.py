@@ -67,6 +67,10 @@ class TestOQManagerUpdateModelDirs:
         names_after = {m["name"] for m in source_after}
         assert "Llama-3B" in names_after
         assert "Qwen-7B" in names_after
+        llama = next(model for model in source_after if model["name"] == "Llama-3B")
+        assert llama["format"] == "huggingface"
+        assert llama["precision"] == "Full precision"
+        assert llama["conversion_required"] is True
 
     def test_output_dir_tracks_primary_dir(self, fp_model_dir, second_fp_model_dir):
         # Output is always written to the primary (first) directory.

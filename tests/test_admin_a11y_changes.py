@@ -183,7 +183,7 @@ def test_dashboard_modal_keyboard_navigation(keyboard_page, viewport):
     page.keyboard.press("Escape")
     expect(model).not_to_be_visible()
     expect(opener).to_be_focused()
-    page.locator("button[\\@click=\"setModelsTab('downloader')\"]").last.click()
+    page.locator("button[\\@click=\"setModelsTab('add')\"]").last.click()
     mirror_opener = page.locator('button[\\@click="openHfMirrorModal()"]')
     expect(mirror_opener).to_be_visible()
     mirror_opener.focus()

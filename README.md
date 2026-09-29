@@ -163,6 +163,37 @@ Supports text LLMs, vision-language models (VLM), OCR models, embeddings, and re
 
 Web UI at `/admin` for real-time monitoring, model management, chat, benchmark, and per-model settings. Supports English, Korean, Japanese, Chinese, French, Russian, Spanish, and Brazilian Portuguese. All CDN dependencies are vendored for fully offline operation.
 
+The **Models** workspace manages every discovered engine through three focused
+views: **Library**, **Add model**, and **Activity**. Library shows task and
+endpoint capabilities, source revisions, quantization, health, measured or
+planned memory, helper-model lineage, and storage roots. Add model combines
+downloads, a shared Convert & Quantize view, and publishing. Activity keeps
+all background work in one queue. From the workspace you can:
+
+- verify checkpoint files, dependencies, engine loading, and a small
+  task-specific inference;
+- preview LRU evictions before loading a set of models;
+- apply on-demand, keep-warm, always-resident, or unload-after-use policies;
+- save and transactionally load multi-model collections;
+- inspect one operation queue for downloads, conversion, quantization, uploads,
+  update checks, verification, and storage moves;
+- check and stage Hugging Face updates, then activate or roll back to any cached
+  revision;
+- inspect disk usage and deletion impact, move models between configured roots,
+  and export or import model settings as JSON.
+
+Convert & Quantize uses one selector containing every discovered local model,
+with type, modality, format, precision, and operation eligibility shown before
+anything starts. Conversion preserves the detected source precision and routes
+each family through its installed MLX or mflux converter. Quantization accepts
+full-precision sources and uses oQ; non-MLX sources are converted to MLX
+automatically as the first stage of the same quantization job. Downloading a
+source model remains a separate, explicit action.
+
+See [Web model workspace](docs/model-control.md) for behavior and API details.
+The workspace is part of the web admin app; it does not require
+the macOS desktop app.
+
 <p align="center">
   <img src="docs/images/Screenshot 2026-02-10 at 00.45.34.png" alt="oMLX Admin Dashboard" width="720">
 </p>

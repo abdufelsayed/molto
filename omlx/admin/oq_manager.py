@@ -23,7 +23,11 @@ try:
 except ImportError:
     HAS_MLX = False
 
-from ..model_discovery import _decode_hf_cache_model_id, _has_vision_subconfig
+from ..model_discovery import (
+    _decode_hf_cache_model_id,
+    _has_vision_subconfig,
+    _safetensors_has_mlx_metadata,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +68,8 @@ class QuantTask:
     oq_level: float
     output_name: str
     output_path: str
+    source_format: str = "mlx"
+    conversion_required: bool = False
     status: QuantStatus = QuantStatus.PENDING
     progress: float = 0.0
     phase: str = ""
@@ -98,6 +104,8 @@ class QuantTask:
             "oq_level": self.oq_level,
             "output_name": self.output_name,
             "output_path": self.output_path,
+            "source_format": self.source_format,
+            "conversion_required": self.conversion_required,
             "status": self.status.value,
             "progress": round(self.progress, 1),
             "phase": self.phase,
@@ -152,6 +160,26 @@ def _source_model_names(source: Path) -> tuple[str, str]:
             repo_name = source_repo_id.split("/", 1)[-1]
             return source_repo_id, repo_name
     return source.name, source.name
+
+
+def _source_format(source: Path) -> str:
+    """Return the source format used to explain the quantization pipeline."""
+    return "mlx" if _safetensors_has_mlx_metadata(source) else "huggingface"
+
+
+def _source_precision(config: dict, *, quantizable: bool) -> str:
+    quantization = config.get("quantization")
+    if isinstance(quantization, dict) and quantization.get("bits") is not None:
+        return f"{quantization['bits']}-bit"
+    if not quantizable:
+        return "Quantized"
+    quantization_config = config.get("quantization_config")
+    if isinstance(quantization_config, dict):
+        method = str(quantization_config.get("quant_method") or "").upper()
+        if method:
+            return method
+    dtype = config.get("torch_dtype") or config.get("dtype")
+    return str(dtype).upper() if dtype else "Full precision"
 
 
 class OQManager:
@@ -244,6 +272,8 @@ class OQManager:
                             has_mtp = _has_mtp_heads(
                                 config
                             ) and _checkpoint_has_mtp_weights(path)
+                            quantizable = validate_quantizable(config)
+                            source_format = _source_format(path)
                             info = {
                                 "name": display_name,
                                 "path": str(path),
@@ -252,8 +282,13 @@ class OQManager:
                                 "size_formatted": _format_size(size),
                                 "model_type": config.get("model_type", "")
                                 or tc.get("model_type", ""),
-                                "is_quantized": "quantization" in config
-                                or "omlx_deepseek_v41" in config,
+                                "is_quantized": not quantizable,
+                                "quantizable": quantizable,
+                                "format": source_format,
+                                "precision": _source_precision(
+                                    config, quantizable=quantizable
+                                ),
+                                "conversion_required": source_format != "mlx",
                                 # Treat vision_config / vit_config / mm_vision_tower as VLM
                                 # evidence (Molmo / Molmo2 use vit_config; FastVLM uses
                                 # mm_vision_tower). Same predicate as model_discovery.
@@ -265,7 +300,7 @@ class OQManager:
                                 or 0,
                             }
                             all_models.append(info)
-                            if validate_quantizable(config):
+                            if quantizable:
                                 info_full = dict(info)
                                 info_full["num_layers"] = config.get(
                                     "num_hidden_layers", 0
@@ -356,6 +391,7 @@ class OQManager:
             raise ValueError(f"No .safetensors files found in {model_path}")
 
         model_name, output_base_name = _source_model_names(source)
+        source_format = _source_format(source)
 
         if preserve_mtp and not _checkpoint_has_mtp_weights(source):
             logger.warning(
@@ -446,6 +482,8 @@ class OQManager:
             oq_level=oq_level,
             output_name=output_name,
             output_path=str(output_path),
+            source_format=source_format,
+            conversion_required=source_format != "mlx",
             source_size=source_size,
             group_size=group_size,
             sensitivity_model_path=sensitivity_model_path,
@@ -588,7 +626,11 @@ class OQManager:
                 # Phase 1: Loading
                 task.status = QuantStatus.LOADING
                 task.started_at = time.time()
-                task.phase = "Loading model..."
+                task.phase = (
+                    "Converting source to MLX..."
+                    if task.conversion_required
+                    else "Loading model..."
+                )
                 task.progress = 5.0
 
                 def _progress_cb(

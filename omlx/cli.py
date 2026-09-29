@@ -44,50 +44,14 @@ def _positive_int(value: str) -> int:
 
 def mflux_save_command(args) -> int:
     """Convert and save a supported diffusion checkpoint for oMLX discovery."""
-    import json
-    from pathlib import Path
-
     try:
-        from mflux.models.common.config import ModelConfig
-        from mflux.models.z_image import ZImageTurbo
-    except ImportError:
-        print(
-            'mflux is not installed. Install it with: pip install "omlx[image]"',
-            file=sys.stderr,
-        )
+        from .mflux_conversion import convert_mflux_model
+
+        result = convert_mflux_model(args.model, args.output, args.quantize)
+    except (ImportError, OSError, ValueError) as exc:
+        print(str(exc), file=sys.stderr)
         return 1
-
-    output = Path(args.output).expanduser().resolve()
-    if output.exists():
-        if not output.is_dir():
-            print(f"Output path is not a directory: {output}", file=sys.stderr)
-            return 1
-        if any(output.iterdir()):
-            print(f"Output directory is not empty: {output}", file=sys.stderr)
-            return 1
-    output.mkdir(parents=True, exist_ok=True)
-
-    source = args.model
-    model_path = None if source == "z-image-turbo" else source
-    model = ZImageTurbo(
-        model_config=ModelConfig.z_image_turbo(),
-        model_path=model_path,
-        quantize=args.quantize,
-    )
-    model.save_model(str(output))
-    manifest = {
-        "version": 1,
-        "backend": "mflux",
-        "model_family": "z-image-turbo",
-        "source": source,
-        # Saved weights already carry their quantization metadata. Loading the
-        # resulting checkpoint must not quantize them a second time.
-        "quantize": None,
-    }
-    (output / "omlx-mflux.json").write_text(
-        json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
-    )
-    print(f"Saved oMLX mflux model to {output}")
+    print(f"Saved oMLX mflux model to {result['output']}")
     return 0
 
 

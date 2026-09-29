@@ -46,15 +46,15 @@ from ..model_profiles import (
 )
 from ..model_settings import (
     MAX_LIGHTNING_MTP_DRAFT_TOKENS,
+    MOE_OFFLOAD_MTP_MODEL_TYPES,
     ModelSettings,
     ane_prefill_backend,
     ane_prefill_fraction,
+    merge_chat_template_kwargs,
     resolve_qwen35_prefill_conflicts,
     resolve_vlm_mtp_conflicts,
     validate_ane_prefill,
     validate_moe_expert_offload,
-    MOE_OFFLOAD_MTP_MODEL_TYPES,
-    merge_chat_template_kwargs,
 )
 from ..patches.moe_offload_compat import moe_offload_compatibility
 from ..settings import BURST_DECODE_MODES, SubKeyEntry, burst_decode_env
@@ -89,6 +89,17 @@ from .benchmark import (
     OMLX_AI_BEST_URL,
     _sanitize_upload_error,
     _upload_model_name,
+)
+from .model_control import (
+    CONTROL_SCHEMA_VERSION,
+    ModelControl,
+    build_lineage,
+    build_preparation_catalog,
+    build_registry_record,
+    directory_usage,
+    discover_unmanaged_artifacts,
+    plan_resources,
+    verify_model_files,
 )
 from .recipe import (
     ALL_FIELDS,
@@ -785,6 +796,68 @@ class HFValidateTokenRequest(BaseModel):
     """Request model for validating a HuggingFace token."""
 
     hf_token: str
+
+
+class ControlVerifyRequest(BaseModel):
+    deep: bool = False
+
+
+class ControlPlanRequest(BaseModel):
+    model_ids: list[str] = Field(min_length=1)
+
+
+class ControlPolicyRequest(BaseModel):
+    mode: Literal[
+        "always_resident", "keep_warm", "on_demand", "unload_after_request"
+    ]
+    ttl_seconds: int | None = Field(default=None, ge=1, le=7 * 24 * 3600)
+    load_now: bool = False
+
+    @model_validator(mode="after")
+    def validate_ttl(self):
+        if self.mode == "keep_warm" and not self.ttl_seconds:
+            raise ValueError("keep_warm requires ttl_seconds")
+        return self
+
+
+class ControlImportRequest(BaseModel):
+    bundle: dict[str, Any]
+    dry_run: bool = True
+
+
+class ControlCollectionRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    description: str = Field(default="", max_length=500)
+    model_ids: list[str] = Field(min_length=1)
+    preload: bool = False
+
+
+class ControlRevisionRequest(BaseModel):
+    revision: str = Field(min_length=7, max_length=128, pattern=r"^[A-Za-z0-9._-]+$")
+
+
+class ControlMoveRequest(BaseModel):
+    destination_root: str = Field(min_length=1, max_length=4096)
+
+
+class ControlConvertRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: str = Field(min_length=1, max_length=4096)
+
+
+class ControlMFluxConvertRequest(ControlConvertRequest):
+    model_config = ConfigDict(extra="forbid")
+
+    output_name: str = Field(min_length=1, max_length=200, pattern=r"^[^/\\]+$")
+
+    @field_validator("output_name")
+    @classmethod
+    def validate_output_name(cls, value: str) -> str:
+        normalized = value.strip()
+        if normalized in {".", ".."}:
+            raise ValueError("output_name must name a directory inside the model root")
+        return normalized
 
 
 # =============================================================================
@@ -1591,6 +1664,18 @@ _hf_downloader = None
 _ms_downloader = None
 _oq_manager = None
 _hf_uploader = None
+_model_control: ModelControl | None = None
+
+
+def _get_model_control() -> ModelControl:
+    global _model_control
+    settings = _get_global_settings() if _get_global_settings else None
+    if settings is None:
+        raise HTTPException(status_code=503, detail="Server not initialized")
+    base_path = Path(settings.base_path).expanduser()
+    if _model_control is None or _model_control.store.base_path != base_path:
+        _model_control = ModelControl(base_path)
+    return _model_control
 
 
 def set_admin_getters(
@@ -1612,10 +1697,12 @@ def set_admin_getters(
         global_settings_getter: Function that returns the GlobalSettings.
     """
     global _get_server_state, _get_engine_pool, _get_settings_manager, _get_global_settings
+    global _model_control
     _get_server_state = state_getter
     _get_engine_pool = pool_getter
     _get_settings_manager = settings_manager_getter
     _get_global_settings = global_settings_getter
+    _model_control = None
     _refresh_i18n_globals()
 
 
@@ -2478,6 +2565,9 @@ async def list_models(is_admin: bool = Depends(require_admin)):
             "loaded": model_info.get("loaded", False),
             "is_loading": model_info.get("is_loading", False),
             "estimated_size": model_info.get("estimated_size", 0),
+            "resident_estimated_size": model_info.get(
+                "resident_estimated_size", model_info.get("estimated_size", 0)
+            ),
             "estimated_size_formatted": format_size(
                 model_info.get("estimated_size", 0)
             ),
@@ -2512,6 +2602,9 @@ async def list_models(is_admin: bool = Depends(require_admin)):
             "distributed": model_info.get("distributed", False),
             "cluster": model_info.get("cluster"),
             "last_access": model_info.get("last_access"),
+            "load_failed": bool(model_info.get("load_failed")),
+            "load_failure_message": model_info.get("load_failure_message"),
+            "load_failure_at": model_info.get("load_failure_at"),
             "dflash_compatible": compat_ok,
             "dflash_compatibility_reason": compat_reason,
             "dflash_ssd_cache_available": dflash_ssd_cache_available,
@@ -2584,6 +2677,1105 @@ async def list_models(is_admin: bool = Depends(require_admin)):
         )
 
     return {"models": models}
+
+
+# =============================================================================
+# Unified web model control center
+# =============================================================================
+
+
+async def _control_model_rows() -> list[dict[str, Any]]:
+    payload = await list_models(is_admin=True)
+    rows = list(payload.get("models", []))
+    by_id = {row.get("id"): row for row in rows}
+    manager = _get_settings_manager()
+    list_profiles = getattr(manager, "list_exposed_profile_models", None)
+    if callable(list_profiles):
+        for profile in list_profiles():
+            source_id = profile.get("source_model_id")
+            model_id = profile.get("model_id")
+            source = by_id.get(source_id)
+            if not source or not model_id or model_id in by_id:
+                continue
+            virtual = dict(source)
+            virtual.update(
+                {
+                    "id": model_id,
+                    "display_name": profile.get("display_name") or model_id,
+                    "model_path": f"profile://{source_id}/{profile.get('name') or ''}",
+                    "source_model_id": source_id,
+                    "virtual": True,
+                    "estimated_size": 0,
+                    "resident_estimated_size": 0,
+                    "actual_size": 0,
+                    "pinned": False,
+                    "is_default": False,
+                    "settings": profile.get("settings") or {},
+                    "exposed_profiles": [],
+                }
+            )
+            rows.append(virtual)
+            by_id[model_id] = virtual
+    settings = _get_global_settings() if _get_global_settings else None
+    if settings is not None:
+        roots = settings.get_effective_model_dirs()
+        rows.extend(
+            await asyncio.to_thread(
+                discover_unmanaged_artifacts,
+                list(roots),
+                {str(row.get("model_path") or "") for row in rows},
+            )
+        )
+    return rows
+
+
+async def _control_registry() -> list[dict[str, Any]]:
+    rows = await _control_model_rows()
+    lineage = build_lineage(rows)
+    control = _get_model_control()
+    return [
+        build_registry_record(
+            row,
+            control.store,
+            children=lineage.get(row["id"], {}).get("children", []),
+            parents=lineage.get(row["id"], {}).get("parents", []),
+        )
+        for row in rows
+    ]
+
+
+@router.get("/api/control/registry")
+async def control_registry(is_admin: bool = Depends(require_admin)):
+    records = await _control_registry()
+    return {"schema_version": CONTROL_SCHEMA_VERSION, "models": records}
+
+
+async def _control_preparation_data() -> tuple[
+    list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]
+]:
+    records = await _control_registry()
+    if _oq_manager is None:
+        oq_sources: list[dict[str, Any]] = []
+        oq_all: list[dict[str, Any]] = []
+    else:
+        oq_sources, oq_all = await _oq_manager.list_quantizable_models()
+    return build_preparation_catalog(records, oq_sources, oq_all), oq_sources, oq_all
+
+
+async def _control_preparation_catalog() -> list[dict[str, Any]]:
+    catalog, _, _ = await _control_preparation_data()
+    return catalog
+
+
+@router.get("/api/control/prepare-models")
+async def control_prepare_models(is_admin: bool = Depends(require_admin)):
+    """Return one source inventory for conversion and oQ quantization."""
+    models, oq_models, oq_all_models = await _control_preparation_data()
+    return {
+        "schema_version": CONTROL_SCHEMA_VERSION,
+        "models": models,
+        "oq_models": oq_models,
+        "oq_all_models": oq_all_models,
+    }
+
+
+@router.get("/api/control/summary")
+async def control_summary(is_admin: bool = Depends(require_admin)):
+    records = await _control_registry()
+    return _control_summary_payload(records)
+
+
+def _control_summary_payload(records: list[dict[str, Any]]) -> dict[str, Any]:
+    operations = _get_model_control().operations()
+    by_type: dict[str, int] = {}
+    for record in records:
+        by_type[record["model_type"]] = by_type.get(record["model_type"], 0) + 1
+    return {
+        "models": len(records),
+        "loaded": sum(1 for record in records if record["runtime"]["loaded"]),
+        "needs_attention": sum(
+            1
+            for record in records
+            if record["health"].get("status")
+            in {"corrupt", "load_failed", "incompatible", "missing_dependency"}
+        ),
+        "active_operations": sum(
+            1 for operation in operations if operation.get("status") in {"queued", "running"}
+        ),
+        "by_type": by_type,
+        "collections": len(_get_model_control().store.section("collections")),
+    }
+
+
+@router.post("/api/control/plan")
+async def control_resource_plan(
+    request: ControlPlanRequest,
+    is_admin: bool = Depends(require_admin),
+):
+    pool = _get_engine_pool()
+    if pool is None:
+        raise HTTPException(status_code=503, detail="Engine pool not initialized")
+    try:
+        return plan_resources(
+            request.model_ids,
+            pool.get_status(),
+            in_use={model_id: entry.in_use for model_id, entry in pool._entries.items()},
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.put("/api/control/models/{model_id}/policy")
+async def control_set_policy(
+    model_id: str,
+    request: ControlPolicyRequest,
+    is_admin: bool = Depends(require_admin),
+):
+    manager = _get_settings_manager()
+    pool = _get_engine_pool()
+    if manager is None or pool is None:
+        raise HTTPException(status_code=503, detail="Server not initialized")
+    entry = pool.get_entry(model_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail=f"Model not found: {model_id}")
+
+    settings = manager.get_settings(model_id)
+    settings.is_pinned = request.mode == "always_resident"
+    if request.mode == "keep_warm":
+        settings.ttl_seconds = request.ttl_seconds
+    elif request.mode == "unload_after_request":
+        settings.ttl_seconds = 1
+    else:
+        settings.ttl_seconds = None
+    manager.set_settings(model_id, settings)
+    entry.is_pinned = settings.is_pinned
+    policy = {
+        "mode": request.mode,
+        "ttl_seconds": settings.ttl_seconds,
+        "updated_at": datetime.now(UTC).isoformat(),
+    }
+    _get_model_control().store.put("policies", model_id, policy)
+    if request.load_now and entry.engine is None:
+        await pool.get_engine(model_id)
+    return {"model_id": model_id, "policy": policy, "loaded": entry.engine is not None}
+
+
+def _find_control_row(rows: list[dict[str, Any]], model_id: str) -> dict[str, Any]:
+    row = next((item for item in rows if item.get("id") == model_id), None)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Model not found: {model_id}")
+    return row
+
+
+async def _start_verify_operation(model_id: str, *, deep: bool) -> dict[str, Any]:
+    rows = await _control_model_rows()
+    row = _find_control_row(rows, model_id)
+    control = _get_model_control()
+    pool = _get_engine_pool()
+
+    async def run(operation_id: str) -> dict[str, Any]:
+        control.update_operation(operation_id, stage="checking files", progress=20.0)
+        report = await asyncio.to_thread(verify_model_files, row)
+        if deep and report.get("status") == "ready" and pool is not None:
+            entry = pool.get_entry(model_id)
+            if entry is None:
+                raise RuntimeError(f"Model disappeared during verification: {model_id}")
+            was_loaded = entry.engine is not None
+            control.update_operation(operation_id, stage="test loading", progress=65.0)
+            load_started = time.perf_counter()
+            try:
+                engine = await pool.get_engine(model_id)
+            except Exception as exc:
+                report["status"] = "load_failed"
+                report["summary"] = str(exc)
+                report.setdefault("errors", []).append(str(exc))
+                report.setdefault("checks", []).append(
+                    {"name": "load", "status": "failed", "detail": str(exc)}
+                )
+            else:
+                load_seconds = time.perf_counter() - load_started
+                report.setdefault("checks", []).append(
+                    {
+                        "name": "load",
+                        "status": "passed",
+                        "detail": f"Engine loaded successfully in {load_seconds:.2f}s",
+                    }
+                )
+                control.update_operation(operation_id, stage="smoke inference", progress=82.0)
+                probe_started = time.perf_counter()
+                try:
+                    probe = await _run_control_smoke(engine, row.get("model_type", "llm"))
+                except Exception as exc:
+                    report["status"] = "load_failed"
+                    report["summary"] = f"Smoke inference failed: {exc}"
+                    report.setdefault("errors", []).append(str(exc))
+                    report.setdefault("checks", []).append(
+                        {"name": "smoke_inference", "status": "failed", "detail": str(exc)}
+                    )
+                else:
+                    probe_seconds = time.perf_counter() - probe_started
+                    report.setdefault("checks", []).append(
+                        {
+                            "name": "smoke_inference",
+                            "status": "passed" if not probe.get("skipped") else "skipped",
+                            "detail": probe.get("summary", "Output schema verified"),
+                        }
+                    )
+                    report["performance"] = {
+                        "load_seconds": round(load_seconds, 4),
+                        "probe_seconds": round(probe_seconds, 4),
+                        "resident_bytes": int(entry.actual_size or entry.runtime_estimated_size or entry.estimated_size or 0),
+                        **{key: value for key, value in probe.items() if key not in {"summary", "skipped"}},
+                    }
+            finally:
+                if not was_loaded and entry.engine is not None:
+                    await pool.request_unload(
+                        model_id,
+                        reason="deep verification completed",
+                        abort_active=False,
+                    )
+        control.store.put("health", model_id, report)
+        return report
+
+    return control.start_operation(
+        "verify",
+        run,
+        model_id=model_id,
+        payload={"deep": deep},
+    )
+
+
+async def _run_control_smoke(engine: Any, model_type: str) -> dict[str, Any]:
+    """Run the smallest output-schema probe supported by an engine."""
+    if model_type in {"llm", "vlm"}:
+        output = await engine.generate(
+            "Reply with OK.",
+            max_tokens=1,
+            temperature=0.0,
+            top_p=1.0,
+        )
+        if not isinstance(getattr(output, "text", None), str):
+            raise RuntimeError("Generation returned no text field")
+        return {
+            "summary": "Generated one token and validated the text output",
+            "prompt_tokens": int(getattr(output, "prompt_tokens", 0) or 0),
+            "completion_tokens": int(getattr(output, "completion_tokens", 0) or 0),
+        }
+    if model_type == "embedding":
+        output = await engine.embed(["oMLX health check"])
+        embeddings = getattr(output, "embeddings", None)
+        if not embeddings or not embeddings[0]:
+            raise RuntimeError("Embedding probe returned an empty vector")
+        return {
+            "summary": f"Produced a {len(embeddings[0])}-dimension embedding",
+            "dimensions": len(embeddings[0]),
+            "input_count": 1,
+        }
+    if model_type == "reranker":
+        output = await engine.rerank(
+            "health check",
+            ["health check", "unrelated document"],
+            top_n=2,
+        )
+        scores = getattr(output, "scores", None)
+        indices = getattr(output, "indices", None)
+        if scores is None or indices is None or len(indices) != 2:
+            raise RuntimeError("Reranker probe returned an invalid ranking")
+        return {"summary": "Ranked two documents", "document_count": 2}
+    if model_type == "audio_tts":
+        audio = await engine.synthesize("oMLX health check", max_tokens=64)
+        if not isinstance(audio, bytes) or len(audio) < 44:
+            raise RuntimeError("Speech probe returned invalid audio bytes")
+        return {"summary": "Synthesized a short audio sample", "output_bytes": len(audio)}
+    if model_type == "image_generation":
+        image = await engine.generate_image(
+            prompt="a plain gray square",
+            seed=0,
+            width=256,
+            height=256,
+            steps=1,
+        )
+        if not isinstance(image, bytes) or not image.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise RuntimeError("Image probe returned invalid PNG bytes")
+        return {
+            "summary": "Generated and validated a 256x256 PNG",
+            "output_bytes": len(image),
+            "width": 256,
+            "height": 256,
+            "steps": 1,
+        }
+    if model_type in {"audio_stt", "audio_sts"}:
+        return {
+            "summary": "Engine loaded; inference probe needs a real audio sample",
+            "skipped": True,
+        }
+    return {"summary": "Engine loaded; no task probe is registered", "skipped": True}
+
+
+@router.post("/api/control/models/{model_id}/verify")
+async def control_verify_model(
+    model_id: str,
+    request: ControlVerifyRequest,
+    is_admin: bool = Depends(require_admin),
+):
+    return {"operation": await _start_verify_operation(model_id, deep=request.deep)}
+
+
+async def _start_update_check(model_id: str) -> dict[str, Any]:
+    rows = await _control_model_rows()
+    row = _find_control_row(rows, model_id)
+    repo_id = row.get("source_repo_id")
+    if not repo_id:
+        raise HTTPException(status_code=400, detail="Model has no Hugging Face source repository")
+    control = _get_model_control()
+
+    async def run(operation_id: str) -> dict[str, Any]:
+        from huggingface_hub import HfApi
+
+        control.update_operation(operation_id, stage="checking upstream", progress=35.0)
+        info = await asyncio.to_thread(HfApi().model_info, repo_id)
+        path = Path(row.get("model_path") or "")
+        local_revision = path.name if path.parent.name == "snapshots" else None
+        remote_revision = getattr(info, "sha", None)
+        if not remote_revision or not local_revision:
+            status = "unknown"
+        elif local_revision == remote_revision:
+            status = "current"
+        else:
+            status = "update_available"
+        report = {
+            "status": status,
+            "repo_id": repo_id,
+            "local_revision": local_revision,
+            "remote_revision": remote_revision,
+            "checked_at": datetime.now(UTC).isoformat(),
+        }
+        control.store.put("updates", model_id, report)
+        return report
+
+    return control.start_operation("update_check", run, model_id=model_id)
+
+
+@router.post("/api/control/models/{model_id}/check-update")
+async def control_check_update(
+    model_id: str,
+    is_admin: bool = Depends(require_admin),
+):
+    return {"operation": await _start_update_check(model_id)}
+
+
+@router.post("/api/control/models/{model_id}/stage-update")
+async def control_stage_update(
+    model_id: str,
+    is_admin: bool = Depends(require_admin),
+):
+    rows = await _control_model_rows()
+    row = _find_control_row(rows, model_id)
+    repo_id = row.get("source_repo_id")
+    if not repo_id:
+        raise HTTPException(status_code=400, detail="Model has no Hugging Face source repository")
+    path = Path(row.get("model_path") or "")
+    if path.parent.name != "snapshots":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Atomic staging requires a Hugging Face cache-backed model. "
+                "Use the Downloader tab to update a flat local model."
+            ),
+        )
+    control = _get_model_control()
+    update = control.store.get("updates", model_id, {})
+    revision = update.get("remote_revision")
+    if not revision:
+        raise HTTPException(status_code=409, detail="Check for updates before staging")
+
+    async def run(operation_id: str) -> dict[str, Any]:
+        from huggingface_hub import snapshot_download
+
+        from .hf_downloader import _get_hf_api
+
+        _, endpoint = _get_hf_api()
+        control.update_operation(operation_id, stage="downloading revision", progress=20.0)
+        download_kwargs = {
+            "repo_id": repo_id,
+            "revision": revision,
+            "cache_dir": str(path.parent.parent.parent),
+        }
+        if endpoint:
+            download_kwargs["endpoint"] = endpoint
+        snapshot = await asyncio.to_thread(
+            snapshot_download,
+            **download_kwargs,
+        )
+        control.invalidate_storage_cache()
+        report = {
+            **update,
+            "status": "staged",
+            "staged_revision": revision,
+            "staged_path": snapshot,
+            "checked_at": datetime.now(UTC).isoformat(),
+        }
+        control.store.put("updates", model_id, report)
+        return report
+
+    operation = control.start_operation(
+        "stage_update",
+        run,
+        model_id=model_id,
+        payload={"repo_id": repo_id, "revision": revision},
+        cancellable=False,
+    )
+    return {"operation": operation}
+
+
+@router.get("/api/control/storage")
+async def control_storage(is_admin: bool = Depends(require_admin)):
+    records = await _control_registry()
+    return await _control_storage_payload(records)
+
+
+async def _control_storage_payload(
+    records: list[dict[str, Any]],
+) -> dict[str, Any]:
+    global_settings = _get_global_settings()
+    if global_settings is None:
+        raise HTTPException(status_code=503, detail="Server not initialized")
+    roots = global_settings.model.get_model_dirs(global_settings.base_path)
+
+    async def inspect_root(root: Path) -> dict[str, Any]:
+        disk_path = root
+        while not disk_path.exists() and disk_path != disk_path.parent:
+            disk_path = disk_path.parent
+        usage, disk = await asyncio.gather(
+            asyncio.to_thread(directory_usage, root),
+            asyncio.to_thread(shutil.disk_usage, disk_path),
+        )
+        return {
+            "path": str(root),
+            "exists": root.exists(),
+            **usage,
+            "disk_total_bytes": disk.total,
+            "disk_used_bytes": disk.used,
+            "disk_free_bytes": disk.free,
+        }
+
+    control = _get_model_control()
+    cached = control.storage_cache
+    if cached is not None and time.monotonic() - cached[0] < 30.0:
+        root_rows = cached[1]
+    else:
+        root_rows = await asyncio.gather(*(inspect_root(Path(root)) for root in roots))
+        control.storage_cache = (time.monotonic(), root_rows)
+    return {
+        "roots": root_rows,
+        "models": [
+            {
+                "id": record["id"],
+                "path": record["path"],
+                "estimated_bytes": record["storage"]["estimated_bytes"],
+                "revision": record["source"]["revision"],
+                "cached_revisions": record["source"]["cached_revisions"],
+            }
+            for record in records
+            if record["kind"] != "virtual"
+        ],
+    }
+
+
+@router.get("/api/control/snapshot")
+async def control_snapshot(is_admin: bool = Depends(require_admin)):
+    """Return one consistent dashboard snapshot without repeating disk scans."""
+    records = await _control_registry()
+    control = _sync_control_operations()
+    storage = await _control_storage_payload(records)
+    return {
+        "schema_version": CONTROL_SCHEMA_VERSION,
+        "models": records,
+        "summary": _control_summary_payload(records),
+        "operations": control.operations(),
+        "storage": storage,
+        "collections": list(control.store.section("collections").values()),
+    }
+
+
+def _convert_local_model(
+    adapter: str,
+    source: Path,
+    output: Path,
+    *,
+    on_stage: Any = None,
+) -> dict[str, Any]:
+    """Dispatch a precision-preserving local conversion to its family tool."""
+    if adapter == "mflux":
+        from ..mflux_conversion import convert_mflux_model
+
+        return convert_mflux_model(
+            str(source),
+            output,
+            None,
+            on_stage=on_stage,
+        )
+    if adapter == "mlx-lm":
+        from mlx_lm.convert import convert
+    elif adapter == "mlx-vlm":
+        from mlx_vlm.convert import convert
+    elif adapter == "mlx-embeddings":
+        from mlx_embeddings.convert import convert
+    elif adapter == "mlx-audio":
+        from mlx_audio.convert import convert
+    else:
+        raise ValueError(f"No conversion adapter is registered for {adapter}")
+
+    if on_stage:
+        on_stage("converting")
+    convert(
+        hf_path=str(source),
+        mlx_path=str(output),
+        quantize=False,
+        dtype=None,
+    )
+    return {
+        "source": str(source),
+        "output": str(output),
+        "adapter": adapter,
+        "quantize": False,
+    }
+
+
+async def _start_control_conversion(
+    source_value: str,
+    *,
+    requested_output_name: str | None = None,
+    required_adapter: str | None = None,
+) -> dict[str, Any]:
+    settings = _get_global_settings()
+    if settings is None:
+        raise HTTPException(status_code=503, detail="Server not initialized")
+    roots = settings.model.get_model_dirs(settings.base_path)
+    if not roots:
+        raise HTTPException(status_code=400, detail="No model storage root is configured")
+    root = Path(roots[0]).expanduser().resolve()
+    source = Path(source_value).expanduser().resolve()
+    catalog = await _control_preparation_catalog()
+    item = next(
+        (
+            model
+            for model in catalog
+            if Path(model["path"]).expanduser().resolve() == source
+        ),
+        None,
+    )
+    if item is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Select a local model from the preparation catalog",
+        )
+    conversion = item["conversion"]
+    if required_adapter and conversion.get("adapter") != required_adapter:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Select a local model supported by {required_adapter}",
+        )
+    if not conversion.get("available"):
+        raise HTTPException(status_code=409, detail=conversion.get("reason"))
+    output_name = requested_output_name or conversion.get("output_name")
+    if not output_name:
+        raise HTTPException(status_code=400, detail="No conversion output can be derived")
+    output = (root / output_name).resolve()
+    if output.parent != root:
+        raise HTTPException(status_code=400, detail="Output must be inside the model root")
+    if output.exists() and (not output.is_dir() or any(output.iterdir())):
+        raise HTTPException(status_code=409, detail=f"Output already exists: {output}")
+    control = _get_model_control()
+
+    async def run(operation_id: str) -> dict[str, Any]:
+        def stage(name: str) -> None:
+            progress = 25.0 if name == "converting" else 75.0
+            control.update_operation(operation_id, stage=name, progress=progress)
+
+        result = await asyncio.to_thread(
+            _convert_local_model,
+            conversion["adapter"],
+            source,
+            output,
+            on_stage=stage,
+        )
+        control.invalidate_storage_cache()
+        control.update_operation(operation_id, stage="refreshing registry", progress=95.0)
+        success, message = await _reload_models()
+        if not success:
+            raise RuntimeError(message)
+        return result
+
+    operation = control.start_operation(
+        "model_convert",
+        run,
+        model_id=output_name,
+        payload={
+            "source": str(source),
+            "output_name": output_name,
+            "adapter": conversion["adapter"],
+            "target_format": conversion["target_format"],
+        },
+        cancellable=False,
+    )
+    return {"operation": operation}
+
+
+@router.post("/api/control/convert")
+async def control_convert_model(
+    request: ControlConvertRequest,
+    is_admin: bool = Depends(require_admin),
+):
+    return await _start_control_conversion(request.source)
+
+
+@router.post("/api/control/mflux/convert")
+async def control_convert_mflux(
+    request: ControlMFluxConvertRequest,
+    is_admin: bool = Depends(require_admin),
+):
+    """Compatibility endpoint for existing mflux conversion clients."""
+    return await _start_control_conversion(
+        request.source,
+        requested_output_name=request.output_name,
+        required_adapter="mflux",
+    )
+
+
+@router.get("/api/control/models/{model_id}/delete-plan")
+async def control_delete_plan(
+    model_id: str,
+    is_admin: bool = Depends(require_admin),
+):
+    records = await _control_registry()
+    record = next((item for item in records if item["id"] == model_id), None)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"Model not found: {model_id}")
+    if record["kind"] == "virtual":
+        raise HTTPException(status_code=400, detail="Virtual models have no files to delete")
+    usage = await asyncio.to_thread(directory_usage, record["path"])
+    dependents = record["lineage"]["parents"] + [
+        {"id": profile.get("model_id"), "relation": "profile"}
+        for profile in record["lineage"]["profiles"]
+        if profile.get("model_id")
+    ]
+    protected_reasons = []
+    if record["runtime"]["loaded"]:
+        protected_reasons.append("model is loaded")
+    if record["runtime"]["pinned"]:
+        protected_reasons.append("model is pinned")
+    if record["runtime"]["default"]:
+        protected_reasons.append("model is the default")
+    if dependents:
+        protected_reasons.append("other registered assets depend on this model")
+    return {
+        "model_id": model_id,
+        "path": record["path"],
+        **usage,
+        "loaded": record["runtime"]["loaded"],
+        "pinned": record["runtime"]["pinned"],
+        "dependents": dependents,
+        "protected_reasons": protected_reasons,
+        "safe": not protected_reasons,
+    }
+
+
+@router.get("/api/control/collections")
+async def control_list_collections(is_admin: bool = Depends(require_admin)):
+    return {"collections": list(_get_model_control().store.section("collections").values())}
+
+
+@router.put("/api/control/collections/{collection_id}")
+async def control_save_collection(
+    collection_id: str,
+    request: ControlCollectionRequest,
+    is_admin: bool = Depends(require_admin),
+):
+    rows = await _control_model_rows()
+    known = {row["id"] for row in rows}
+    missing = [model_id for model_id in request.model_ids if model_id not in known]
+    if missing:
+        raise HTTPException(status_code=404, detail=f"Unknown model(s): {', '.join(missing)}")
+    record = {
+        "id": collection_id,
+        "name": request.name,
+        "description": request.description,
+        "model_ids": list(dict.fromkeys(request.model_ids)),
+        "preload": request.preload,
+        "updated_at": datetime.now(UTC).isoformat(),
+    }
+    _get_model_control().store.put("collections", collection_id, record)
+    if request.preload:
+        manager = _get_settings_manager()
+        pool = _get_engine_pool()
+        if manager is not None:
+            for model_id in record["model_ids"]:
+                model_settings = manager.get_settings(model_id)
+                model_settings.is_pinned = True
+                manager.set_settings(model_id, model_settings)
+                _get_model_control().store.put(
+                    "policies",
+                    model_id,
+                    {
+                        "mode": "always_resident",
+                        "ttl_seconds": model_settings.ttl_seconds,
+                        "updated_at": datetime.now(UTC).isoformat(),
+                    },
+                )
+                if pool is not None:
+                    entry = pool.get_entry(model_id)
+                    if entry is not None:
+                        entry.is_pinned = True
+    return {"collection": record}
+
+
+@router.delete("/api/control/collections/{collection_id}")
+async def control_delete_collection(
+    collection_id: str,
+    is_admin: bool = Depends(require_admin),
+):
+    if not _get_model_control().store.remove("collections", collection_id):
+        raise HTTPException(status_code=404, detail="Collection not found")
+    return {"success": True}
+
+
+@router.post("/api/control/collections/{collection_id}/load")
+async def control_load_collection(
+    collection_id: str,
+    is_admin: bool = Depends(require_admin),
+):
+    collection = _get_model_control().store.get("collections", collection_id)
+    pool = _get_engine_pool()
+    if collection is None:
+        raise HTTPException(status_code=404, detail="Collection not found")
+    if pool is None:
+        raise HTTPException(status_code=503, detail="Engine pool not initialized")
+    plan = plan_resources(
+        collection["model_ids"],
+        pool.get_status(),
+        in_use={model_id: entry.in_use for model_id, entry in pool._entries.items()},
+    )
+    if not plan["fits"]:
+        raise HTTPException(status_code=409, detail={"message": "Collection does not fit", "plan": plan})
+    loaded: list[str] = []
+    newly_loaded: list[str] = []
+    try:
+        for model_id in collection["model_ids"]:
+            entry = pool.get_entry(model_id)
+            was_loaded = bool(entry and entry.engine is not None)
+            await pool.get_engine(model_id)
+            loaded.append(model_id)
+            if not was_loaded:
+                newly_loaded.append(model_id)
+    except Exception:
+        for model_id in reversed(newly_loaded):
+            entry = pool.get_entry(model_id)
+            if entry is not None and not entry.is_pinned:
+                await pool.request_unload(model_id, reason="collection load rollback", abort_active=False)
+        raise
+    return {"collection_id": collection_id, "loaded": loaded, "plan": plan}
+
+
+@router.get("/api/control/export")
+async def control_export(is_admin: bool = Depends(require_admin)):
+    manager = _get_settings_manager()
+    if manager is None:
+        raise HTTPException(status_code=503, detail="Settings manager not initialized")
+    records = await _control_registry()
+    bundle = {
+        "schema_version": CONTROL_SCHEMA_VERSION,
+        "exported_at": datetime.now(UTC).isoformat(),
+        "models": [
+            {
+                "id": record["id"],
+                "source": record["source"],
+                "capabilities": record["capabilities"],
+                "policy": record["policy"],
+                "settings": manager.get_settings(record["id"]).to_dict(),
+                "profiles": manager.list_profiles(record["id"]),
+            }
+            for record in records
+            if record["kind"] == "physical"
+        ],
+        "collections": list(_get_model_control().store.section("collections").values()),
+    }
+    return JSONResponse(
+        bundle,
+        headers={"Content-Disposition": "attachment; filename=omlx-model-control.json"},
+    )
+
+
+@router.post("/api/control/import")
+async def control_import(
+    request: ControlImportRequest,
+    is_admin: bool = Depends(require_admin),
+):
+    from ..model_settings import ModelSettings
+
+    bundle = request.bundle
+    if bundle.get("schema_version") != CONTROL_SCHEMA_VERSION:
+        raise HTTPException(status_code=400, detail="Unsupported control bundle version")
+    manager = _get_settings_manager()
+    rows = await _control_model_rows()
+    if manager is None:
+        raise HTTPException(status_code=503, detail="Settings manager not initialized")
+    known = {row["id"] for row in rows}
+    supplied = bundle.get("models") or []
+    if not isinstance(supplied, list):
+        raise HTTPException(status_code=400, detail="Bundle models must be a list")
+    matched = [item for item in supplied if isinstance(item, dict) and item.get("id") in known]
+    missing = [item.get("id") for item in supplied if isinstance(item, dict) and item.get("id") not in known]
+    plan = {
+        "matched_models": [item["id"] for item in matched],
+        "missing_models": missing,
+        "settings_updates": len(matched),
+        "profile_updates": sum(len(item.get("profiles") or []) for item in matched),
+        "collection_updates": len(bundle.get("collections") or []),
+    }
+    if request.dry_run:
+        return {"dry_run": True, "plan": plan}
+
+    control = _get_model_control()
+    for item in matched:
+        model_id = item["id"]
+        manager.set_settings(model_id, ModelSettings.from_dict(item.get("settings") or {}))
+        policy = item.get("policy")
+        if isinstance(policy, dict):
+            control.store.put("policies", model_id, policy)
+        for profile in item.get("profiles") or []:
+            if not isinstance(profile, dict) or not profile.get("name"):
+                continue
+            existing = manager.get_profile(model_id, profile["name"])
+            kwargs = {
+                "display_name": profile.get("display_name") or profile["name"],
+                "description": profile.get("description"),
+                "settings": profile.get("settings") or {},
+                "source_template": None,
+                "expose_as_model": bool(profile.get("expose_as_model")),
+            }
+            if existing:
+                manager.update_profile(model_id, profile["name"], **kwargs)
+            else:
+                manager.save_profile(model_id, profile["name"], **kwargs)
+    for collection in bundle.get("collections") or []:
+        if isinstance(collection, dict) and collection.get("id"):
+            filtered = [model_id for model_id in collection.get("model_ids", []) if model_id in known]
+            if filtered:
+                control.store.put("collections", collection["id"], {**collection, "model_ids": filtered})
+    pool = _get_engine_pool()
+    if pool is not None:
+        pool.apply_settings_overrides(manager)
+    state = _get_server_state()
+    if state is not None:
+        state.default_model = manager.get_default_model_id()
+    return {"dry_run": False, "plan": plan}
+
+
+@router.post("/api/control/models/{model_id}/revision")
+async def control_activate_revision(
+    model_id: str,
+    request: ControlRevisionRequest,
+    is_admin: bool = Depends(require_admin),
+):
+    rows = await _control_model_rows()
+    row = _find_control_row(rows, model_id)
+    path = Path(row.get("model_path") or "")
+    if path.parent.name != "snapshots":
+        raise HTTPException(status_code=400, detail="Model is not backed by a Hugging Face cache")
+    candidate = path.parent / request.revision
+    if not candidate.is_dir() or not ((candidate / "config.json").is_file() or (candidate / "model_index.json").is_file()):
+        raise HTTPException(status_code=404, detail="Cached revision not found or incomplete")
+    pool = _get_engine_pool()
+    if pool is not None:
+        entry = pool.get_entry(model_id)
+        if entry is not None and entry.engine is not None:
+            unloaded = await pool.request_unload(model_id, reason="switch cached revision")
+            if not unloaded:
+                raise HTTPException(status_code=409, detail="Model is busy; retry after active requests finish")
+    ref = path.parent.parent / "refs" / "main"
+    ref.parent.mkdir(parents=True, exist_ok=True)
+    temporary = ref.with_name(f"{ref.name}.{os.getpid()}.tmp")
+    temporary.write_text(request.revision, encoding="utf-8")
+    temporary.replace(ref)
+    success, message = await _reload_models()
+    if not success:
+        raise HTTPException(status_code=500, detail=message)
+    control = _get_model_control()
+    update = control.store.get("updates", model_id, {})
+    control.store.put(
+        "updates",
+        model_id,
+        {
+            **update,
+            "status": "current" if update.get("remote_revision") == request.revision else "rolled_back",
+            "local_revision": request.revision,
+            "activated_at": datetime.now(UTC).isoformat(),
+        },
+    )
+    return {"model_id": model_id, "revision": request.revision, "message": message}
+
+
+@router.post("/api/control/models/{model_id}/move")
+async def control_move_model(
+    model_id: str,
+    request: ControlMoveRequest,
+    is_admin: bool = Depends(require_admin),
+):
+    rows = await _control_model_rows()
+    row = _find_control_row(rows, model_id)
+    settings = _get_global_settings()
+    pool = _get_engine_pool()
+    if settings is None or pool is None:
+        raise HTTPException(status_code=503, detail="Server not initialized")
+    roots = [Path(root).expanduser().resolve() for root in settings.model.get_model_dirs(settings.base_path)]
+    destination_root = Path(request.destination_root).expanduser().resolve()
+    if destination_root not in roots:
+        raise HTTPException(status_code=400, detail="Destination is not a configured model root")
+    source_path = Path(row.get("model_path") or "").resolve()
+    if source_path.parent.name == "snapshots":
+        source_path = source_path.parent.parent
+    source_root = next((root for root in roots if source_path.is_relative_to(root)), None)
+    if source_root is None:
+        raise HTTPException(status_code=400, detail="Model is outside configured model roots")
+    relative = source_path.relative_to(source_root)
+    destination = destination_root / relative
+    if source_root == destination_root:
+        raise HTTPException(status_code=409, detail="Model already uses this storage root")
+    if destination.exists():
+        raise HTTPException(status_code=409, detail=f"Destination already exists: {destination}")
+    control = _get_model_control()
+
+    async def run(operation_id: str) -> dict[str, Any]:
+        entry = pool.get_entry(model_id)
+        if entry is not None and entry.engine is not None:
+            control.update_operation(operation_id, stage="unloading model", progress=15.0)
+            unloaded = await pool.request_unload(model_id, reason="move model storage")
+            if not unloaded:
+                raise RuntimeError("Model is busy; retry after active requests finish")
+        control.update_operation(operation_id, stage="moving files", progress=35.0)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        await asyncio.to_thread(shutil.move, str(source_path), str(destination))
+        control.invalidate_storage_cache()
+        control.update_operation(operation_id, stage="refreshing registry", progress=90.0)
+        success, message = await _reload_models()
+        if not success:
+            raise RuntimeError(message)
+        try:
+            parent = source_path.parent
+            while parent != source_root and not any(parent.iterdir()):
+                parent.rmdir()
+                parent = parent.parent
+        except OSError:
+            pass
+        return {
+            "model_id": model_id,
+            "source": str(source_path),
+            "destination": str(destination),
+        }
+
+    operation = control.start_operation(
+        "move",
+        run,
+        model_id=model_id,
+        payload={"source": str(source_path), "destination": str(destination)},
+        cancellable=False,
+    )
+    return {"operation": operation}
+
+
+def _sync_control_operations() -> ModelControl:
+    control = _get_model_control()
+    for source, manager in (
+        ("hf_download", _hf_downloader),
+        ("modelscope_download", _ms_downloader),
+        ("oq_quantize", _oq_manager),
+        ("hf_upload", _hf_uploader),
+    ):
+        if manager is not None:
+            control.sync_external(source, manager.get_tasks())
+    return control
+
+
+@router.get("/api/control/operations")
+async def control_operations(is_admin: bool = Depends(require_admin)):
+    return {"operations": _sync_control_operations().operations()}
+
+
+@router.post("/api/control/operations/{operation_id:path}/cancel")
+async def control_cancel_operation(
+    operation_id: str,
+    is_admin: bool = Depends(require_admin),
+):
+    control = _sync_control_operations()
+    operation = control.store.get("operations", operation_id)
+    if operation is None:
+        raise HTTPException(status_code=404, detail="Operation not found")
+    source = operation.get("source")
+    raw_id = operation.get("raw_id")
+    if source == "control":
+        success = control.cancel_operation(operation_id)
+    elif source == "hf_download" and _hf_downloader:
+        success = await _hf_downloader.cancel_download(raw_id)
+    elif source == "modelscope_download" and _ms_downloader:
+        success = await _ms_downloader.cancel_download(raw_id)
+    elif source == "oq_quantize" and _oq_manager:
+        success = await _oq_manager.cancel_quantization(raw_id)
+    elif source == "hf_upload" and _hf_uploader:
+        success = await _hf_uploader.cancel_upload(raw_id)
+    else:
+        success = False
+    if not success:
+        raise HTTPException(status_code=409, detail="Operation cannot be cancelled")
+    return {"success": True}
+
+
+@router.post("/api/control/operations/{operation_id:path}/retry")
+async def control_retry_operation(
+    operation_id: str,
+    is_admin: bool = Depends(require_admin),
+):
+    control = _sync_control_operations()
+    operation = control.store.get("operations", operation_id)
+    if operation is None:
+        raise HTTPException(status_code=404, detail="Operation not found")
+    source = operation.get("source")
+    raw_id = operation.get("raw_id")
+    if source == "hf_download" and _hf_downloader:
+        task = await _hf_downloader.retry_download(raw_id)
+        return {"operation": task.to_dict()}
+    if source == "modelscope_download" and _ms_downloader:
+        task = await _ms_downloader.retry_download(raw_id)
+        return {"operation": task.to_dict()}
+    if source == "control" and operation.get("kind") == "verify":
+        return {"operation": await _start_verify_operation(operation["model_id"], deep=bool((operation.get("payload") or {}).get("deep")))}
+    if source == "control" and operation.get("kind") == "update_check":
+        return {"operation": await _start_update_check(operation["model_id"])}
+    raise HTTPException(status_code=409, detail="Operation cannot be retried")
+
+
+@router.delete("/api/control/operations/{operation_id:path}")
+async def control_remove_operation(
+    operation_id: str,
+    is_admin: bool = Depends(require_admin),
+):
+    control = _sync_control_operations()
+    operation = control.store.get("operations", operation_id)
+    if operation is None:
+        raise HTTPException(status_code=404, detail="Operation not found")
+    source = operation.get("source")
+    raw_id = operation.get("raw_id")
+    if source == "hf_download" and _hf_downloader:
+        _hf_downloader.remove_task(raw_id)
+    elif source == "modelscope_download" and _ms_downloader:
+        _ms_downloader.remove_task(raw_id)
+    elif source == "oq_quantize" and _oq_manager:
+        _oq_manager.remove_task(raw_id)
+    elif source == "hf_upload" and _hf_uploader:
+        _hf_uploader.remove_task(raw_id)
+    if not control.remove_operation(operation_id):
+        raise HTTPException(status_code=409, detail="Active operation cannot be removed")
+    return {"success": True}
 
 
 @router.post("/api/models/{model_id}/unload")

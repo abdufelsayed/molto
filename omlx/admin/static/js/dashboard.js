@@ -99,7 +99,8 @@
     ]);
     const DASHBOARD_MAIN_TABS = new Set(['status', 'cluster', 'settings', 'models', 'logs', 'bench']);
     const DASHBOARD_SETTINGS_TABS = new Set(['global', 'integrations', 'models']);
-    const DASHBOARD_MODELS_TABS = new Set(['manager', 'downloader', 'quantizer', 'uploader']);
+    const DASHBOARD_MODELS_TABS = new Set(['library', 'add', 'activity']);
+    const DASHBOARD_ADD_MODEL_MODES = new Set(['download', 'prepare', 'publish']);
     const DASHBOARD_BENCH_TABS = new Set(['throughput', 'accuracy', 'context']);
     const THEME_STORAGE_KEY = 'omlx-chat-theme';
     const ENHANCED_READABILITY_KEY = 'omlx-enhanced-readability';
@@ -211,6 +212,33 @@
             imageGenerating: false,
             imageError: '',
             imageResult: '',
+
+            // Unified model control center
+            controlRegistry: [],
+            controlSummary: { models: 0, loaded: 0, needs_attention: 0, active_operations: 0, by_type: {}, collections: 0 },
+            controlOperations: [],
+            controlStorage: { roots: [], models: [] },
+            controlCollections: [],
+            controlSelected: [],
+            controlSearch: '',
+            controlFilter: 'all',
+            controlActivityFilter: 'all',
+            controlLoading: false,
+            controlError: '',
+            controlPlan: null,
+            controlDetail: null,
+            controlDetailOpen: false,
+            controlDetailTab: 'overview',
+            controlCollectionName: '',
+            controlCollectionPreload: false,
+            controlCollectionModels: [],
+            controlImportPlan: null,
+            controlDeletePlan: null,
+            controlMoveRoot: '',
+            prepareModels: [],
+            prepareSourcePath: '',
+            prepareLoading: false,
+            _controlRefreshTimer: null,
 
             // Auth UI state
             showApiKey: false,
@@ -410,7 +438,8 @@
             _logRefreshTimer: null,
 
             // Models sub-tab state
-            modelsTab: 'manager',
+            modelsTab: 'library',
+            addModelMode: 'download',
             modelsDropdown: false,
 
             // HF Mirror settings modal
@@ -780,14 +809,22 @@
                     this.stopLogRefresh();
                 }
                 if (value === 'models') {
-                    const loads = [this.loadHFModels(), this.loadHFTasks(), this.loadOQTasks()];
-                    if (this.modelsTab === 'downloader' && !this.hfRecommendedLoaded) {
+                    const loads = [this.loadModels(), this.loadControlCenter()];
+                    if (this.modelsTab === 'add' && this.addModelMode === 'download') {
+                        loads.push(this.loadHFModels(), this.loadHFTasks());
+                    }
+                    if (this.modelsTab === 'add' && this.addModelMode === 'download' && !this.hfRecommendedLoaded) {
                         loads.push(this.loadRecommendedModels());
                     }
-                    if (this.modelsTab === 'quantizer') {
-                        loads.push(this.loadOQModels());
+                    if (this.modelsTab === 'add' && this.addModelMode === 'prepare') {
+                        loads.push(this.loadPrepareModels(), this.loadOQTasks());
                     }
-                    if (this.msInitialized && this.msAvailable) {
+                    if (this.modelsTab === 'add' && this.addModelMode === 'publish') {
+                        if (!this.uploadOqModelsLoaded) loads.push(this.loadUploadOqModels());
+                        loads.push(this.loadUploadTasks());
+                    }
+                    if (this.modelsTab === 'add' && this.addModelMode === 'download'
+                        && this.msInitialized && this.msAvailable) {
                         loads.push(this.loadMSTasks());
                     }
                     await Promise.all(loads);
@@ -804,6 +841,7 @@
                     this.stopHFRefresh();
                     this.stopMSRefresh();
                     this.stopOQRefresh();
+                    this.stopControlRefresh();
                 }
                 if (value === 'bench') {
                     if (!this.benchDeviceInfo) await this.loadBenchDeviceInfo();
@@ -818,12 +856,25 @@
                 const mainTab = params.get('tab');
                 const settingsTab = params.get('settingsTab');
                 const modelsTab = params.get('modelsTab');
+                const addMode = params.get('addMode');
 
                 const benchTab = params.get('benchTab');
 
                 this.mainTab = DASHBOARD_MAIN_TABS.has(mainTab) ? mainTab : 'status';
                 this.activeTab = DASHBOARD_SETTINGS_TABS.has(settingsTab) ? settingsTab : 'global';
-                this.modelsTab = DASHBOARD_MODELS_TABS.has(modelsTab) ? modelsTab : 'manager';
+                if (DASHBOARD_MODELS_TABS.has(modelsTab)) {
+                    this.modelsTab = modelsTab;
+                } else if (['downloader', 'quantizer', 'uploader'].includes(modelsTab)) {
+                    this.modelsTab = 'add';
+                    this.addModelMode = { downloader: 'download', quantizer: 'prepare', uploader: 'publish' }[modelsTab];
+                } else {
+                    this.modelsTab = 'library';
+                }
+                if (DASHBOARD_ADD_MODEL_MODES.has(addMode)) {
+                    this.addModelMode = addMode;
+                } else if (addMode === 'convert' || addMode === 'quantize') {
+                    this.addModelMode = 'prepare';
+                }
                 this.benchTab = DASHBOARD_BENCH_TABS.has(benchTab) ? benchTab : 'throughput';
             },
 
@@ -839,8 +890,11 @@
 
                 if (this.mainTab === 'models') {
                     url.searchParams.set('modelsTab', this.modelsTab);
+                    if (this.modelsTab === 'add') url.searchParams.set('addMode', this.addModelMode);
+                    else url.searchParams.delete('addMode');
                 } else {
                     url.searchParams.delete('modelsTab');
+                    url.searchParams.delete('addMode');
                 }
 
                 if (this.mainTab === 'bench') {
@@ -903,13 +957,33 @@
                 this.modelsTab = tab;
                 this.mainTab = 'models';
                 this.syncTabStateToUrl();
-                if (tab === 'quantizer') {
-                    this.loadOQModels();
+                if (tab === 'library' || tab === 'activity') {
+                    this.loadControlCenter();
                 }
-                if (tab === 'uploader') {
+                if (tab === 'add') {
+                    this.setAddModelMode(this.addModelMode);
+                }
+            },
+
+            setAddModelMode(mode) {
+                if (!DASHBOARD_ADD_MODEL_MODES.has(mode)) return;
+                this.addModelMode = mode;
+                this.modelsTab = 'add';
+                this.mainTab = 'models';
+                this.syncTabStateToUrl();
+                if (mode === 'download') {
+                    this.loadHFModels();
+                    this.loadHFTasks();
+                    if (!this.hfRecommendedLoaded) this.loadRecommendedModels();
+                } else if (mode === 'prepare') {
+                    this.loadControlCenter();
+                    this.loadPrepareModels();
+                    this.loadOQTasks();
+                } else if (mode === 'publish') {
                     if (!this.uploadOqModelsLoaded) this.loadUploadOqModels();
                     this.loadUploadTasks();
                 }
+                this.$nextTick(() => window.lucide?.createIcons());
             },
 
            async checkForUpdate() {
@@ -6082,6 +6156,418 @@
                     && this.sortOrder === MODELS_SORT_DEFAULT.order;
             },
 
+            // ---- Unified model control center ----
+
+            async controlFetch(url, options = {}) {
+                const response = await fetch(url, options);
+                if (response.status === 401) {
+                    window.location.href = '/admin';
+                    throw new Error('Authentication required');
+                }
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    const detail = data.detail;
+                    throw new Error(typeof detail === 'string' ? detail : (detail?.message || JSON.stringify(detail) || 'Request failed'));
+                }
+                return data;
+            },
+
+            async loadControlCenter() {
+                if (this.controlLoading) return;
+                this.controlLoading = true;
+                this.controlError = '';
+                try {
+                    const snapshot = await this.controlFetch('/admin/api/control/snapshot');
+                    this.controlRegistry = snapshot.models || [];
+                    this.controlSummary = snapshot.summary || this.controlSummary;
+                    this.controlOperations = snapshot.operations || [];
+                    this.controlStorage = snapshot.storage || this.controlStorage;
+                    this.controlCollections = snapshot.collections || [];
+                    this.controlSelected = this.controlSelected.filter(id =>
+                        this.controlRegistry.some(model => model.id === id));
+                    if (this.controlDetail) {
+                        this.controlDetail = this.controlRegistry.find(model => model.id === this.controlDetail.id) || null;
+                    }
+                    if (this.controlOperations.some(operation => ['queued', 'running'].includes(operation.status))) {
+                        this.startControlRefresh();
+                    } else {
+                        this.stopControlRefresh();
+                    }
+                    this.$nextTick(() => window.lucide?.createIcons());
+                } catch (error) {
+                    this.controlError = error.message || 'Failed to load model control center';
+                } finally {
+                    this.controlLoading = false;
+                }
+            },
+
+            startControlRefresh() {
+                if (this._controlRefreshTimer) return;
+                this._controlRefreshTimer = setInterval(async () => {
+                    if (this.mainTab !== 'models') return;
+                    try {
+                        const data = await this.controlFetch('/admin/api/control/operations');
+                        this.controlOperations = data.operations || [];
+                        if (!this.controlOperations.some(operation => ['queued', 'running'].includes(operation.status))) {
+                            this.stopControlRefresh();
+                            await this.loadControlCenter();
+                        }
+                    } catch (error) {
+                        console.error('Failed to refresh operations:', error);
+                    }
+                }, 2000);
+            },
+
+            stopControlRefresh() {
+                if (this._controlRefreshTimer) clearInterval(this._controlRefreshTimer);
+                this._controlRefreshTimer = null;
+            },
+
+            get filteredControlModels() {
+                const query = this.controlSearch.trim().toLowerCase();
+                let models = this.controlRegistry;
+                if (this.controlFilter === 'loaded') {
+                    models = models.filter(model => model.runtime?.loaded);
+                } else if (this.controlFilter === 'attention') {
+                    models = models.filter(model => ['corrupt', 'load_failed', 'incompatible', 'missing_dependency'].includes(model.health?.status));
+                } else if (this.controlFilter === 'image_generation') {
+                    models = models.filter(model => model.model_type === 'image_generation');
+                } else if (this.controlFilter === 'audio') {
+                    models = models.filter(model => String(model.model_type || '').startsWith('audio_'));
+                }
+                if (!query) return models;
+                return models.filter(model => [
+                    model.id,
+                    model.display_name,
+                    model.model_type,
+                    model.config_model_type,
+                    ...(model.capabilities?.tasks || []),
+                ].some(value => String(value || '').toLowerCase().includes(query)));
+            },
+
+            async loadPrepareModels() {
+                if (this.prepareLoading) return;
+                this.prepareLoading = true;
+                try {
+                    const data = await this.controlFetch('/admin/api/control/prepare-models');
+                    this.prepareModels = data.models || [];
+                    this.oqModels = data.oq_models || [];
+                    this.oqAllModels = data.oq_all_models || [];
+                    this.oqModelsLoaded = true;
+                    if (this.prepareSourcePath
+                        && !this.prepareModels.some(model => model.path === this.prepareSourcePath)) {
+                        this.prepareSourcePath = '';
+                    }
+                    this.syncPrepareSelection();
+                } catch (error) {
+                    this.controlError = error.message || 'Failed to load preparation models';
+                } finally {
+                    this.prepareLoading = false;
+                }
+            },
+
+            get prepareSelectedModel() {
+                return this.prepareModels.find(model => model.path === this.prepareSourcePath) || null;
+            },
+
+            prepareSourceLabel(model) {
+                const family = model.config_model_type
+                    ? `${model.model_type} (${model.config_model_type})`
+                    : model.model_type;
+                return `${model.name} · ${family} · ${model.modality} · ${model.format} · ${model.precision} · ${model.size_formatted}`;
+            },
+
+            syncPrepareSelection() {
+                const selected = this.prepareSelectedModel;
+                const nextPath = selected?.quantization?.available ? selected.path : '';
+                if (this.oqSelectedModelPath !== nextPath) {
+                    this.oqSelectedModelPath = nextPath;
+                    this.oqSensitivityModelPath = '';
+                    this.oqMtpAssistantPath = '';
+                    this.oqEstimate = null;
+                }
+            },
+
+            prepareOutputExists() {
+                const output = String(this.prepareSelectedModel?.conversion?.output_name || '').toLowerCase();
+                if (!output) return false;
+                return this.controlRegistry.some(model => {
+                    const folder = String(model.path || '').split('/').filter(Boolean).at(-1)?.toLowerCase();
+                    return folder === output;
+                });
+            },
+
+            get filteredControlOperations() {
+                const operations = this.controlOperations || [];
+                if (this.controlActivityFilter === 'active') {
+                    return operations.filter(operation => ['queued', 'running'].includes(operation.status));
+                }
+                if (this.controlActivityFilter === 'failed') {
+                    return operations.filter(operation => ['failed', 'cancelled', 'interrupted'].includes(operation.status));
+                }
+                if (this.controlActivityFilter === 'completed') {
+                    return operations.filter(operation => operation.status === 'succeeded');
+                }
+                return operations;
+            },
+
+            controlOperationIcon(kind) {
+                const value = String(kind || '');
+                if (value.includes('download')) return 'cloud-download';
+                if (value.includes('upload')) return 'upload-cloud';
+                if (value.includes('quant') || value.includes('convert')) return 'sparkles';
+                if (value.includes('verify') || value.includes('check')) return 'shield-check';
+                if (value.includes('move')) return 'folder-input';
+                if (value.includes('update')) return 'git-compare';
+                return 'activity';
+            },
+
+            controlFormatBytes(value) {
+                const bytes = Number(value || 0);
+                if (!bytes) return '0 B';
+                const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+                const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+                const amount = bytes / (1024 ** index);
+                return `${amount >= 10 || index === 0 ? amount.toFixed(0) : amount.toFixed(1)} ${units[index]}`;
+            },
+
+            controlStatusClass(status) {
+                if (['ready', 'current', 'succeeded'].includes(status)) return 'bg-green-50 text-green-700 border-green-200';
+                if (['running', 'queued', 'unverified', 'unchecked', 'interrupted'].includes(status)) return 'bg-amber-50 text-amber-700 border-amber-200';
+                return 'bg-red-50 text-red-700 border-red-200';
+            },
+
+            toggleControlSelected(modelId) {
+                this.controlSelected = this.controlSelected.includes(modelId)
+                    ? this.controlSelected.filter(id => id !== modelId)
+                    : [...this.controlSelected, modelId];
+            },
+
+            openControlDetail(model) {
+                this.controlDetail = model;
+                this.controlDetailTab = 'overview';
+                this.controlMoveRoot = '';
+                this.controlDeletePlan = null;
+                this.controlDetailOpen = true;
+                this.$nextTick(() => window.lucide?.createIcons());
+            },
+
+            async toggleControlLoad(model) {
+                if (!model || model.kind !== 'physical') return;
+                if (model.runtime?.loaded) await this.unloadModel(model.id);
+                else await this.loadModel(model.id);
+                await this.loadControlCenter();
+            },
+
+            async openAdvancedControlSettings() {
+                const modelId = this.controlDetail?.id;
+                if (!modelId) return;
+                let model = this.models.find(item => item.id === modelId);
+                if (!model) {
+                    await this.loadModels();
+                    model = this.models.find(item => item.id === modelId);
+                }
+                if (!model) {
+                    this.controlError = 'Advanced settings are unavailable for this registry entry.';
+                    return;
+                }
+                this.controlDetailOpen = false;
+                await this.openModelSettings(model);
+            },
+
+            async verifyControlModel(modelId, deep = false) {
+                try {
+                    await this.controlFetch(`/admin/api/control/models/${encodeURIComponent(modelId)}/verify`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ deep }),
+                    });
+                    await this.loadControlCenter();
+                } catch (error) {
+                    this.controlError = error.message;
+                }
+            },
+
+            async checkControlUpdate(modelId) {
+                try {
+                    await this.controlFetch(`/admin/api/control/models/${encodeURIComponent(modelId)}/check-update`, { method: 'POST' });
+                    await this.loadControlCenter();
+                } catch (error) {
+                    this.controlError = error.message;
+                }
+            },
+
+            async stageControlUpdate(modelId) {
+                try {
+                    await this.controlFetch(`/admin/api/control/models/${encodeURIComponent(modelId)}/stage-update`, { method: 'POST' });
+                    await this.loadControlCenter();
+                } catch (error) { this.controlError = error.message; }
+            },
+
+            async loadControlDeletePlan(modelId) {
+                try {
+                    this.controlDeletePlan = await this.controlFetch(`/admin/api/control/models/${encodeURIComponent(modelId)}/delete-plan`);
+                } catch (error) { this.controlError = error.message; }
+            },
+
+            async setControlPolicy(model, mode) {
+                const ttl = mode === 'keep_warm'
+                    ? Number(model.policy?.ttl_seconds || 900)
+                    : null;
+                try {
+                    const data = await this.controlFetch(`/admin/api/control/models/${encodeURIComponent(model.id)}/policy`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ mode, ttl_seconds: ttl, load_now: mode === 'always_resident' }),
+                    });
+                    model.policy = data.policy;
+                    model.runtime.pinned = mode === 'always_resident';
+                    model.runtime.loaded = data.loaded;
+                } catch (error) {
+                    this.controlError = error.message;
+                    await this.loadControlCenter();
+                }
+            },
+
+            async planControlSelection() {
+                if (!this.controlSelected.length) return;
+                try {
+                    this.controlPlan = await this.controlFetch('/admin/api/control/plan', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ model_ids: this.controlSelected }),
+                    });
+                } catch (error) {
+                    this.controlError = error.message;
+                }
+            },
+
+            async cancelControlOperation(operation) {
+                try {
+                    await this.controlFetch(`/admin/api/control/operations/${encodeURIComponent(operation.id)}/cancel`, { method: 'POST' });
+                    await this.loadControlCenter();
+                } catch (error) { this.controlError = error.message; }
+            },
+
+            async retryControlOperation(operation) {
+                try {
+                    await this.controlFetch(`/admin/api/control/operations/${encodeURIComponent(operation.id)}/retry`, { method: 'POST' });
+                    await this.loadControlCenter();
+                } catch (error) { this.controlError = error.message; }
+            },
+
+            async removeControlOperation(operation) {
+                try {
+                    await this.controlFetch(`/admin/api/control/operations/${encodeURIComponent(operation.id)}`, { method: 'DELETE' });
+                    await this.loadControlCenter();
+                } catch (error) { this.controlError = error.message; }
+            },
+
+            async saveControlCollection() {
+                const name = this.controlCollectionName.trim();
+                if (!name || !this.controlSelected.length) return;
+                const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `collection-${Date.now()}`;
+                try {
+                    await this.controlFetch(`/admin/api/control/collections/${encodeURIComponent(id)}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, model_ids: this.controlSelected, description: '', preload: this.controlCollectionPreload }),
+                    });
+                    this.controlCollectionName = '';
+                    this.controlCollectionPreload = false;
+                    await this.loadControlCenter();
+                } catch (error) { this.controlError = error.message; }
+            },
+
+            async loadControlCollection(collection) {
+                try {
+                    await this.controlFetch(`/admin/api/control/collections/${encodeURIComponent(collection.id)}/load`, { method: 'POST' });
+                    await this.loadControlCenter();
+                } catch (error) { this.controlError = error.message; }
+            },
+
+            async deleteControlCollection(collection) {
+                try {
+                    await this.controlFetch(`/admin/api/control/collections/${encodeURIComponent(collection.id)}`, { method: 'DELETE' });
+                    await this.loadControlCenter();
+                } catch (error) { this.controlError = error.message; }
+            },
+
+            async exportControlBundle() {
+                try {
+                    const response = await fetch('/admin/api/control/export');
+                    if (!response.ok) throw new Error('Export failed');
+                    const blob = await response.blob();
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = 'omlx-model-control.json';
+                    link.click();
+                    URL.revokeObjectURL(link.href);
+                } catch (error) { this.controlError = error.message; }
+            },
+
+            async importControlBundle(event) {
+                const file = event.target.files?.[0];
+                event.target.value = '';
+                if (!file) return;
+                try {
+                    const bundle = JSON.parse(await file.text());
+                    const preview = await this.controlFetch('/admin/api/control/import', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ bundle, dry_run: true }),
+                    });
+                    this.controlImportPlan = preview.plan;
+                    const count = preview.plan?.matched_models?.length || 0;
+                    if (!window.confirm(`Apply settings for ${count} matched model(s)? Missing models will be skipped.`)) return;
+                    await this.controlFetch('/admin/api/control/import', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ bundle, dry_run: false }),
+                    });
+                    await Promise.all([this.loadModels(), this.loadControlCenter()]);
+                } catch (error) { this.controlError = error.message || 'Import failed'; }
+            },
+
+            async activateControlRevision(modelId, revision) {
+                if (!revision) return;
+                try {
+                    await this.controlFetch(`/admin/api/control/models/${encodeURIComponent(modelId)}/revision`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ revision }),
+                    });
+                    await Promise.all([this.loadModels(), this.loadControlCenter()]);
+                } catch (error) { this.controlError = error.message; }
+            },
+
+            async moveControlModel(modelId) {
+                if (!this.controlMoveRoot) return;
+                try {
+                    await this.controlFetch(`/admin/api/control/models/${encodeURIComponent(modelId)}/move`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ destination_root: this.controlMoveRoot }),
+                    });
+                    this.controlDetailOpen = false;
+                    await this.loadControlCenter();
+                } catch (error) { this.controlError = error.message; }
+            },
+
+            async convertControlModel() {
+                const selected = this.prepareSelectedModel;
+                if (!selected?.conversion?.available || this.prepareOutputExists()) return;
+                try {
+                    await this.controlFetch('/admin/api/control/convert', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ source: selected.path }),
+                    });
+                    await this.loadControlCenter();
+                    this.setModelsTab('activity');
+                } catch (error) { this.controlError = error.message; }
+            },
+
             // ---- Manager (Browse Models > Local) filter + sort ----
 
             // Cross-reference the richer /api/models entry (has model_type,
@@ -6484,22 +6970,10 @@
             // oQ Quantization Functions
             // =================================================================
 
-            async loadOQModels() {
-                try {
-                    const response = await fetch('/admin/api/oq/models');
-                    if (response.ok) {
-                        const data = await response.json();
-                        this.oqModels = data.models || [];
-                        this.oqAllModels = data.all_models || [];
-                        this.oqModelsLoaded = true;
-                    }
-                } catch (err) {
-                    console.error('Failed to load quantizable models:', err);
-                }
-            },
-
             async startOQQuantization() {
-                if (!this.oqSelectedModelPath || this.oqStarting) return;
+                if (!this.prepareSelectedModel?.quantization?.available
+                    || this.oqSelectedModelPath !== this.prepareSourcePath
+                    || this.oqStarting) return;
                 this.oqError = '';
                 this.oqSuccess = '';
                 this.oqStarting = true;
@@ -6555,9 +7029,12 @@
                         if (!hasActive) {
                             this.stopOQRefresh();
                             if (this.oqTasks.some(t => t.status === 'completed')) {
-                                await this.loadHFModels();
-                                await this.loadModels();
-                                await this.loadOQModels();
+                                await Promise.all([
+                                    this.loadHFModels(),
+                                    this.loadModels(),
+                                    this.loadControlCenter(),
+                                    this.loadPrepareModels(),
+                                ]);
                             }
                         }
                     }
@@ -6659,6 +7136,23 @@
             oqSelectedModelType() {
                 const model = this.oqModels.find(m => m.path === this.oqSelectedModelPath);
                 return model?.model_type || '';
+            },
+
+            oqSelectedModelInfo() {
+                return this.oqModels.find(m => m.path === this.oqSelectedModelPath) || null;
+            },
+
+            oqSourceLabel(model) {
+                const name = model.source_repo_id || model.name;
+                return `${name} · ${model.format || 'unknown'} · ${model.precision || 'Full precision'} · ${model.size_formatted}`;
+            },
+
+            oqPipelineLabel() {
+                const model = this.oqSelectedModelInfo();
+                if (!model) return '';
+                const source = `${model.format === 'mlx' ? 'MLX' : 'Hugging Face'} ${model.precision || 'Full precision'}`;
+                const conversion = model.conversion_required ? ' → MLX' : '';
+                return `${source}${conversion} → ${this.oqLevelLabel(this.oqLevel)}`;
             },
 
             oqAvailableLevels() {

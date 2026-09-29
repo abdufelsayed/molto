@@ -3893,6 +3893,9 @@ class EnginePool:
                     "source_type": e.source_type,
                     "source_repo_id": e.source_repo_id,
                     "last_access": e.last_access if e.last_access > 0 else None,
+                    "load_failed": e.load_failed,
+                    "load_failure_message": e.load_failure_message,
+                    "load_failure_at": e.load_failure_at,
                 }
             )
         return {
