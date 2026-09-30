@@ -87,3 +87,15 @@ async def test_refresh_refuses_empty_model_directory_configuration():
 
     assert exc_info.value.code == "unavailable"
     pool.discover_models.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_refresh_waits_until_preparation_releases_admission():
+    pool, manager, settings = MagicMock(), MagicMock(), MagicMock()
+    pool._preparation_active = True
+    service, _ = _service(pool, manager, settings)
+    with pytest.raises(ManagementError) as error:
+        await service.refresh()
+    assert error.value.code == "busy"
+    manager._load.assert_not_called()
+    pool.discover_models.assert_not_called()

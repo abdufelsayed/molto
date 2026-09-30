@@ -160,6 +160,9 @@ def test_image_capabilities_follow_checkpoint_operations(tmp_path):
     }
     source = source_metadata(str(tmp_path), None)
     assert source["diffusion"]["quantization_bits"] == 4
+    assert source["diffusion"]["calibration"]["available"] is True
+    assert source["diffusion"]["calibrated_quantization"]["available"] is False
+    assert "floating-point" in source["diffusion"]["calibrated_quantization"]["reason"]
     assert source["model_family"] == "flux2-klein-4b"
 
 

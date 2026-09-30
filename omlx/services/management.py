@@ -111,6 +111,7 @@ class ManagementService:
             )
         return {
             "default_model": self.context.get_default_model(),
+            "preparation_active": status.get("preparation_active", False),
             "model_count": status["model_count"],
             "loaded_count": sum(1 for model in models if model["loaded"]),
             "current_model_memory": status["current_model_memory"],
@@ -144,6 +145,8 @@ class ManagementService:
 
     async def refresh(self) -> dict[str, Any]:
         """Re-read model settings and discover current model directories."""
+        if getattr(self.pool, "_preparation_active", False) is True:
+            raise ManagementError("busy", "Diffusion preparation is active")
         self.manager._load()
         global_settings = self.context.global_settings
         model_dirs = (

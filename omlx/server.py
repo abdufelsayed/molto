@@ -204,7 +204,7 @@ from .exceptions import (
 )
 from .model_settings import forced_ct_keys, merge_chat_template_request_kwargs
 from .server_metrics import get_server_metrics, reset_server_metrics
-from .services.management import ManagementContext, ManagementError
+from .services.management import ManagementContext, ManagementError, ManagementService
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -275,6 +275,7 @@ class ServerState:
     process_memory_enforcer: Optional[object] = None  # ProcessMemoryEnforcer
     responses_store: ResponseStore = field(default_factory=ResponseStore)
     oq_manager: Optional[object] = None  # No quantizer is started by the server.
+    diffusion_jobs: Optional[object] = None
     # False while the startup pinned-model preload is still running.
     # /health returns 503 with status "loading" until it flips to True so
     # port watchdogs see liveness instead of a closed port (#2184).
@@ -684,6 +685,9 @@ async def lifespan(app: FastAPI):
             await ttl_task
         except asyncio.CancelledError:
             pass
+    if _server_state.diffusion_jobs is not None:
+        await _server_state.diffusion_jobs.shutdown()
+        _server_state.diffusion_jobs = None
     if _server_state.process_memory_enforcer is not None:
         await _server_state.process_memory_enforcer.stop()
         if _server_state.engine_pool is not None:
@@ -772,6 +776,16 @@ def _management_auth_context() -> AuthContext:
 
 app.state.management_context_provider = _management_context
 app.state.management_auth_provider = _management_auth_context
+
+
+def _diffusion_jobs_provider():
+    jobs = _server_state.diffusion_jobs
+    if jobs is None:
+        raise HTTPException(status_code=503, detail="Server not initialized")
+    return jobs
+
+
+app.state.diffusion_jobs_provider = _diffusion_jobs_provider
 
 from .api.management_routes import router as management_router
 
@@ -2231,6 +2245,21 @@ def init_server(
     _server_state.engine_pool.configure_gpu_keep_warm(
         global_settings.server.gpu_keep_warm_interval if global_settings else 0.5
     )
+    from .services.diffusion_jobs import DiffusionJobs
+
+    async def refresh_prepared_models():
+        await ManagementService(_management_context()).refresh()
+
+    _server_state.diffusion_jobs = None
+    try:
+        _server_state.diffusion_jobs = DiffusionJobs(
+            _server_state.engine_pool,
+            artifacts_dir=base_path / "preparation" / "diffusion",
+            output_dir=Path(dir_list[0]),
+            on_complete=refresh_prepared_models,
+        )
+    except (OSError, ValueError) as exc:
+        logger.warning("Diffusion preparation jobs unavailable: %s", exc)
     from .cluster.enrollment import configure_cluster_enrollment, get_cluster_enrollment
     from .cluster.incidents import configure_cluster_incidents
     from .cluster.pairing import configure_pairing_manager

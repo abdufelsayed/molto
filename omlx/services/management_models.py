@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ModelSettingsPatch(BaseModel):
@@ -156,6 +156,7 @@ class ModelStateItem(BaseModel):
 
 
 class StateResponse(BaseModel):
+    preparation_active: bool = False
     default_model: str | None
     model_count: int
     loaded_count: int
@@ -263,3 +264,67 @@ class CacheClearResponse(BaseModel):
     status: Literal["ok"]
     kind: Literal["hot", "ssd"]
     total_cleared: int
+
+
+class DiffusionCalibrationTask(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    prompt: str = Field(min_length=1, max_length=32768)
+    seed: int = Field(default=0, ge=0, le=4294967295)
+    width: int = Field(default=256, ge=64, le=2048)
+    height: int = Field(default=256, ge=64, le=2048)
+    steps: int | None = Field(default=None, ge=1, le=1000)
+    guidance: float | None = Field(default=None, ge=0)
+    negative_prompt: str | None = Field(default=None, max_length=32768)
+
+
+class DiffusionCalibrationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    model_id: str = Field(min_length=1)
+    tasks: list[DiffusionCalibrationTask] = Field(min_length=1, max_length=32)
+    max_rows: int = Field(default=256, ge=1, le=4096)
+
+
+class DiffusionQuantizationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    model_id: str = Field(min_length=1)
+    calibration_job_id: str = Field(min_length=1)
+    bits: Literal[3, 4, 5, 6, 8] = 4
+    group_size: Literal[32, 64, 128] = 64
+    budget_bytes: int | None = Field(default=None, gt=0)
+    budget_ratio: float = Field(default=1.10, ge=1)
+    protected: list[str] = Field(default_factory=list, max_length=128)
+
+    @model_validator(mode="after")
+    def _exclusive_budget(self):
+        if self.budget_bytes is not None and "budget_ratio" in self.model_fields_set:
+            raise ValueError("Specify budget_bytes or budget_ratio, not both")
+        if any(not pattern or len(pattern) > 512 for pattern in self.protected):
+            raise ValueError(
+                "Protected layer patterns must contain 1 to 512 characters"
+            )
+        return self
+
+
+class DiffusionJobView(BaseModel):
+    id: str
+    kind: Literal["calibration", "quantization"]
+    model_id: str
+    base_model: str
+    status: Literal[
+        "queued", "waiting", "running", "cancelling", "completed", "failed", "cancelled"
+    ]
+    phase: str
+    progress: float = Field(ge=0, le=1)
+    detail: str
+    created_at: float
+    started_at: float | None = None
+    finished_at: float | None = None
+    result: dict[str, Any] | None = None
+    error: str | None = None
+
+
+class DiffusionJobsResponse(BaseModel):
+    jobs: list[DiffusionJobView]

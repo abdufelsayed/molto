@@ -161,6 +161,33 @@ def test_management_reads_initialized_runtime(module_entry):
     assert response.status_code == 200, response.text
     assert response.json()["model_count"] == 0
     assert client.get("/admin").status_code == 404
+    jobs = client.get(
+        "/management/v1/diffusion/jobs",
+        headers={"Authorization": "Bearer test-key"},
+    )
+    assert jobs.status_code == 200, jobs.text
+    assert jobs.json() == {"jobs": []}
+    assert server._server_state.diffusion_jobs.pool is server._server_state.engine_pool
+
+
+def test_bad_preparation_history_preserves_inference_startup(monkeypatch, tmp_path):
+    from omlx import server
+    from omlx.settings import GlobalSettings
+
+    model_dir = tmp_path / "models"
+    model_dir.mkdir()
+    history = tmp_path / "preparation" / "diffusion" / "jobs.json"
+    history.parent.mkdir(parents=True)
+    history.write_text("invalid json")
+    settings = GlobalSettings(base_path=tmp_path)
+    settings.server.gpu_keep_warm_interval = 0
+    server.app.middleware_stack = None
+    with patch("mlx.core.set_cache_limit"):
+        server.init_server(
+            model_dirs=str(model_dir), api_key="test-key", global_settings=settings
+        )
+    assert server._server_state.engine_pool is not None
+    assert server._server_state.diffusion_jobs is None
 
 
 def test_module_entry_management_end_to_end(tmp_path):

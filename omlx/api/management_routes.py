@@ -12,6 +12,10 @@ from ..services.management import ManagementContext, ManagementService
 from ..services.management_models import (
     CacheClearResponse,
     CacheResponse,
+    DiffusionCalibrationRequest,
+    DiffusionJobsResponse,
+    DiffusionJobView,
+    DiffusionQuantizationRequest,
     GlobalSettingsPatch,
     GlobalSettingsUpdateResponse,
     GlobalSettingsView,
@@ -180,3 +184,55 @@ async def clear_cache(
     kind: str, service: ManagementService = Depends(get_management_service)
 ):
     return await service.clear_cache(kind)
+
+
+def get_diffusion_jobs(request: Request):
+    provider = getattr(request.app.state, "diffusion_jobs_provider", None)
+    if provider is None:
+        raise HTTPException(status_code=503, detail="Server not initialized")
+    jobs = provider()
+    if jobs is None:
+        raise HTTPException(status_code=503, detail="Server not initialized")
+    return jobs
+
+
+def _diffusion_job_call(function, *args):
+    try:
+        return function(*args)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc.args[0])) from exc
+    except (ValueError, OSError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post(
+    "/diffusion/calibrations", response_model=DiffusionJobView, status_code=202
+)
+async def start_diffusion_calibration(
+    body: DiffusionCalibrationRequest, jobs=Depends(get_diffusion_jobs)
+):
+    return _diffusion_job_call(jobs.start_calibration, body)
+
+
+@router.post(
+    "/diffusion/quantizations", response_model=DiffusionJobView, status_code=202
+)
+async def start_diffusion_quantization(
+    body: DiffusionQuantizationRequest, jobs=Depends(get_diffusion_jobs)
+):
+    return _diffusion_job_call(jobs.start_quantization, body)
+
+
+@router.get("/diffusion/jobs", response_model=DiffusionJobsResponse)
+async def list_diffusion_jobs(jobs=Depends(get_diffusion_jobs)):
+    return jobs.list()
+
+
+@router.get("/diffusion/jobs/{job_id}", response_model=DiffusionJobView)
+async def get_diffusion_job(job_id: str, jobs=Depends(get_diffusion_jobs)):
+    return _diffusion_job_call(jobs.get, job_id)
+
+
+@router.post("/diffusion/jobs/{job_id}/cancel", response_model=DiffusionJobView)
+async def cancel_diffusion_job(job_id: str, jobs=Depends(get_diffusion_jobs)):
+    return _diffusion_job_call(jobs.cancel, job_id)

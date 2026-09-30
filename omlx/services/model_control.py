@@ -194,6 +194,7 @@ _CAPABILITIES: dict[str, CapabilitySet] = {
 def diffusion_metadata(path: Path) -> dict[str, Any] | None:
     """Describe a local image checkpoint without importing its runtime."""
     from ..diffusion import detect_checkpoint, pipelines_for_model
+    from ..diffusion.preparation import QUANTIZATION_MODELS
 
     try:
         checkpoint = detect_checkpoint(path)
@@ -202,9 +203,30 @@ def diffusion_metadata(path: Path) -> dict[str, Any] | None:
     if checkpoint is None:
         return None
     pipelines = pipelines_for_model(checkpoint.base_model)
+    calibrated = checkpoint.base_model in QUANTIZATION_MODELS
+    fresh = calibrated and checkpoint.quantization is None
     return {
         **checkpoint.metadata(),
         "supported": any(spec.local_unsupported_reason is None for spec in pipelines),
+        "calibration": {
+            "available": calibrated,
+            "operations": ["txt2img"] if calibrated else [],
+            "reason": None
+            if calibrated
+            else "Calibrated preparation is not integrated for this checkpoint identity",
+        },
+        "calibrated_quantization": {
+            "available": fresh,
+            "method": "diffusion-oQe",
+            "scope": "transformer linears",
+            "reason": None
+            if fresh
+            else (
+                "Fresh quantization requires floating-point source weights"
+                if calibrated
+                else "Calibrated preparation is not integrated for this checkpoint identity"
+            ),
+        },
     }
 
 
