@@ -203,7 +203,7 @@ def api(monkeypatch, checkpoint):
             )
 
         @asynccontextmanager
-        async def acquire(self, model):
+        async def acquire(self, model, *, image_pipeline=None):
             state["acquires"] += 1
             state["leased"] = True
             try:
@@ -777,3 +777,162 @@ async def test_unstarted_and_explicitly_stopped_engine_do_not_reload(
         await engine.generate_image(prompt="A bird", seed=2, width=512, height=512)
     assert backend.calls == calls
     assert not engine.get_stats()["loaded"]
+
+
+@pytest.fixture
+def pooled_api(api, checkpoint, executor, tmp_path, monkeypatch):
+    """Run actual pool construction/start/acquire paths with a fake native backend."""
+    import json
+
+    from omlx import engine_pool
+
+    app, _, _, _ = api
+    path = tmp_path / "image"
+    for component in ("vae", "transformer", "text_encoder"):
+        (path / component).mkdir(parents=True)
+        (path / component / "0.safetensors").write_bytes(b"weights")
+    (path / "tokenizer").mkdir()
+    (path / "tokenizer" / "tokenizer.json").write_text("{}")
+    (path / "omlx-mflux.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "backend": "mflux",
+                "model_family": "z-image-turbo",
+                "quantize": None,
+            }
+        )
+    )
+    pool = engine_pool.EnginePool()
+    pool.discover_models(str(tmp_path))
+    monkeypatch.setattr(pool, "_ensure_gpu_keep_warm_task", lambda: None)
+    monkeypatch.setattr(engine_pool, "get_mlx_executor", lambda: executor)
+    monkeypatch.setattr(engine_pool, "get_phys_footprint", lambda: 0)
+    monkeypatch.setattr(engine_pool.mx, "get_active_memory", lambda: 0)
+    monkeypatch.setattr(engine_pool.mx, "get_cache_memory", lambda: 0)
+    backend = Backend()
+    engines = []
+
+    def construct(model_name, **kwargs):
+        engine = DiffusionImageEngine(model_name, **kwargs)
+        engine._backend = backend
+        engines.append(engine)
+        return engine
+
+    original_generate = backend.generate
+
+    def generate(model, task, pipeline):
+        assert pool.get_entry("image").in_use == 1
+        return original_generate(model, task, pipeline)
+
+    backend.generate = generate
+    monkeypatch.setattr(engine_pool, "MFluxImageEngine", construct)
+    monkeypatch.setattr(image_routes, "_get_engine_pool", lambda: pool)
+    return app, pool, backend, engines
+
+
+@pytest.mark.asyncio
+async def test_cold_edit_loads_selected_pipeline_once_then_reuses_and_switches(
+    pooled_api,
+):
+    app, pool, backend, engines = pooled_api
+    image = base64.b64encode(png_bytes()).decode()
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        edit = {"model": "image", "prompt": "Edit", "image": image}
+        cold = await client.post("/v1/images/edits", json=edit)
+        assert cold.status_code == 200, cold.text
+        assert [call for call in backend.calls if call[0] == "load"] == [
+            ("load", "z-image-turbo/img2img")
+        ]
+        warm = await client.post("/v1/images/edits", json=edit)
+        assert warm.status_code == 200, warm.text
+        assert len([call for call in backend.calls if call[0] == "load"]) == 1
+        generation = await client.post(
+            "/v1/images/generations", json={"model": "image", "prompt": "A bird"}
+        )
+        assert generation.status_code == 200, generation.text
+        switched = await client.post("/v1/images/edits", json=edit)
+        assert switched.status_code == 200, switched.text
+    assert len(engines) == 1
+    assert pool.get_entry("image").engine is engines[0]
+    assert pool.get_entry("image").in_use == 0
+    assert [call for call in backend.calls if call[0] == "load"] == [
+        ("load", "z-image-turbo/img2img"),
+        ("load", "z-image-turbo"),
+        ("load", "z-image-turbo/img2img"),
+    ]
+    assert [call[0] for call in backend.calls] == [
+        "load",
+        "generate",
+        "generate",
+        "release",
+        "load",
+        "generate",
+        "release",
+        "load",
+        "generate",
+    ]
+    assert len(backend.live) == 1
+    await engines[0].stop()
+
+
+@pytest.mark.asyncio
+async def test_cancelled_cold_edit_drains_selected_load_and_can_retry(pooled_api):
+    app, pool, backend, engines = pooled_api
+    backend.block_load = True
+    edit = {
+        "model": "image",
+        "prompt": "Edit",
+        "image": base64.b64encode(png_bytes()).decode(),
+    }
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        pending = asyncio.create_task(client.post("/v1/images/edits", json=edit))
+        await entered(backend)
+        pending.cancel()
+        await asyncio.sleep(0)
+        assert not pending.done()
+        assert pool.get_entry("image").is_loading
+        assert [call for call in backend.calls if call[0] == "load"] == [
+            ("load", "z-image-turbo/img2img")
+        ]
+        backend.proceed.set()
+        with pytest.raises(asyncio.CancelledError):
+            await pending
+        assert not backend.live
+        assert pool.get_entry("image").engine is None
+        assert not pool.get_entry("image").is_loading
+        assert not engines[0]._started
+        backend.block_load = False
+        retry = await client.post("/v1/images/edits", json=edit)
+        assert retry.status_code == 200, retry.text
+    assert [call for call in backend.calls if call[0] == "load"] == [
+        ("load", "z-image-turbo/img2img")
+    ] * 2
+    assert pool.get_entry("image").in_use == 0
+    await engines[-1].stop()
+
+
+@pytest.mark.asyncio
+async def test_pool_text_acquisition_keeps_original_call_shape(monkeypatch):
+    from omlx.engine_pool import EnginePool
+
+    pool = EnginePool()
+    calls = []
+    engine = object()
+
+    async def get_engine(model_id, *, force_lm, _lease):
+        calls.append((model_id, force_lm, _lease))
+        return engine
+
+    async def release(model_id):
+        calls.append(("release", model_id))
+
+    monkeypatch.setattr(pool, "get_engine", get_engine)
+    monkeypatch.setattr(pool, "release_engine", release)
+    async with pool.acquire("text", force_lm=True) as acquired:
+        assert acquired is engine
+    assert calls == [("text", True, True), ("release", "text")]

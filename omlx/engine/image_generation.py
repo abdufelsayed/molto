@@ -50,9 +50,10 @@ async def _await_completed(future, on_result=None):
 class DiffusionImageEngine(BaseNonStreamingEngine):
     """Load and run a detected checkpoint using its declared pipeline contract."""
 
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str, initial_pipeline: str | None = None):
         super().__init__()
         self._model_name = model_name
+        self._initial_pipeline = initial_pipeline
         self._model: Any | None = None
         self._started = False
         self._checkpoint = None
@@ -122,7 +123,7 @@ class DiffusionImageEngine(BaseNonStreamingEngine):
     async def start(self) -> None:
         async with self._generation_lock:
             if self._model is None:
-                await self._load_locked(self._resolve_pipeline())
+                await self._load_locked(self._resolve_pipeline(self._initial_pipeline))
             self._started = True
 
     async def stop(self) -> None:

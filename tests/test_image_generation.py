@@ -120,7 +120,7 @@ async def test_image_endpoint_returns_base64_png_and_sequential_seeds(monkeypatc
             )
 
         @asynccontextmanager
-        async def acquire(self, model_id):
+        async def acquire(self, model_id, *, image_pipeline=None):
             assert model_id == "image-model"
             yield engine
 

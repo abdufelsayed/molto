@@ -1989,6 +1989,7 @@ class EnginePool:
         force_lm: bool = False,
         _lease: bool = False,
         runtime_settings: object | None = None,
+        image_pipeline: str | None = None,
     ) -> (
         BaseEngine
         | EmbeddingEngine
@@ -2016,6 +2017,8 @@ class EnginePool:
                 load. When its engine-construction signature differs from the
                 currently loaded engine, the old engine is unloaded and the new
                 variant is loaded without mutating persisted model settings.
+            image_pipeline: Validated diffusion pipeline to use for a cold load.
+                Warm engines switch pipelines inside their generation lock.
 
         Returns:
             The loaded engine (BaseEngine for LLM, EmbeddingEngine for embeddings)
@@ -2027,6 +2030,12 @@ class EnginePool:
             ModelLoadingError: If model is already being loaded
         """
         entry = self._entries.get(model_id)
+        if (
+            image_pipeline is not None
+            and entry is not None
+            and entry.engine_type != "image_generation"
+        ):
+            raise ValueError("image_pipeline is only supported for image engines")
         if force_lm and entry is not None and not self._has_mlx_lm_path(entry):
             # The VLM engine is the only text engine for these families.
             force_lm = False
@@ -2315,11 +2324,16 @@ class EnginePool:
                         ),
                     )
 
+            # Pass image selection only for image requests; other engine calls retain their shape.
+            image_load_options = (
+                {"image_pipeline": image_pipeline} if image_pipeline is not None else {}
+            )
             # Now load the model
             await self._load_engine(
                 model_id,
                 force_lm=force_lm,
                 runtime_settings=runtime_load_settings,
+                **image_load_options,
             )
 
             loaded = self._entries[model_id]
@@ -2396,14 +2410,25 @@ class EnginePool:
             return True
 
     @asynccontextmanager
-    async def acquire(self, model_id: str, force_lm: bool = False):
+    async def acquire(
+        self,
+        model_id: str,
+        force_lm: bool = False,
+        *,
+        image_pipeline: str | None = None,
+    ):
         """Acquire an engine with an atomic in-use lease.
 
         The lease is taken atomically on the pool event loop and always
         released in finally, so the engine cannot be evicted mid-request even
         on exception.
         """
-        engine = await self.get_engine(model_id, force_lm=force_lm, _lease=True)
+        image_load_options = (
+            {"image_pipeline": image_pipeline} if image_pipeline is not None else {}
+        )
+        engine = await self.get_engine(
+            model_id, force_lm=force_lm, _lease=True, **image_load_options
+        )
         try:
             yield engine
         finally:
@@ -3165,6 +3190,7 @@ class EnginePool:
         model_id: str,
         force_lm: bool = False,
         runtime_settings: object | None = None,
+        image_pipeline: str | None = None,
     ) -> None:
         """
         Load an engine for the specified model.
@@ -3399,7 +3425,14 @@ class EnginePool:
                         config_model_type=entry.config_model_type,
                     )
                 elif entry.engine_type == "image_generation":
-                    engine = MFluxImageEngine(model_name=entry.model_path)
+                    image_options = (
+                        {"initial_pipeline": image_pipeline}
+                        if image_pipeline is not None
+                        else {}
+                    )
+                    engine = MFluxImageEngine(
+                        model_name=entry.model_path, **image_options
+                    )
                 else:
                     engine = BatchedEngine(
                         model_name=entry.model_path,

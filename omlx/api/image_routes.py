@@ -234,7 +234,7 @@ async def _serve_images(request, operation="txt2img", images=(), mask=None):
             spec, width, height = _preflight(
                 pool, model_id, request, operation, image_paths, mask_path
             )
-            async with pool.acquire(model_id) as engine:
+            async with pool.acquire(model_id, image_pipeline=spec.id) as engine:
                 if not isinstance(engine, MFluxImageEngine):
                     raise ValueError(
                         f"Model '{model_id}' is not an image-generation model"
