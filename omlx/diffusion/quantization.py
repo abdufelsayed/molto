@@ -83,12 +83,17 @@ class ActivationCollector:
         rows = rows[::stride].astype(mx.float32)
         energy = mx.sum(rows * rows, axis=0)
         mx.eval(energy)
-        entry = self.entries.setdefault(name, {
-            "shape": [output, width], "rows": 0, "observations": 0,
-            "energy": mx.zeros((width,), dtype=mx.float32),
-            "forward_calls": set(),
-            "source_bits": getattr(module, "bits", None),
-        })
+        entry = self.entries.setdefault(
+            name,
+            {
+                "shape": [output, width],
+                "rows": 0,
+                "observations": 0,
+                "energy": mx.zeros((width,), dtype=mx.float32),
+                "forward_calls": set(),
+                "source_bits": getattr(module, "bits", None),
+            },
+        )
         entry["energy"] = entry["energy"] + energy
         mx.eval(entry["energy"])
         entry["rows"] += rows.shape[0]
@@ -101,17 +106,22 @@ class ActivationCollector:
             raise ValueError("Collector is already installed")
         transformer = pipeline.transformer
         originals = [
-            (name, module) for name, module in transformer.named_modules()
+            (name, module)
+            for name, module in transformer.named_modules()
             if name and isinstance(module, (nn.Linear, nn.QuantizedLinear))
         ]
         if not originals:
             raise ValueError("Transformer has no supported linear modules")
         self._active = True
         try:
-            transformer.update_modules(tree_unflatten([
-                (name, _CaptureLinear(module, name, self))
-                for name, module in originals
-            ]))
+            transformer.update_modules(
+                tree_unflatten(
+                    [
+                        (name, _CaptureLinear(module, name, self))
+                        for name, module in originals
+                    ]
+                )
+            )
             pipeline.transformer = _CaptureTransformer(transformer, self)
             yield self
         finally:
@@ -130,14 +140,20 @@ class ActivationCollector:
             if not all(math.isfinite(v) and v >= 0 for v in values):
                 raise ValueError(f"Nonfinite activation energy in {name}")
             layers[name] = {
-                **{k: v for k, v in entry.items() if k not in ("energy", "forward_calls")},
+                **{
+                    k: v
+                    for k, v in entry.items()
+                    if k not in ("energy", "forward_calls")
+                },
                 "mean_square": values,
                 "forward_calls": sorted(entry["forward_calls"]),
             }
         return {
-            "version": 1, "method": "diffusion-input-energy",
+            "version": 1,
+            "method": "diffusion-input-energy",
             "max_rows_per_observation": self.max_rows,
-            "transformer_calls": self.calls, "layers": layers,
+            "transformer_calls": self.calls,
+            "layers": layers,
         }
 
 
@@ -149,9 +165,13 @@ def _importance(report, name, shape):
         raise ValueError(f"Missing or incompatible calibration for {name}")
     values = entry.get("mean_square")
     if (
-        not isinstance(values, list) or len(values) != shape[-1]
-        or type(entry.get("rows")) is not int or entry["rows"] <= 0
-        or not all(type(v) in (int, float) and math.isfinite(v) and v >= 0 for v in values)
+        not isinstance(values, list)
+        or len(values) != shape[-1]
+        or type(entry.get("rows")) is not int
+        or entry["rows"] <= 0
+        or not all(
+            type(v) in (int, float) and math.isfinite(v) and v >= 0 for v in values
+        )
         or not any(v > 0 for v in values)
     ):
         raise ValueError(f"Invalid activation energy for {name}")
@@ -171,10 +191,14 @@ def _pack(weight, importance, bits, group_size):
     pieces = []
     error = 0.0
     for start in range(0, weight.shape[0], chunk_rows):
-        w = weight[start:start + chunk_rows]
-        packed, scales, biases = weighted_affine_quantize(w, group_size, bits, importance)
+        w = weight[start : start + chunk_rows]
+        packed, scales, biases = weighted_affine_quantize(
+            w, group_size, bits, importance
+        )
         restored = mx.dequantize(packed, scales, biases, group_size, bits)
-        loss = mx.sum(importance * (w.astype(mx.float32) - restored.astype(mx.float32)) ** 2)
+        loss = mx.sum(
+            importance * (w.astype(mx.float32) - restored.astype(mx.float32)) ** 2
+        )
         mx.eval(loss)
         error += float(loss.item())
         pieces.append((packed, scales, biases))
@@ -186,8 +210,14 @@ def _pack(weight, importance, bits, group_size):
 
 
 def quantize_transformer(
-    transformer, calibration, *, bits=4, group_size=64,
-    budget_bytes=None, budget_ratio=1.10, protected=(),
+    transformer,
+    calibration,
+    *,
+    bits=4,
+    group_size=64,
+    budget_bytes=None,
+    budget_ratio=1.10,
+    protected=(),
 ):
     """Allocate upgrades by measured weighted-error reduction per added byte.
 
@@ -201,14 +231,26 @@ def quantize_transformer(
         raise ValueError("group_size must be 32, 64, or 128")
     if not math.isfinite(budget_ratio) or budget_ratio < 1:
         raise ValueError("budget_ratio must be finite and at least 1")
-    if budget_bytes is not None and (type(budget_bytes) is not int or budget_bytes <= 0):
+    if budget_bytes is not None and (
+        type(budget_bytes) is not int or budget_bytes <= 0
+    ):
         raise ValueError("budget_bytes must be a positive integer")
     parameters = dict(tree_flatten(transformer.parameters()))
-    if not parameters or any(not mx.issubdtype(w.dtype, mx.floating) for w in parameters.values()):
-        raise ValueError("Fresh quantization requires floating-point transformer weights")
+    if not parameters or any(
+        not mx.issubdtype(w.dtype, mx.floating) for w in parameters.values()
+    ):
+        raise ValueError(
+            "Fresh quantization requires floating-point transformer weights"
+        )
     modules = dict(transformer.named_modules())
-    linear = {name: m for name, m in modules.items() if name and isinstance(m, nn.Linear)}
-    matched = {pattern for pattern in protected if any(fnmatch.fnmatchcase(n, pattern) for n in linear)}
+    linear = {
+        name: m for name, m in modules.items() if name and isinstance(m, nn.Linear)
+    }
+    matched = {
+        pattern
+        for pattern in protected
+        if any(fnmatch.fnmatchcase(n, pattern) for n in linear)
+    }
     if matched != set(protected):
         raise ValueError("A protected-layer pattern matches no linear module")
     selected, retained = {}, {}
@@ -227,16 +269,30 @@ def quantize_transformer(
         imp = _importance(calibration, name, shape)
         size = affine_bytes(shape, bits, group_size, module.weight.itemsize)
         baseline += size - module.weight.nbytes
-        selected[name] = {"module": module, "importance": imp, "bits": bits, "bytes": size, "errors": {}}
+        selected[name] = {
+            "module": module,
+            "importance": imp,
+            "bits": bits,
+            "bytes": size,
+            "errors": {},
+        }
     if not selected:
         raise ValueError("No eligible floating-point linear layers")
-    budget = budget_bytes if budget_bytes is not None else math.floor(baseline * budget_ratio)
+    budget = (
+        budget_bytes
+        if budget_bytes is not None
+        else math.floor(baseline * budget_ratio)
+    )
     if budget < baseline:
-        raise ValueError(f"Transformer budget {budget} is below the base allocation {baseline}")
+        raise ValueError(
+            f"Transformer budget {budget} is below the base allocation {baseline}"
+        )
     candidates = [b for b in BITS if b >= bits]
     for entry in selected.values():
         for candidate in candidates:
-            tensors, error = _pack(entry["module"].weight, entry["importance"], candidate, group_size)
+            tensors, error = _pack(
+                entry["module"].weight, entry["importance"], candidate, group_size
+            )
             entry["errors"][candidate] = error
             del tensors
     total = baseline
@@ -246,7 +302,12 @@ def quantize_transformer(
             for candidate in candidates:
                 if candidate <= entry["bits"]:
                     continue
-                size = affine_bytes(entry["module"].weight.shape, candidate, group_size, entry["module"].weight.itemsize)
+                size = affine_bytes(
+                    entry["module"].weight.shape,
+                    candidate,
+                    group_size,
+                    entry["module"].weight.itemsize,
+                )
                 added = size - entry["bytes"]
                 gain = entry["errors"][entry["bits"]] - entry["errors"][candidate]
                 if gain > 0 and total + added <= budget:
@@ -260,7 +321,9 @@ def quantize_transformer(
     replacements, layers = [], {}
     for name, entry in selected.items():
         module = entry["module"]
-        tensors, _ = _pack(module.weight, entry["importance"], entry["bits"], group_size)
+        tensors, _ = _pack(
+            module.weight, entry["importance"], entry["bits"], group_size
+        )
         output, width = module.weight.shape
         q = nn.QuantizedLinear(width, output, False, group_size, entry["bits"])
         q.weight, q.scales, q.biases = tensors
@@ -268,7 +331,9 @@ def quantize_transformer(
             q.bias = module.bias
         replacements.append((name, q))
         layers[name] = {
-            "shape": [output, width], "bits": entry["bits"], "group_size": group_size,
+            "shape": [output, width],
+            "bits": entry["bits"],
+            "group_size": group_size,
             "weight_bytes": entry["bytes"],
             "weighted_error": entry["errors"][entry["bits"]],
             "candidate_errors": {str(b): e for b, e in entry["errors"].items()},
@@ -276,13 +341,20 @@ def quantize_transformer(
     transformer.update_modules(tree_unflatten(replacements))
     actual = sum(w.nbytes for _, w in tree_flatten(transformer.parameters()))
     if actual != total or actual > budget:
-        transformer.update_modules(tree_unflatten([(n, e["module"]) for n, e in selected.items()]))
+        transformer.update_modules(
+            tree_unflatten([(n, e["module"]) for n, e in selected.items()])
+        )
         raise ValueError("Actual transformer allocation disagrees with the budget")
     return {
-        "version": 1, "method": "diffusion-oQe", "nominal_bits": bits,
-        "group_size": group_size, "original_transformer_bytes": original_bytes,
-        "base_transformer_bytes": baseline, "budget_bytes": budget,
-        "actual_transformer_bytes": actual, "layers": layers,
+        "version": 1,
+        "method": "diffusion-oQe",
+        "nominal_bits": bits,
+        "group_size": group_size,
+        "original_transformer_bytes": original_bytes,
+        "base_transformer_bytes": baseline,
+        "budget_bytes": budget,
+        "actual_transformer_bytes": actual,
+        "layers": layers,
         "retained_linear_layers": retained,
         "error_metric": "diagonal input-energy weighted weight reconstruction; not image quality",
         "allocation": "greedy weighted-error reduction per added byte",

@@ -61,7 +61,9 @@ def test_collector_preserves_output_parameters_and_observes_every_forward():
     # Expected energy is computed independently from the sampled input.
     sampled = x.reshape(-1, 64)[::5]
     expected_energy = mx.mean(sampled.astype(mx.float32) ** 2, axis=0)
-    assert mx.allclose(mx.array(report["layers"]["a"]["mean_square"]), expected_energy).item()
+    assert mx.allclose(
+        mx.array(report["layers"]["a"]["mean_square"]), expected_energy
+    ).item()
     after = dict(tree_flatten(model.parameters()))
     assert before.keys() == after.keys()
     assert all(after[k] is v for k, v in before.items())
@@ -96,7 +98,9 @@ def test_weighted_packing_is_native_affine_and_tracks_error(bits):
     assert packed.dtype == mx.uint32
     restored = mx.dequantize(packed, scales, biases, group_size=64, bits=bits)
     assert restored.shape == weights.shape
-    assert packed.nbytes + scales.nbytes + biases.nbytes == affine_bytes(weights.shape, bits, 64, 2)
+    assert packed.nbytes + scales.nbytes + biases.nbytes == affine_bytes(
+        weights.shape, bits, 64, 2
+    )
     layer = nn.QuantizedLinear(128, 8, False, 64, bits)
     layer.weight, layer.scales, layer.biases = packed, scales, biases
     x = mx.random.normal((3, 128)).astype(mx.float16)
@@ -104,10 +108,13 @@ def test_weighted_packing_is_native_affine_and_tracks_error(bits):
 
 
 def test_weighted_clipping_reduces_error_for_low_energy_outlier():
-    weights = mx.concatenate([
-        mx.full((4, 1), 20.0),
-        mx.broadcast_to(mx.linspace(-1, 1, 63), (4, 63)),
-    ], axis=1)
+    weights = mx.concatenate(
+        [
+            mx.full((4, 1), 20.0),
+            mx.broadcast_to(mx.linspace(-1, 1, 63), (4, 63)),
+        ],
+        axis=1,
+    )
     importance = mx.concatenate([mx.array([1e-5]), mx.ones((63,))])
     packed, scales, biases = weighted_affine_quantize(weights, 64, 4, importance)
     weighted = mx.dequantize(packed, scales, biases, 64, 4)
@@ -123,16 +130,25 @@ def test_budget_selects_mixed_precision_and_preserves_protected_layer():
     report = collect(model)
     original = model.keep
     original_parameters = dict(tree_flatten(original.parameters()))
-    baseline = 2 * (affine_bytes((64, 64), 4, 64, 4) + 64 * 4) + sum(w.nbytes for w in original_parameters.values())
-    plan = quantize_transformer(model, report, budget_bytes=baseline + 512, protected=("keep",))
+    baseline = 2 * (affine_bytes((64, 64), 4, 64, 4) + 64 * 4) + sum(
+        w.nbytes for w in original_parameters.values()
+    )
+    plan = quantize_transformer(
+        model, report, budget_bytes=baseline + 512, protected=("keep",)
+    )
     assert plan["actual_transformer_bytes"] <= baseline + 512
     assert len({m.bits for m in (model.a, model.b)}) == 2
     assert model.keep is original
     assert plan["retained_linear_layers"] == {"keep": "explicitly protected"}
-    assert plan["actual_transformer_bytes"] == sum(w.nbytes for _, w in tree_flatten(model.parameters()))
+    assert plan["actual_transformer_bytes"] == sum(
+        w.nbytes for _, w in tree_flatten(model.parameters())
+    )
     for layer in plan["layers"].values():
         assert layer["weighted_error"] <= layer["candidate_errors"]["4"]
-    assert all(dict(tree_flatten(model.keep.parameters()))[k] is v for k, v in original_parameters.items())
+    assert all(
+        dict(tree_flatten(model.keep.parameters()))[k] is v
+        for k, v in original_parameters.items()
+    )
 
 
 @pytest.mark.parametrize("defect", ["missing", "shape", "nan", "zero", "rows"])
@@ -179,7 +195,9 @@ def test_native_mflux_disk_save_reload_preserves_mixed_precision(tmp_path):
     report = collect(model)
     original_bytes = sum(w.nbytes for _, w in tree_flatten(model.parameters()))
     baseline = original_bytes - 2 * (64 * 64 * 4 - affine_bytes((64, 64), 4, 64, 4))
-    quantize_transformer(model, report, budget_bytes=baseline + 512, protected=("keep",))
+    quantize_transformer(
+        model, report, budget_bytes=baseline + 512, protected=("keep",)
+    )
     ModelSaver._save_weights(str(tmp_path), 4, model, "transformer")
     component = ComponentDefinition("transformer", "transformer")
     stored = WeightLoader.load_single_local(component, tmp_path)

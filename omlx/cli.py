@@ -60,6 +60,19 @@ def mflux_save_command(args) -> int:
     return 0
 
 
+def diffusion_prepare_command(args) -> int:
+    """Local-only calibrated diffusion preparation."""
+    try:
+        from .diffusion.preparation import cli_command
+
+        cli_command(args)
+    except (ImportError, OSError, ValueError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    print(f"Saved {args.command} output to {args.output}")
+    return 0
+
+
 def _has_cli_overrides(args) -> bool:
     """Check if CLI args contain non-default values that should be saved.
 
@@ -1175,6 +1188,33 @@ Example directory structure:
         help="Preserve source precision without applying new MLX quantization",
     )
 
+    calibration_parser = subparsers.add_parser(
+        "diffusion-calibrate", help="Collect transformer activation energy from a local checkpoint",
+    )
+    calibration_parser.add_argument("--model", required=True, help="Complete local FLUX.2 Klein 4B or Qwen-Image-2.1 directory; no downloads")
+    calibration_parser.add_argument("--output", required=True, help="New calibration JSON file")
+    calibration_parser.add_argument("--prompt", required=True, action="append", help="Calibration prompt; repeat for more samples")
+    calibration_parser.add_argument("--width", type=_positive_int, default=256)
+    calibration_parser.add_argument("--height", type=_positive_int, default=256)
+    calibration_parser.add_argument("--steps", type=_positive_int)
+    calibration_parser.add_argument("--seed", type=int, default=17)
+    calibration_parser.add_argument("--guidance", type=float)
+    calibration_parser.add_argument("--negative-prompt")
+    calibration_parser.add_argument("--max-rows", type=_positive_int, default=256)
+
+    quantization_parser = subparsers.add_parser(
+        "diffusion-quantize", help="Quantize a local float transformer using diffusion calibration",
+    )
+    quantization_parser.add_argument("--model", required=True, help="Complete local floating-point checkpoint; no downloads")
+    quantization_parser.add_argument("--calibration", required=True, help="diffusion-calibrate JSON report")
+    quantization_parser.add_argument("--output", required=True, help="New or empty checkpoint directory")
+    quantization_parser.add_argument("--bits", type=int, choices=[3, 4, 5, 6, 8], default=4)
+    quantization_parser.add_argument("--group-size", type=int, choices=[32, 64, 128], default=64)
+    budget = quantization_parser.add_mutually_exclusive_group()
+    budget.add_argument("--budget-bytes", type=_positive_int, help="Transformer parameter byte ceiling, including retained float weights")
+    budget.add_argument("--budget-ratio", type=_positive_float, default=1.10, help="Budget relative to base-bit transformer allocation (default: 1.10)")
+    quantization_parser.add_argument("--protect", action="append", default=[], help="Transformer-relative linear module glob to retain in float; repeatable")
+
     # Launch command
     launch_parser = subparsers.add_parser(
         "launch",
@@ -1415,6 +1455,8 @@ Example directory structure:
             sys.exit(lifecycle_command(args))
         elif args.command == "mflux-save":
             sys.exit(mflux_save_command(args))
+        elif args.command in {"diffusion-calibrate", "diffusion-quantize"}:
+            sys.exit(diffusion_prepare_command(args))
         elif args.command == "cluster":
             sys.exit(cluster_command(args))
         else:

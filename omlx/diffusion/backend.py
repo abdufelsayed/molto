@@ -204,6 +204,31 @@ class MFluxBackend:
             ]
         return model.generate_image(**kwargs)
 
+    @contextmanager
+    def calibration_context(self, model):
+        """Keep native prediction eager so collectors observe every forward.
+
+        FLUX2's native factory uses a hardware check to select compilation.
+        Build its eager closure, restore that check immediately, and override
+        only this instance's factory for the isolated preparation operation.
+        """
+        entry = self._models.get(id(model))
+        if entry is None:
+            raise ValueError("Calibration requires a backend-owned model")
+        if entry[0].base_model == "flux2-klein-4b":
+            utility = _symbol("mflux.utils.apple_silicon.AppleSiliconUtil")
+            with patch.object(utility, "is_m1_or_m2", return_value=True):
+                eager = model._predict(model.transformer)
+            # object attributes avoid adding a preparation hook to nn.Module's
+            # parameter dictionary; the native static method is restored below.
+            object.__setattr__(model, "_predict", lambda transformer: eager)
+            try:
+                yield
+            finally:
+                object.__delattr__(model, "_predict")
+        else:
+            yield
+
     def save(
         self,
         model,

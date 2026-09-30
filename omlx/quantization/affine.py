@@ -108,5 +108,3 @@ def weighted_affine_quantize(w, group_size: int, bits: int, importance):
     biases = best_biases.reshape(scale_shape).astype(w.dtype)
     mx.eval(packed, scales, biases)
     return packed, scales, biases
-
-
