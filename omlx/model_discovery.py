@@ -47,44 +47,41 @@ EngineType = Literal[
 ]
 
 MFLUX_MANIFEST_NAME = "omlx-mflux.json"
-_MFLUX_Z_IMAGE_COMPONENTS = ("vae", "transformer", "text_encoder")
 
 
 def read_mflux_manifest(model_path: Path) -> dict | None:
-    """Read an oMLX mflux manifest, returning None for invalid manifests."""
+    """Read a validated legacy or current mflux checkpoint manifest."""
+    from .diffusion import detect_checkpoint
+
     manifest_path = model_path / MFLUX_MANIFEST_NAME
     if not manifest_path.is_file():
         return None
     try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        checkpoint = detect_checkpoint(model_path)
+        if checkpoint is None:
+            return None
+        return json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    if not isinstance(manifest, dict) or manifest.get("backend") != "mflux":
-        return None
-    if manifest.get("model_family") != "z-image-turbo":
-        return None
-    return manifest
 
 
 def is_mflux_image_model_dir(model_path: Path) -> bool:
-    """Recognize the first supported mflux checkpoint family.
+    """Recognize complete supported original and prepared image checkpoints."""
+    from .diffusion import detect_checkpoint
 
-    ``mflux-save`` writes component directories but no root config file, so
-    discovery accepts either an explicit oMLX manifest or a complete Z-Image
-    component layout whose directory name identifies the family.
-    """
-    manifest = read_mflux_manifest(model_path)
-    if manifest is not None:
-        return True
+    try:
+        return detect_checkpoint(model_path) is not None
+    except (OSError, ValueError):
+        return False
 
-    directory_name = _model_name_hint(model_path).replace("_", "-")
-    if "z-image-turbo" not in directory_name and "zimage-turbo" not in directory_name:
-        return False
-    if not (model_path / "tokenizer").is_dir():
-        return False
-    return all(
-        component.is_dir() and any(component.glob("*.safetensors"))
-        for component in (model_path / name for name in _MFLUX_Z_IMAGE_COMPONENTS)
+
+def _is_image_artifact(model_path: Path) -> bool:
+    """Keep unsupported and incomplete diffusion artifacts out of text serving."""
+    return (
+        (model_path / MFLUX_MANIFEST_NAME).exists()
+        or (model_path / "model_index.json").exists()
+        or ((model_path / "transformer").is_dir() and (model_path / "vae").is_dir())
+        or is_mflux_image_model_dir(model_path)
     )
 
 
@@ -693,7 +690,7 @@ def detect_model_type(model_path: Path) -> ModelType:
     Returns:
         Model type supported by an oMLX engine, including image generation.
     """
-    if is_mflux_image_model_dir(model_path):
+    if _is_image_artifact(model_path):
         return "image_generation"
 
     config_path = model_path / "config.json"
@@ -1181,9 +1178,11 @@ def _is_adapter_dir(path: Path) -> bool:
 
 def _is_model_dir(path: Path) -> bool:
     """Check if a directory contains a supported model checkpoint."""
-    return (
-        (path / "config.json").exists() or is_mflux_image_model_dir(path)
-    ) and not _is_adapter_dir(path)
+    if _is_adapter_dir(path):
+        return False
+    if _is_image_artifact(path):
+        return is_mflux_image_model_dir(path)
+    return (path / "config.json").exists()
 
 
 _SHARD_FILE_RE = re.compile(r"-(\d+)-of-(\d+)\.safetensors$")
@@ -1692,7 +1691,10 @@ def _register_model(
         except Exception:
             pass
         if model_type == "image_generation":
-            config_model_type = "z_image_turbo"
+            from .diffusion import detect_checkpoint
+
+            checkpoint = detect_checkpoint(model_dir)
+            config_model_type = checkpoint.base_model.replace("-", "_").replace(".", "_")
 
         # Keep text-only capability metadata when selecting the VLM MTP engine.
         if model_type == "llm" and _gemma4_text_only_wants_vlm_engine(_config):
@@ -1850,9 +1852,12 @@ def discover_models(model_dir: Path) -> dict[str, DiscoveredModel]:
             if hf_resolved is not None:
                 if is_mflux_image_model_dir(
                     hf_resolved.snapshot_path
-                ) or _is_hf_cache_mlx_compatible(
-                    hf_resolved.snapshot_path,
-                    hf_resolved.source_repo_id,
+                ) or (
+                    not _is_image_artifact(hf_resolved.snapshot_path)
+                    and _is_hf_cache_mlx_compatible(
+                        hf_resolved.snapshot_path,
+                        hf_resolved.source_repo_id,
+                    )
                 ):
                     _register_model(
                         models,

@@ -77,7 +77,19 @@ class ManagementService:
                 bool(entry is not None and entry.pending_unload_reason)
                 or model["id"] in self.pool._unloading_models
             )
-            models.append({**model, "is_unloading": is_unloading, "settings": settings})
+            image_details = {}
+            if model.get("engine_type") == "image_generation" and entry is not None:
+                from .model_control import diffusion_metadata
+
+                image_details["diffusion"] = diffusion_metadata(Path(entry.model_path))
+            models.append(
+                {
+                    **model,
+                    **image_details,
+                    "is_unloading": is_unloading,
+                    "settings": settings,
+                }
+            )
         return {"models": models, "model_count": status["model_count"]}
 
     def state(self) -> dict[str, Any]:

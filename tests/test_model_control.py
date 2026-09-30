@@ -85,9 +85,10 @@ def test_hf_source_metadata_lists_active_and_rollback_revisions(tmp_path):
         "aaaaaaaa",
         "bbbbbbbb",
     }
-    assert next(item for item in source["cached_revisions"] if item["active"])[
-        "revision"
-    ] == "aaaaaaaa"
+    assert (
+        next(item for item in source["cached_revisions"] if item["active"])["revision"]
+        == "aaaaaaaa"
+    )
 
 
 def test_mflux_source_metadata_exposes_compatible_model_family(tmp_path):
@@ -122,6 +123,49 @@ def test_artifact_characteristics_detect_mflux_quantization_metadata(tmp_path):
     }
 
 
+def test_image_capabilities_follow_checkpoint_operations(tmp_path):
+    import struct
+
+    from omlx.diffusion import get_pipeline
+
+    spec = get_pipeline("flux2-klein-4b")
+    for component in spec.components:
+        directory = tmp_path / component
+        directory.mkdir()
+        header = json.dumps({"__metadata__": {"quantization_level": "4"}}).encode()
+        (directory / "0.safetensors").write_bytes(
+            struct.pack("<Q", len(header)) + header
+        )
+    (tmp_path / "tokenizer").mkdir()
+    (tmp_path / "tokenizer" / "tokenizer.json").write_text("{}")
+    (tmp_path / "omlx-mflux.json").write_text(
+        json.dumps(
+            {
+                "version": 2,
+                "backend": "mflux",
+                "base_model": spec.base_model,
+                "format": "mflux",
+                "components": list(spec.components),
+                "quantization_bits": 4,
+            }
+        )
+    )
+
+    capabilities = capabilities_for("image_generation", tmp_path)
+
+    assert set(capabilities["tasks"]) == {"txt2img", "img2img", "reference-edit"}
+    assert "/v1/images/edits" in capabilities["endpoints"]
+    assert {pipeline["base_model"] for pipeline in capabilities["pipelines"]} == {
+        spec.base_model
+    }
+    assert source_metadata(str(tmp_path), None)["diffusion"]["quantization_bits"] == 4
+
+
+def test_incomplete_image_checkpoint_has_no_advertised_operations(tmp_path):
+    (tmp_path / "model_index.json").write_text('{"_class_name": "UnsupportedPipeline"}')
+    assert capabilities_for("image_generation", tmp_path)["tasks"] == []
+
+
 def test_preparation_catalog_keeps_every_model_in_one_inventory(tmp_path):
     text_path = tmp_path / "text"
     image_path = tmp_path / "image"
@@ -140,7 +184,11 @@ def test_preparation_catalog_keeps_every_model_in_one_inventory(tmp_path):
             "kind": "physical",
             "model_type": "llm",
             "config_model_type": "llama",
-            "source": {"format": "huggingface", "precision": "BFLOAT16", "quantized": False},
+            "source": {
+                "format": "huggingface",
+                "precision": "BFLOAT16",
+                "quantized": False,
+            },
             "storage": {"estimated_bytes": 100},
         },
         {
@@ -150,7 +198,11 @@ def test_preparation_catalog_keeps_every_model_in_one_inventory(tmp_path):
             "kind": "physical",
             "model_type": "image_generation",
             "config_model_type": "z_image_turbo",
-            "source": {"format": "huggingface", "precision": "FLOAT16", "quantized": False},
+            "source": {
+                "format": "huggingface",
+                "precision": "FLOAT16",
+                "quantized": False,
+            },
             "storage": {"estimated_bytes": 200},
         },
         {
@@ -189,7 +241,9 @@ def test_preparation_catalog_keeps_every_model_in_one_inventory(tmp_path):
         "is_vlm": False,
     }
 
-    with patch("omlx.services.model_control.importlib.util.find_spec", return_value=object()):
+    with patch(
+        "omlx.services.model_control.importlib.util.find_spec", return_value=object()
+    ):
         catalog = build_preparation_catalog(
             records, [oq_text, oq_audio], [oq_text, oq_audio]
         )
@@ -212,7 +266,11 @@ def test_preparation_catalog_keeps_every_model_in_one_inventory(tmp_path):
     }
     assert image_model["conversion"]["adapter"] == "mflux"
     assert image_model["quantization"]["available"] is False
-    assert "diffusion-model tensor adapter" in image_model["quantization"]["reason"]
+    assert (
+        "complete supported diffusion checkpoint"
+        in image_model["quantization"]["reason"]
+    )
+    assert image_model["quantization"]["adapter"] == "mflux"
     assert audio_model["conversion"]["available"] is False
     assert "already in MLX" in audio_model["conversion"]["reason"]
     assert "full-precision" in audio_model["quantization"]["reason"]
@@ -238,12 +296,8 @@ def test_lineage_resolves_draft_by_path_and_repo(tmp_path):
 
     lineage = build_lineage([base, draft])
 
-    assert lineage["base"]["children"] == [
-        {"id": "draft", "relation": "dflash-draft"}
-    ]
-    assert lineage["draft"]["parents"] == [
-        {"id": "base", "relation": "dflash-draft"}
-    ]
+    assert lineage["base"]["children"] == [{"id": "draft", "relation": "dflash-draft"}]
+    assert lineage["draft"]["parents"] == [{"id": "base", "relation": "dflash-draft"}]
 
 
 def test_unmanaged_lora_adapter_is_visible_as_incompatible_artifact(tmp_path):
@@ -279,7 +333,9 @@ def test_incomplete_model_stays_visible_with_operation_blocker(tmp_path):
     [artifact] = discover_unmanaged_artifacts([tmp_path], set())
     control = ModelControl(tmp_path / "state")
     record = build_registry_record(artifact, control.store)
-    with patch("omlx.services.model_control.importlib.util.find_spec", return_value=object()):
+    with patch(
+        "omlx.services.model_control.importlib.util.find_spec", return_value=object()
+    ):
         [prepared] = build_preparation_catalog([record], [], [])
 
     assert record["kind"] == "artifact"

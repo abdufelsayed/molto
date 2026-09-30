@@ -186,14 +186,59 @@ _CAPABILITIES: dict[str, CapabilitySet] = {
         ("text",),
         "markitdown",
     ),
-    "adapter": CapabilitySet(
-        ("adapter",), (), ("weights",), ("model-variant",), None
-    ),
+    "adapter": CapabilitySet(("adapter",), (), ("weights",), ("model-variant",), None),
     "other": CapabilitySet((), (), (), (), None),
 }
 
 
-def capabilities_for(model_type: str) -> dict[str, Any]:
+def diffusion_metadata(path: Path) -> dict[str, Any] | None:
+    """Describe a local image checkpoint without importing its runtime."""
+    from ..diffusion import detect_checkpoint, pipelines_for_model
+
+    try:
+        checkpoint = detect_checkpoint(path)
+    except ValueError as exc:
+        return {"supported": False, "reason": str(exc), "pipelines": []}
+    if checkpoint is None:
+        return None
+    pipelines = pipelines_for_model(checkpoint.base_model)
+    return {
+        **checkpoint.metadata(),
+        "supported": any(spec.local_unsupported_reason is None for spec in pipelines),
+    }
+
+
+def capabilities_for(model_type: str, model_path: Path | None = None) -> dict[str, Any]:
+    if model_type == "image_generation":
+        from ..diffusion.registry import PIPELINES
+
+        details = diffusion_metadata(model_path) if model_path is not None else None
+        pipelines = (
+            (details or {}).get("pipelines", [])
+            if model_path is not None
+            else [spec.metadata() for spec in PIPELINES.values()]
+        )
+        supported = [
+            spec for spec in pipelines if spec["local_unsupported_reason"] is None
+        ]
+        operations = sorted({spec["operation"] for spec in supported})
+        endpoints = []
+        if "txt2img" in operations:
+            endpoints.append("/v1/images/generations")
+        if set(operations) & {"img2img", "reference-edit", "inpaint"}:
+            endpoints.append("/v1/images/edits")
+        if operations:
+            endpoints.append("/v1/images/operations")
+        return {
+            "tasks": operations,
+            "endpoints": endpoints,
+            "inputs": ["text", "image"]
+            if any(spec["image_max"] for spec in supported)
+            else ["text"],
+            "outputs": ["image"],
+            "dependency": "mflux",
+            "pipelines": pipelines,
+        }
     capability = _CAPABILITIES.get(model_type, _CAPABILITIES["llm"])
     return {
         "tasks": list(capability.tasks),
@@ -243,7 +288,9 @@ def artifact_characteristics(path: Path) -> dict[str, Any]:
     else:
         model_format = "huggingface"
 
-    bits = manifest.get("converted_quantization_bits")
+    bits = manifest.get(
+        "converted_quantization_bits", manifest.get("quantization_bits")
+    )
     if bits is None:
         bits = metadata.get("quantization_level")
     quantization = config.get("quantization")
@@ -317,20 +364,24 @@ def source_metadata(model_path: str, source_repo_id: str | None) -> dict[str, An
                     card_metadata[key.strip()] = value.strip().strip("'\"")
     except OSError:
         pass
+    details = diffusion_metadata(path) if (model_index or mflux_manifest) else None
     return {
         "repo_id": source_repo_id,
         "revision": revision,
         "cache_root": str(cache_root) if cache_root else None,
         "cached_revisions": cached_revisions,
-        "declared_source": config.get("_name_or_path") or model_index.get("_name_or_path"),
+        "declared_source": config.get("_name_or_path")
+        or model_index.get("_name_or_path"),
         "architectures": config.get("architectures") or [],
         "quantization": quantization,
         "license": card_metadata.get("license"),
-        "gated": card_metadata.get("gated", "false").lower() in {"true", "yes", "manual"},
+        "gated": card_metadata.get("gated", "false").lower()
+        in {"true", "yes", "manual"},
         "base_model": card_metadata.get("base_model"),
         "adapter_base_model": adapter_config.get("base_model_name_or_path"),
         "adapter_type": adapter_config.get("peft_type"),
         "model_family": mflux_manifest.get("model_family"),
+        **({"diffusion": details} if details is not None else {}),
         **characteristics,
     }
 
@@ -368,9 +419,7 @@ def _classify_preparation_path(path: Path) -> tuple[str, str]:
     detected = detect_model_type(path)
     config = _read_json(path / "config.json")
     config_type = str(config.get("model_type") or "").lower()
-    architectures = [
-        str(value).lower() for value in config.get("architectures", [])
-    ]
+    architectures = [str(value).lower() for value in config.get("architectures", [])]
     audio_hint = any(
         token in config_type
         for token in ("wav2vec", "wavlm", "hubert", "audio", "speech")
@@ -411,7 +460,9 @@ def _conversion_capability(model_type: str, source_format: str) -> dict[str, Any
         }
     adapter, module_name, target_format = route
     if source_format == target_format:
-        target_label = target_format.upper() if target_format == "mlx" else target_format
+        target_label = (
+            target_format.upper() if target_format == "mlx" else target_format
+        )
         return {
             "available": False,
             "adapter": adapter,
@@ -481,7 +532,9 @@ def build_preparation_catalog(
             size = int(oq_model.get("size") or 0)
             current = {
                 "id": oq_model.get("source_repo_id") or oq_model.get("name") or key,
-                "name": oq_model.get("source_repo_id") or oq_model.get("name") or Path(key).name,
+                "name": oq_model.get("source_repo_id")
+                or oq_model.get("name")
+                or Path(key).name,
                 "path": key,
                 "source_repo_id": oq_model.get("source_repo_id"),
                 "model_type": model_type,
@@ -491,14 +544,17 @@ def build_preparation_catalog(
                 "precision": oq_model.get("precision") or "Unknown",
                 "quantized": bool(oq_model.get("is_quantized")),
                 "size": size,
-                "size_formatted": oq_model.get("size_formatted") or _format_preparation_size(size),
+                "size_formatted": oq_model.get("size_formatted")
+                or _format_preparation_size(size),
                 "blocker": None,
                 "oq": None,
             }
             catalog[key] = current
         elif not current["size"]:
             current["size"] = int(oq_model.get("size") or 0)
-            current["size_formatted"] = oq_model.get("size_formatted") or _format_preparation_size(current["size"])
+            current["size_formatted"] = oq_model.get(
+                "size_formatted"
+            ) or _format_preparation_size(current["size"])
         current["oq"] = oq_model
 
     quantizable = {
@@ -553,13 +609,53 @@ def build_preparation_catalog(
             }
 
         conversion = _conversion_capability(item["model_type"], item["format"])
+        if item["model_type"] == "image_generation":
+            details = diffusion_metadata(Path(key))
+            item["diffusion"] = details
+            pipeline = next(
+                (
+                    spec
+                    for spec in (details or {}).get("pipelines", [])
+                    if spec["id"] == details.get("default_pipeline")
+                ),
+                None,
+            )
+            reason = (
+                item.get("blocker")
+                or ((details or {}).get("reason"))
+                or (
+                    "No complete supported diffusion checkpoint was identified"
+                    if pipeline is None
+                    else None
+                )
+                or (pipeline.get("local_unsupported_reason") if pipeline else None)
+                or (pipeline.get("save_unsupported_reason") if pipeline else None)
+            )
+            if reason:
+                conversion.update(available=False, reason=reason)
+            quant_reason = reason
+            if quant_reason is None and importlib.util.find_spec("mflux") is None:
+                quant_reason = "mflux is not installed"
+            if quant_reason is None and item["quantized"]:
+                quant_reason = "Quantization requires a full-precision source; stored quantization cannot be replaced"
+            quantization = {
+                "available": quant_reason is None,
+                "adapter": "mflux",
+                "requires_conversion": item["format"] != "mflux",
+                "reason": quant_reason,
+                "bits": pipeline["quantization_bits"] if pipeline else [],
+            }
         if item.get("blocker"):
             conversion["available"] = False
             conversion["reason"] = item["blocker"]
         target = conversion.get("target_format")
-        base = re.sub(
-            r"[^a-z0-9._-]+", "-", str(item["name"]).strip(), flags=re.IGNORECASE
-        ).strip("-").lower()
+        base = (
+            re.sub(
+                r"[^a-z0-9._-]+", "-", str(item["name"]).strip(), flags=re.IGNORECASE
+            )
+            .strip("-")
+            .lower()
+        )
         conversion["output_name"] = f"{base or 'model'}-{target}" if target else None
         item["conversion"] = conversion
         item["quantization"] = quantization
@@ -571,7 +667,9 @@ def build_preparation_catalog(
     )
 
 
-def derive_policy(model: dict[str, Any], stored: dict[str, Any] | None) -> dict[str, Any]:
+def derive_policy(
+    model: dict[str, Any], stored: dict[str, Any] | None
+) -> dict[str, Any]:
     if stored:
         return stored
     settings = model.get("settings") or {}
@@ -627,7 +725,9 @@ def build_registry_record(
         "config_model_type": model.get("config_model_type", ""),
         "preparation_modality": model.get("preparation_modality"),
         "preparation_blocker": model.get("preparation_blocker"),
-        "capabilities": capabilities_for(model.get("model_type", "llm")),
+        "capabilities": capabilities_for(
+            model.get("model_type", "llm"), Path(model.get("model_path", ""))
+        ),
         "source": source,
         "storage": {
             "estimated_bytes": int(model.get("estimated_size") or 0),
@@ -662,11 +762,17 @@ def build_registry_record(
     }
 
 
-def build_lineage(models: list[dict[str, Any]]) -> dict[str, dict[str, list[dict[str, Any]]]]:
+def build_lineage(
+    models: list[dict[str, Any]],
+) -> dict[str, dict[str, list[dict[str, Any]]]]:
     result = {m["id"]: {"parents": [], "children": []} for m in models}
     by_reference: dict[str, str] = {}
     for model in models:
-        for reference in (model.get("id"), model.get("model_path"), model.get("source_repo_id")):
+        for reference in (
+            model.get("id"),
+            model.get("model_path"),
+            model.get("source_repo_id"),
+        ):
             if reference:
                 by_reference[str(reference)] = model["id"]
     reference_fields = {
@@ -750,7 +856,10 @@ def discover_unmanaged_artifacts(
                     resolved_cache = _resolve_hf_cache_entry(child)
                     if resolved_cache is not None:
                         candidates.append(
-                            (resolved_cache.snapshot_path, resolved_cache.source_repo_id)
+                            (
+                                resolved_cache.snapshot_path,
+                                resolved_cache.source_repo_id,
+                            )
                         )
                     continue
                 candidates.append((child, None))
@@ -784,9 +893,7 @@ def discover_unmanaged_artifacts(
                     adapter.get("peft_type") or "peft_adapter"
                 ).lower()
                 blocker = None
-                reason = (
-                    "LoRA/PEFT adapters are stored but this oMLX engine cannot load them"
-                )
+                reason = "LoRA/PEFT adapters are stored but this oMLX engine cannot load them"
                 prefix = "adapter"
             else:
                 model_type, modality = _classify_preparation_path(path)
@@ -861,8 +968,12 @@ def directory_usage(path: str | Path) -> dict[str, int]:
     }
 
 
-def verify_model_files(model: dict[str, Any], *, checksum_small_files: bool = True) -> dict[str, Any]:
-    if model.get("virtual") or str(model.get("model_path", "")).startswith("builtin://"):
+def verify_model_files(
+    model: dict[str, Any], *, checksum_small_files: bool = True
+) -> dict[str, Any]:
+    if model.get("virtual") or str(model.get("model_path", "")).startswith(
+        "builtin://"
+    ):
         return {
             "status": "ready",
             "summary": "Built-in model is available",
@@ -876,11 +987,17 @@ def verify_model_files(model: dict[str, Any], *, checksum_small_files: bool = Tr
     warnings: list[str] = []
 
     def record(name: str, ok: bool, detail: str) -> None:
-        checks.append({"name": name, "status": "passed" if ok else "failed", "detail": detail})
+        checks.append(
+            {"name": name, "status": "passed" if ok else "failed", "detail": detail}
+        )
         if not ok:
             errors.append(detail)
 
-    record("directory", path.is_dir(), f"Model directory {'exists' if path.is_dir() else 'is missing'}: {path}")
+    record(
+        "directory",
+        path.is_dir(),
+        f"Model directory {'exists' if path.is_dir() else 'is missing'}: {path}",
+    )
     if not path.is_dir():
         return {
             "status": "corrupt",
@@ -894,8 +1011,16 @@ def verify_model_files(model: dict[str, Any], *, checksum_small_files: bool = Tr
     config_path = path / "config.json"
     index_path = path / "model_index.json"
     has_descriptor = config_path.is_file() or index_path.is_file()
-    record("descriptor", has_descriptor, "Found config.json or model_index.json" if has_descriptor else "No config.json or model_index.json found")
-    config = _read_json(config_path) if config_path.is_file() else _read_json(index_path)
+    record(
+        "descriptor",
+        has_descriptor,
+        "Found config.json or model_index.json"
+        if has_descriptor
+        else "No config.json or model_index.json found",
+    )
+    config = (
+        _read_json(config_path) if config_path.is_file() else _read_json(index_path)
+    )
     if has_descriptor and not config:
         record("descriptor_json", False, "Model descriptor is not valid JSON")
 
@@ -912,17 +1037,35 @@ def verify_model_files(model: dict[str, Any], *, checksum_small_files: bool = Tr
         indexed_shards += len(shards)
         for shard in shards:
             if not (index_file.parent / shard).is_file():
-                missing_shards.append(str((index_file.parent / shard).relative_to(path)))
+                missing_shards.append(
+                    str((index_file.parent / shard).relative_to(path))
+                )
     record(
         "weight_indexes",
         not missing_shards,
-        f"Verified {indexed_shards} indexed weight shards" if not missing_shards else f"Missing weight shards: {', '.join(missing_shards[:8])}",
+        f"Verified {indexed_shards} indexed weight shards"
+        if not missing_shards
+        else f"Missing weight shards: {', '.join(missing_shards[:8])}",
     )
 
     weight_files = list(path.rglob("*.safetensors"))
-    record("weights", bool(weight_files), f"Found {len(weight_files)} safetensors file(s)" if weight_files else "No safetensors weights found")
-    broken = [str(item.relative_to(path)) for item in path.rglob("*") if item.is_symlink() and not item.exists()]
-    record("links", not broken, "No broken links" if not broken else f"Broken links: {', '.join(broken[:8])}")
+    record(
+        "weights",
+        bool(weight_files),
+        f"Found {len(weight_files)} safetensors file(s)"
+        if weight_files
+        else "No safetensors weights found",
+    )
+    broken = [
+        str(item.relative_to(path))
+        for item in path.rglob("*")
+        if item.is_symlink() and not item.exists()
+    ]
+    record(
+        "links",
+        not broken,
+        "No broken links" if not broken else f"Broken links: {', '.join(broken[:8])}",
+    )
 
     dependency = capabilities_for(model.get("model_type", "llm")).get("dependency")
     module_name = {
@@ -947,10 +1090,17 @@ def verify_model_files(model: dict[str, Any], *, checksum_small_files: bool = Tr
 
     checksums: dict[str, str] = {}
     if checksum_small_files:
-        for item in (config_path, index_path, path / "tokenizer_config.json", path / "generation_config.json"):
+        for item in (
+            config_path,
+            index_path,
+            path / "tokenizer_config.json",
+            path / "generation_config.json",
+        ):
             try:
                 if item.is_file() and item.stat().st_size <= 16 * 1024 * 1024:
-                    checksums[str(item.relative_to(path))] = hashlib.sha256(item.read_bytes()).hexdigest()
+                    checksums[str(item.relative_to(path))] = hashlib.sha256(
+                        item.read_bytes()
+                    ).hexdigest()
             except OSError:
                 warnings.append(f"Could not checksum {item.name}")
 
@@ -958,7 +1108,9 @@ def verify_model_files(model: dict[str, Any], *, checksum_small_files: bool = Tr
     status = "ready" if not errors else "corrupt"
     return {
         "status": status,
-        "summary": "All file and dependency checks passed" if status == "ready" else errors[0],
+        "summary": "All file and dependency checks passed"
+        if status == "ready"
+        else errors[0],
         "checks": checks,
         "errors": errors,
         "warnings": warnings,
@@ -1006,7 +1158,12 @@ def plan_resources(
     for model in candidates:
         if freed >= required_free:
             break
-        size = int(model.get("actual_size") or model.get("resident_estimated_size") or model.get("estimated_size") or 0)
+        size = int(
+            model.get("actual_size")
+            or model.get("resident_estimated_size")
+            or model.get("estimated_size")
+            or 0
+        )
         victims.append({"id": model["id"], "bytes": size})
         freed += size
     fits = not ceiling or current + additional - freed <= ceiling
@@ -1022,7 +1179,10 @@ def plan_resources(
         "steps": [
             *[{"action": "unload", "model_id": victim["id"]} for victim in victims],
             *[
-                {"action": "reuse" if model.get("loaded") else "load", "model_id": model["id"]}
+                {
+                    "action": "reuse" if model.get("loaded") else "load",
+                    "model_id": model["id"],
+                }
                 for model in targets
             ],
         ],
@@ -1082,11 +1242,22 @@ class ModelControl:
         self.store.put("operations", operation_id, operation)
 
         async def execute() -> None:
-            self.update_operation(operation_id, status="running", stage="running", progress=5.0, started_at=_utcnow())
+            self.update_operation(
+                operation_id,
+                status="running",
+                stage="running",
+                progress=5.0,
+                started_at=_utcnow(),
+            )
             try:
                 result = await runner(operation_id)
             except asyncio.CancelledError:
-                self.update_operation(operation_id, status="cancelled", stage="cancelled", finished_at=_utcnow())
+                self.update_operation(
+                    operation_id,
+                    status="cancelled",
+                    stage="cancelled",
+                    finished_at=_utcnow(),
+                )
                 raise
             except Exception as exc:  # noqa: BLE001 - operation error belongs in history
                 self.update_operation(
@@ -1136,13 +1307,17 @@ class ModelControl:
             if not raw_id:
                 continue
             operation_id = f"{source}:{raw_id}"
-            status = _EXTERNAL_STATUS.get(str(raw.get("status")), str(raw.get("status") or "unknown"))
+            status = _EXTERNAL_STATUS.get(
+                str(raw.get("status")), str(raw.get("status") or "unknown")
+            )
             operation = {
                 "id": operation_id,
                 "raw_id": raw_id,
                 "kind": source,
                 "source": source,
-                "model_id": raw.get("model_name") or raw.get("repo_id") or raw.get("model_id"),
+                "model_id": raw.get("model_name")
+                or raw.get("repo_id")
+                or raw.get("model_id"),
                 "status": status,
                 "stage": raw.get("phase") or raw.get("status") or status,
                 "progress": float(raw.get("progress") or 0.0),

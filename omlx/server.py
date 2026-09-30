@@ -1524,7 +1524,7 @@ def _suggest_endpoint_for_engine(engine: object) -> str:
     if sts_engine_cls is not None and isinstance(engine, sts_engine_cls):
         return "Use /v1/audio/process for speech-to-speech / audio processing models."
     if image_engine_cls is not None and isinstance(engine, image_engine_cls):
-        return "Use /v1/images/generations for image-generation models."
+        return "Use /v1/images/generations, /v1/images/edits or /v1/images/operations for image models."
     if isinstance(engine, EmbeddingEngine):
         return "Use /v1/embeddings for embedding models."
     if isinstance(engine, RerankerEngine):

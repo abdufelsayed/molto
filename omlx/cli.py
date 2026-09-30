@@ -47,7 +47,12 @@ def mflux_save_command(args) -> int:
     try:
         from .mflux_conversion import convert_mflux_model
 
-        result = convert_mflux_model(args.model, args.output, args.quantize)
+        result = convert_mflux_model(
+            args.model, args.output, args.quantize,
+            base_model=getattr(args, "base_model", None),
+            pipeline=getattr(args, "pipeline", None),
+            revision=getattr(args, "revision", None),
+        )
     except (ImportError, OSError, ValueError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
@@ -1120,11 +1125,13 @@ Example directory structure:
         help="API key for authentication (required for non-loopback binds)",
     )
 
+    from .diffusion.registry import PIPELINES
+
     mflux_save_parser = subparsers.add_parser(
         "mflux-save",
         help="Convert and quantize a supported diffusion model for oMLX",
         description=(
-            "Load Z-Image Turbo through mflux, optionally quantize it, and "
+            "Load a supported image model through mflux, optionally quantize it, and "
             "save a local checkpoint with the metadata oMLX uses for discovery."
         ),
     )
@@ -1135,6 +1142,18 @@ Example directory structure:
             "mflux model alias, Hugging Face repo, or local checkpoint "
             "(default: z-image-turbo)"
         ),
+    )
+    mflux_save_parser.add_argument(
+        "--base-model",
+        help="mflux registry key or alias identifying a custom checkpoint's base model",
+    )
+    mflux_save_parser.add_argument(
+        "--revision",
+        help="Hugging Face branch, tag, or commit to acquire",
+    )
+    mflux_save_parser.add_argument(
+        "--pipeline",
+        help="Pipeline ID; defaults to the base model pipeline. Available: " + ", ".join(PIPELINES),
     )
     mflux_save_parser.add_argument(
         "--output",
@@ -1153,7 +1172,7 @@ Example directory structure:
         dest="quantize",
         action="store_const",
         const=None,
-        help="Save the checkpoint without MLX quantization",
+        help="Preserve source precision without applying new MLX quantization",
     )
 
     # Launch command

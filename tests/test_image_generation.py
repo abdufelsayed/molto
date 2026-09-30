@@ -1,7 +1,6 @@
 import argparse
 import base64
 import json
-import sys
 import types
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
@@ -22,10 +21,20 @@ from omlx.model_discovery import discover_models, is_mflux_image_model_dir
 def _write_mflux_layout(path):
     for name in ("vae", "transformer", "text_encoder"):
         component = path / name
-        component.mkdir(parents=True)
+        component.mkdir(parents=True, exist_ok=True)
         (component / "0.safetensors").write_bytes(b"weights")
-    (path / "tokenizer").mkdir()
+    (path / "tokenizer").mkdir(exist_ok=True)
     (path / "tokenizer" / "tokenizer.json").write_text("{}")
+    (path / "omlx-mflux.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "backend": "mflux",
+                "model_family": "z-image-turbo",
+                "quantize": None,
+            }
+        )
+    )
 
 
 def test_discovers_mflux_saved_z_image_checkpoint(tmp_path):
@@ -96,7 +105,20 @@ async def test_image_endpoint_returns_base64_png_and_sequential_seeds(monkeypatc
 
     engine.generate_image = generate_image
 
+    monkeypatch.setattr(
+        image_routes,
+        "detect_checkpoint",
+        lambda path: types.SimpleNamespace(
+            base_model="z-image-turbo", default_pipeline="z-image-turbo"
+        ),
+    )
+
     class Pool:
+        def get_entry(self, model_id):
+            return types.SimpleNamespace(
+                model_path="/tmp/model", engine_type="image_generation"
+            )
+
         @asynccontextmanager
         async def acquire(self, model_id):
             assert model_id == "image-model"
@@ -135,6 +157,10 @@ async def test_image_engine_serializes_mflux_generated_image_wrapper(monkeypatch
 
     engine = MFluxImageEngine("/tmp/model")
     engine._model = Model()
+    engine._checkpoint = types.SimpleNamespace(
+        base_model="z-image-turbo", default_pipeline="z-image-turbo"
+    )
+    engine._pipeline = image_generation.get_pipeline("z-image-turbo")
 
     async def finish_activity(activity_id):
         engine._end_activity(activity_id)
@@ -145,8 +171,8 @@ async def test_image_engine_serializes_mflux_generated_image_wrapper(monkeypatch
         png = await engine.generate_image(
             prompt="A red square",
             seed=1,
-            width=16,
-            height=16,
+            width=256,
+            height=256,
             steps=1,
         )
 
@@ -163,49 +189,54 @@ def test_image_endpoint_rejects_invalid_sizes(size):
 def test_mflux_save_writes_discovery_manifest(tmp_path, monkeypatch):
     captured = {}
 
-    class ModelConfig:
-        @staticmethod
-        def z_image_turbo():
-            return "z-image-config"
+    from omlx import diffusion
 
-    class ZImageTurbo:
-        def __init__(self, **kwargs):
-            captured.update(kwargs)
+    source = tmp_path / "source"
+    _write_mflux_layout(source)
 
-    # Use a save method that mirrors mflux creating files in the requested path.
-    def save_model(self, output):
-        _write_mflux_layout(__import__("pathlib").Path(output))
+    class Backend:
+        def instantiate(self, base_model, **kwargs):
+            captured.update(base_model=base_model, **kwargs)
+            return object()
 
-    ZImageTurbo.save_model = save_model
+        def save(self, model, output, **kwargs):
+            _write_mflux_layout(output)
+            (output / "transformer" / "model.safetensors.index.json").write_text(
+                json.dumps(
+                    {
+                        "metadata": {"quantization_level": 4},
+                        "weight_map": {"tensor": "0.safetensors"},
+                    }
+                )
+            )
+            (output / "omlx-mflux.json").write_text(
+                json.dumps(
+                    {
+                        "version": 2,
+                        "backend": "mflux",
+                        "base_model": "z-image-turbo",
+                        "pipeline_id": "z-image-turbo",
+                        "quantization_bits": 4,
+                        "format": "mflux",
+                        "components": ["vae", "transformer", "text_encoder"],
+                    }
+                )
+            )
 
-    modules = {
-        "mflux": types.ModuleType("mflux"),
-        "mflux.models": types.ModuleType("mflux.models"),
-        "mflux.models.common": types.ModuleType("mflux.models.common"),
-        "mflux.models.common.config": types.ModuleType("mflux.models.common.config"),
-        "mflux.models.z_image": types.ModuleType("mflux.models.z_image"),
-    }
-    modules["mflux.models.common.config"].ModelConfig = ModelConfig
-    modules["mflux.models.z_image"].ZImageTurbo = ZImageTurbo
-    for name, module in modules.items():
-        monkeypatch.setitem(sys.modules, name, module)
-
+    monkeypatch.setattr(diffusion, "MFluxBackend", Backend)
     output = tmp_path / "converted"
-    args = argparse.Namespace(
-        output=str(output),
-        model="some-org/z-image-turbo",
-        quantize=4,
-    )
+    args = argparse.Namespace(output=str(output), model=str(source), quantize=4)
     assert mflux_save_command(args) == 0
     assert captured == {
-        "model_config": "z-image-config",
-        "model_path": "some-org/z-image-turbo",
-        "quantize": 4,
+        "base_model": "z-image-turbo",
+        "model_path": str(source.resolve()),
+        "quantization": 4,
+        "pipeline_id": "z-image-turbo",
     }
     manifest = json.loads((output / "omlx-mflux.json").read_text())
     assert manifest["backend"] == "mflux"
-    assert manifest["model_family"] == "z-image-turbo"
-    assert manifest["quantize"] is None
+    assert manifest["base_model"] == "z-image-turbo"
+    assert manifest["quantization_bits"] == 4
 
 
 @pytest.mark.asyncio
@@ -214,8 +245,12 @@ async def test_stopping_image_engine_releases_model_and_clears_mlx_cache(monkeyp
     engine = MFluxImageEngine("/tmp/model")
     engine._model = object()
 
-    monkeypatch.setattr(image_generation.mx, "synchronize", lambda: calls.append("sync"))
-    monkeypatch.setattr(image_generation.mx, "clear_cache", lambda: calls.append("clear"))
+    monkeypatch.setattr(
+        image_generation.mx, "synchronize", lambda: calls.append("sync")
+    )
+    monkeypatch.setattr(
+        image_generation.mx, "clear_cache", lambda: calls.append("clear")
+    )
     with ThreadPoolExecutor(max_workers=1) as executor:
         monkeypatch.setattr(image_generation, "get_mlx_executor", lambda: executor)
         await engine.stop()
