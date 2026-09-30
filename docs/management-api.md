@@ -52,6 +52,11 @@ not management permissions.
 | `GET /stats` | Session or all-time counters; optional `model_id` query |
 | `GET /cache` | Cache statistics for loaded models and the SSD cache path |
 | `POST /cache/{hot|ssd}/clear` | Clear the selected cache tier |
+| `POST /diffusion/calibrations` | Queue calibration of a discovered local diffusion checkpoint; HTTP 202 |
+| `POST /diffusion/quantizations` | Queue calibrated transformer quantization from local floating-point weights; HTTP 202 |
+| `GET /diffusion/jobs` | Preparation job history and current progress |
+| `GET /diffusion/jobs/{job_id}` | One preparation job |
+| `POST /diffusion/jobs/{job_id}/cancel` | Request cancellation; running work drains before reaching `cancelled` |
 
 `model_id` is a discovered model ID. Read it from `GET /models`; do not
 derive it from a display alias. All write bodies are JSON. Unknown patch
@@ -118,9 +123,74 @@ routes above. Experimental cluster protocol routes under `/admin/api/cluster`
 remain for cluster peers and are outside this management API; they have
 separate enrollment rules and a main-key check for management actions.
 
-There are no management routes here for download jobs, conversion,
-quantization, update staging, benchmark jobs, storage moves, or browser chat.
+The diffusion preparation routes below replace none of the old admin job
+contracts. There are no management routes here for downloads, general model
+conversion, text quantization, update staging, benchmark jobs, storage moves, or browser chat.
 The backend may retain CLI or service utilities for some of those tasks, but
 their old admin HTTP contracts are not available. See
 [backend architecture](backend-architecture.md) and
 [model control](model-control.md).
+
+## Local diffusion preparation
+
+These jobs accept discovered model IDs and complete local checkpoints,
+including downloaded Hugging Face cache snapshots. They never fetch missing
+files. Calibration and calibrated quantization currently support the exact
+identities `flux2-klein-4b` and `qwen-image-2.1`. `GET /models` exposes their
+`diffusion.calibration` and `diffusion.calibrated_quantization` availability.
+See [image preparation](image-models.md#calibrate-and-quantize-offline) for
+component policy and verification limits.
+
+Start calibration with 1–32 text-to-image tasks:
+
+```bash
+curl -X POST "$BASE/diffusion/calibrations" \
+  -H "Authorization: Bearer $OMLX_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"model_id":"local-flux2-klein-4b","tasks":[{"prompt":"A red teapot on a table","width":256,"height":256,"steps":4,"seed":17}],"max_rows":64}'
+```
+
+Each task accepts `prompt`, `width`, `height`, `steps`, `seed`, `guidance`,
+and `negative_prompt`; pipeline validation rejects unsupported values.
+Task dimensions default to 256×256. `max_rows` defaults to 256 and is bounded
+to 1–4096 activation rows per linear call.
+
+Use the returned `id` to poll `GET /diffusion/jobs/{id}`. Jobs report `status`,
+`phase`, fractional `progress` from 0 to 1, `detail`, timestamps, and a result
+or error. Statuses are `queued`, `waiting`, `running`, `cancelling`,
+`completed`, `failed`, and `cancelled`. Calibration reports are written under
+`<base_path>/preparation/diffusion/<job_id>.json`; successful results include
+`output_path`. History survives restart; interrupted jobs become failed and
+are not automatically resumed.
+
+Quantize a complete floating-point checkpoint of the same identity using a
+completed calibration job:
+
+```bash
+curl -X POST "$BASE/diffusion/quantizations" \
+  -H "Authorization: Bearer $OMLX_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"model_id":"local-flux2-klein-4b-float","calibration_job_id":"CALIBRATION_JOB_ID","bits":4,"group_size":64,"budget_ratio":1.10}'
+```
+
+Supported bits are 3, 4, 5, 6, and 8; group sizes are 32, 64, and 128. Supply
+either `budget_bytes` or `budget_ratio`, and optionally `protected` layer
+patterns. Packed checkpoints can provide calibration but cannot be used as
+fresh quantization sources. Completed checkpoints are published into the
+first configured model directory as `<identity>-oq-<job_id>`, then discovered
+automatically. Output paths are chosen by the server; clients cannot override
+them or overwrite source checkpoints.
+
+Preparation waits for existing inference leases and scheduler work to drain,
+then holds exclusive pool admission through native cleanup. New engine
+acquisitions and model refresh return busy while this gate is active;
+`GET /state` reports `preparation_active`. Resident and pinned models stay
+loaded. Admission checks remaining pool ceiling, system memory, and Metal
+capacity with room reserved for temporary allocations; if a job cannot fit,
+unload idle models before retrying.
+
+Cancellation is cooperative at denoising forward, packing chunk, and workflow
+boundaries. Loading, an individual kernel, and native saving can delay it.
+The gate remains held until the worker stops and releases its allocations.
+A checkpoint or report already published remains a completed result if a
+cancellation request arrives afterward. Unpublished staging is removed.

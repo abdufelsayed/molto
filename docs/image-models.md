@@ -237,8 +237,8 @@ until native generation completes, including after request cancellation.
 Diffusion engines participate in pool leases, admission, eviction, pinning,
 and TTL controls. Warm requests reuse the loaded pipeline. Switching pipeline
 classes drains and releases the old instance before loading its replacement.
-Cold requests selecting a non-default pipeline currently load the default
-first, then switch; this costs another load without simultaneous residency.
+Cold requests load the validated requested pipeline directly, including an
+editing pipeline, without first constructing the checkpoint's default pipeline.
 
 All MLX loading, generation, and release use the existing serialized Metal
 executor. A running image generation can delay text work on that executor.
@@ -248,6 +248,22 @@ progress stream. Images do not use the text scheduler's continuous batching,
 paged KV cache, or SSD prefix cache. Native mflux optimizations remain available
 where the selected model implements them; no speedup from oMLX image caching
 has been measured.
+
+Local calibration and calibrated quantization also run as authenticated
+[management jobs](management-api.md#local-diffusion-preparation), with progress,
+cancellation, durable history, and automatic discovery of completed checkpoints.
+They wait for inference to drain, preserve resident models, and block new pool
+acquisitions through worker cleanup. Their cancellation boundaries are separate
+from ordinary image-serving cancellation described above.
+
+A real local FLUX.2 Klein 4B q4 test loaded the edit pipeline once and produced
+four 256×256, four-step edits without another model load. Generation took
+5.01–5.20 seconds in those samples, with peak MLX active memory about 5.81 GiB.
+Repeated identical requests produced identical PNGs. The native text encoder
+ran on every request and its prompt cache remained empty. This establishes
+resident reuse; it does not establish a prompt-cache speedup or a general
+performance benchmark. See the
+[serving and job verification record](verification/diffusion-jobs-2026-09-30.json).
 
 ## Verification
 

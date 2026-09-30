@@ -91,8 +91,11 @@ unloaded models. A later matching prompt may have to recompute its prefix.
 
 The former workspace also offered checkpoint verification, downloads,
 conversion, quantization, update staging, storage moves, collections, and a
-shared job queue. They are not part of the current management API. Do not
-assume an operation record is a resumable background job. Model loading and
+shared job queue. Those old HTTP contracts remain removed. The current API
+includes local-only
+[diffusion preparation jobs](management-api.md#local-diffusion-preparation)
+for calibration and calibrated transformer quantization. Their history persists,
+but interrupted jobs fail rather than resume automatically. Model loading and
 settings use the running engine pool and persisted settings; restarting the
 server does not keep a model resident. Experimental cluster protocol routes
 remain separate from this API.

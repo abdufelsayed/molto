@@ -1,0 +1,206 @@
+{
+  "date": "2026-09-30",
+  "environment": {
+    "machine": "arm64",
+    "python": "3.13.11",
+    "mlx": "0.32.2",
+    "mflux": "0.20.0"
+  },
+  "downloads": false,
+  "model": "/tmp/omlx-diffusion-proof-2026-09-30/flux2-klein-4b-q4",
+  "stored_quantization_bits": 4,
+  "management_api": {
+    "boundary": "authenticated ASGI routes, real EnginePool exclusive admission and shared MLX executor, native mflux model",
+    "operation": "text-to-image calibration",
+    "parameters": [
+      {
+        "seed": 17,
+        "prompt": "A red teapot on a white table",
+        "width": 256,
+        "height": 256,
+        "num_inference_steps": 4,
+        "guidance": 1.0
+      }
+    ],
+    "completed": true,
+    "seconds": 4.028158166911453,
+    "transformer_calls": 4,
+    "observed_linear_layers": 109,
+    "outputs": [
+      {
+        "size": [
+          256,
+          256
+        ],
+        "pixel_sha256": "6090b8a4b7042bd75ca51f55bbbdd5b9449a094c689aee41e8b5359c574c5a5d"
+      }
+    ],
+    "progress": [
+      {
+        "status": "running",
+        "phase": "waiting",
+        "progress": 0.0,
+        "detail": "Waiting for serving to drain"
+      },
+      {
+        "status": "running",
+        "phase": "loading",
+        "progress": 0.0,
+        "detail": "Inspecting local checkpoint"
+      },
+      {
+        "status": "running",
+        "phase": "loading",
+        "progress": 0.05,
+        "detail": "Loading native checkpoint"
+      },
+      {
+        "status": "running",
+        "phase": "calibrating",
+        "progress": 0.15,
+        "detail": "Calibration task 1/1"
+      },
+      {
+        "status": "running",
+        "phase": "calibrating",
+        "progress": 0.3125,
+        "detail": "Transformer forward 1"
+      },
+      {
+        "status": "running",
+        "phase": "calibrating",
+        "progress": 0.475,
+        "detail": "Transformer forward 2"
+      },
+      {
+        "status": "running",
+        "phase": "calibrating",
+        "progress": 0.6375000000000001,
+        "detail": "Transformer forward 3"
+      },
+      {
+        "status": "running",
+        "phase": "calibrating",
+        "progress": 0.7935,
+        "detail": "Transformer forward 4"
+      },
+      {
+        "status": "running",
+        "phase": "saving",
+        "progress": 0.95,
+        "detail": "Writing calibration report"
+      },
+      {
+        "status": "completed",
+        "phase": "completed",
+        "progress": 1.0,
+        "detail": "Preparation completed after cleanup"
+      }
+    ],
+    "cancellation": {
+      "requested_during": "calibrating after first native transformer forward",
+      "progress_at_cancel": 0.3125,
+      "terminal_status": "cancelled",
+      "unpublished_report_removed": true
+    },
+    "packed_quantization_rejected_before_load": true,
+    "source_header_and_size_provenance_unchanged": true,
+    "active_mlx_bytes_after_success_and_cancel": 1040,
+    "peak_mlx_bytes": 5802644726,
+    "pool_admission_released_after_cleanup": true,
+    "raw_evidence": "/tmp/omlx-diffusion-job-proof-1790800701469137000/evidence.json",
+    "script": "/tmp/verify-omlx-diffusion-jobs.py"
+  },
+  "serving": {
+    "boundary": "real EnginePool, DiffusionImageEngine and mflux; direct engine calls, no HTTP",
+    "pipeline": "flux2-klein-4b/edit",
+    "dimensions": [
+      256,
+      256
+    ],
+    "steps": 4,
+    "seed": 42,
+    "backend_load_count": 1,
+    "loaded_pipelines": [
+      "flux2-klein-4b/edit"
+    ],
+    "requests": [
+      {
+        "request": 1,
+        "prompt": "Turn the scene into a watercolor painting.",
+        "seconds": 5.198212667135522,
+        "png_sha256": "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076",
+        "additional_loads": 0,
+        "native_encode_text_calls": 1,
+        "native_prompt_cache_entries": 0,
+        "memory": {
+          "active_bytes": 1918317656,
+          "cache_bytes": 0,
+          "peak_bytes": 6134914652,
+          "process_rss_bytes": 3462791168
+        }
+      },
+      {
+        "request": 2,
+        "prompt": "Turn the scene into a watercolor painting.",
+        "seconds": 5.011260291794315,
+        "png_sha256": "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076",
+        "additional_loads": 0,
+        "native_encode_text_calls": 1,
+        "native_prompt_cache_entries": 0,
+        "memory": {
+          "active_bytes": 1918317952,
+          "cache_bytes": 0,
+          "peak_bytes": 6232658312,
+          "process_rss_bytes": 4142776320
+        }
+      },
+      {
+        "request": 3,
+        "prompt": "Turn the scene into a watercolor painting.",
+        "seconds": 5.015910499962047,
+        "png_sha256": "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076",
+        "additional_loads": 0,
+        "native_encode_text_calls": 1,
+        "native_prompt_cache_entries": 0,
+        "memory": {
+          "active_bytes": 1918317988,
+          "cache_bytes": 0,
+          "peak_bytes": 6232658380,
+          "process_rss_bytes": 3719168000
+        }
+      },
+      {
+        "request": 4,
+        "prompt": "Turn the scene into a black and white pencil drawing.",
+        "seconds": 5.196343540912494,
+        "png_sha256": "f6405b700f45ddcb2aa6401c1eaee563881237fa95445d57973d4737b39cbd71",
+        "additional_loads": 0,
+        "native_encode_text_calls": 1,
+        "native_prompt_cache_entries": 0,
+        "memory": {
+          "active_bytes": 1918318308,
+          "cache_bytes": 0,
+          "peak_bytes": 6232658668,
+          "process_rss_bytes": 2615656448
+        }
+      }
+    ],
+    "active_mlx_bytes_after_shutdown": 1576,
+    "cache_hits_demonstrated": false,
+    "interpretation": "Four successful edits with resident reuse. Timings are exploratory samples, not a generalized speedup benchmark. Backend load timing is lazy construction; weights materialize during generation.",
+    "raw_evidence": "/tmp/omlx-diffusion-proof-2026-09-30/serving-measure-cold-edit/evidence.json"
+  },
+  "unit_test_scope": "Fake workflows and tiny real MLX layers cover quantization publication, cancellation, worker traceback release, admission ceiling, persistence failure, auth, strict requests, restart and discovery. They are not full-model fresh quantization proof.",
+  "remaining_without_local_weights": [
+    "Full floating-point checkpoint calibrated quantization and saved-checkpoint image generation",
+    "Qwen-Image-2.1 native loading, calibration, generation and instruction editing",
+    "Other registered image pipeline operations without prior real-generation evidence"
+  ],
+  "focused_regressions": {
+    "passed": 1274,
+    "skipped": 1,
+    "seconds": 23.7,
+    "scope": "Diffusion registry, preparation, serving, quantization, management jobs/auth/lifecycle, discovery, engine pool, model control, CLI and existing text oQ suites; not the entire repository suite."
+  }
+}

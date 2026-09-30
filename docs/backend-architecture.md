@@ -35,6 +35,11 @@ callbacks for the current default model and sampling configuration. Importing
 the service does not start the server or create a downloader. The route module
 gets its context from application state during a request.
 
+`omlx/services/diffusion_jobs.py` owns local calibration and quantization jobs,
+progress, durable history, and cooperative cancellation. It runs preparation
+on the shared MLX executor under the pool's exclusive admission gate, waiting
+for inference to drain and retaining ownership through worker cleanup.
+
 `omlx/auth.py` checks bearer keys for both API families. All management routes
 require the main key. The retained inference load route accepts a subkey. On a
 loopback-only bind, only an explicit `skip_api_key_verification` setting can
@@ -64,8 +69,8 @@ the `requires_restart` response field.
 A dashboard is a client of `/management/v1/*` and `/v1/*`. It should keep its
 own UI state and pass the main bearer key for management. The backend does
 not serve dashboard HTML or provide a browser session. The management API
-currently covers inventory, load and unload, settings, profiles, stats, and
-cache inspection or clearing. It does not replace every operation from the
+currently covers inventory, load and unload, settings, profiles, stats,
+cache inspection or clearing, and local diffusion preparation jobs. It does not replace every operation from the
 old `/admin/api/*` routes. See [model control](model-control.md) for the
 available operations and [README](../README.md#migration-from-the-earlier-app-and-web-ui)
 for migration notes.
