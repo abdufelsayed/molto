@@ -54,6 +54,7 @@ class DiffusionImageEngine(BaseNonStreamingEngine):
         super().__init__()
         self._model_name = model_name
         self._model: Any | None = None
+        self._started = False
         self._checkpoint = None
         self._pipeline = None
         self._backend = MFluxBackend()
@@ -122,9 +123,11 @@ class DiffusionImageEngine(BaseNonStreamingEngine):
         async with self._generation_lock:
             if self._model is None:
                 await self._load_locked(self._resolve_pipeline())
+            self._started = True
 
     async def stop(self) -> None:
         async with self._generation_lock:
+            self._started = False
             if self._model is not None:
                 await self._executor_call(self._release_sync)
 
@@ -158,7 +161,7 @@ class DiffusionImageEngine(BaseNonStreamingEngine):
         )
         validate_task(spec, task)
         async with self._generation_lock:
-            if self._model is None:
+            if not self._started:
                 raise RuntimeError("Engine not started. Call start() first.")
             await self._load_locked(spec)
 

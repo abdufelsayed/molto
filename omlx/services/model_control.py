@@ -380,7 +380,9 @@ def source_metadata(model_path: str, source_repo_id: str | None) -> dict[str, An
         "base_model": card_metadata.get("base_model"),
         "adapter_base_model": adapter_config.get("base_model_name_or_path"),
         "adapter_type": adapter_config.get("peft_type"),
-        "model_family": mflux_manifest.get("model_family"),
+        "model_family": mflux_manifest.get(
+            "model_family", mflux_manifest.get("base_model")
+        ),
         **({"diffusion": details} if details is not None else {}),
         **characteristics,
     }

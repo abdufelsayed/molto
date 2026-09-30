@@ -36,7 +36,9 @@ def _copy_source_metadata(source: Path, destination: Path) -> None:
             continue
         target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(original, target)
+        # HF cache blobs may be read-only. Native tokenizers rewrite these
+        # copied files during save, so staging must retain writable files.
+        shutil.copyfile(original, target)
 
 
 def convert_mflux_model(

@@ -1,7 +1,6 @@
 """Localized native-MLX adapters. Imports and all allocations occur on demand."""
 
 import json
-import shutil
 from contextlib import contextmanager
 from importlib import import_module
 from pathlib import Path
@@ -40,7 +39,34 @@ def download_patterns(base_model: str) -> list[str]:
         raise ValueError(
             "This pipeline requires a complete local checkpoint containing its auxiliary weights; a single repository is insufficient"
         )
-    patterns = ["model_index.json", "config.json"]
+    if spec.base_model in ("krea-2", "krea-2-raw"):
+        # Match the native Krea2WeightDefinition recipe without root wildcards:
+        # HF uses fnmatch, where '*' also crosses directory separators. Turbo
+        # repositories include a redundant ~26 GB transformer/ shard layout.
+        shared = [
+            "vae/*.safetensors",
+            "vae/*.json",
+            "text_encoder/*.safetensors",
+            "text_encoder/*.json",
+            "tokenizer/**",
+            "added_tokens.json",
+            "chat_template.jinja",
+            "config.json",
+            "omlx-mflux.json",
+        ]
+        prepared = ["[0-9]" * digits + ".safetensors" for digits in range(1, 7)]
+        prepared.append("model.safetensors.index.json")
+        if spec.base_model == "krea-2-raw":
+            return [
+                "raw.safetensors",
+                "transformer/*.safetensors",
+                "transformer/*.json",
+                "model_index.json",
+                *prepared,
+                *shared,
+            ]
+        return ["turbo.safetensors", *prepared, *shared]
+    patterns = ["model_index.json", "config.json", MANIFEST_NAME]
     for directory in spec.components:
         prefix = "" if directory == "." else directory + "/"
         patterns += [prefix + "*.safetensors", prefix + "*.json"]
@@ -201,23 +227,6 @@ class MFluxBackend:
             raise ValueError("Save identity differs from loaded model")
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
-        if entry:
-            source = entry[1]
-            # Preserve backend configuration/processor assets that ModelSaver does not
-            # serialize. Never copy original weight indexes over the converted ones.
-            for item in source.rglob("*"):
-                if (
-                    not item.is_file()
-                    or item.name == MANIFEST_NAME
-                    or item.name.endswith(".safetensors.index.json")
-                ):
-                    continue
-                relative = item.relative_to(source)
-                if item.suffix in (".json", ".txt", ".model", ".jinja"):
-                    target = path / relative
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    if target.resolve() != item.resolve():
-                        shutil.copyfile(item, target)
         if (
             spec.backend_class
             == "mflux.models.flux2.variants.edit.flux2_klein_edit.Flux2KleinEdit"

@@ -649,3 +649,131 @@ def test_openapi_describes_strict_media_request_schemas(api):
         "application/json"
     ]["schema"]
     assert "upscale" in operations["properties"]["operation"]["enum"]
+
+
+class RetainingPool:
+    """Model the pool fast path that retains a started engine after request errors."""
+
+    def __init__(self, engine):
+        self.engine = engine
+        self.entry = SimpleNamespace(engine=None)
+
+    @asynccontextmanager
+    async def acquire(self):
+        if self.entry.engine is None:
+            await self.engine.start()
+            self.entry.engine = self.engine
+        yield self.entry.engine
+
+
+@pytest.mark.asyncio
+async def test_pool_retained_engine_recovers_after_failed_pipeline_switch(
+    checkpoint, executor
+):
+    engine, backend = engine_with_backend()
+    pool = RetainingPool(engine)
+    original_load = backend.load
+
+    def failing_load(cp, pipeline):
+        if pipeline == "z-image-turbo/img2img":
+            backend.calls.append(("failed_load", pipeline))
+            raise ValueError("Variant load failed")
+        return original_load(cp, pipeline)
+
+    backend.load = failing_load
+    async with pool.acquire() as acquired:
+        with pytest.raises(ValueError, match="Variant load failed"):
+            await acquired.generate_image(
+                prompt="Edit",
+                seed=1,
+                width=512,
+                height=512,
+                pipeline="z-image-turbo/img2img",
+                image_paths=("normalized.png",),
+            )
+    assert pool.entry.engine is engine
+    assert not engine.get_stats()["loaded"]
+    assert not backend.live
+    async with pool.acquire() as acquired:
+        output = await acquired.generate_image(
+            prompt="A bird", seed=2, width=512, height=512
+        )
+    assert output.startswith(b"\x89PNG")
+    assert engine.get_stats()["loaded"]
+    assert engine.get_stats()["pipeline"] == "z-image-turbo"
+    assert [call[0] for call in backend.calls] == [
+        "load",
+        "release",
+        "failed_load",
+        "load",
+        "generate",
+    ]
+    await engine.stop()
+
+
+@pytest.mark.asyncio
+async def test_pool_retained_engine_recovers_after_cancelled_pipeline_switch(
+    checkpoint, executor
+):
+    engine, backend = engine_with_backend()
+    pool = RetainingPool(engine)
+    async with pool.acquire():
+        pass
+    backend.block_load = True
+
+    async def switch():
+        async with pool.acquire() as acquired:
+            await acquired.generate_image(
+                prompt="Edit",
+                seed=1,
+                width=512,
+                height=512,
+                pipeline="z-image-turbo/img2img",
+                image_paths=("normalized.png",),
+            )
+
+    pending = asyncio.create_task(switch())
+    await entered(backend)
+    pending.cancel()
+    await asyncio.sleep(0)
+    pending.cancel()
+    assert not pending.done()
+    backend.proceed.set()
+    with pytest.raises(asyncio.CancelledError):
+        await pending
+    assert pool.entry.engine is engine
+    assert not engine.get_stats()["loaded"]
+    assert not backend.live
+    backend.block_load = False
+    async with pool.acquire() as acquired:
+        output = await acquired.generate_image(
+            prompt="A bird", seed=2, width=512, height=512
+        )
+    assert output.startswith(b"\x89PNG")
+    assert engine.get_stats()["loaded"]
+    assert [call[0] for call in backend.calls] == [
+        "load",
+        "release",
+        "load",
+        "release",
+        "load",
+        "generate",
+    ]
+    await engine.stop()
+
+
+@pytest.mark.asyncio
+async def test_unstarted_and_explicitly_stopped_engine_do_not_reload(
+    checkpoint, executor
+):
+    engine, backend = engine_with_backend()
+    with pytest.raises(RuntimeError, match="Engine not started"):
+        await engine.generate_image(prompt="A bird", seed=1, width=512, height=512)
+    assert not backend.calls
+    await engine.start()
+    await engine.stop()
+    calls = list(backend.calls)
+    with pytest.raises(RuntimeError, match="Engine not started"):
+        await engine.generate_image(prompt="A bird", seed=2, width=512, height=512)
+    assert backend.calls == calls
+    assert not engine.get_stats()["loaded"]

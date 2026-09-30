@@ -62,6 +62,20 @@ def test_registry_import_does_not_load_optional_backend():
     assert result.returncode == 0, result.stderr
 
 
+def test_acquisition_preserves_remote_checkpoint_identity():
+    from huggingface_hub.utils import filter_repo_objects
+
+    from omlx.diffusion import download_patterns
+
+    selected = list(
+        filter_repo_objects(
+            ["omlx-mflux.json", "transformer/0.safetensors", "unrelated.bin"],
+            allow_patterns=download_patterns("flux2-klein-4b"),
+        )
+    )
+    assert selected == ["omlx-mflux.json", "transformer/0.safetensors"]
+
+
 def test_registry_covers_installed_canonical_models():
     pytest.importorskip("mflux")
     from mflux.models.common.config.model_config import AVAILABLE_MODELS
@@ -468,3 +482,66 @@ def test_dev_depth_declares_missing_local_preprocessor_and_rejects_before_constr
     with pytest.raises(ValueError, match="local DepthPro preparation"):
         MFluxBackend().load(checkpoint)
     native_symbol.assert_not_called()
+
+
+def test_krea_download_filters_skip_duplicate_turbo_layout():
+    from huggingface_hub.utils import filter_repo_objects
+
+    from omlx.diffusion import download_patterns
+
+    files = [
+        "turbo.safetensors",
+        "raw.safetensors",
+        "0.safetensors",
+        "12.safetensors",
+        "model.safetensors.index.json",
+        "transformer/diffusion_pytorch_model-00001-of-00003.safetensors",
+        "transformer/diffusion_pytorch_model.safetensors.index.json",
+        "transformer/config.json",
+        "vae/diffusion_pytorch_model.safetensors",
+        "vae/config.json",
+        "text_encoder/model.safetensors",
+        "text_encoder/config.json",
+        "tokenizer/tokenizer.json",
+        "unrelated/0.safetensors",
+        "unrelated/model.safetensors.index.json",
+    ]
+    turbo = set(filter_repo_objects(files, allow_patterns=download_patterns("krea-2")))
+    assert turbo == {
+        "turbo.safetensors",
+        "0.safetensors",
+        "12.safetensors",
+        "model.safetensors.index.json",
+        "vae/diffusion_pytorch_model.safetensors",
+        "vae/config.json",
+        "text_encoder/model.safetensors",
+        "text_encoder/config.json",
+        "tokenizer/tokenizer.json",
+    }
+    raw = set(
+        filter_repo_objects(files, allow_patterns=download_patterns("krea-2-raw"))
+    )
+    assert "raw.safetensors" in raw and "turbo.safetensors" not in raw
+    assert "transformer/diffusion_pytorch_model-00001-of-00003.safetensors" in raw
+    assert "transformer/diffusion_pytorch_model.safetensors.index.json" in raw
+    assert {"0.safetensors", "12.safetensors", "model.safetensors.index.json"} <= raw
+    assert not any(name.startswith("unrelated/") for name in raw)
+
+
+def test_backend_save_does_not_recursively_copy_nested_source_staging(tmp_path):
+    source = tmp_path / "source"
+    artifact(source)
+    (source / "source-only.json").write_text("{}")
+    destination = source / ".hidden-staging"
+    artifact(destination)
+    (destination / "prepared-only.json").write_text("{}")
+    spec = get_pipeline("z-image-turbo")
+    backend = MFluxBackend()
+    model = Mock(bits=None)
+    backend._models[id(model)] = (spec, source)
+    backend.save(model, destination)
+    model.save_model.assert_called_once_with(str(destination))
+    assert not (destination / "source-only.json").exists()
+    assert not (destination / ".hidden-staging").exists()
+    assert (destination / "prepared-only.json").is_file()
+    assert detect_checkpoint(destination).base_model == "z-image-turbo"

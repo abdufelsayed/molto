@@ -158,7 +158,9 @@ def test_image_capabilities_follow_checkpoint_operations(tmp_path):
     assert {pipeline["base_model"] for pipeline in capabilities["pipelines"]} == {
         spec.base_model
     }
-    assert source_metadata(str(tmp_path), None)["diffusion"]["quantization_bits"] == 4
+    source = source_metadata(str(tmp_path), None)
+    assert source["diffusion"]["quantization_bits"] == 4
+    assert source["model_family"] == "flux2-klein-4b"
 
 
 def test_incomplete_image_checkpoint_has_no_advertised_operations(tmp_path):

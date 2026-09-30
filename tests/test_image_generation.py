@@ -157,6 +157,7 @@ async def test_image_engine_serializes_mflux_generated_image_wrapper(monkeypatch
 
     engine = MFluxImageEngine("/tmp/model")
     engine._model = Model()
+    engine._started = True
     engine._checkpoint = types.SimpleNamespace(
         base_model="z-image-turbo", default_pipeline="z-image-turbo"
     )

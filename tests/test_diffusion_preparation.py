@@ -14,7 +14,9 @@ from omlx.model_discovery import detect_model_type, discover_models
 def preparation_backend(monkeypatch, tmp_path):
     import omlx.diffusion as diffusion
 
-    state = SimpleNamespace(loads=[], saves=[], fail=False, bits=8)
+    state = SimpleNamespace(
+        loads=[], saves=[], fail=False, bits=8, rewrite_tokenizer=False
+    )
     spec = SimpleNamespace(
         id="qwen-image",
         base_model="qwen-image",
@@ -42,6 +44,10 @@ def preparation_backend(monkeypatch, tmp_path):
 
         def save(self, model, path, **kwargs):
             state.saves.append(kwargs)
+            if state.rewrite_tokenizer:
+                (Path(path) / "tokenizer" / "tokenizer.json").write_text(
+                    '{"resaved": true}'
+                )
             (Path(path) / "weights.safetensors").write_bytes(b"weights")
             if state.fail:
                 raise RuntimeError("save failed")
@@ -313,3 +319,22 @@ def test_no_quantize_reports_runtime_preserved_precision(tmp_path, preparation_b
     result = convert_mflux_model("qwen-image", tmp_path / "saved", None)
     assert result["manifest"]["quantization_bits"] == 4
     assert result["manifest"]["requested_quantization_bits"] is None
+
+
+def test_readonly_cache_assets_can_be_resaved_without_changing_source(
+    tmp_path, preparation_backend
+):
+    source = tmp_path / "source"
+    tokenizer = source / "tokenizer" / "tokenizer.json"
+    tokenizer.parent.mkdir(parents=True)
+    tokenizer.write_text('{"original": true}')
+    tokenizer.chmod(0o444)
+    preparation_backend.rewrite_tokenizer = True
+
+    convert_mflux_model(str(source), tmp_path / "saved", base_model="qwen-image")
+
+    assert tokenizer.read_text() == '{"original": true}'
+    assert tokenizer.stat().st_mode & 0o777 == 0o444
+    assert json.loads(
+        (tmp_path / "saved" / "tokenizer" / "tokenizer.json").read_text()
+    ) == {"resaved": True}
