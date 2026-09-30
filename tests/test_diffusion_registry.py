@@ -484,6 +484,30 @@ def test_dev_depth_declares_missing_local_preprocessor_and_rejects_before_constr
     native_symbol.assert_not_called()
 
 
+def test_catvton_rejects_ordinary_inpainting_and_incomplete_acquisition(
+    tmp_path, monkeypatch
+):
+    from omlx.diffusion import backend as backend_module
+    from omlx.diffusion import download_patterns
+
+    spec = get_pipeline("dev-fill-catvton")
+    metadata = spec.metadata()
+    assert not metadata["serving_supported"]
+    assert not metadata["preparation_supported"]
+    assert not metadata["download_supported"]
+    assert "two-image" in metadata["local_unsupported_reason"]
+    checkpoint = artifact(tmp_path, base="dev-fill-catvton")
+    native_symbol = Mock(
+        side_effect=AssertionError("CatVTON must not load an ordinary fill model")
+    )
+    monkeypatch.setattr(backend_module, "_symbol", native_symbol)
+    with pytest.raises(ValueError, match="virtual try-on adapter"):
+        MFluxBackend().load(checkpoint)
+    with pytest.raises(ValueError, match="custom transformer acquisition"):
+        download_patterns("dev-fill-catvton")
+    native_symbol.assert_not_called()
+
+
 def test_krea_download_filters_skip_duplicate_turbo_layout():
     from huggingface_hub.utils import filter_repo_objects
 

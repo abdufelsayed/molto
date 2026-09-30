@@ -490,6 +490,10 @@ for _id, _spec in tuple(PIPELINES.items()):
         _changes["local_unsupported_reason"] = (
             "mflux FluxInitializer.init_depth unconditionally constructs DepthPro using Apple CDN weights; a local DepthPro preparation and constructor interface is not available"
         )
+    if _spec.base_model == "dev-fill-catvton":
+        _changes["local_unsupported_reason"] = (
+            "CatVTON requires a two-image in-context virtual try-on adapter and custom transformer acquisition, which are not integrated; use dev-fill for ordinary inpainting"
+        )
     if _spec.base_model == "dev-controlnet-upscaler":
         _changes["default_guidance"] = None
     if _spec.base_model in ("fibo", "fibo-lite", "fibo-edit", "fibo-edit-rmbg"):
