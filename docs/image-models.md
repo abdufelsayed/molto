@@ -64,6 +64,86 @@ Serving loads local files. It does not acquire absent auxiliary models on
 demand. The management API reports checkpoint-specific `diffusion` metadata
 and supports the usual load/unload controls. Preparation remains a CLI operation.
 
+## Calibrate and quantize offline
+
+The experimental `diffusion-calibrate` and `diffusion-quantize` commands accept
+complete local FLUX.2 Klein 4B or Qwen-Image-2.1 checkpoint directories. They
+reject repository names and missing local assets. They use the optional image
+runtime and do not download weights. Other families continue to use the native
+`mflux-save` quantization path above.
+
+First collect transformer input activation energy with text-to-image prompts:
+
+```bash
+omlx diffusion-calibrate --model /path/to/local/flux2-klein-4b \
+  --prompt "A red ceramic teapot on a wooden table" \
+  --prompt "A blue ceramic bowl on a stone countertop" \
+  --steps 4 --width 256 --height 256 --max-rows 64 \
+  --output /path/to/calibration.json
+```
+
+Calibration accepts floating-point or already quantized checkpoints. It uses
+eager native prediction, samples at most `--max-rows` input rows per linear
+observation, and accumulates channelwise mean-square energy over every
+transformer forward. CFG branches count as separate forwards. The JSON records
+layer shapes, observation counts, forward coverage, prompts, resolved native
+arguments, source precision, output pixel hashes, and runtime versions. The
+source fingerprint covers weight headers and file sizes, not weight contents.
+Defaults are 256x256, 256 sampled rows, seed 17, and the pipeline's step count.
+Repeating `--prompt` increments the seed. Output must be a new file outside
+the source directory; rerunning requires another output filename.
+
+Then quantize from a complete floating-point checkpoint of the same base model:
+
+```bash
+omlx diffusion-quantize --model /path/to/local/flux2-klein-4b-float \
+  --calibration /path/to/calibration.json --bits 4 --budget-ratio 1.10 \
+  --output /path/to/models/flux2-klein-4b-calibrated
+```
+
+Fresh quantization rejects packed checkpoints. A calibration report collected
+from a quantized proxy can be applied to a matching floating-point source, but
+its activations reflect that proxy's precision. Every eligible layer needs
+matching shapes and finite, nonzero input energy. Missing coverage fails rather
+than falling back to uncalibrated quantization. This path requires the runtime's
+complete native component layout; standalone GGUF and single-file MLX exports
+are not imported by these commands.
+
+The transformer quantizer shares oQe's activation-weighted affine clipping and
+packing implementation. It measures diagonal input-energy-weighted weight
+reconstruction error at candidate precisions, then greedily allocates upgrades
+by error reduction per added byte. It does not reuse the text model's layer
+rules or calibration execution. Supported base levels are 3, 4, 5, 6, and 8;
+candidate upgrades use those same levels. Group sizes are 32, 64, and 128, with
+64 as the default. `--protect` accepts repeatable transformer-relative linear
+module globs; unmatched globs fail. Layers with incompatible group widths remain
+floating-point, as do non-linear parameters, the text encoder, and the VAE.
+
+The default byte ceiling is 1.10 times the base-bit transformer allocation.
+`--budget-bytes` selects an absolute ceiling instead. Both budgets include
+retained floating-point transformer parameters and affine scales/biases; they
+exclude other components, file headers, and inference memory. An insufficient
+budget fails before module replacement. Preparation also applies a conservative
+checkpoint-size admission check against available system and Metal memory.
+
+Saving uses mflux's native saver and an isolated staging directory. The output
+must be new or empty and separate from the source. Failure removes staging and
+preserves source files. `diffusion-quantization.json` records actual per-layer
+precision, byte counts, proxy errors, calibration provenance, and retained layers.
+The manifest's nominal integer level enables native mixed-precision reload; it
+does not assert uniform precision or effective bits per weight.
+
+Small generated-weight MLX tests verify numerical packing, byte budgets,
+protected layers, and an exact native mflux disk round-trip for mixed precision.
+Workflow tests use miniature modules and fake pipelines to verify publication
+and component preservation. A real offline FLUX.2 q4 calibration run observed
+all 109 transformer linear layers on all eight forwards from two four-step
+256x256 generations. The
+[calibration verification summary](verification/diffusion-quantization-2026-09-30.json)
+records those results. This small workload proves collection, not representative
+calibration or image-quality improvement. Full-model fresh quantization and
+Qwen-Image-2.1 calibration/generation remain unverified.
+
 ## Operations and coverage
 
 The registry describes the following checkpoint identities against the installed

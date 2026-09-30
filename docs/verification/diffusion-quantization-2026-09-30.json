@@ -1,0 +1,124 @@
+{
+  "date": "2026-09-30",
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "versions": {
+    "mlx": "0.32.2",
+    "mflux": "0.20.0"
+  },
+  "implementation_commit": "edf3791",
+  "real_calibration": {
+    "checkpoint": "flux2-klein-4b",
+    "source_repo": "mflux-community/flux2-klein-4b-mflux-q4",
+    "source_revision": "794cd159538149ad9830848508c31f0ea7088e58",
+    "source_stored_bits": 4,
+    "source_header_size_fingerprint": "8fdd0fc1e9286b5d0ae4f4259a7143fa359d53631b0faa2899951a6a8d6c233c",
+    "artifact_sha256": "5aa86ec1fc281961b35c51ea3bf26fc60ac759ac3893c4d7307e4bbb6247c449",
+    "artifact_bytes": 16712016,
+    "tasks": [
+      {
+        "prompt": "A red ceramic teapot on a wooden table beside a window",
+        "seed": 17,
+        "width": 256,
+        "height": 256,
+        "steps": 4,
+        "guidance": null,
+        "negative_prompt": null,
+        "image_paths": [],
+        "mask_path": null,
+        "options": {}
+      },
+      {
+        "prompt": "A blue ceramic bowl on a stone countertop under soft daylight",
+        "seed": 18,
+        "width": 256,
+        "height": 256,
+        "steps": 4,
+        "guidance": null,
+        "negative_prompt": null,
+        "image_paths": [],
+        "mask_path": null,
+        "options": {}
+      }
+    ],
+    "resolved_tasks": [
+      {
+        "seed": 17,
+        "prompt": "A red ceramic teapot on a wooden table beside a window",
+        "width": 256,
+        "height": 256,
+        "num_inference_steps": 4,
+        "guidance": 1.0
+      },
+      {
+        "seed": 18,
+        "prompt": "A blue ceramic bowl on a stone countertop under soft daylight",
+        "width": 256,
+        "height": 256,
+        "num_inference_steps": 4,
+        "guidance": 1.0
+      }
+    ],
+    "transformer_calls": 8,
+    "captured_linear_layers": 109,
+    "observation_counts": [
+      8
+    ],
+    "every_layer_observed_on_every_call": true,
+    "max_rows_per_observation": 64,
+    "outputs": [
+      {
+        "size": [
+          256,
+          256
+        ],
+        "pixel_sha256": "fbb7cbf101347bf477f7a03b720bb0e4d56b219d345640f93c185263fde06192"
+      },
+      {
+        "size": [
+          256,
+          256
+        ],
+        "pixel_sha256": "f7b9406553ff3868c7530160b2ed76ea5e6898a9c24c26fb31b408061b50d121"
+      }
+    ],
+    "seconds_including_load": 7.109344416996464,
+    "prediction_execution": "eager native denoising",
+    "offline_environment": {
+      "HF_HUB_OFFLINE": "1",
+      "TRANSFORMERS_OFFLINE": "1"
+    },
+    "backend_download_guard_enabled": true
+  },
+  "generated_tensor_probe": {
+    "shape": [
+      4,
+      64
+    ],
+    "dtype": "float32",
+    "bits": 4,
+    "group_size": 64,
+    "fixture": "Column zero is 20 with activation energy 1e-5; other columns span -1 to 1 with energy 1",
+    "weighted_error": 5.168581008911133,
+    "plain_mlx_error": 54.47795104980469,
+    "scope": "Controlled numerical fixture; not a model or image-quality comparison"
+  },
+  "automated_verification": {
+    "passed": 1176,
+    "skipped": 1,
+    "scope": "Diffusion, CLI, discovery, engine pool, model control, oQ/oQe and quantization manager regression suites",
+    "native_disk_roundtrip": "Small generated float transformer with mixed affine precision and a protected float layer; exact tensors and output after native mflux save/load",
+    "workflow_tests": "Miniature MLX modules with fake pipelines; source and text encoder/VAE preservation, failed-save cleanup, input validation and offline guards"
+  },
+  "packed_source_cli_rejection": {
+    "exit_code": 1,
+    "published_output": false
+  },
+  "limitations": [
+    "No full-precision model weights were downloaded",
+    "Fresh full-model quantization and generation from its output remain unverified",
+    "Qwen-Image-2.1 native calibration and generation remain unverified",
+    "No GGUF or standalone MLX export import in this milestone",
+    "No image-quality improvement or performance speedup established",
+    "Two 256x256 prompts are a collection smoke test, not representative calibration"
+  ]
+}
