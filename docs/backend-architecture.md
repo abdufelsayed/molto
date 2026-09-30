@@ -20,6 +20,14 @@ models, loads engines, tracks memory, and handles unloads. The scheduler and
 cache implementations serve inference requests; the management API calls the
 same engine pool so its load state matches the running server.
 
+Image checkpoint identity and operation policy live in `omlx/diffusion/`.
+Preparation owns bounded acquisition and atomic saved-checkpoint publication;
+adapters own native class selection and request translation. Image routes
+validate before pool acquisition, and the image engine owns serialized MLX
+lifecycle work. See [image models](image-models.md) for supported operations and
+verification limits. This boundary is separate from DiffusionGemma text
+generation and DFlash drafting.
+
 `omlx/api/management_routes.py` maps HTTP requests to
 `omlx/services/management.py`. The service takes a `ManagementContext` with
 explicit references to the pool, model settings manager, global settings, and

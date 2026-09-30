@@ -1,0 +1,101 @@
+{
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "versions": {
+    "mflux": "0.20.0",
+    "mlx": "0.32.2",
+    "omlx": "0.7.0rc1"
+  },
+  "models": {
+    "z-image": {
+      "base_model": "z-image-turbo",
+      "source_repo_id": "filipstrand/Z-Image-Turbo-mflux-4bit",
+      "revision": "b3a8f31115a11f2f9e2fa0bfbc8d78dcc3e6568b",
+      "stored_quantization_bits": 4
+    },
+    "flux2": {
+      "base_model": "flux2-klein-4b",
+      "source_repo_id": "mflux-community/flux2-klein-4b-mflux-q4",
+      "revision": "794cd159538149ad9830848508c31f0ea7088e58",
+      "stored_quantization_bits": 4,
+      "preparation": "mflux-save --pipeline flux2-klein-4b/edit --no-quantize",
+      "requested_quantization_bits": null,
+      "saved_default_pipeline": "flux2-klein-4b/edit",
+      "native_save_and_reload_verified": true
+    }
+  },
+  "results": [
+    {
+      "name": "z-image-turbo",
+      "route": "/v1/images/generations",
+      "pipeline": "z-image-turbo",
+      "seconds_including_load": 14.192132417112589,
+      "size": [
+        512,
+        512
+      ],
+      "steps": 9,
+      "seed": 42,
+      "sha256": "62b690af5a0378d83b3d22649040d942bf56fbd4d45f7c9b7e32336ffbcf1e24",
+      "peak_active_bytes": 8065576094
+    },
+    {
+      "name": "z-image-turbo-warm",
+      "route": "/v1/images/generations",
+      "pipeline": "z-image-turbo",
+      "seconds_including_load": 15.326793958898634,
+      "size": [
+        512,
+        512
+      ],
+      "steps": 9,
+      "seed": 42,
+      "sha256": "62b690af5a0378d83b3d22649040d942bf56fbd4d45f7c9b7e32336ffbcf1e24",
+      "peak_active_bytes": 8469706924
+    },
+    {
+      "name": "flux2-text",
+      "route": "/v1/images/generations",
+      "pipeline": "flux2-klein-4b",
+      "seconds_including_load": 6.31911279191263,
+      "size": [
+        512,
+        512
+      ],
+      "steps": 4,
+      "seed": 17,
+      "sha256": "2079a8e7e504f8843af2159e665d562157bb1d7aa1ba0b224e5c4b3c13164a9f",
+      "peak_active_bytes": 6834569726
+    },
+    {
+      "name": "flux2-edit",
+      "route": "/v1/images/edits",
+      "pipeline": "flux2-klein-4b/edit",
+      "seconds_including_load": 8.472406832966954,
+      "size": [
+        512,
+        512
+      ],
+      "steps": 4,
+      "seed": 17,
+      "sha256": "c953b647a696ebec1239c92659f68a1a0d367e0880f6a3aaa22a2229ed6cf0c3",
+      "peak_active_bytes": 6939752172
+    }
+  ],
+  "z_image_repeat_identical": true,
+  "unsupported_negative_prompt_status": 400,
+  "all_models_unloaded": true,
+  "date": "2026-09-30",
+  "hardware": {
+    "model": "Mac15,9",
+    "chip": "Apple M3 Max",
+    "unified_memory_gib": 64
+  },
+  "execution": "Isolated engine pool and in-process ASGI requests to the actual oMLX app; native mflux inference, no mocked models",
+  "visual_inspection": "The FLUX.2 edit changed the Z-Image red teapot to blue while retaining its shape, table, and background.",
+  "limitations": [
+    "Single timing observations, not a throughput benchmark or measured caching speedup",
+    "Peak active MLX allocation is not total process or system memory",
+    "Fresh full-precision-to-quantized conversion was not verified with real weights",
+    "Other families, image-to-image, inpainting, ControlNet, upscaling, and multipart native generation have no real generation proof"
+  ]
+}

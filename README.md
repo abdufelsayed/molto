@@ -108,11 +108,14 @@ client workflow you need.
 | `POST /v1/embeddings` | Embeddings |
 | `POST /v1/rerank` | Reranking |
 | `POST /v1/images/generations` | Supported mflux image models with the `image` extra |
+| `POST /v1/images/edits` | Image-to-image, reference editing, and inpainting |
+| `POST /v1/images/operations` | Explicit diffusion pipeline operations |
+| `GET /v1/images/capabilities` | Pipeline options and checkpoint-specific support |
 
-Audio routes require the `audio` extra. The initial mflux integration supports
-Z-Image Turbo text-to-image checkpoints; other image architectures and editing
-need dedicated adapters. Tool calling depends on the model's chat template and
-the parser for its output format.
+Audio routes require the `audio` extra. Image diffusion uses a general pipeline
+registry over mflux 0.20; see [image models](docs/image-models.md) for the exact
+operation matrix, preparation commands, and real-test coverage. Tool calling
+depends on the model's chat template and the parser for its output format.
 
 Model discovery and settings are available through the
 [management API](docs/management-api.md). See
