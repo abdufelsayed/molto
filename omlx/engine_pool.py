@@ -343,6 +343,8 @@ class EnginePool:
         """
         self._entries: dict[str, EngineEntry] = {}
         self._lock = asyncio.Lock()
+        self._preparation_lock = asyncio.Lock()
+        self._preparation_active = False
         self._current_model_memory = 0
         # Scanned model roots, kept for org-qualified display/upload names.
         self._model_dirs: list[Path] = []
@@ -2029,6 +2031,8 @@ class EnginePool:
             InsufficientMemoryError: If can't free enough memory (all pinned)
             ModelLoadingError: If model is already being loaded
         """
+        if self._preparation_active:
+            raise ModelBusyError(model_id, "start work during diffusion preparation")
         entry = self._entries.get(model_id)
         if (
             image_pipeline is not None
@@ -2045,6 +2049,8 @@ class EnginePool:
         if ready is not None:
             return ready
         async with self._lock:
+            if self._preparation_active:
+                raise ModelBusyError(model_id, "start work during diffusion preparation")
             entry = self._entries.get(model_id)
             if not entry:
                 raise ModelNotFoundError(model_id, list(self._entries.keys()))
@@ -2408,6 +2414,58 @@ class EnginePool:
 
             await self._unload_engine(model_id)
             return True
+
+    @asynccontextmanager
+    async def exclusive_preparation(self, check_cancel):
+        """Drain inference and reserve the pool until native preparation cleans up.
+
+        New acquisitions fail busy while a preparation job waits or runs. Existing
+        leases and scheduler work finish normally; resident models remain loaded.
+        The caller must drain its executor worker before leaving this context.
+        """
+        async with self._preparation_lock:
+            check_cancel()
+            if self._shutting_down:
+                raise RuntimeError("Engine pool is shutting down")
+            self._preparation_active = True
+            try:
+                while True:
+                    check_cancel()
+                    # Join any load/unload that began before admission closed.
+                    # Release the lock between checks so pending lease releases
+                    # and deferred unloads can drain without a deadlock.
+                    await self._lock.acquire()
+                    try:
+                        busy = any(
+                            entry.is_loading
+                            or entry.in_use > 0
+                            or self._entry_has_active_requests(entry)
+                            or self._entry_has_scheduler_work(entry)
+                            for entry in self._entries.values()
+                        )
+                    except BaseException:
+                        self._lock.release()
+                        raise
+                    if not busy:
+                        break
+                    self._lock.release()
+                    await asyncio.sleep(0.05)
+                try:
+                    check_cancel()
+                    ceiling = self._current_ceiling()
+                    allowance = None
+                    if ceiling > 0:
+                        current = max(
+                            mx.get_active_memory(),
+                            _settled_phys_footprint(),
+                            self._current_model_memory,
+                        )
+                        allowance = max(0, ceiling - current)
+                    yield allowance
+                finally:
+                    self._lock.release()
+            finally:
+                self._preparation_active = False
 
     @asynccontextmanager
     async def acquire(
@@ -3933,6 +3991,7 @@ class EnginePool:
             )
         return {
             "final_ceiling": self._current_ceiling(),
+            "preparation_active": self._preparation_active,
             "current_model_memory": self._current_model_memory,
             "model_count": len(self._entries),
             "loaded_count": sum(

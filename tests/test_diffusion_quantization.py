@@ -213,3 +213,57 @@ def test_native_mflux_disk_save_reload_preserves_mixed_precision(tmp_path):
     assert all(mx.array_equal(before[k], after[k]).item() for k in before)
     x = mx.random.normal((2, 64))
     assert mx.array_equal(model(x), reloaded(x)).item()
+
+
+def test_cancellation_after_module_installation_restores_every_original():
+    model = TinyTransformer()
+    report = collect(model)
+    originals = (model.a, model.b, model.keep)
+
+    class CancelledError(Exception):
+        pass
+
+    def observe(phase, progress, detail):
+        if detail == "Transformer quantization verified":
+            assert isinstance(model.a, nn.QuantizedLinear)
+            raise CancelledError()
+
+    with pytest.raises(CancelledError):
+        quantize_transformer(model, report, observer=observe)
+    assert (model.a, model.b, model.keep) == originals
+
+
+def test_candidate_progress_and_cancellation_precede_model_mutation():
+    model = TinyTransformer()
+    report = collect(model)
+    original = model.a
+    events = []
+
+    class CancelledError(Exception):
+        pass
+
+    def observe(*event):
+        events.append(event)
+        if "Packed row chunk" in event[2]:
+            raise CancelledError()
+
+    with pytest.raises(CancelledError):
+        quantize_transformer(model, report, observer=observe)
+    assert model.a is original
+    assert any("Evaluating" in event[2] for event in events)
+    assert [event[1] for event in events] == sorted(event[1] for event in events)
+
+
+def test_quantization_progress_covers_candidates_chunks_and_layer_installation():
+    model = TinyTransformer()
+    events = []
+    quantize_transformer(
+        model, collect(model), observer=lambda *event: events.append(event)
+    )
+    assert all(event[0] == "quantizing" for event in events)
+    values = [event[1] for event in events]
+    assert values == sorted(values) and all(0 <= value < 1 for value in values)
+    assert any("Evaluating" in event[2] for event in events)
+    assert any("Packing rows" in event[2] for event in events)
+    assert any("Packing layer" in event[2] for event in events)
+    assert events[-1][2] == "Transformer quantization verified"

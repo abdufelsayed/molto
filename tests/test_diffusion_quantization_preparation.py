@@ -153,6 +153,28 @@ def test_complete_workflow_preserves_source_and_other_components(tiny_source, tm
         assert all(mx.array_equal(saved[k], v).item() for k, v in parameters.items())
 
 
+def test_float_restoration_snapshot_released_before_cache_clear(
+    tiny_source, tmp_path, monkeypatch
+):
+    import weakref
+
+    source, native = tiny_source
+    floating_layer = weakref.ref(native.transformer.linear)
+    calibration = tmp_path / "calibration.json"
+    calibration.write_text(json.dumps(calibration_for(native)))
+    checked = []
+
+    def clear():
+        checked.append(True)
+        assert floating_layer() is None
+
+    monkeypatch.setattr(mx, "clear_cache", clear)
+    preparation.quantize_diffusion(
+        source, calibration, tmp_path / "saved", budget_ratio=1
+    )
+    assert checked
+
+
 def test_save_failure_preserves_output_and_removes_staging(
     tiny_source, tmp_path, monkeypatch
 ):
@@ -290,3 +312,192 @@ def test_native_flux_prediction_is_eager_counts_cfg_and_restores_on_failure(
     assert not AppleSiliconUtil.is_m1_or_m2()
     assert collector.report()["transformer_calls"] == 8
     assert collector.report()["layers"]["linear"]["observations"] == 8
+
+
+class CancelledError(Exception):
+    pass
+
+
+def source_files(source):
+    return {
+        str(path.relative_to(source)): path.read_bytes()
+        for path in source.rglob("*")
+        if path.is_file()
+    }
+
+
+def test_calibration_cancellation_between_forwards_restores_model(
+    tiny_source, tmp_path, monkeypatch
+):
+    source, native = tiny_source
+    original = native.transformer
+    linear = original.linear
+    before = source_files(source)
+    released = []
+    monkeypatch.setattr(
+        MFluxBackend, "release", lambda self, model: released.append(model)
+    )
+
+    def observe(phase, progress, detail):
+        if phase == "calibrating" and detail == "Transformer forward 1":
+            raise CancelledError("cancel calibration")
+
+    output = tmp_path / "cancelled-report.json"
+    with pytest.raises(CancelledError):
+        preparation.calibrate_diffusion(
+            source, output, [ImageTask(prompt="A teapot")], observer=observe
+        )
+    assert native.transformer is original and original.linear is linear
+    assert released == [native]
+    assert not output.exists()
+    assert source_files(source) == before
+
+
+def test_calibration_cancel_at_report_publication_removes_temporary(
+    tiny_source, tmp_path
+):
+    source, native = tiny_source
+    original = native.transformer.linear
+    output = tmp_path / "report.json"
+
+    def observe(phase, progress, detail):
+        if detail == "Publishing calibration report":
+            assert not output.exists()
+            raise CancelledError()
+
+    with pytest.raises(CancelledError):
+        preparation.calibrate_diffusion(
+            source, output, [ImageTask(prompt="A teapot")], observer=observe
+        )
+    assert not output.exists() and not list(tmp_path.glob(".report.json-*"))
+    assert native.transformer.linear is original
+
+
+@pytest.mark.parametrize(
+    "boundary",
+    [
+        "Transformer quantization finished",
+        "Native checkpoint saved",
+        "Publishing complete checkpoint",
+    ],
+)
+def test_quantization_cancellation_restores_native_and_cleans_staging(
+    tiny_source, tmp_path, monkeypatch, boundary
+):
+    source, native = tiny_source
+    original = native.transformer.linear
+    before = source_files(source)
+    released = []
+    monkeypatch.setattr(
+        MFluxBackend, "release", lambda self, model: released.append(model)
+    )
+    calibration = tmp_path / "calibration.json"
+    calibration.write_text(json.dumps(calibration_for(native)))
+    output = tmp_path / "saved"
+    output.mkdir()
+
+    def observe(phase, progress, detail):
+        if detail == boundary:
+            raise CancelledError(boundary)
+
+    with pytest.raises(CancelledError):
+        preparation.quantize_diffusion(source, calibration, output, observer=observe)
+    assert native.transformer.linear is original and native.bits is None
+    assert released == [native]
+    assert output.is_dir() and not list(output.iterdir())
+    assert not list(tmp_path.glob(".saved-*"))
+    assert source_files(source) == before
+
+
+def test_workflow_progress_is_monotonic_and_never_notifies_after_publication(
+    tiny_source, tmp_path
+):
+    source, native = tiny_source
+    calibration = tmp_path / "calibration.json"
+    calibration_events = []
+
+    def observe_calibration(*event):
+        assert not calibration.exists()
+        calibration_events.append(event)
+
+    preparation.calibrate_diffusion(
+        source,
+        calibration,
+        [ImageTask(prompt="A teapot")],
+        observer=observe_calibration,
+    )
+    output = tmp_path / "saved"
+    quantization_events = []
+
+    def observe_quantization(*event):
+        assert not output.exists()
+        quantization_events.append(event)
+
+    preparation.quantize_diffusion(
+        source, calibration, output, observer=observe_quantization
+    )
+    for events, operation in (
+        (calibration_events, "calibrating"),
+        (quantization_events, "quantizing"),
+    ):
+        values = [event[1] for event in events]
+        assert values == sorted(values) and all(0 <= value < 1 for value in values)
+        assert set(event[0] for event in events) == {"loading", operation, "saving"}
+        assert values[-1] == 0.99
+
+
+def test_memory_admission_respects_pool_remaining_capacity(monkeypatch):
+    import psutil
+
+    monkeypatch.setattr(
+        psutil, "virtual_memory", lambda: SimpleNamespace(available=1000)
+    )
+    monkeypatch.setattr(
+        mx, "device_info", lambda: {"max_recommended_working_set_size": 900}
+    )
+    monkeypatch.setattr(mx, "get_active_memory", lambda: 100)
+    admission = preparation._admit({"weight_file_bytes": 60}, memory_limit_bytes=100)
+    assert admission["available_capacity_bytes"] == 100
+    assert admission["memory_limit_bytes"] == 100
+    assert admission["model_fraction_limit"] == 0.60
+    with pytest.raises(ValueError, match="memory allowance"):
+        preparation._admit({"weight_file_bytes": 61}, memory_limit_bytes=100)
+    assert (
+        preparation._admit({"weight_file_bytes": 100})["available_capacity_bytes"]
+        == 800
+    )
+
+
+def test_workflows_forward_memory_ceiling(tiny_source, tmp_path, monkeypatch):
+    source, native = tiny_source
+    calls = []
+
+    def admit(provenance, *, memory_limit_bytes):
+        calls.append(memory_limit_bytes)
+        return {"memory_limit_bytes": memory_limit_bytes}
+
+    monkeypatch.setattr(preparation, "_admit", admit)
+
+    def cancel(phase, progress, detail):
+        if detail == "Loading native checkpoint":
+            raise CancelledError()
+
+    calibration = tmp_path / "calibration.json"
+    calibration.write_text(json.dumps(calibration_for(native)))
+    with pytest.raises(CancelledError):
+        preparation.calibrate_diffusion(
+            source,
+            tmp_path / "report.json",
+            [ImageTask(prompt="Test")],
+            observer=cancel,
+            memory_limit_bytes=100,
+        )
+    with pytest.raises(CancelledError):
+        preparation.quantize_diffusion(
+            source,
+            calibration,
+            tmp_path / "saved",
+            observer=cancel,
+            memory_limit_bytes=200,
+        )
+    assert calls == [100, 200]

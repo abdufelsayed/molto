@@ -59,20 +59,33 @@ class _CaptureTransformer(nn.Module):
     def __call__(self, *args, **kwargs):
         # Keep every forward, including separate CFG branches. Do not interpret
         # family-specific timestep tensors as scheduler step numbers.
+        self.collector.notify_forward()
         self.collector.calls += 1
-        return self.inner(*args, **kwargs)
+        result = self.inner(*args, **kwargs)
+        self.collector.notify_forward()
+        return result
 
 
 class ActivationCollector:
     """Sample a bounded number of activation rows on every transformer call."""
 
-    def __init__(self, max_rows: int = 256):
+    def __init__(self, max_rows: int = 256, *, observer=None, expected_calls=1):
         if type(max_rows) is not int or max_rows <= 0:
             raise ValueError("max_rows must be a positive integer")
         self.max_rows = max_rows
         self.calls = 0
         self.entries = {}
         self._active = False
+        self.observer = observer
+        self.expected_calls = max(1, expected_calls)
+
+    def notify_forward(self):
+        if self.observer is not None:
+            self.observer(
+                "calibrating",
+                min(0.99, self.calls / self.expected_calls),
+                f"Transformer forward {self.calls}",
+            )
 
     def record(self, name, module, x):
         output, width = _linear_shape(module)
@@ -185,12 +198,17 @@ def affine_bytes(shape, bits, group_size, dtype_bytes):
     return output * width * bits // 8 + 2 * output * (width // group_size) * dtype_bytes
 
 
-def _pack(weight, importance, bits, group_size):
+def _pack(weight, importance, bits, group_size, *, observer=None):
     # Row chunks bound clipping-search temporaries independently of model size.
     chunk_rows = max(1, (1 << 18) // weight.shape[-1])
     pieces = []
     error = 0.0
     for start in range(0, weight.shape[0], chunk_rows):
+        if observer is not None:
+            observer(
+                start / weight.shape[0],
+                f"Packing rows {start}:{min(start + chunk_rows, weight.shape[0])}",
+            )
         w = weight[start : start + chunk_rows]
         packed, scales, biases = weighted_affine_quantize(
             w, group_size, bits, importance
@@ -202,6 +220,8 @@ def _pack(weight, importance, bits, group_size):
         mx.eval(loss)
         error += float(loss.item())
         pieces.append((packed, scales, biases))
+        if observer is not None:
+            observer(min(1, (start + chunk_rows) / weight.shape[0]), "Packed row chunk")
     tensors = tuple(mx.concatenate([p[i] for p in pieces], axis=0) for i in range(3))
     mx.eval(tensors)
     if not math.isfinite(error):
@@ -218,6 +238,7 @@ def quantize_transformer(
     budget_bytes=None,
     budget_ratio=1.10,
     protected=(),
+    observer=None,
 ):
     """Allocate upgrades by measured weighted-error reduction per added byte.
 
@@ -225,6 +246,15 @@ def quantize_transformer(
     parameters. It excludes other components, file headers and runtime memory.
     Coverage and budget validation finish before any module is replaced.
     """
+    last_progress = 0.0
+
+    def notify(progress, detail):
+        nonlocal last_progress
+        last_progress = max(last_progress, min(0.99, max(0.0, progress)))
+        if observer is not None:
+            observer("quantizing", last_progress, detail)
+
+    notify(0.0, "Validating transformer and calibration")
     if type(bits) is not int or bits not in BITS:
         raise ValueError("bits must be 3, 4, 5, 6, or 8")
     if type(group_size) is not int or group_size not in GROUP_SIZES:
@@ -288,15 +318,32 @@ def quantize_transformer(
             f"Transformer budget {budget} is below the base allocation {baseline}"
         )
     candidates = [b for b in BITS if b >= bits]
-    for entry in selected.values():
+    candidate_count = len(selected) * len(candidates)
+    candidate_index = 0
+    for name, entry in selected.items():
         for candidate in candidates:
-            tensors, error = _pack(
-                entry["module"].weight, entry["importance"], candidate, group_size
+            notify(
+                0.05 + 0.75 * candidate_index / candidate_count,
+                f"Evaluating {name} at {candidate} bits",
             )
+            tensors, error = _pack(
+                entry["module"].weight,
+                entry["importance"],
+                candidate,
+                group_size,
+                observer=lambda fraction, detail, candidate_index=candidate_index, name=name, candidate=candidate: (
+                    notify(
+                        0.05 + 0.75 * (candidate_index + fraction) / candidate_count,
+                        f"{name}: {candidate} bits; {detail}",
+                    )
+                ),
+            )
+            candidate_index += 1
             entry["errors"][candidate] = error
             del tensors
     total = baseline
     while True:
+        notify(0.80, "Allocating mixed precision upgrades")
         upgrades = []
         for name, entry in selected.items():
             for candidate in candidates:
@@ -319,10 +366,20 @@ def quantize_transformer(
         total += size - entry["bytes"]
         entry.update(bits=candidate, bytes=size)
     replacements, layers = [], {}
-    for name, entry in selected.items():
+    for layer_index, (name, entry) in enumerate(selected.items()):
         module = entry["module"]
+        notify(0.80 + 0.18 * layer_index / len(selected), f"Packing layer {name}")
         tensors, _ = _pack(
-            module.weight, entry["importance"], entry["bits"], group_size
+            module.weight,
+            entry["importance"],
+            entry["bits"],
+            group_size,
+            observer=lambda fraction, detail, layer_index=layer_index, name=name: (
+                notify(
+                    0.80 + 0.18 * (layer_index + fraction) / len(selected),
+                    f"{name}: {detail}",
+                )
+            ),
         )
         output, width = module.weight.shape
         q = nn.QuantizedLinear(width, output, False, group_size, entry["bits"])
@@ -338,13 +395,17 @@ def quantize_transformer(
             "weighted_error": entry["errors"][entry["bits"]],
             "candidate_errors": {str(b): e for b, e in entry["errors"].items()},
         }
-    transformer.update_modules(tree_unflatten(replacements))
-    actual = sum(w.nbytes for _, w in tree_flatten(transformer.parameters()))
-    if actual != total or actual > budget:
-        transformer.update_modules(
-            tree_unflatten([(n, e["module"]) for n, e in selected.items()])
-        )
-        raise ValueError("Actual transformer allocation disagrees with the budget")
+    originals = [(n, e["module"]) for n, e in selected.items()]
+    notify(0.98, "Installing packed layers")
+    try:
+        transformer.update_modules(tree_unflatten(replacements))
+        actual = sum(w.nbytes for _, w in tree_flatten(transformer.parameters()))
+        if actual != total or actual > budget:
+            raise ValueError("Actual transformer allocation disagrees with the budget")
+        notify(0.99, "Transformer quantization verified")
+    except BaseException:
+        transformer.update_modules(tree_unflatten(originals))
+        raise
     return {
         "version": 1,
         "method": "diffusion-oQe",

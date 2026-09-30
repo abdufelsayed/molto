@@ -23,6 +23,19 @@ from .registry import ImageTask, get_pipeline, validate_task
 QUANTIZATION_MODELS = ("flux2-klein-4b", "qwen-image-2.1")
 
 
+class _Progress:
+    """Synchronous notifications double as cooperative cancellation checks."""
+
+    def __init__(self, observer):
+        self.observer = observer
+        self.value = 0.0
+
+    def __call__(self, phase, progress, detail):
+        self.value = max(self.value, min(1.0, max(0.0, progress)))
+        if self.observer is not None:
+            self.observer(phase, self.value, detail)
+
+
 def _source(model):
     path = Path(model).expanduser().resolve()
     if not path.is_dir():
@@ -77,13 +90,19 @@ def _provenance(checkpoint):
     }
 
 
-def _admit(provenance):
+def _admit(provenance, *, memory_limit_bytes=None):
     import mlx.core as mx
     import psutil
 
+    if memory_limit_bytes is not None and (
+        type(memory_limit_bytes) is not int or memory_limit_bytes < 0
+    ):
+        raise ValueError("memory_limit_bytes must be a nonnegative integer")
     available = psutil.virtual_memory().available
     device = mx.device_info().get("max_recommended_working_set_size", available)
     capacity = min(available, max(0, device - mx.get_active_memory()))
+    if memory_limit_bytes is not None:
+        capacity = min(capacity, memory_limit_bytes)
     # Reserve space for activations and preparation temporaries. This is a
     # conservative admission estimate, not a prediction of generation peak RAM.
     required = provenance["weight_file_bytes"]
@@ -93,23 +112,29 @@ def _admit(provenance):
         "available_capacity_bytes": capacity,
         "checkpoint_file_bytes": required,
         "model_fraction_limit": 0.60,
+        "memory_limit_bytes": memory_limit_bytes,
     }
 
 
-def _write_report(path, data):
+def _write_report(path, data, *, before_publish=None):
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary = tempfile.mkstemp(prefix=f".{path.name}-", dir=path.parent)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as stream:
             json.dump(data, stream, indent=2, allow_nan=False)
             stream.write("\n")
+        # No callback may throw after publication.
+        if before_publish is not None:
+            before_publish()
         # Exclusive atomic publication also rejects a concurrently created file.
         os.link(temporary, path)
     finally:
         Path(temporary).unlink(missing_ok=True)
 
 
-def calibrate_diffusion(model, output, tasks, *, max_rows=256):
+def calibrate_diffusion(
+    model, output, tasks, *, max_rows=256, observer=None, memory_limit_bytes=None
+):
     """Generate local text-to-image tasks and export per-linear input energy."""
     from .quantization import ActivationCollector
 
@@ -119,19 +144,44 @@ def calibrate_diffusion(model, output, tasks, *, max_rows=256):
     if not tasks:
         raise ValueError("At least one calibration task is required")
     resolved_tasks = [validate_task(spec, task) for task in tasks]
-    collector = ActivationCollector(max_rows)
+    progress = _Progress(observer)
+    progress("loading", 0.0, "Inspecting local checkpoint")
+    expected_calls = sum(task["num_inference_steps"] for task in resolved_tasks)
+    collector = ActivationCollector(
+        max_rows,
+        expected_calls=expected_calls,
+        observer=lambda phase, fraction, detail: progress(
+            phase, 0.15 + 0.65 * fraction, detail
+        ),
+    )
     provenance = _provenance(checkpoint)
-    admission = _admit(provenance)
+    admission = (
+        _admit(provenance)
+        if memory_limit_bytes is None
+        else _admit(provenance, memory_limit_bytes=memory_limit_bytes)
+    )
     backend = MFluxBackend()
     native = None
     started = time.monotonic()
     try:
         with _offline():
+            progress("loading", 0.05, "Loading native checkpoint")
             native = backend.load(checkpoint, spec.id)
+            progress("loading", 0.15, "Native checkpoint loaded")
             images = []
             with collector.capture(native), backend.calibration_context(native):
-                for task in tasks:
+                for index, task in enumerate(tasks):
+                    progress(
+                        "calibrating",
+                        0.15 + 0.65 * index / len(tasks),
+                        f"Calibration task {index + 1}/{len(tasks)}",
+                    )
                     result = backend.generate(native, task, spec.id)
+                    progress(
+                        "calibrating",
+                        0.15 + 0.65 * (index + 1) / len(tasks),
+                        f"Calibration task {index + 1} finished",
+                    )
                     images.append(
                         {
                             "size": [result.image.width, result.image.height],
@@ -141,6 +191,7 @@ def calibrate_diffusion(model, output, tasks, *, max_rows=256):
                         }
                     )
             report = collector.report()
+        progress("saving", 0.85, "Preparing calibration report")
         report.update(
             {
                 "base_model": checkpoint.base_model,
@@ -155,7 +206,14 @@ def calibrate_diffusion(model, output, tasks, *, max_rows=256):
                 "versions": {name: version(name) for name in ("mlx", "mflux")},
             }
         )
-        _write_report(destination, report)
+        progress("saving", 0.95, "Writing calibration report")
+        _write_report(
+            destination,
+            report,
+            before_publish=lambda: progress(
+                "saving", 0.99, "Publishing calibration report"
+            ),
+        )
         return report
     finally:
         if native is not None:
@@ -178,6 +236,8 @@ def quantize_diffusion(
     budget_bytes=None,
     budget_ratio=1.10,
     protected=(),
+    observer=None,
+    memory_limit_bytes=None,
 ):
     """Quantize a floating-point transformer and atomically publish native assets."""
     from omlx.mflux_conversion import _copy_source_metadata
@@ -198,15 +258,35 @@ def quantize_diffusion(
         or report.get("base_model") != checkpoint.base_model
     ):
         raise ValueError("Calibration and source checkpoint identities disagree")
+    progress = _Progress(observer)
+    progress("loading", 0.0, "Inspecting local checkpoint")
     provenance = _provenance(checkpoint)
-    admission = _admit(provenance)
+    admission = (
+        _admit(provenance)
+        if memory_limit_bytes is None
+        else _admit(provenance, memory_limit_bytes=memory_limit_bytes)
+    )
     spec = get_pipeline(checkpoint.base_model)
     backend = MFluxBackend()
     native = None
     staging = None
+    originals = None
+    original_bits = None
+    published = False
     try:
         with _offline():
+            progress("loading", 0.05, "Loading native checkpoint")
             native = backend.load(checkpoint, spec.id)
+            progress("loading", 0.15, "Native checkpoint loaded")
+            import mlx.nn as nn
+            from mlx.utils import tree_unflatten
+
+            originals = [
+                (name, module)
+                for name, module in native.transformer.named_modules()
+                if name and isinstance(module, (nn.Linear, nn.QuantizedLinear))
+            ]
+            original_bits = native.bits
             plan = quantize_transformer(
                 native.transformer,
                 report,
@@ -215,14 +295,21 @@ def quantize_diffusion(
                 budget_bytes=budget_bytes,
                 budget_ratio=budget_ratio,
                 protected=protected,
+                observer=lambda phase, fraction, detail: progress(
+                    phase, 0.15 + 0.60 * fraction, detail
+                ),
             )
+            progress("quantizing", 0.75, "Transformer quantization finished")
             native.bits = bits  # activates native mixed-layer reconstruction
             destination.parent.mkdir(parents=True, exist_ok=True)
             staging = Path(
                 tempfile.mkdtemp(prefix=f".{destination.name}-", dir=destination.parent)
             )
+            progress("saving", 0.80, "Preparing checkpoint assets")
             _copy_source_metadata(checkpoint.path, staging)
+            progress("saving", 0.85, "Saving native checkpoint")
             manifest = backend.save(native, staging, pipeline_id=spec.id)
+            progress("saving", 0.90, "Native checkpoint saved")
         plan.update(
             {
                 "base_model": checkpoint.base_model,
@@ -248,17 +335,24 @@ def quantize_diffusion(
             json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
         )
         detect_checkpoint(staging)
+        progress("saving", 0.99, "Publishing complete checkpoint")
         if destination.exists():
             if not destination.is_dir() or any(destination.iterdir()):
                 raise ValueError("Output is no longer empty")
             destination.rmdir()
         staging.rename(destination)
+        published = True
         return plan
     finally:
         if staging is not None and staging.exists():
             shutil.rmtree(staging)
         if native is not None:
+            if originals is not None and not published:
+                native.transformer.update_modules(tree_unflatten(originals))
+                native.bits = original_bits
             backend.release(native)
+        # Drop restoration snapshots before clearing the allocator cache.
+        originals = None
         del native
         gc.collect()
         import mlx.core as mx
