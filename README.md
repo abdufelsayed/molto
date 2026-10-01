@@ -3,8 +3,9 @@
 oMLX is an Apple Silicon inference server for local models. It serves text and
 vision language models, embeddings, rerankers, and optional image and audio
 models through HTTP APIs. A small management API handles model and server
-controls. This repository contains the backend; a dashboard can be built as a
-separate client.
+controls. The Python backend and the TanStack Start dashboard share this
+repository. Dashboard source and development instructions are in
+[dashboard/](dashboard/README.md).
 
 Requires macOS 15.0 or newer, Apple Silicon, and Python 3.11, 3.12, or 3.13.
 The project is licensed under [Apache 2.0](LICENSE).
@@ -153,11 +154,12 @@ build instructions and app-only CLI behavior do not apply. Existing Python
 base-path resolution still reads the macOS app's saved base-path pointer so
 users with an existing data directory can continue to find their settings.
 
-The new management API is smaller than the old admin feature set. Download
-jobs, conversion, quantization, benchmarking, browser chat, cluster setup,
-and update workflows do not have equivalent management routes in this
-version. A future dashboard should call the backend APIs as a client; it is
-not included here.
+The dashboard provides model and server management, keys, acquisition and
+preparation jobs, monitoring, logs, cache controls, diagnostics, and conditional
+cluster management. Browser chat remains outside the dashboard's scope.
+The bundled runtime is being integrated so the dashboard proxies API traffic
+to the private FastAPI backend through one public port. See the
+[integration plan](docs/dashboard-integration-plan.md) for remaining work.
 
 ## Development
 

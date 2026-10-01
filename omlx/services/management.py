@@ -12,7 +12,11 @@ from pathlib import Path
 from typing import Any, cast
 
 from ..engine_pool import EnginePool
-from ..model_profiles import filter_profile_fields
+from ..model_profiles import (
+    PROFILE_FIELDS_SET,
+    UNIVERSAL_FIELDS_SET,
+    filter_profile_fields,
+)
 from ..model_settings import (
     ModelSettings,
     ModelSettingsManager,
@@ -44,6 +48,11 @@ class ManagementContext:
     get_default_model: Callable[[], str | None]
     set_default_model: Callable[[str | None], None]
     apply_sampling: Callable[[], None]
+    get_api_key: Callable[[], str | None] | None = None
+    set_api_key: Callable[[str], None] | None = None
+    get_bind_host: Callable[[], str] | None = None
+    get_server_info: Callable[[], dict[str, Any]] | None = None
+    runtime_state: Any | None = None
 
 
 class ManagementService:
@@ -58,6 +67,15 @@ class ManagementService:
     def manager(self) -> ModelSettingsManager:
         return self.context.settings_manager
 
+    def _require_mutation_admission(self) -> None:
+        allowed = getattr(self.pool, "management_operation_allowed", None)
+        if callable(allowed):
+            blocked = not allowed()
+        else:
+            blocked = getattr(self.pool, "_preparation_active", False) is True
+        if blocked:
+            raise ManagementError("busy", "Exclusive engine management work is active")
+
     def _model(self, model_id: str):
         entry = self.pool.get_entry(model_id)
         if entry is None:
@@ -70,8 +88,6 @@ class ManagementService:
         models = []
         for model in status["models"]:
             settings = asdict(self.manager.get_settings(model["id"]))
-            # Do not expose the local trust decision as a general API toggle.
-            settings.pop("trust_remote_code", None)
             entry = self.pool.get_entry(model["id"])
             is_unloading = (
                 bool(entry is not None and entry.pending_unload_reason)
@@ -120,6 +136,7 @@ class ManagementService:
         }
 
     async def load(self, model_id: str) -> dict[str, Any]:
+        self._require_mutation_admission()
         entry = self._model(model_id)
         if entry.engine is not None:
             return {"status": "ok", "model_id": model_id, "message": "Already loaded"}
@@ -129,6 +146,7 @@ class ManagementService:
         return {"status": "ok", "model_id": model_id, "message": "Loaded"}
 
     async def unload(self, model_id: str) -> dict[str, Any]:
+        self._require_mutation_admission()
         entry = self._model(model_id)
         if entry.engine is None:
             raise ManagementError(
@@ -145,8 +163,7 @@ class ManagementService:
 
     async def refresh(self) -> dict[str, Any]:
         """Re-read model settings and discover current model directories."""
-        if getattr(self.pool, "_preparation_active", False) is True:
-            raise ManagementError("busy", "Diffusion preparation is active")
+        self._require_mutation_admission()
         self.manager._load()
         global_settings = self.context.global_settings
         model_dirs = (
@@ -175,17 +192,21 @@ class ManagementService:
     def get_model_settings(self, model_id: str) -> dict[str, Any]:
         self._model(model_id)
         settings = asdict(self.manager.get_settings(model_id))
-        settings.pop("trust_remote_code", None)
         return {"model_id": model_id, "settings": settings}
 
     async def update_model_settings(
         self, model_id: str, patch: ModelSettingsPatch
     ) -> dict[str, Any]:
+        self._require_mutation_admission()
         entry = self._model(model_id)
+        if entry.is_loading or model_id in self.pool._unloading_models:
+            raise ManagementError("busy", "Model is loading or unloading")
         current = self.manager.get_settings(model_id)
         old_type = (entry.model_type, entry.engine_type)
         old_signature = self.pool._engine_runtime_signature(model_id, current)
         values = current.to_dict()
+        if patch.model_fields_set == set(ModelSettingsPatch.model_fields):
+            values["active_profile_name"] = None
         defaults = ModelSettings()
         for name in patch.model_fields_set:
             value = getattr(patch, name)
@@ -204,8 +225,9 @@ class ManagementService:
                     "conflict", f"Model alias already in use: {alias}"
                 )
         try:
-            updated = ModelSettings.from_dict(values)
+            updated = ModelSettings(**values)
             self._validate_model_settings(entry, updated)
+            self._validate_drafts(entry, updated)
         except (TypeError, ValueError) as exc:
             raise ManagementError("invalid_configuration", str(exc)) from exc
 
@@ -242,13 +264,36 @@ class ManagementService:
         elif current.is_default and not updated.is_default:
             available = [mid for mid in self.pool.get_model_ids() if mid != model_id]
             self.context.set_default_model(available[0] if available else None)
+        transition = await self._reload_after_settings_change(
+            model_id,
+            entry,
+            old_type,
+            old_signature,
+            force_reload=bool(
+                patch.model_fields_set
+                & {"index_cache_freq", "dflash_enabled", "dflash_draft_model"}
+            ),
+        )
+        return {
+            "model_id": model_id,
+            "settings": self.get_model_settings(model_id)["settings"],
+            **transition,
+        }
+
+    async def _reload_after_settings_change(
+        self,
+        model_id: str,
+        entry,
+        old_type,
+        old_signature,
+        *,
+        force_reload: bool = False,
+    ) -> dict[str, Any]:
+        updated = self.manager.get_settings(model_id)
         requires_reload = entry.engine is not None and (
             old_type != (entry.model_type, entry.engine_type)
             or old_signature != self.pool._engine_runtime_signature(model_id, updated)
-            or bool(
-                patch.model_fields_set
-                & {"index_cache_freq", "dflash_enabled", "dflash_draft_model"}
-            )
+            or force_reload
         )
         auto_unloaded = auto_reloaded = reload_deferred = False
         reload_error = None
@@ -264,8 +309,6 @@ class ManagementService:
             except Exception as exc:
                 reload_error = str(exc)
         return {
-            "model_id": model_id,
-            "settings": self.get_model_settings(model_id)["settings"],
             "requires_reload": requires_reload,
             "auto_unloaded": auto_unloaded,
             "auto_reloaded": auto_reloaded,
@@ -273,9 +316,89 @@ class ManagementService:
             "reload_error": reload_error,
         }
 
+    def _validate_drafts(self, entry, updated):
+        if updated.dflash_ssd_cache and not getattr(
+            getattr(self.pool, "_scheduler_config", None), "paged_ssd_cache_dir", None
+        ):
+            raise ValueError(
+                "DFlash SSD cache requires a configured paged SSD cache directory"
+            )
+        for enabled, key in (
+            ("dflash_enabled", "dflash_draft_model"),
+            ("specprefill_enabled", "specprefill_draft_model"),
+            ("vlm_mtp_enabled", "vlm_mtp_draft_model"),
+        ):
+            if not getattr(updated, enabled):
+                continue
+            reference = getattr(updated, key)
+            draft = self.pool.get_entry(reference) if reference else None
+            if draft is None:
+                draft = next(
+                    (
+                        self.pool.get_entry(mid)
+                        for mid in self.pool.get_model_ids()
+                        if self.pool.get_entry(mid).model_path == reference
+                    ),
+                    None,
+                )
+            if draft is None or not (Path(draft.model_path) / "config.json").is_file():
+                raise ValueError(
+                    f"{key} must identify an installed model with config.json"
+                )
+            if enabled == "vlm_mtp_enabled":
+                import json
+
+                target = json.loads(
+                    (Path(entry.model_path) / "config.json").read_text()
+                )
+                config = json.loads(
+                    (Path(draft.model_path) / "config.json").read_text()
+                )
+                if not isinstance(target, dict) or not isinstance(config, dict):
+                    raise ValueError("Target and draft configs must be objects")
+                target_family = target.get("model_type", "")
+                draft_family = config.get("model_type", "")
+                compatible = (
+                    draft_family in ("gemma4_assistant", "gemma4_unified_assistant")
+                    if target_family.startswith("gemma4")
+                    else target_family.startswith(("qwen3_5", "qwen3_6", "qwen3_8"))
+                    and draft_family == "qwen3_5_mtp"
+                )
+                if not compatible:
+                    raise ValueError(
+                        "VLM MTP target and draft families are incompatible"
+                    )
+                for dimension in ("hidden_size", "vocab_size"):
+                    target_dim = (target.get("text_config") or target).get(dimension)
+                    draft_dim = (
+                        config.get("backbone_hidden_size")
+                        if dimension == "hidden_size"
+                        and draft_family.startswith("gemma4")
+                        else (config.get("text_config") or config).get(dimension)
+                    )
+                    if (
+                        target_dim is not None
+                        and draft_dim is not None
+                        and target_dim != draft_dim
+                    ):
+                        raise ValueError(f"VLM MTP target and draft {dimension} differ")
+
     @staticmethod
     def _validate_model_settings(entry, settings: ModelSettings) -> None:
+        from .management_model_options import validate_candidate
+
+        ModelSettingsPatch.model_validate(
+            {
+                key: value
+                for key, value in asdict(settings).items()
+                if key in ModelSettingsPatch.model_fields
+            }
+        )
+        validate_candidate(entry, settings)
+        import json
+
         values = settings.to_dict()
+        json.dumps(values, allow_nan=False)
         validate_moe_expert_offload(
             values, model_type=getattr(entry, "config_model_type", None)
         )
@@ -323,6 +446,7 @@ class ManagementService:
     async def update_global_settings(
         self, patch: GlobalSettingsPatch
     ) -> dict[str, Any]:
+        self._require_mutation_admission()
         settings = self.context.global_settings
         if settings is None:
             raise ManagementError("unavailable", "Global settings unavailable")
@@ -381,16 +505,33 @@ class ManagementService:
     ) -> dict[str, Any]:
         fields = patch.model_dump(exclude_unset=True)
         filtered = filter_profile_fields(fields)
-        base = self.manager.get_settings(model_id).to_dict()
+        base = {
+            k: v
+            for k, v in self.manager.get_settings(model_id).to_dict().items()
+            if k not in UNIVERSAL_FIELDS_SET
+        }
         try:
-            merged = ModelSettings.from_dict({**base, **filtered})
+            defaults = asdict(ModelSettings())
+            merged = ModelSettings(
+                **{
+                    **base,
+                    **{
+                        key: defaults[key] if value is None else value
+                        for key, value in filtered.items()
+                    },
+                }
+            )
             self._validate_model_settings(self._model(model_id), merged)
+            self._validate_drafts(self._model(model_id), merged)
         except (TypeError, ValueError) as exc:
             raise ManagementError("invalid_configuration", str(exc)) from exc
-        return cast(dict[str, Any], filtered)
+        return {
+            key: value for key, value in fields.items() if key in PROFILE_FIELDS_SET
+        }
 
     def create_profile(self, model_id: str, body: ProfileWrite) -> dict[str, Any]:
         self._model(model_id)
+        snapshot = copy.deepcopy(self.manager._profiles)
         try:
             profile = self.manager.save_profile(
                 model_id=model_id,
@@ -404,6 +545,9 @@ class ManagementService:
             )
         except ValueError as exc:
             raise ManagementError("conflict", str(exc)) from exc
+        except OSError as exc:
+            self.manager._profiles = snapshot
+            raise ManagementError("unavailable", str(exc)) from exc
         return {"profile": profile}
 
     def update_profile(
@@ -413,6 +557,18 @@ class ManagementService:
         changes = body.model_dump(exclude_unset=True)
         if body.settings is not None:
             changes["settings"] = self._profile_settings(model_id, body.settings)
+        else:
+            existing = self.manager.get_profile(model_id, name)
+            if existing is None:
+                raise ManagementError("not_found", f"Profile not found: {name}")
+            try:
+                self._profile_settings(
+                    model_id,
+                    ModelSettingsPatch.model_validate(existing.get("settings", {})),
+                )
+            except ValueError as exc:
+                raise ManagementError("invalid_configuration", str(exc)) from exc
+        snapshot = copy.deepcopy(self.manager._profiles)
         try:
             profile = self.manager.update_profile(
                 model_id,
@@ -422,21 +578,43 @@ class ManagementService:
             )
         except ValueError as exc:
             raise ManagementError("conflict", str(exc)) from exc
+        except OSError as exc:
+            self.manager._profiles = snapshot
+            raise ManagementError("unavailable", str(exc)) from exc
         if profile is None:
             raise ManagementError("not_found", f"Profile not found: {name}")
         return {"profile": profile}
 
     def delete_profile(self, model_id: str, name: str) -> dict[str, Any]:
         self._model(model_id)
-        if not self.manager.delete_profile(model_id, name):
+        try:
+            deleted = self.manager.delete_profile(model_id, name)
+        except OSError as exc:
+            raise ManagementError("unavailable", str(exc)) from exc
+        if not deleted:
             raise ManagementError("not_found", f"Profile not found: {name}")
         return {"deleted": True, "name": name}
 
-    def apply_profile(self, model_id: str, name: str) -> dict[str, Any]:
+    async def apply_profile(self, model_id: str, name: str) -> dict[str, Any]:
+        self._require_mutation_admission()
         entry = self._model(model_id)
+        if entry.is_loading or model_id in self.pool._unloading_models:
+            raise ManagementError("busy", "Model is loading or unloading")
+        previous = self.manager.get_settings(model_id)
+        old_type = (entry.model_type, entry.engine_type)
+        old_signature = self.pool._engine_runtime_signature(model_id, previous)
 
         def validate(values: dict[str, Any]) -> None:
-            self._validate_model_settings(entry, ModelSettings.from_dict(values))
+            ModelSettingsPatch(
+                **{
+                    key: value
+                    for key, value in values.items()
+                    if key in ModelSettingsPatch.model_fields
+                }
+            )
+            candidate = ModelSettings(**values)
+            self._validate_model_settings(entry, candidate)
+            self._validate_drafts(entry, candidate)
 
         try:
             settings = self.manager.apply_profile(
@@ -444,10 +622,26 @@ class ManagementService:
             )
         except ValueError as exc:
             raise ManagementError("invalid_configuration", str(exc)) from exc
+        except OSError as exc:
+            raise ManagementError("unavailable", str(exc)) from exc
         if settings is None:
             raise ManagementError("not_found", f"Profile not found: {name}")
         self.pool.apply_settings_overrides(self.manager)
-        return {"model_id": model_id, "settings": settings.to_dict()}
+        transition = await self._reload_after_settings_change(
+            model_id,
+            entry,
+            old_type,
+            old_signature,
+            force_reload=any(
+                getattr(previous, field) != getattr(settings, field)
+                for field in (
+                    "index_cache_freq",
+                    "dflash_enabled",
+                    "dflash_draft_model",
+                )
+            ),
+        )
+        return {"model_id": model_id, "settings": settings.to_dict(), **transition}
 
     def stats(self, model_id: str, scope: str) -> dict[str, Any]:
         if scope not in {"session", "alltime"}:
@@ -490,6 +684,7 @@ class ManagementService:
         }
 
     async def clear_cache(self, kind: str) -> dict[str, Any]:
+        self._require_mutation_admission()
         if kind not in {"hot", "ssd"}:
             raise ManagementError("not_found", "Unknown cache kind")
         busy = [

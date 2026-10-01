@@ -389,7 +389,7 @@ class TestProfileFieldFiltering:
         p = mgr.get_profile("m", "p")
         assert p["settings"] == {"temperature": 0.5}
 
-    def test_save_and_update_drop_none_and_empty_string_values(self, mgr):
+    def test_save_and_update_preserve_null_resets_and_drop_empty_strings(self, mgr):
         mgr.save_profile(
             "m",
             "p",
@@ -397,14 +397,20 @@ class TestProfileFieldFiltering:
             None,
             {"temperature": 0.5, "max_tokens": None, "max_context_window": ""},
         )
-        assert mgr.get_profile("m", "p")["settings"] == {"temperature": 0.5}
+        assert mgr.get_profile("m", "p")["settings"] == {
+            "temperature": 0.5,
+            "max_tokens": None,
+        }
 
         mgr.update_profile(
             "m",
             "p",
             settings={"top_p": 0.9, "max_tokens": None, "reasoning_parser": ""},
         )
-        assert mgr.get_profile("m", "p")["settings"] == {"top_p": 0.9}
+        assert mgr.get_profile("m", "p")["settings"] == {
+            "top_p": 0.9,
+            "max_tokens": None,
+        }
 
     def test_qwen_ane_prefill_fields_round_trip_as_model_specific(self, mgr):
         settings = {
@@ -434,14 +440,17 @@ class TestProfileFieldFiltering:
         assert applied.qwen35_ane_prefill_gdn_fraction == 0.50
         assert applied.qwen35_ane_prefill_gdn_max_layers == 48
 
-    def test_save_template_drops_none_and_empty_string_values(self, mgr):
+    def test_save_template_preserves_null_resets_and_drops_empty_strings(self, mgr):
         mgr.save_template(
             "t",
             "T",
             None,
             {"temperature": 0.1, "max_tokens": None, "reasoning_parser": ""},
         )
-        assert mgr.get_template("t")["settings"] == {"temperature": 0.1}
+        assert mgr.get_template("t")["settings"] == {
+            "temperature": 0.1,
+            "max_tokens": None,
+        }
 
 
 class TestTemplatesCRUD:

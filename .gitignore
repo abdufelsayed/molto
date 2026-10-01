@@ -18,6 +18,8 @@ eggs/
 .eggs/
 lib/
 lib64/
+!dashboard/src/lib/
+!dashboard/src/lib/**
 parts/
 sdist/
 var/
@@ -104,6 +106,7 @@ omlx/_engine_commits.json
 
 # Generated build info (build-time artifact)
 omlx/_build_info.py
+/omlx/_dashboard/
 
 # Git worktrees
 .worktrees/

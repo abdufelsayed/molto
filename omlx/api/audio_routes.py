@@ -617,28 +617,56 @@ async def create_transcription(
     )
 
 
-def _verify_ws_api_key(api_key: Optional[str]) -> bool:
-    """Verify an in-band API key, including the manual inference opt-in.
+def _verify_ws_api_key(
+    api_key: str | None, websocket: WebSocket | None = None
+) -> bool:
+    """Apply HTTP inference auth to the in-band start frame's key.
 
-    WebSocket connections from browsers cannot carry an Authorization
-    header, so the key arrives inside the {"type": "start"} message.
+    The public bind controls loopback allowances. A private UDS or proxy
+    connection does not turn a public listener into a loopback-only server.
     """
-    from omlx.server import _server_state, allows_unauthenticated_inference
+    from ..auth import verify_any_api_key
+    from ..utils.network import is_loopback_bind
 
-    if allows_unauthenticated_inference():
+    provider = (
+        getattr(websocket.app.state, "management_context_provider", None)
+        if websocket is not None
+        else None
+    )
+    if provider is not None:
+        try:
+            context = provider()
+        except HTTPException:
+            return False
+        gs = context.global_settings
+        main_key = (
+            context.get_api_key()
+            if context.get_api_key
+            else (gs.auth.api_key if gs is not None else None)
+        )
+        active_host = context.get_bind_host() if context.get_bind_host else None
+    else:
+        # Standalone audio-router consumers retain the existing lazy state seam.
+        from omlx.server import _server_state
+
+        gs = _server_state.global_settings
+        main_key = _server_state.api_key
+        active_host = getattr(_server_state, "bind_host", None)
+
+    if gs is not None and gs.auth.allow_unauthenticated_inference is True:
         return True
-    if _server_state.api_key is None:
+    configured_host = getattr(getattr(gs, "server", None), "host", None)
+    if not isinstance(active_host, str):
+        active_host = configured_host if isinstance(configured_host, str) else None
+    loopback_only = active_host is None or is_loopback_bind(active_host)
+    if main_key is None:
+        return loopback_only
+    if gs is not None and gs.auth.skip_api_key_verification and loopback_only:
         return True
-    gs = _server_state.global_settings
-    if gs is not None and gs.auth.skip_api_key_verification:
-        return True
-    if not api_key:
+    if not isinstance(api_key, str) or not api_key:
         return False
-
-    from omlx.auth import verify_any_api_key
-
     sub_keys = gs.auth.sub_keys if gs is not None else []
-    return verify_any_api_key(api_key, _server_state.api_key, sub_keys)
+    return verify_any_api_key(api_key, main_key, sub_keys)
 
 
 @realtime_router.websocket("/v1/audio/transcriptions/realtime")
@@ -674,7 +702,7 @@ async def realtime_transcription(websocket: WebSocket) -> None:
     if not isinstance(start, dict) or start.get("type") != "start":
         await _reject("First message must be a {'type': 'start'} object")
         return
-    if not _verify_ws_api_key(start.get("api_key")):
+    if not _verify_ws_api_key(start.get("api_key"), websocket):
         await _reject("Invalid API key")
         return
     model_id = start.get("model")

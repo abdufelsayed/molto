@@ -14,7 +14,7 @@ import pytest
 
 
 @pytest.fixture
-def module_entry(monkeypatch, tmp_path):
+def module_entry(monkeypatch, tmp_path, request):
     """Run server.main() as ``python -m omlx.server --model-dir <tmp>``."""
     from omlx import server
     from omlx.settings import reset_settings
@@ -35,6 +35,8 @@ def module_entry(monkeypatch, tmp_path):
     model_dir = tmp_path / "models"
     model_dir.mkdir()
     argv = ["omlx.server", "--model-dir", str(model_dir), "--api-key", "test-key"]
+    if hasattr(request, "param"):
+        argv.extend(["--port", str(request.param)])
     with (
         patch.object(sys, "argv", argv),
         # Keep the process-wide allocator setting out of the test run.
@@ -55,6 +57,26 @@ def test_main_reaches_uvicorn_with_model_dir(module_entry):
 def test_main_defaults_to_loopback(module_entry):
     _, uvicorn_run = module_entry
     assert uvicorn_run.call_args.kwargs["host"] == "127.0.0.1"
+
+
+@pytest.mark.parametrize("module_entry", [9123], indirect=True)
+def test_module_port_matches_management_listener(module_entry):
+    from fastapi.testclient import TestClient
+
+    server, uvicorn_run = module_entry
+    response = TestClient(server.app).get(
+        "/management/v1/server/info",
+        headers={"Authorization": "Bearer test-key"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["port"] == uvicorn_run.call_args.kwargs["port"] == 9123
+    server._server_state.global_settings.server.port = 9234
+    pending = TestClient(server.app).get(
+        "/management/v1/server/info",
+        headers={"Authorization": "Bearer test-key"},
+    ).json()
+    assert pending["port"] == 9123
+    assert pending["configured_port"] == 9234
 
 
 def test_main_rejects_network_bind_without_api_key(monkeypatch, tmp_path, capsys):

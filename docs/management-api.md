@@ -3,8 +3,8 @@
 This is the HTTP contract for a script or separate dashboard that controls a
 running oMLX server. The base URL is `http://127.0.0.1:8000` by default;
 all routes below start with `/management/v1`. The management API controls the
-same engine pool used by inference requests. It does not manage the server
-process. Use `omlx serve` or the Homebrew service for that.
+same engine pool used by inference requests. It can request a restart only when a supported supervisor is active. Start and
+configure the process with `omlx serve` or the Homebrew service.
 
 ## Authentication
 
@@ -100,6 +100,13 @@ curl -X POST "$BASE/models/$MODEL/profiles" \
   -d '{"name":"focused","settings":{"temperature":0.2}}'
 ```
 
+Applying a profile uses the same safe unload/reload lifecycle as a model
+settings patch. Its response includes `requires_reload`, `auto_unloaded`,
+`auto_reloaded`, `reload_deferred`, and `reload_error`. Omitted universal
+profile settings reset to their defaults; model-specific settings use an
+additive overlay. Check `/state` after a deferred transition before loading
+the model again.
+
 The accepted fields and validation bounds come from
 `omlx/services/management_models.py`. Inspect `GET /settings` or
 `GET /models/{model_id}/settings` for the current values before patching.
@@ -130,13 +137,93 @@ routes above. Experimental cluster protocol routes under `/admin/api/cluster`
 remain for cluster peers and are outside this management API; they have
 separate enrollment rules and a main-key check for management actions.
 
-The diffusion preparation routes below replace none of the old admin job
-contracts. There are no management routes here for downloads, general model
-conversion, text quantization, update staging, benchmark jobs, storage moves, or browser chat.
-The backend may retain CLI or service utilities for some of those tasks, but
-their old admin HTTP contracts are not available. See
-[backend architecture](backend-architecture.md) and
-[model control](model-control.md).
+The separate dashboard uses the management routes below. Browser chat remains
+outside this API. The new routes do not restore the old admin payloads; migrate
+clients to the current OpenAPI schema and metadata rather than reusing old bodies.
+
+## Extended management routes
+
+The routes below share the `/management/v1` prefix and main-key requirement.
+Use `/openapi.json` for request schemas. Model options and server defaults also
+provide field descriptions, choices, bounds, and capability or restart metadata.
+
+| Area | Routes and behavior |
+| --- | --- |
+| Model configuration | `GET /model-options`, `GET /models/{model_id}/options`; templates CRUD and model template application; presets listing/refresh/application; generation-config inspection/import; model settings reset, recipe, and optimal snapshot inspection/application; `POST /models/{model_id}/import-mtplx` for compatible local sidecars |
+| Library | `GET /workspace/registry`, `GET /workspace/storage`, `POST /workspace/plan`; collections list/save/delete/load; `GET /workspace/export` and `POST /workspace/import` with dry-run preview |
+| Checkpoint maintenance | Under `/workspace/models/{model_id}`: `POST /verify`, `/check-update`, `/stage-update`, `/revision`, `/move`; `GET /delete-plan` then `DELETE /delete` with the returned `plan_token` |
+| Acquisition | Under `/acquisition/{provider}` with `hf` or `ms`: search, recommended models, repository info, and downloads; `POST /downloads` starts a job |
+| Preparation and publishing | `/acquisition/prepare/models`, `/options`, `/convert`, `/estimate`, `/quantize`; `/acquisition/publish/validate` and `/start` |
+| Operations | `GET /operations`, `GET /operations/{id}`, `POST /operations/{id}/cancel` or `/retry`, `DELETE /operations/{id}` for supported history removal |
+| Server configuration | `GET /server/settings`, `GET /server/defaults`, `PATCH /server/settings`; `/server/info`, `/resources`, `/update`, `/integrations`, `/web-search/test`, and supervisor-dependent `/restart` |
+| Keys | `GET /auth/keys`; `POST /auth/subkeys`, `PATCH` or `DELETE /auth/subkeys/{id}`; `PATCH /auth/main-key` and `/auth/policy` |
+| Monitoring | `GET /monitoring/activity`, `/usage`, `/logs`, `/versions`; `POST /monitoring/stats/reset`, `/monitoring/cache/probe` |
+| Diagnostics | `GET /diagnostics/capabilities`, runs list/start, `GET /diagnostics/runs/{id}`, `/results`, and `POST /diagnostics/runs/{id}/cancel` |
+
+### Server configuration and keys
+
+`PATCH /server/settings` accepts nested sections, for example
+`{"sampling":{"temperature":0.7}}`. Omitted fields remain unchanged. The response
+lists changed fields, `live_applied`, and `restart_required`; a successful save
+never implies that a restart occurred. CLI and environment overrides retain
+startup precedence. The service persists explicit edits without copying unrelated
+effective overrides into `settings.json`. `GET /server/info` distinguishes the
+active port from the configured port. Restart returns an unavailable error when
+no supported supervisor is active.
+
+Key inspection returns secret values to a main-key holder. Subkeys have stable
+management IDs and support renaming, replacement, and revocation. Main-key
+rotation takes effect immediately; clients must use the replacement key for
+subsequent requests. Keep these responses out of logs and caches.
+
+`GET /server/resources` is read-only. Optional `tier` and `custom_ceiling_gb`
+queries preview draft memory limits. The response separates `hardware`, `saved`,
+`runtime`, and `draft`, with warnings for unavailable measurements. A suggested
+wired-limit command is copy-only; the endpoint never runs it or changes OS limits.
+
+### Startup collections and imports
+
+A collection with `preload: true` pins its selected models using the existing
+startup preload mechanism. Saving it does not load models immediately. Setting
+`preload: false` or deleting the collection does not automatically unpin models.
+
+Workspace import preview returns `changes`, `affected_model_ids`, `blockers`, and
+`can_apply`. Only changed model records require unload and idle file paths;
+unchanged loaded models do not block an import. Apply revalidates the plan.
+
+MTPLX import requires an unloaded compatible checkpoint within configured roots.
+It validates the sidecar/runtime contract and stages checkpoint changes before
+replacement. Failure triggers rollback. If rollback is incomplete, recovery files
+remain at the location reported by the error; inspect them before retrying.
+
+Moving a cached model moves its whole repository while preserving model identity,
+refs, revisions, and blob links. Explicit external path dependencies block a move.
+Virtual
+profile models have no physical-file maintenance actions. Structural verification
+supports more model types than inference smoke verification; STT and
+speech-to-speech smoke probes are unavailable.
+
+### Work and file ownership
+
+Operation records survive restart, while process-owned workers do not. Abandoned
+operations become `interrupted`; diagnostic runs become `error`; diffusion jobs
+become failed. Nothing resumes automatically. Use the advertised operation
+actions rather than assuming every job can retry or cancel. Provider tokens are
+not durable job payloads and must be supplied again when required.
+
+Cancellation is cooperative and holds admission or file reservations until the
+native worker drains. Conversion, quantization, downloads, and publishing reserve
+paths against conflicting maintenance. Moves, revision activation, and deletion
+recheck model state and dependencies. Delete plans describe blockers and the files
+in scope; a changed plan token requires another preview. A requested unload that
+has not drained cannot authorize file removal.
+
+Local diagnostics take exclusive inference admission after existing requests
+drain. Runners may unload resident models and leave a tested engine warm. Context
+results do not apply settings by default; review and explicitly apply a
+recommendation. Accuracy results are never automatically published to a community
+service. External diagnostic targets and provider operations contact the specified
+remote service.
 
 ## Local diffusion preparation
 

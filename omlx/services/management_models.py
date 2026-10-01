@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ModelSettingsPatch(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
 
     model_alias: str | None = None
     model_type_override: (
@@ -50,9 +50,9 @@ class ModelSettingsPatch(BaseModel):
     deepseek_v41_engram_ssd_offload: bool | None = None
     deepseek_v41_ced_prefill_enabled: bool | None = None
     qwen35_ane_prefill_enabled: bool | None = None
-    qwen35_ane_prefill_fraction: float | None = None
-    qwen35_ane_prefill_shared_fraction: float | None = None
-    qwen35_ane_prefill_sequence_length: int | None = None
+    qwen35_ane_prefill_fraction: float | None = Field(default=None, gt=0, le=1)
+    qwen35_ane_prefill_shared_fraction: float | None = Field(default=None, ge=0, le=1)
+    qwen35_ane_prefill_sequence_length: int | None = Field(default=None, ge=32)
     qwen35_ane_prefill_cpu_enabled: bool | None = None
     qwen35_ane_prefill_gdn: bool | None = None
     turboquant_kv_enabled: bool | None = None
@@ -64,13 +64,95 @@ class ModelSettingsPatch(BaseModel):
     dflash_enabled: bool | None = None
     dflash_draft_model: str | None = None
     mtp_enabled: bool | None = None
-    mtp_adaptive_max_depth: int | None = None
-    mtp_fixed_depth: int | None = None
+    mtp_adaptive_max_depth: int | None = Field(default=None, ge=1, le=8)
+    mtp_fixed_depth: int | None = Field(default=None, ge=1, le=8)
     vlm_mtp_enabled: bool | None = None
     vlm_mtp_draft_model: str | None = None
     is_pinned: bool | None = None
     is_default: bool | None = None
     is_hidden: bool | None = None
+
+    turboquant_skip_last: bool | None = None
+    qwen35_ane_prefill_tail_padding_min_tokens: int | None = Field(default=None, ge=0)
+    qwen35_ane_prefill_fused_down: bool | None = None
+    qwen35_ane_prefill_max_layers: int | None = Field(default=None, ge=1)
+    qwen35_ane_prefill_dual_ane: bool | None = None
+    qwen35_ane_prefill_gdn_fraction: float | None = Field(default=None, ge=0, le=1)
+    qwen35_ane_prefill_gdn_max_layers: int | None = Field(default=None, ge=1)
+    qwen35_ane_prefill_cpu_fraction: float | None = Field(default=None, ge=0, le=1)
+    qwen35_ane_prefill_cpu_down_fraction: float | None = Field(default=None, ge=0, le=1)
+    qwen35_ane_prefill_cpu_gdn_fraction: float | None = Field(default=None, ge=0, le=1)
+    qwen35_ane_prefill_cpu_threads: int | None = Field(default=None, ge=0)
+    qwen35_ane_prefill_cpu_shared_resource: bool | None = None
+    qwen35_oq_a8_enabled: bool | None = None
+    qwen35_oq_a8_min_tokens: int | None = Field(default=None, ge=1)
+    specprefill_keep_pct: float | None = Field(default=None, ge=0, le=1)
+    specprefill_threshold: int | None = Field(default=None, ge=1)
+    dflash_draft_quant_enabled: bool | None = None
+    dflash_draft_quant_weight_bits: int | None = Field(default=None, ge=1)
+    dflash_draft_quant_activation_bits: int | None = Field(default=None, ge=1)
+    dflash_draft_quant_group_size: int | None = Field(default=None, ge=1)
+    dflash_max_ctx: int | None = Field(default=None, ge=1)
+    dflash_in_memory_cache: bool | None = None
+    dflash_in_memory_cache_max_entries: int | None = Field(default=None, ge=0)
+    dflash_in_memory_cache_max_bytes: int | None = Field(default=None, ge=0)
+    dflash_ssd_cache: bool | None = None
+    dflash_ssd_cache_max_bytes: int | None = Field(default=None, ge=0)
+    dflash_draft_window_size: int | None = Field(default=None, ge=1)
+    dflash_draft_sink_size: int | None = Field(default=None, ge=0)
+    dflash_block_size: int | None = Field(default=None, ge=1)
+    dflash_verify_mode: str | None = None
+    vlm_mtp_draft_block_size: int | None = Field(default=None, ge=1)
+    reasoning_parser: str | None = None
+    is_favorite: bool | None = None
+    trust_remote_code: bool | None = None
+    display_name: str | None = None
+    description: str | None = None
+
+    @model_validator(mode="after")
+    def validate_choices(self):
+        choices = {
+            "turboquant_kv_bits": (2, 2.5, 3, 3.5, 4, 6, 8),
+            "dflash_verify_mode": ("dflash", "adaptive", "ddtree", "off"),
+            "dflash_draft_quant_weight_bits": (2, 4, 8),
+            "dflash_draft_quant_activation_bits": (16, 32),
+            "dflash_draft_quant_group_size": (32, 64, 128),
+        }
+        for key, allowed in choices.items():
+            value = getattr(self, key)
+            if value is not None and value not in allowed:
+                raise ValueError(f"{key} must be one of {allowed}")
+        for key in ("mtp_fixed_depth", "mtp_adaptive_max_depth"):
+            value = getattr(self, key)
+            if value is not None and not 1 <= value <= 8:
+                raise ValueError(f"{key} must be between 1 and 8")
+        return self
+
+
+class TemplateWrite(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str
+    display_name: str = ""
+    description: str | None = None
+    settings: ModelSettingsPatch
+
+
+class TemplateUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    new_name: str | None = None
+    display_name: str | None = None
+    description: str | None = None
+    settings: ModelSettingsPatch | None = None
+
+
+class RecipeApply(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    recipe: str = Field(max_length=9000)
+
+
+class OptimalApply(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    benchmark_id: str = Field(pattern=r"^[a-z0-9]{1,16}$")
 
 
 class GlobalSettingsPatch(BaseModel):

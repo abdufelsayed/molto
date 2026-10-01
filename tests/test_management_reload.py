@@ -93,6 +93,7 @@ async def test_refresh_refuses_empty_model_directory_configuration():
 async def test_refresh_waits_until_preparation_releases_admission():
     pool, manager, settings = MagicMock(), MagicMock(), MagicMock()
     pool._preparation_active = True
+    pool.management_operation_allowed.return_value = False
     service, _ = _service(pool, manager, settings)
     with pytest.raises(ManagementError) as error:
         await service.refresh()

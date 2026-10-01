@@ -65,13 +65,18 @@ def test_profile_create_list_update_delete_are_durable(profiles):
     updated = service.update_profile(
         "model-a",
         "coding",
-        ProfileUpdate(display_name="Code", settings=ModelSettingsPatch(temperature=0.1)),
+        ProfileUpdate(
+            display_name="Code", settings=ModelSettingsPatch(temperature=0.1)
+        ),
     )["profile"]
     assert updated["display_name"] == "Code"
     assert updated["settings"]["temperature"] == 0.1
-    assert ModelSettingsManager(manager.base_path).get_profile("model-a", "coding")[
-        "settings"
-    ]["temperature"] == 0.1
+    assert (
+        ModelSettingsManager(manager.base_path).get_profile("model-a", "coding")[
+            "settings"
+        ]["temperature"]
+        == 0.1
+    )
 
     assert service.delete_profile("model-a", "coding") == {
         "deleted": True,
@@ -92,7 +97,10 @@ def test_duplicate_profile_conflicts_without_mutating_storage(profiles):
     assert manager.profiles_file.read_bytes() == before
 
 
-def test_profile_apply_resets_universal_fields_and_preserves_engine_fields(profiles):
+@pytest.mark.asyncio
+async def test_profile_apply_resets_universal_fields_and_preserves_engine_fields(
+    profiles,
+):
     service, _, manager = profiles
     manager.set_settings(
         "model-a",
@@ -104,7 +112,7 @@ def test_profile_apply_resets_universal_fields_and_preserves_engine_fields(profi
     )
     _create(service, temperature=0.2)
 
-    result = service.apply_profile("model-a", "coding")
+    result = await service.apply_profile("model-a", "coding")
 
     assert result["settings"]["temperature"] == 0.2
     assert result["settings"]["guided_grammar_enabled"] is False
@@ -171,7 +179,8 @@ def test_incompatible_profile_settings_do_not_change_storage(profiles):
     assert manager.list_profiles("model-a") == []
 
 
-def test_invalid_merged_profile_is_not_partially_applied(profiles):
+@pytest.mark.asyncio
+async def test_invalid_merged_profile_is_not_partially_applied(profiles):
     service, _, manager = profiles
     manager.set_settings("model-a", ModelSettings(temperature=0.5))
     manager.save_profile(
@@ -184,7 +193,7 @@ def test_invalid_merged_profile_is_not_partially_applied(profiles):
     before = manager.settings_file.read_bytes()
 
     with pytest.raises(ManagementError) as exc_info:
-        service.apply_profile("model-a", "legacy")
+        await service.apply_profile("model-a", "legacy")
 
     assert exc_info.value.code == "invalid_configuration"
     assert manager.settings_file.read_bytes() == before
@@ -192,10 +201,11 @@ def test_invalid_merged_profile_is_not_partially_applied(profiles):
     assert manager.get_settings("model-a").active_profile_name is None
 
 
-def test_missing_profile_and_model_have_semantic_errors(profiles):
+@pytest.mark.asyncio
+async def test_missing_profile_and_model_have_semantic_errors(profiles):
     service, _, _ = profiles
     with pytest.raises(ManagementError) as exc_info:
-        service.apply_profile("model-a", "missing")
+        await service.apply_profile("model-a", "missing")
     assert exc_info.value.code == "not_found"
 
     with pytest.raises(ManagementError) as exc_info:
@@ -226,3 +236,37 @@ def test_rename_and_exposure_survive_metadata_update(profiles):
     assert updated["api_name"] == "coding-api"
     assert manager.get_profile("model-a", "coding") is None
     assert manager.get_profile("model-a", "review") is not None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "deferred,pinned", [(False, False), (True, False), (False, True)]
+)
+async def test_profile_apply_uses_settings_reload_lifecycle(
+    profiles, monkeypatch, deferred, pinned
+):
+    service, pool, manager = profiles
+    manager.set_settings("model-a", ModelSettings(index_cache_freq=2, is_pinned=pinned))
+    entry = pool.get_entry("model-a")
+    entry.engine = object()
+    entry.is_pinned = pinned
+    _create(service, index_cache_freq=5)
+    calls = []
+
+    async def unload(model_id, *, reason, abort_active):
+        calls.append(("unload", model_id, abort_active))
+        return not deferred
+
+    async def load(model_id):
+        calls.append(("load", model_id))
+
+    monkeypatch.setattr(pool, "request_unload", unload)
+    monkeypatch.setattr(pool, "get_engine", load)
+    result = await service.apply_profile("model-a", "coding")
+    assert result["requires_reload"] is True
+    assert result["reload_deferred"] is deferred
+    assert result["auto_unloaded"] is not deferred
+    assert result["auto_reloaded"] is (pinned and not deferred)
+    assert calls[0] == ("unload", "model-a", False)
+    assert (len(calls) == 2) is pinned
+    assert manager.get_settings("model-a").active_profile_name == "coding"

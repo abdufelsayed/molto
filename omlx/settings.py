@@ -71,15 +71,15 @@ def resolve_default_base_path() -> Path:
     return DEFAULT_BASE_PATH
 
 
-def get_system_memory() -> int:
+def detect_system_memory() -> int | None:
     """
-    Return total system RAM in bytes.
+    Return detected total system RAM in bytes, or None when unavailable.
 
     Uses os.sysconf first, then psutil_compat so macOS does not depend on
     psutil's VM stats adapter, which can lag new HOST_VM_INFO64 layouts.
 
     Returns:
-        Total RAM in bytes.
+        Total RAM in bytes, or None if both detectors fail.
     """
     try:
         pages = os.sysconf("SC_PHYS_PAGES")
@@ -99,7 +99,14 @@ def get_system_memory() -> int:
     except Exception as exc:  # noqa: BLE001
         logger.warning("psutil_compat failed to detect system memory: %s", exc)
 
-    # Default to 16GB if detection fails
+    return None
+
+
+def get_system_memory() -> int:
+    """Return system RAM, retaining the historical 16GB runtime fallback."""
+    memory = detect_system_memory()
+    if memory is not None:
+        return memory
     logger.warning("Could not detect system memory, defaulting to 16GB")
     return 16 * 1024**3
 

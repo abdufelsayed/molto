@@ -1711,37 +1711,8 @@ def import_mtplx_sidecar(model_path: Union[str, Path]) -> dict:
     if not mtp_weights:
         raise ValueError(f"No mtp.* tensors found in side-car: {sidecar}")
 
-    # Idempotency: the index (not the header fallback of _shard_key_map,
-    # which would see the not-yet-imported side-car itself) is what the MTP
-    # weight detection reads, so it is the import-completed marker.
-    index_path = output / "model.safetensors.index.json"
-    if index_path.exists():
-        with open(index_path) as f:
-            indexed = json.load(f).get("weight_map") or {}
-        if all(key in indexed for key in mtp_weights):
-            logger.info("MTPLX side-car already imported into %s", output.name)
-            return {"merge_mode": "noop", "mtp_tensors": len(mtp_weights)}
-
-    shard_path = output / GEMMA4_ASSISTANT_MTP_SHARD
-    if set(mtp_weights) == set(sidecar_weights):
-        merge_mode = "rename"
-        if sidecar != shard_path:
-            sidecar.replace(shard_path)
-        mtp_size = _write_mtp_shard_and_merge_index(
-            output, mtp_weights, write_shard=False
-        )
-    else:
-        # VLM-shaped checkpoints need the language_model. prefix on disk.
-        # Materialize before touching files: the loaded arrays lazily
-        # reference the side-car file.
-        merge_mode = "remap"
-        mx.eval(*mtp_weights.values())
-        mtp_size = _write_mtp_shard_and_merge_index(output, mtp_weights)
-        if sidecar.parent == output:
-            # Keep the consumed side-car out of mlx-vlm's *.safetensors
-            # glob; sub-directory side-cars are invisible to it already.
-            sidecar.replace(sidecar.with_name(sidecar.name + ".orig"))
-
+    # Build every candidate before mutating checkpoint files. In particular,
+    # malformed quantization must fail before publishing an import marker.
     donor_quant = (
         config.get("mtplx_mtp_quantization") or config.get("quantization") or {}
     )
@@ -1750,15 +1721,110 @@ def import_mtplx_sidecar(model_path: Union[str, Path]) -> dict:
         {k: GEMMA4_ASSISTANT_MTP_SHARD for k in sidecar_weights},
         recipient_prefix=recipient_prefix,
     )
+    original_config = json.loads(json.dumps(config))
     if quant_entries:
         for section in ("quantization", "quantization_config"):
             section_cfg = config.get(section)
             if isinstance(section_cfg, dict):
                 section_cfg.update(quant_entries)
-
     scope = _mtp_text_scope(config)
     scope["mtp_num_hidden_layers"] = max(_mtp_declared_layers(config), 1)
-    _atomic_write_json(output / "config.json", config)
+    json.dumps(config, allow_nan=False)
+
+    index_path = output / "model.safetensors.index.json"
+    shard_path = output / GEMMA4_ASSISTANT_MTP_SHARD
+    mtp_size = sum(value.nbytes for value in mtp_weights.values())
+    index = None
+    indexed = {}
+    if index_path.exists():
+        with open(index_path) as f:
+            index = json.load(f)
+        if not isinstance(index, dict):
+            raise ValueError("Model weight index must be an object")
+        indexed = index.get("weight_map") or {}
+        if not isinstance(indexed, dict):
+            raise ValueError("Model weight map must be an object")
+        already_indexed = all(
+            indexed.get(key) == GEMMA4_ASSISTANT_MTP_SHARD for key in mtp_weights
+        )
+        if already_indexed and shard_path.is_file() and config == original_config:
+            return {"merge_mode": "noop", "mtp_tensors": len(mtp_weights)}
+        metadata = index.get("metadata") or {}
+        if not isinstance(metadata, dict):
+            raise ValueError("Model index metadata must be an object")
+        metadata["total_size"] = int(metadata.get("total_size", 0) or 0) + sum(
+            value.nbytes for key, value in mtp_weights.items() if key not in indexed
+        )
+        index["metadata"] = metadata
+        index["weight_map"] = {
+            **indexed,
+            **{key: GEMMA4_ASSISTANT_MTP_SHARD for key in mtp_weights},
+        }
+        json.dumps(index, allow_nan=False)
+    elif sidecar == shard_path and config == original_config:
+        return {"merge_mode": "noop", "mtp_tensors": len(mtp_weights)}
+
+    merge_mode = "rename" if set(mtp_weights) == set(sidecar_weights) else "remap"
+    if merge_mode == "remap":
+        # Loaded arrays can lazily reference the sidecar. Materialize while the
+        # original file is still present, before entering the file transaction.
+        mx.eval(*mtp_weights.values())
+    staging = Path(tempfile.mkdtemp(prefix=".mtplx-import-", dir=output))
+    changes = []
+    keep_recovery = False
+
+    def publish(source, destination):
+        if source == destination:
+            return
+        backup = None
+        if destination.exists():
+            backup = staging / f"backup-{len(changes)}-{destination.name}"
+            destination.replace(backup)
+        change = [source, destination, backup, False]
+        changes.append(change)
+        source.replace(destination)
+        change[3] = True
+
+    try:
+        _atomic_write_json(staging / "config.json", config)
+        if index is not None:
+            _atomic_write_json(staging / "index.json", index)
+        if merge_mode == "remap":
+            mx.save_safetensors(
+                str(staging / "shard.safetensors"),
+                mtp_weights,
+                metadata={"format": "mlx"},
+            )
+            publish(staging / "shard.safetensors", shard_path)
+        else:
+            publish(sidecar, shard_path)
+        if index is not None:
+            publish(staging / "index.json", index_path)
+        publish(staging / "config.json", output / "config.json")
+        if merge_mode == "remap" and sidecar.parent == output and sidecar != shard_path:
+            publish(sidecar, sidecar.with_name(sidecar.name + ".orig"))
+    except BaseException as error:
+        rollback_errors = []
+        for source, destination, backup, published in reversed(changes):
+            try:
+                if published:
+                    destination.replace(source)
+                if backup is not None:
+                    backup.replace(destination)
+            except OSError as rollback_error:
+                rollback_errors.append(rollback_error)
+        if rollback_errors:
+            keep_recovery = True
+            raise RuntimeError(
+                f"MTPLX import failed and rollback was incomplete; recovery files retained at {staging}"
+            ) from error
+        raise
+    finally:
+        if not keep_recovery:
+            try:
+                shutil.rmtree(staging)
+            except OSError:
+                logger.warning("MTPLX import temporary files retained at %s", staging)
 
     logger.info(
         "Imported MTPLX side-car into %s (%s, %d tensors, %.2f GB)",
@@ -1768,7 +1834,6 @@ def import_mtplx_sidecar(model_path: Union[str, Path]) -> dict:
         mtp_size / 1e9,
     )
     return {"merge_mode": merge_mode, "mtp_tensors": len(mtp_weights)}
-
 
 def _file_sha256(path: Path) -> str:
     """Chunked sha256 of a file (tokenizer.json can be tens of MB)."""

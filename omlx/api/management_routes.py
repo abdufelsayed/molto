@@ -33,6 +33,12 @@ from ..services.management_models import (
     StateResponse,
     StatsResponse,
 )
+from .management_acquisition_routes import router as acquisition_router
+from .management_diagnostics_routes import router as diagnostics_router
+from .management_model_routes import router as model_options_router
+from .management_monitoring_routes import router as monitoring_router
+from .management_server_routes import router as server_settings_router
+from .management_workspace_routes import router as workspace_router
 
 router = APIRouter(
     prefix="/management/v1",
@@ -155,14 +161,14 @@ async def delete_profile(
 
 @router.post(
     "/models/{model_id:path}/profiles/{name}/apply",
-    response_model=ModelSettingsResponse,
+    response_model=ModelSettingsUpdateResponse,
 )
 async def apply_profile(
     model_id: str,
     name: str,
     service: ManagementService = Depends(get_management_service),
 ):
-    return service.apply_profile(model_id, name)
+    return await service.apply_profile(model_id, name)
 
 
 @router.get("/stats", response_model=StatsResponse)
@@ -236,3 +242,14 @@ async def get_diffusion_job(job_id: str, jobs=Depends(get_diffusion_jobs)):
 @router.post("/diffusion/jobs/{job_id}/cancel", response_model=DiffusionJobView)
 async def cancel_diffusion_job(job_id: str, jobs=Depends(get_diffusion_jobs)):
     return _diffusion_job_call(jobs.cancel, job_id)
+
+
+for feature_router in (
+    acquisition_router,
+    diagnostics_router,
+    model_options_router,
+    monitoring_router,
+    server_settings_router,
+    workspace_router,
+):
+    router.include_router(feature_router)

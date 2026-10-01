@@ -270,6 +270,7 @@ class ServerState:
     # Bind address snapshot for security checks. Unlike GlobalSettings.server.host,
     # this remains unchanged until the process restarts on the new address.
     bind_host: str | None = None
+    bind_port: int | None = None
     settings_manager: Optional[object] = None  # ModelSettingsManager
     global_settings: Optional[object] = None  # GlobalSettings
     process_memory_enforcer: Optional[object] = None  # ProcessMemoryEnforcer
@@ -283,6 +284,37 @@ class ServerState:
     # Snapshot at init_server(). Settings may be edited while this process is
     # running, but routes, navigation, and Bonjour switch together on restart.
     distributed_inference_enabled: bool = False
+
+    def request_restart(self) -> bool:
+        """Request graceful termination only when a supervisor can respawn us."""
+        import signal
+
+        if not os.environ.get("OMLX_SUPERVISED"):
+            return False
+
+        def terminate():
+            marker = os.environ.get("OMLX_RESTART_MARKER")
+            if os.environ.get("OMLX_SUPERVISED") == "application" and marker:
+                try:
+                    settings = self.global_settings
+                    Path(marker).write_text(
+                        json.dumps(
+                            {
+                                "host": (
+                                    settings.server.host if settings else self.bind_host
+                                ),
+                                "port": (
+                                    settings.server.port if settings else self.bind_port
+                                ),
+                            }
+                        )
+                    )
+                except OSError:
+                    logger.exception("Could not record requested application restart")
+            os.kill(os.getpid(), signal.SIGTERM)
+
+        asyncio.get_running_loop().call_later(0.5, terminate)
+        return True
 
 
 # Global server state instance
@@ -678,6 +710,10 @@ async def lifespan(app: FastAPI):
         preload_task.cancel()
         with suppress(asyncio.CancelledError):
             await preload_task
+    management_runtime = getattr(app.state, "management_runtime", None)
+    if management_runtime is not None:
+        await management_runtime.shutdown()
+        app.state.management_runtime = None
     get_server_metrics().close()
     if ttl_task is not None:
         ttl_task.cancel()
@@ -759,6 +795,19 @@ def _management_context() -> ManagementContext:
         get_default_model=lambda: _server_state.default_model,
         set_default_model=lambda model_id: setattr(_server_state, "default_model", model_id),
         apply_sampling=_apply_global_sampling,
+        get_api_key=lambda: _server_state.api_key,
+        set_api_key=lambda key: setattr(_server_state, "api_key", key),
+        get_bind_host=lambda: _server_state.bind_host or "127.0.0.1",
+        get_server_info=lambda: {
+            "version": __version__,
+            "bind_host": _server_state.bind_host,
+            "port": _server_state.bind_port,
+            "restart_supported": bool(os.environ.get("OMLX_SUPERVISED")),
+            "distributed_inference_active": _server_state.distributed_inference_enabled,
+            "supervisor": os.environ.get("OMLX_SUPERVISED"),
+            "uptime_seconds": get_server_metrics().get_snapshot().get("uptime_seconds", 0),
+        },
+        runtime_state=_server_state,
     )
 
 
@@ -866,9 +915,14 @@ async def management_error_handler(request: FastAPIRequest, exc: ManagementError
     status = {
         "not_found": 404,
         "invalid_configuration": 400,
+        "invalid": 422,
         "busy": 409,
         "conflict": 409,
         "unavailable": 503,
+        "persistence": 503,
+        "persistence_failed": 503,
+        "runtime_failed": 500,
+        "rollback_failed": 500,
     }.get(exc.code, 500)
     return JSONResponse(status_code=status, content={"detail": exc.detail})
 
@@ -2172,6 +2226,9 @@ def init_server(
     _server_state.global_settings = global_settings
     _server_state.bind_host = (
         global_settings.server.host if global_settings is not None else None
+    )
+    _server_state.bind_port = (
+        global_settings.server.port if global_settings is not None else 8000
     )
     if allows_unauthenticated_inference():
         logger.warning(
@@ -8256,6 +8313,7 @@ model and sampling defaults are managed via the management API.
     settings = init_settings()
     if args.host is not None:
         settings.server.host = args.host
+    settings.server.port = args.port
     if args.api_key is not None:
         settings.auth.api_key = args.api_key
     errors = settings.validate()

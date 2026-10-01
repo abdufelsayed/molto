@@ -35,12 +35,31 @@ hooks. The native denoising loop remains in mflux. The image engine owns batch
 memory admission and executes generation, cache clearing, switching, and
 release under one lifecycle lock on the shared MLX executor.
 
-`omlx/api/management_routes.py` maps HTTP requests to
-`omlx/services/management.py`. The service takes a `ManagementContext` with
-explicit references to the pool, model settings manager, global settings, and
-callbacks for the current default model and sampling configuration. Importing
-the service does not start the server or create a downloader. The route module
-gets its context from application state during a request.
+`omlx/api/management_routes.py` mounts the core routes and domain routers for
+model options, workspace, acquisition, server settings, monitoring, and diagnostics.
+Services take a `ManagementContext` with explicit pool/settings references and
+runtime callbacks. `management_dependencies.py` retrieves that context from
+application state and lazily creates a process-owned `ManagementRuntime`.
+Importing the routes does not start the server, download weights, or create workers.
+
+`ManagementRuntime` shares operation admission, mutation coordination, and file
+reservations across acquisition and workspace maintenance. Its managers use the
+existing downloader, converter, quantizer, and publishing implementations. Durable
+records describe work; native workers and provider credentials remain process-owned.
+Restart marks abandoned work rather than resuming it. Server shutdown drains runtime
+work before releasing its pool resources.
+
+Local diagnostics use the pool's `exclusive_management` gate. It closes external
+engine admission, waits for leases and scheduler work, then allows the owning run
+to acquire its engine. It does not hold the pool lock throughout inference. Native
+preparation uses its separate exclusive gate and retains ownership through cleanup.
+File readers and writers reserve paths until their workers drain, so maintenance
+cannot remove or move an active source or output. Workspace operations recheck
+state and deletion preview tokens under mutation coordination. Configuration
+imports coordinate only changed model records and expose blockers before apply.
+MTPLX import stages checkpoint changes and rolls back failed replacement; an
+incomplete rollback retains recovery files. Startup collections use persisted
+pinning rather than starting a second preload mechanism.
 
 `omlx/services/diffusion_jobs.py` owns local calibration and quantization jobs,
 progress, durable history, and cooperative cancellation. It runs preparation
@@ -67,20 +86,30 @@ The engine pool owns loaded models only for the current server process.
 Session metrics reset on restart. All-time counters and hourly usage history
 have separate persisted stores. The optional SSD KV cache stores reusable
 blocks and can rebuild its index from compatible saved blocks after restart.
-These stores are separate from model settings. A management request that
-changes scheduler construction options can require a server restart; check
-the `requires_restart` response field.
+These stores are separate from model settings. The legacy flat settings route reports `requires_restart`. The full nested
+server settings route reports field lists in `live_applied` and
+`restart_required`. It persists explicit edits without saving unrelated CLI or
+environment overrides. Process restart is available only through a supported
+supervisor callback.
 
 ## Boundary for a separate dashboard
 
 A dashboard is a client of `/management/v1/*` and `/v1/*`. It should keep its
 own UI state and pass the main bearer key for management. The backend does
-not serve dashboard HTML or provide a browser session. The management API
-currently covers inventory, load and unload, settings, profiles, stats,
-cache inspection or clearing, and local diffusion preparation jobs. It does not replace every operation from the
-old `/admin/api/*` routes. See [model control](model-control.md) for the
-available operations and [README](../README.md#migration-from-the-earlier-app-and-web-ui)
-for migration notes.
+not serve dashboard HTML or provide a browser session. The management API covers inventory and library maintenance, model configuration,
+profiles/templates/presets, acquisition and preparation, publishing, operation
+history, server settings and keys, monitoring/logs/cache, and diagnostics.
+Experimental cluster management remains under its retained protocol routes.
+See [model control](model-control.md) and the [management API](management-api.md).
+The backend serves no browser chat or dashboard assets.
+
+The TanStack Start dashboard maintains a process-local main-key session store.
+Its browser receives an opaque HttpOnly cookie and sends same-origin requests;
+the dashboard server forwards only allowed methods and paths. Main-key rotation
+updates the initiating session and invalidates sessions using the old key.
+Multiple dashboard processes would need shared session state. Resource inspection
+reads hardware and active memory limits and previews draft settings. Suggested OS
+commands remain copy-only.
 
 ## Validation limits
 

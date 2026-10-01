@@ -1,10 +1,9 @@
 # Local usage history
 
 The backend records hourly per-model usage in a local SQLite database. The
-former web dashboard and macOS app no longer display it, and this version
-does not expose history through a REST endpoint. A separate dashboard will
-need an authenticated backend API to read it remotely. History starts when
-recording is enabled; existing all-time totals cannot be backfilled.
+separate dashboard reads it through authenticated
+`GET /management/v1/monitoring/usage`. History starts when recording is enabled;
+existing all-time totals cannot be backfilled.
 
 Usage stays on this server. No telemetry is sent. Only the canonical oMLX model
 ID, hourly bucket, request/token counts, and accumulated durations are stored.
@@ -69,7 +68,7 @@ precision, not exact request-level precision.
 Hourly rows older than 400 days are pruned daily; SQLite reuses freed pages and
 incrementally reclaims space. Idle models do not generate rows. At most 4,096
 pending model/hour aggregates are retained during storage outages; overflow drops
-analytics only. The internal query reports current-process `dropped_requests`
+analytics only. The history query reports current-process `dropped_requests`
 and storage availability. Reads use committed snapshots and never wait for a
 flush. Storage failures do not prevent inference; recoverable write failures
 retry. Corruption found at startup is moved to one `usage.sqlite3.corrupt`
@@ -97,10 +96,18 @@ serving counters are unaffected.
 
 ## Reading history
 
-There is no replacement for the old `GET /admin/api/usage` route. The
-management `GET /stats` route reports session and all-time counters, not
-hourly buckets or model history. For local inspection, open a read-only
-SQLite connection to the configured base path. Schema version 1 has the
+Use `GET /management/v1/monitoring/usage?range=7d` with the main bearer key.
+Supported ranges are `today`, `yesterday`, `7d`, `30d`, `90d`, and `month`.
+Add `model=<canonical-id>` to filter and `include_details=true` for detailed
+buckets. Responses distinguish available, disabled, and unavailable recording
+states; an unavailable database is not an empty usage history.
+
+`GET /management/v1/stats` still reads the separate serving counter store.
+`POST /management/v1/monitoring/stats/reset` resets the selected `session` or
+`alltime` counters without erasing hourly history.
+
+For local inspection, open a read-only SQLite connection to the configured base
+path. Schema version 1 has the
 `model_usage_hourly` table keyed by `timestamp_hour` and canonical `model_id`.
 For example, with `DB` set to the actual database path:
 
@@ -123,8 +130,6 @@ with closing(sqlite3.connect(uri, uri=True)) as db:
 PY
 ```
 
-This is a local storage schema, not a stable dashboard API. The internal
-`UsageHistory.query` method supports today, yesterday, 7/30/90 days, and the
-current month, including model filters and derived rates. A future dashboard
-needs an explicit authenticated backend endpoint before it can use those
-summaries remotely.
+The SQLite schema is local storage. Dashboard clients should use the authenticated
+management endpoint, which calls `UsageHistory.query` for calendar boundaries,
+model filters, and derived rates.

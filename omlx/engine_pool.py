@@ -22,6 +22,7 @@ import os
 import time
 from collections import OrderedDict
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
@@ -345,6 +346,10 @@ class EnginePool:
         self._lock = asyncio.Lock()
         self._preparation_lock = asyncio.Lock()
         self._preparation_active = False
+        self._management_owner: ContextVar[object | None] = ContextVar(
+            f"engine_pool_management_owner_{id(self)}", default=None
+        )
+        self._management_token: object | None = None
         self._current_model_memory = 0
         # Scanned model roots, kept for org-qualified display/upload names.
         self._model_dirs: list[Path] = []
@@ -2031,7 +2036,7 @@ class EnginePool:
             InsufficientMemoryError: If can't free enough memory (all pinned)
             ModelLoadingError: If model is already being loaded
         """
-        if self._preparation_active:
+        if not self.management_operation_allowed():
             raise ModelBusyError(model_id, "start work during diffusion preparation")
         entry = self._entries.get(model_id)
         if (
@@ -2049,7 +2054,7 @@ class EnginePool:
         if ready is not None:
             return ready
         async with self._lock:
-            if self._preparation_active:
+            if not self.management_operation_allowed():
                 raise ModelBusyError(model_id, "start work during diffusion preparation")
             entry = self._entries.get(model_id)
             if not entry:
@@ -2414,6 +2419,55 @@ class EnginePool:
 
             await self._unload_engine(model_id)
             return True
+
+    def management_operation_allowed(self) -> bool:
+        """Whether this caller may mutate or acquire during an exclusive job."""
+        return not self._preparation_active or (
+            self._management_token is not None
+            and self._management_owner.get() is self._management_token
+        )
+
+    @asynccontextmanager
+    async def exclusive_management(self, check_cancel=lambda: None):
+        """Drain existing work, then admit only the runner and its child tasks.
+
+        The runner may load and unload engines through the pool. Its workers must
+        finish before leaving this context. Tokens inherited by surviving tasks
+        cannot authorize a later operation.
+        """
+        async with self._preparation_lock:
+            check_cancel()
+            if self._shutting_down:
+                raise RuntimeError("Engine pool is shutting down")
+            self._preparation_active = True
+            owner_context = None
+            try:
+                while True:
+                    check_cancel()
+                    if self._shutting_down:
+                        raise RuntimeError("Engine pool is shutting down")
+                    async with self._lock:
+                        busy = any(
+                            entry.is_loading
+                            or entry.in_use > 0
+                            or self._entry_has_active_requests(entry)
+                            or self._entry_has_scheduler_work(entry)
+                            for entry in self._entries.values()
+                        )
+                    if not busy:
+                        break
+                    await asyncio.sleep(0.05)
+                check_cancel()
+                if self._shutting_down:
+                    raise RuntimeError("Engine pool is shutting down")
+                self._management_token = object()
+                owner_context = self._management_owner.set(self._management_token)
+                yield
+            finally:
+                self._management_token = None
+                if owner_context is not None:
+                    self._management_owner.reset(owner_context)
+                self._preparation_active = False
 
     @asynccontextmanager
     async def exclusive_preparation(self, check_cancel):

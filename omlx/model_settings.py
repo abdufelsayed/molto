@@ -1123,7 +1123,15 @@ class ModelSettingsManager:
         # construction fields are handled separately by
         # get_exposed_profile_runtime_settings_for_request(), which can
         # trigger an engine variant reload without persisting base settings.
-        merged.update(filter_universal_fields(profile.get("settings", {}) or {}))
+        defaults = ModelSettings()
+        merged.update(
+            {
+                key: getattr(defaults, key) if value is None else value
+                for key, value in filter_universal_fields(
+                    profile.get("settings", {}) or {}
+                ).items()
+            }
+        )
         # A profile overriding penalties / grammar / thinking budget on a
         # vlm_mtp base model would make __post_init__ raise on this
         # request-time merge; drop vlm_mtp for the merged view instead.
@@ -1136,7 +1144,15 @@ class ModelSettingsManager:
     ) -> ModelSettings:
         base = self._settings.get(model_id)
         merged = base.to_dict() if base is not None else {}
-        merged.update(filter_profile_fields(profile.get("settings", {}) or {}))
+        defaults = ModelSettings()
+        merged.update(
+            {
+                key: getattr(defaults, key) if value is None else value
+                for key, value in filter_profile_fields(
+                    profile.get("settings", {}) or {}
+                ).items()
+            }
+        )
         merged, _ = resolve_vlm_mtp_conflicts(merged)
         merged, _ = resolve_qwen35_prefill_conflicts(merged)
         return ModelSettings.from_dict(merged)
@@ -1510,7 +1526,11 @@ class ModelSettingsManager:
         merged = {
             k: v for k, v in current.to_dict().items() if k not in UNIVERSAL_FIELDS_SET
         }
-        overlay = filter_profile_fields(profile_settings)
+        defaults = ModelSettings()
+        overlay = {
+            key: getattr(defaults, key) if value is None else value
+            for key, value in filter_profile_fields(profile_settings).items()
+        }
         merged.update(overlay)
         # A profile that sets the Lightning MTP toggle also owns the depth
         # choice; no fixed depth there selects adaptive depth.

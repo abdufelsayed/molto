@@ -57,9 +57,10 @@ curl -X PATCH "$BASE/models/$MODEL/settings" \
 
 An omitted field stays unchanged. For model settings, an explicit `null`
 restores that field's default. `GET /models/{model_id}/settings` returns the
-current values. The API does not offer every field from the old web admin
-pages; its accepted patch schema is in
-`omlx/services/management_models.py`.
+current values. Use `GET /models/{model_id}/options` for field metadata and capability reasons.
+The accepted patch schema is in `omlx/services/management_models.py`; unsupported
+model-specific options are rejected. Templates, presets, generation-config import,
+recipes, and optimal snapshots provide additional ways to select settings.
 
 When `requires_reload` is true, the backend requests an unload without
 aborting active requests. If the model is idle, `auto_unloaded` is true; a
@@ -78,6 +79,12 @@ with `DELETE /profiles/{name}`. The body for creation includes `name` and
 `settings`. Profiles can optionally expose a separate API model ID. See the
 [management API](management-api.md#load-and-settings-example) for a request.
 
+Applying a profile follows the same unload/reload lifecycle and returns the
+same transition flags as a model settings patch. Omitted universal fields
+reset to their defaults; model-specific fields retain their existing values
+unless the profile supplies an override. Active requests are allowed to
+finish before a required unload.
+
 ## Inspect and clear cache
 
 `GET /cache` reports cache statistics for loaded models and the configured
@@ -87,15 +94,51 @@ unloaded models. A later matching prompt may have to recompute its prefix.
 `GET /stats` reports session counters by default and accepts
 `scope=alltime` or a `model_id` query.
 
-## Limits of this API
+## Maintain the local library
 
-The former workspace also offered checkpoint verification, downloads,
-conversion, quantization, update staging, storage moves, collections, and a
-shared job queue. Those old HTTP contracts remain removed. The current API
-includes local-only
-[diffusion preparation jobs](management-api.md#local-diffusion-preparation)
-for calibration and calibrated transformer quantization. Their history persists,
-but interrupted jobs fail rather than resume automatically. Model loading and
-settings use the running engine pool and persisted settings; restarting the
-server does not keep a model resident. Experimental cluster protocol routes
-remain separate from this API.
+Use `GET /workspace/registry` for complete and incomplete local artifacts and
+`GET /workspace/storage` for configured roots. `POST /workspace/plan` estimates
+residency and eviction for selected models. Collections save reusable model lists.
+Preload collections persist pinning for the existing startup loader; saving does
+not load immediately, and removing preload does not automatically unpin.
+Configuration export/import moves settings and profiles, not checkpoint weights;
+preview an import with `dry_run: true` before applying it. The preview includes
+changed fields, affected model IDs, blockers, and `can_apply`. Only changed model
+records require unload; application rechecks their state.
+
+Each model supports structural or smoke verification, update checking and staging,
+revision activation, storage moves, and deletion previews under
+`/workspace/models/{model_id}`. File changes are guarded against active work,
+default or pinned models, dependencies, and overlapping operation paths. Request
+`GET /delete-plan` before `DELETE /delete`, and include its `plan_token`. If the
+model must unload, explicitly request draining and wait for completion. Moves
+preserve model IDs and move a cached model's whole repository, including refs,
+revisions, and shared blobs. Explicit external path dependencies block a move.
+Virtual profile
+models have no physical-file actions. STT and speech-to-speech verification is
+structural only because no smoke probe is available.
+
+`POST /models/{model_id}/import-mtplx` imports a compatible local MTPLX sidecar
+into an unloaded checkpoint. Changes are staged and rollback restores previous
+files on failure. An incomplete rollback reports retained recovery files for
+inspection before retry.
+
+## Acquire and prepare models
+
+The acquisition API searches Hugging Face and ModelScope and starts downloads.
+Local preparation supports conversion, quantization estimates, and oQ quantization.
+Publishing requires a provider token and an explicit destination. Availability
+depends on installed optional dependencies and checkpoint compatibility. Inspect
+preparation options before starting work.
+
+Track jobs through `/operations`; the response advertises supported cancel and
+retry actions. History persists, but workers cannot survive a server restart.
+Interrupted work needs an explicit retry and may need a fresh provider token.
+Cancellation waits for native work to stop before releasing file reservations.
+Local [diffusion preparation](management-api.md#local-diffusion-preparation) has
+its own job endpoint and compatible-checkpoint requirements.
+
+Local diagnostic runs can unload models while benchmarking or probing limits.
+They do not apply context recommendations or publish accuracy results by default.
+Review the impact and result before applying a recommendation. Experimental
+cluster management uses the separate retained cluster protocol.

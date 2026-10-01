@@ -101,24 +101,39 @@ class ModelControlStore:
 
     def put(self, section: str, key: str, value: Any) -> None:
         with self._lock:
+            previous = json.loads(json.dumps(self._data))
             self._data.setdefault(section, {})[key] = value
-            self._save_locked()
+            try:
+                self._save_locked()
+            except BaseException:
+                self._data = previous
+                raise
 
     def remove(self, section: str, key: str) -> bool:
         with self._lock:
             target = self._data.setdefault(section, {})
             if key not in target:
                 return False
+            previous = json.loads(json.dumps(self._data))
             del target[key]
-            self._save_locked()
+            try:
+                self._save_locked()
+            except BaseException:
+                self._data = previous
+                raise
             return True
 
     def merge(self, section: str, values: dict[str, Any]) -> None:
         if not values:
             return
         with self._lock:
+            previous = json.loads(json.dumps(self._data))
             self._data.setdefault(section, {}).update(values)
-            self._save_locked()
+            try:
+                self._save_locked()
+            except BaseException:
+                self._data = previous
+                raise
 
     def export_state(self) -> dict[str, Any]:
         with self._lock:
@@ -1266,14 +1281,14 @@ class ModelControl:
         self.store.put("operations", operation_id, operation)
 
         async def execute() -> None:
-            self.update_operation(
-                operation_id,
-                status="running",
-                stage="running",
-                progress=5.0,
-                started_at=_utcnow(),
-            )
             try:
+                self.update_operation(
+                    operation_id,
+                    status="running",
+                    stage="running",
+                    progress=5.0,
+                    started_at=_utcnow(),
+                )
                 result = await runner(operation_id)
             except asyncio.CancelledError:
                 self.update_operation(
@@ -1303,7 +1318,23 @@ class ModelControl:
             finally:
                 self._tasks.pop(operation_id, None)
 
-        self._tasks[operation_id] = asyncio.create_task(execute())
+        task = asyncio.create_task(execute())
+        self._tasks[operation_id] = task
+
+        def finalized(completed):
+            self._tasks.pop(operation_id, None)
+            # A task cancelled before its first instruction never enters execute.
+            if completed.cancelled():
+                current = self.store.get("operations", operation_id)
+                if current and current.get("status") in _ACTIVE_OPERATION_STATES:
+                    self.update_operation(
+                        operation_id,
+                        status="cancelled",
+                        stage="cancelled",
+                        finished_at=_utcnow(),
+                    )
+
+        task.add_done_callback(finalized)
         return operation
 
     def update_operation(self, operation_id: str, **updates: Any) -> dict[str, Any]:

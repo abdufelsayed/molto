@@ -127,15 +127,8 @@ PROFILE_FIELDS_SET = UNIVERSAL_FIELDS_SET | frozenset(MODEL_SPECIFIC_PROFILE_FIE
 def _filter_and_sanitize(
     data: dict[str, Any], allowed: frozenset[str]
 ) -> dict[str, Any]:
-    """Keep allowlisted keys that carry a real value.
-
-    None and "" are "unset" markers (older clients stored them for cleared
-    inputs); under snapshot apply an unset field must be absent, so both are
-    dropped on save and when overlaying stored (possibly legacy) records.
-    """
-    return {
-        k: v for k, v in data.items() if k in allowed and v is not None and v != ""
-    }
+    """Preserve explicit null resets; omit legacy empty strings and unknown keys."""
+    return {k: v for k, v in data.items() if k in allowed and v != ""}
 
 
 def filter_universal_fields(data: dict[str, Any]) -> dict[str, Any]:
