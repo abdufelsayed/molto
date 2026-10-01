@@ -1,15 +1,35 @@
 import assert from "node:assert/strict"
-import { createServer } from "node:http"
+import { createServer, request as httpRequest } from "node:http"
 import { readFile } from "node:fs/promises"
 import { once } from "node:events"
 import { test } from "node:test"
 import ts from "typescript"
 import { H3, toNodeHandler } from "nitro/h3"
 
-const source = await readFile(
+let source = await readFile(
   new URL("../src/server/inference-proxy.server.ts", import.meta.url),
   "utf8"
 )
+const schema = await readFile(
+  new URL("../src/lib/openapi.json", import.meta.url),
+  "utf8"
+)
+const targetSource = (
+  await readFile(
+    new URL("../src/server/management-target.server.ts", import.meta.url),
+    "utf8"
+  )
+)
+  .replace(
+    'import openapi from "@/lib/openapi.json"',
+    `const openapi = ${schema}`
+  )
+  .replace("export function operationTarget", "function operationTarget")
+source = source.replace(
+  'import { operationTarget } from "./management-target.server"',
+  () => targetSource
+)
+
 const compiled = ts.transpileModule(
   source.replaceAll(
     '"nitro/h3"',
@@ -247,6 +267,158 @@ await test("remote cluster protocol has an explicit method inventory and forward
         assert.equal(inferencePathAllowed(path, "GET"), false)
       }
       assert.equal(calls, allowed.length)
+    }
+  )
+})
+
+await test("CLI management gateway requires explicit key, blocks browser/setup/unsafe operations, preserves upstream errors", async () => {
+  const calls = []
+  await fixture(
+    async (req, res) => {
+      const chunks = []
+      for await (const chunk of req) chunks.push(chunk)
+      calls.push({ path: req.url, body: Buffer.concat(chunks).toString() })
+      assert.equal(req.headers.authorization, "Bearer cli-main-key")
+      assert.equal(req.headers.cookie, undefined)
+      assert.equal(req.headers["x-forwarded-for"], "127.0.0.1")
+      if (req.url === "/management/v1/state") {
+        res.writeHead(403, { "content-type": "application/json" })
+        res.end(JSON.stringify({ detail: "Main key required" }))
+      } else {
+        res.writeHead(200, { "content-type": "application/json" })
+        res.end(JSON.stringify({ saved: true }))
+      }
+    },
+    async (origin) => {
+      const headers = {
+        authorization: "Bearer cli-main-key",
+        cookie: "omlx_dashboard_session=admin",
+        "content-type": "application/json",
+        "x-forwarded-for": "forged",
+      }
+      for (const authorization of [
+        undefined,
+        "",
+        "Basic key",
+        "Bearer",
+        "Bearer key extra",
+      ]) {
+        assert.equal(
+          (
+            await fetch(`${origin}/api/management/v1/state`, {
+              headers: authorization === undefined ? {} : { authorization },
+            })
+          ).status,
+          401
+        )
+      }
+      assert.equal(
+        (
+          await fetch(`${origin}/api/management/v1/state`, {
+            headers: { ...headers, origin },
+          })
+        ).status,
+        403
+      )
+      for (const [path, method] of [
+        ["setup", "POST"],
+        ["setup/status", "GET"],
+        ["state", "DELETE"],
+        ["models/a%5Cb/settings", "PATCH"],
+        ["models/a%252fb/settings", "PATCH"],
+        ["state/not-real", "GET"],
+      ]) {
+        assert.equal(
+          (
+            await fetch(`${origin}/api/management/v1/${path}`, {
+              method,
+              headers,
+            })
+          ).status,
+          404
+        )
+      }
+      const canonicalPathStatus = await new Promise((resolve, reject) => {
+        const request = httpRequest(
+          {
+            hostname: "127.0.0.1",
+            port: new URL(origin).port,
+            path: "/api/management/v1/models/%2e%2e/state",
+            headers,
+          },
+          (response) => {
+            response.resume()
+            resolve(response.statusCode)
+          }
+        )
+        request.on("error", reject)
+        request.end()
+      })
+      assert.equal(canonicalPathStatus, 404)
+      assert.equal(calls.length, 0)
+      const rejectedKey = await fetch(`${origin}/api/management/v1/state`, {
+        headers,
+      })
+      assert.equal(rejectedKey.status, 403)
+      assert.equal(rejectedKey.headers.get("cache-control"), "no-store")
+      assert.deepEqual(await rejectedKey.json(), {
+        detail: "Main key required",
+      })
+      const body = '{"temperature":0.7}'
+      assert.equal(
+        (
+          await fetch(`${origin}/api/management/v1/models/org/model/settings`, {
+            method: "PATCH",
+            headers,
+            body,
+          })
+        ).status,
+        200
+      )
+      assert.equal(
+        (
+          await fetch(`${origin}/api/management/v1/cluster/deployments`, {
+            headers,
+          })
+        ).status,
+        200
+      )
+      assert.deepEqual(calls, [
+        { path: "/management/v1/state", body: "" },
+        { path: "/management/v1/models/org/model/settings", body },
+        { path: "/admin/api/cluster/deployments", body: "" },
+      ])
+    }
+  )
+})
+
+await test("CLI management gateway streams upstream events without buffering", async () => {
+  let finish
+  const release = new Promise((resolve) => {
+    finish = resolve
+  })
+  await fixture(
+    (req, res) => {
+      assert.equal(req.url, "/management/v1/state")
+      res.writeHead(200, { "content-type": "text/event-stream" })
+      res.write("data: first\n\n")
+      void release.then(() => res.end("data: complete\n\n"))
+    },
+    async (origin) => {
+      const response = await fetch(`${origin}/api/management/v1/state`, {
+        headers: { authorization: "Bearer cli-main-key" },
+      })
+      assert.equal(response.headers.get("content-type"), "text/event-stream")
+      const reader = response.body.getReader()
+      assert.equal(
+        new TextDecoder().decode((await reader.read()).value),
+        "data: first\n\n"
+      )
+      finish()
+      assert.equal(
+        new TextDecoder().decode((await reader.read()).value),
+        "data: complete\n\n"
+      )
     }
   )
 })

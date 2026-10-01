@@ -32,7 +32,9 @@ class IntegrationContext:
 
     @property
     def base_url(self) -> str:
-        return f"http://{self.host}:{self.port}"
+        from ..cli_client import server_url
+
+        return server_url(self.host, self.port)
 
     @property
     def openai_base_url(self) -> str:
@@ -151,7 +153,13 @@ class Integration:
                         continue
                     return models_info[idx]["id"]
                 print(f"Please enter 1-{len(models_info)}")
-            except (ValueError, EOFError):
+            except EOFError:
+                print(
+                    "Model selection needs input. Supply --model when running unattended.",
+                    file=sys.stderr,
+                )
+                sys.exit(2)
+            except ValueError:
                 print(f"Please enter 1-{len(models_info)}")
 
     def _write_json_config(

@@ -7,10 +7,30 @@ import ts from "typescript"
 import nodeAdapter from "crossws/adapters/node"
 import WebSocket from "crossws/websocket"
 
-const helperSource = await readFile(
+let helperSource = await readFile(
   new URL("../src/server/inference-proxy.server.ts", import.meta.url),
   "utf8"
 )
+const schema = await readFile(
+  new URL("../src/lib/openapi.json", import.meta.url),
+  "utf8"
+)
+const targetSource = (
+  await readFile(
+    new URL("../src/server/management-target.server.ts", import.meta.url),
+    "utf8"
+  )
+)
+  .replace(
+    'import openapi from "@/lib/openapi.json"',
+    `const openapi = ${schema}`
+  )
+  .replace("export function operationTarget", "function operationTarget")
+helperSource = helperSource.replace(
+  'import { operationTarget } from "./management-target.server"',
+  () => targetSource
+)
+
 const compile = (source) =>
   `data:text/javascript;base64,${Buffer.from(ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText).toString("base64")}`
 const helper = compile(

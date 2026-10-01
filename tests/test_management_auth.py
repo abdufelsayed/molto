@@ -77,6 +77,22 @@ def test_explicit_loopback_skip_allows_management(client):
     assert client.get("/management/v1/state").status_code == 401
 
 
+def test_explicit_management_credentials_are_checked_with_local_bypass(client):
+    _server_state.global_settings.auth.skip_api_key_verification = True
+    assert client.get("/management/v1/state").status_code == 503
+    for key in ("sub-key", "invalid-key"):
+        response = client.get(
+            "/management/v1/state", headers={"Authorization": f"Bearer {key}"}
+        )
+        assert response.status_code == 401
+    assert (
+        client.get(
+            "/management/v1/state", headers={"Authorization": "Bearer main-key"}
+        ).status_code
+        == 503
+    )
+
+
 def test_legacy_load_accepts_subkey_but_unload_requires_main(client, monkeypatch):
     entry = SimpleNamespace(engine=object(), is_loading=False)
     pool = SimpleNamespace(

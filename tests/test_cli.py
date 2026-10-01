@@ -98,7 +98,7 @@ class TestCLIHelp:
         assert "restart" in stdout_lower
         assert "diagnose" not in stdout_lower
 
-    def test_homebrew_start_help_has_no_app_wait_flags(self):
+    def test_start_help_has_readiness_and_local_options(self):
         result = subprocess.run(
             [sys.executable, "-m", "omlx.cli", "start", "--help"],
             capture_output=True,
@@ -106,13 +106,14 @@ class TestCLIHelp:
             timeout=10,
         )
         assert result.returncode == 0
-        assert "Homebrew service" in result.stdout
-        assert "--timeout" not in result.stdout
-        assert "--no-wait" not in result.stdout
+        assert "background" in result.stdout
+        assert "--timeout" in result.stdout
+        assert "--no-wait" in result.stdout
+        assert "--base-path" in result.stdout
 
 
 class TestLifecycleCommand:
-    """Tests for Homebrew service commands and foreground guidance."""
+    """CLI presentation is independent of the lifecycle manager."""
 
     @staticmethod
     def _args(command, **overrides):
@@ -120,39 +121,17 @@ class TestLifecycleCommand:
         values.update(overrides)
         return SimpleNamespace(**values)
 
-    @pytest.mark.parametrize("command", ["start", "stop", "restart"])
-    def test_homebrew_lifecycle_delegates_to_brew_services(
-        self, command, monkeypatch
-    ):
-        """Homebrew installs use the Homebrew service supervisor."""
-        import omlx.utils.install as install
-        from omlx import cli
+    @pytest.mark.parametrize("command", ["start", "stop", "restart", "status"])
+    def test_lifecycle_delegates_to_owned_manager(self, command, monkeypatch, capsys):
+        from omlx import cli, cli_lifecycle
 
-        monkeypatch.setattr(install, "is_homebrew", lambda: True)
-        run_brew = MagicMock(return_value=0)
-        monkeypatch.setattr(cli, "_run_brew_services", run_brew)
-
-        assert cli.lifecycle_command(self._args(command)) == 0
-        run_brew.assert_called_once_with(command)
-
-    def test_pip_start_points_to_foreground_serve(self, monkeypatch, capsys):
-        import omlx.utils.install as install
-        from omlx import cli
-
-        monkeypatch.setattr(install, "is_homebrew", lambda: False)
-        assert cli.lifecycle_command(self._args("start")) == 1
-        assert "omlx serve" in capsys.readouterr().out
-
-    @pytest.mark.parametrize("command", ["stop", "restart"])
-    def test_pip_stop_restart_points_to_terminal(self, command, monkeypatch, capsys):
-        import omlx.utils.install as install
-        from omlx import cli
-
-        monkeypatch.setattr(install, "is_homebrew", lambda: False)
-        assert cli.lifecycle_command(self._args(command)) == 1
+        manager = MagicMock(return_value={"manager": "local", "state": "running"})
+        monkeypatch.setattr(cli_lifecycle, "run", manager)
+        args = self._args(command, json=True)
+        assert cli.lifecycle_command(args) == 0
+        manager.assert_called_once_with(args)
         output = capsys.readouterr().out
-        assert "Homebrew services only" in output
-        assert "Ctrl+C" in output
+        assert json.loads(output)["state"] == "running"
 
 
 class TestCLIEntryPoint:
@@ -1152,7 +1131,9 @@ class TestServeCommandFunctions:
 
         monkeypatch.delenv("OMLX_INTERNAL_FD", raising=False)
         monkeypatch.setattr("omlx.settings.init_settings", lambda **kwargs: settings)
-        monkeypatch.setattr(application, "dashboard_command", lambda: ["node", "index.mjs"])
+        monkeypatch.setattr(
+            application, "dashboard_command", lambda: ["node", "index.mjs"]
+        )
         monkeypatch.setattr(application, "bind_public", tracking_bind)
         try:
             with pytest.raises(SystemExit) as exc:
@@ -1169,7 +1150,9 @@ class TestServeCommandFunctions:
                 sys.modules["omlx.server"] = previous_server
 
     @pytest.mark.parametrize("restarted", [False, True])
-    def test_serve_hands_prebound_socket_to_uvicorn(self, tmp_path, monkeypatch, restarted):
+    def test_serve_hands_prebound_socket_to_uvicorn(
+        self, tmp_path, monkeypatch, restarted
+    ):
         """Successful serve startup should pass the pre-bound socket into uvicorn."""
         import omlx
         from omlx.cli import serve_command
@@ -1178,7 +1161,14 @@ class TestServeCommandFunctions:
         settings = self._make_settings(tmp_path, host=host, port=port)
         args = self._make_serve_args(tmp_path, host=host, port=8000)
         saved = tmp_path / "settings.json"
-        saved.write_text(json.dumps({"server": {"host": host, "port": 9000}, "auth": {"api_key": "saved-key"}}))
+        saved.write_text(
+            json.dumps(
+                {
+                    "server": {"host": host, "port": 9000},
+                    "auth": {"api_key": "saved-key"},
+                }
+            )
+        )
         persistent = GlobalSettings.load(base_path=str(tmp_path), cli_args=args)
         persistent.auth.api_key = "runtime-secret"
         settings.save_cli_overrides = MagicMock(wraps=persistent.save_cli_overrides)
@@ -1618,7 +1608,9 @@ class TestSavedNetworkAuthMigration:
         self.data["server"]["host"] = "127.0.0.1"
         assert json.loads(self.path.read_text()) == self.data
         assert settings.server.host == "127.0.0.1"
-        assert "API-key verification enabled in settings.json" in capsys.readouterr().out
+        assert (
+            "API-key verification enabled in settings.json" in capsys.readouterr().out
+        )
 
     @pytest.mark.parametrize(
         "case", ["cli", "env", "authenticated", "loopback", "invalid"]
@@ -1669,12 +1661,15 @@ class TestSavedNetworkAuthMigration:
         assert settings.server.host == "0.0.0.0"
         assert settings.validate() == []
 
-
-    def test_migration_does_not_persist_runtime_secrets_or_cli_overrides(self, monkeypatch):
+    def test_migration_does_not_persist_runtime_secrets_or_cli_overrides(
+        self, monkeypatch
+    ):
         self.write_settings()
         monkeypatch.setenv("OMLX_API_KEY", "runtime-secret")
         self.args.port = 9001
-        settings = GlobalSettings.load(base_path=str(self.path.parent), cli_args=self.args)
+        settings = GlobalSettings.load(
+            base_path=str(self.path.parent), cli_args=self.args
+        )
         assert settings.auth.api_key == "runtime-secret"
         assert settings.server.port == 9001
         _migrate_saved_network_auth(settings, self.args)

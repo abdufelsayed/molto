@@ -48,7 +48,9 @@ def mflux_save_command(args) -> int:
         from .mflux_conversion import convert_mflux_model
 
         result = convert_mflux_model(
-            args.model, args.output, args.quantize,
+            args.model,
+            args.output,
+            args.quantize,
             base_model=getattr(args, "base_model", None),
             pipeline=getattr(args, "pipeline", None),
             revision=getattr(args, "revision", None),
@@ -213,6 +215,7 @@ def serve_command(args):
         raise SystemExit(run_application(settings, cli_args=args))
 
     import socket
+
     import uvicorn
 
     from . import process_title
@@ -227,14 +230,20 @@ def serve_command(args):
     except ImportError:
         build_number = None
 
-    # Print version banner
-    print(f"\033[33moMLX - LLM inference, optimized for your Mac\033[0m")
-    print(f"\033[33m├─ https://github.com/jundot/omlx\033[0m")
+    # Redirected startup logs and NO_COLOR stay plain text.
+    colored = (
+        sys.stdout.isatty()
+        and "NO_COLOR" not in os.environ
+        and not getattr(args, "no_color", False)
+    )
+    prefix, suffix = ("\033[33m", "\033[0m") if colored else ("", "")
+    print(f"{prefix}oMLX - LLM inference, optimized for your Mac{suffix}")
+    print(f"{prefix}├─ https://github.com/jundot/omlx{suffix}")
     if build_number:
-        print(f"\033[33m├─ Version: {__version__}\033[0m")
-        print(f"\033[33m└─ Build: {build_number}\033[0m")
+        print(f"{prefix}├─ Version: {__version__}{suffix}")
+        print(f"{prefix}└─ Build: {build_number}{suffix}")
     else:
-        print(f"\033[33m└─ Version: {__version__}\033[0m")
+        print(f"{prefix}└─ Version: {__version__}{suffix}")
     print()
 
     # Initialize global settings first (to get log_level from file if not specified)
@@ -376,8 +385,8 @@ def serve_command(args):
 
     try:
         # Import server and config after the port is known to be available.
-        from .server import init_server
         from .config import parse_size
+        from .server import init_server
 
         model_dirs = settings.get_effective_model_dirs()
         print(f"Base path: {settings.base_path}")
@@ -547,11 +556,17 @@ def launch_command(args, extra_args: list[str] | None = None):
     # but not connectable — fall back to localhost in that case.
     first_bind = [h.strip() for h in host.split(",") if h.strip()][0] if host else ""
     connect_host = (
-        first_bind if first_bind not in ("", "0.0.0.0", "::") else "127.0.0.1"
+        "::1"
+        if first_bind == "::"
+        else first_bind
+        if first_bind not in ("", "0.0.0.0")
+        else "127.0.0.1"
     )
 
     # Check if oMLX server is running
-    base_url = f"http://{connect_host}:{port}"
+    from .cli_client import server_url
+
+    base_url = server_url(connect_host, port)
     try:
         resp = requests.get(f"{base_url}/health", timeout=3)
         resp.raise_for_status()
@@ -610,8 +625,20 @@ def launch_command(args, extra_args: list[str] | None = None):
                 for m in data.get("data", [])
                 if m.get("model_type") in ("llm", "vlm", None)
             ]
-        except Exception:
-            models = []
+        except requests.HTTPError as exc:
+            if exc.response is not None and exc.response.status_code in (401, 403):
+                print("Model access denied. Check your API key.", file=sys.stderr)
+            else:
+                print(
+                    "The server could not list models. Check its logs.", file=sys.stderr
+                )
+            sys.exit(1)
+        except (requests.RequestException, ValueError, KeyError, TypeError):
+            print(
+                "Could not retrieve the model list. Check the server connection.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
         if not models:
             print("No models available. Load a model first.")
@@ -708,33 +735,82 @@ def launch_command(args, extra_args: list[str] | None = None):
     integration.launch(ctx)
 
 
-def _run_brew_services(command: str) -> int:
-    import shutil
-    import subprocess
-
-    brew = shutil.which("brew")
-    if not brew:
-        print("Homebrew is not available on PATH.")
-        return 1
-    result = subprocess.run([brew, "services", command, "omlx"])
-    return result.returncode
-
-
 def lifecycle_command(args) -> int:
-    """Run Homebrew service commands when oMLX is installed through Homebrew."""
-    from .utils.install import is_homebrew
+    """Manage the bundled application without importing the inference runtime."""
+    from .cli_lifecycle import run
+    from .cli_output import Output
 
-    command = args.command
+    output = Output(args)
+    with output.watch(f"{args.command.capitalize()} oMLX server…"):
+        result = run(args)
+    output.emit(result, title="oMLX server")
+    return 0
 
-    if is_homebrew():
-        return _run_brew_services(command)
 
-    if command == "start":
-        print("Start the server in the foreground with: omlx serve")
-    else:
-        print("Background stop/restart is available for Homebrew services only.")
-        print("For a foreground server, stop it in its terminal with Ctrl+C.")
-    return 1
+def init_command(args) -> int:
+    """Use the existing guarded setup endpoint for a fresh local server."""
+    import getpass
+    import os
+
+    from .auth import validate_api_key
+    from .cli_client import (
+        CLIError,
+        ManagementClient,
+        loopback_origin,
+        resolve_connection,
+    )
+    from .cli_output import Output
+
+    output = Output(args)
+    url, key, _ = resolve_connection(args, require_key=False)
+    if not loopback_origin(url):
+        raise CLIError(
+            "Initial setup requires a loopback URL and a locally bound server.", 2
+        )
+    client = ManagementClient(url, "", getattr(args, "timeout", 30))
+    try:
+        status = client.public_request("GET", "/api/setup")
+        if not status.get("allowed"):
+            raise CLIError(status.get("reason") or "Initial setup is unavailable.", 3)
+        if not status.get("setup_required"):
+            output.emit(
+                {
+                    "configured": True,
+                    "message": "A main key already exists. Use it for management commands.",
+                }
+            )
+            return 0
+        explicit = (
+            getattr(args, "api_key", None)
+            or getattr(args, "api_key_file", None)
+            or os.environ.get("OMLX_API_KEY")
+        )
+        if not explicit:
+            if not sys.stdin.isatty() or output.json:
+                raise CLIError(
+                    "Provide the new key through OMLX_API_KEY or --api-key-file for unattended setup.",
+                    2,
+                )
+            try:
+                key = getpass.getpass("New main API key: ")
+                confirmation = getpass.getpass("Confirm main API key: ")
+            except EOFError as exc:
+                raise CLIError("Operation cancelled.", 130) from exc
+            if key != confirmation:
+                raise CLIError("The keys do not match.", 2)
+        valid, message = validate_api_key(key)
+        if not valid or len(key) > 4096:
+            raise CLIError(message or "The key must be at most 4096 characters.", 2)
+        result = client.public_request(
+            "POST",
+            "/api/setup",
+            json={"key": key, "confirmation": key},
+            headers={"Origin": url},
+        )
+        output.emit(result)
+        return 0
+    finally:
+        client.close()
 
 
 def cluster_command(args) -> int:
@@ -906,33 +982,75 @@ def cluster_command(args) -> int:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="omlx: Production-ready LLM server for Apple Silicon",
+    from .cli_client import CLIError, add_connection_options
+    from .cli_output import CLIParser, Output
+
+    parser = CLIParser(
+        description="oMLX: run and manage your local inference application",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  omlx serve mlx-community/Llama-3.2-3B-Instruct-4bit --port 8000
+  omlx start
+  omlx status
+  omlx models list
+  omlx models load qwen3.5
+  omlx keys create --name coding
+  omlx --url https://your-server.example models list --json
+  omlx serve --model-dir ~/.omlx/models --port 8000
   omlx launch codex --model qwen3.5
         """,
     )
+    add_connection_options(parser)
     parser.add_argument(
         "--version",
         action="version",
         version=__version__,
         help="Print the oMLX version and exit",
     )
-    subparsers = parser.add_subparsers(dest="command", help="Commands")
+    subparsers = parser.add_subparsers(
+        dest="command", title="Commands", metavar="COMMAND"
+    )
 
     for name, help_text in (
-        ("start", "Start the Homebrew service"),
-        ("stop", "Stop the Homebrew service"),
-        ("restart", "Restart the Homebrew service"),
+        ("start", "Start the application in the background"),
+        ("stop", "Stop the locally managed application"),
+        ("restart", "Restart the locally managed application"),
+        ("status", "Show local lifecycle and public server health"),
     ):
-        subparsers.add_parser(
+        lifecycle_parser = subparsers.add_parser(
             name,
             help=help_text,
             description=help_text,
         )
+        add_connection_options(lifecycle_parser)
+        if name in {"start", "restart"}:
+            lifecycle_parser.add_argument(
+                "--no-wait",
+                action="store_true",
+                help="Return after spawning; use status to check readiness",
+            )
+            lifecycle_parser.add_argument("--host", help="Public bind address")
+            lifecycle_parser.add_argument(
+                "--port", type=_positive_int, help="Public port"
+            )
+            lifecycle_parser.add_argument("--model-dir", help="Model directory")
+            lifecycle_parser.add_argument(
+                "--dashboard-dev",
+                action="store_true",
+                help="Use the source dashboard development server",
+            )
+
+    from .cli_commands import register_commands
+
+    register_commands(subparsers)
+    init_parser = subparsers.add_parser(
+        "init", help="Create a main API key on a new local server"
+    )
+    add_connection_options(init_parser)
+    open_parser = subparsers.add_parser(
+        "open", help="Open the dashboard in your browser"
+    )
+    add_connection_options(open_parser)
 
     # Serve command (multi-model)
     serve_parser = subparsers.add_parser(
@@ -953,6 +1071,12 @@ Example directory structure:
   ├── qwen-7b/            → model_id: "qwen-7b"
   └── mistral-7b/         → model_id: "mistral-7b"
 """,
+    )
+    serve_parser.add_argument(
+        "--no-color",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Disable startup banner colors",
     )
 
     # Required arguments
@@ -1184,7 +1308,8 @@ Example directory structure:
     )
     mflux_save_parser.add_argument(
         "--pipeline",
-        help="Pipeline ID; defaults to the base model pipeline. Available: " + ", ".join(PIPELINES),
+        help="Pipeline ID; defaults to the base model pipeline. Available: "
+        + ", ".join(PIPELINES),
     )
     mflux_save_parser.add_argument(
         "--output",
@@ -1207,11 +1332,23 @@ Example directory structure:
     )
 
     calibration_parser = subparsers.add_parser(
-        "diffusion-calibrate", help="Collect transformer activation energy from a local checkpoint",
+        "diffusion-calibrate",
+        help="Collect transformer activation energy from a local checkpoint",
     )
-    calibration_parser.add_argument("--model", required=True, help="Complete local FLUX.2 Klein 4B or Qwen-Image-2.1 directory; no downloads")
-    calibration_parser.add_argument("--output", required=True, help="New calibration JSON file")
-    calibration_parser.add_argument("--prompt", required=True, action="append", help="Calibration prompt; repeat for more samples")
+    calibration_parser.add_argument(
+        "--model",
+        required=True,
+        help="Complete local FLUX.2 Klein 4B or Qwen-Image-2.1 directory; no downloads",
+    )
+    calibration_parser.add_argument(
+        "--output", required=True, help="New calibration JSON file"
+    )
+    calibration_parser.add_argument(
+        "--prompt",
+        required=True,
+        action="append",
+        help="Calibration prompt; repeat for more samples",
+    )
     calibration_parser.add_argument("--width", type=_positive_int, default=256)
     calibration_parser.add_argument("--height", type=_positive_int, default=256)
     calibration_parser.add_argument("--steps", type=_positive_int)
@@ -1221,17 +1358,44 @@ Example directory structure:
     calibration_parser.add_argument("--max-rows", type=_positive_int, default=256)
 
     quantization_parser = subparsers.add_parser(
-        "diffusion-quantize", help="Quantize a local float transformer using diffusion calibration",
+        "diffusion-quantize",
+        help="Quantize a local float transformer using diffusion calibration",
     )
-    quantization_parser.add_argument("--model", required=True, help="Complete local floating-point checkpoint; no downloads")
-    quantization_parser.add_argument("--calibration", required=True, help="diffusion-calibrate JSON report")
-    quantization_parser.add_argument("--output", required=True, help="New or empty checkpoint directory")
-    quantization_parser.add_argument("--bits", type=int, choices=[3, 4, 5, 6, 8], default=4)
-    quantization_parser.add_argument("--group-size", type=int, choices=[32, 64, 128], default=64)
+    quantization_parser.add_argument(
+        "--model",
+        required=True,
+        help="Complete local floating-point checkpoint; no downloads",
+    )
+    quantization_parser.add_argument(
+        "--calibration", required=True, help="diffusion-calibrate JSON report"
+    )
+    quantization_parser.add_argument(
+        "--output", required=True, help="New or empty checkpoint directory"
+    )
+    quantization_parser.add_argument(
+        "--bits", type=int, choices=[3, 4, 5, 6, 8], default=4
+    )
+    quantization_parser.add_argument(
+        "--group-size", type=int, choices=[32, 64, 128], default=64
+    )
     budget = quantization_parser.add_mutually_exclusive_group()
-    budget.add_argument("--budget-bytes", type=_positive_int, help="Transformer parameter byte ceiling, including retained float weights")
-    budget.add_argument("--budget-ratio", type=_positive_float, default=1.10, help="Budget relative to base-bit transformer allocation (default: 1.10)")
-    quantization_parser.add_argument("--protect", action="append", default=[], help="Transformer-relative linear module glob to retain in float; repeatable")
+    budget.add_argument(
+        "--budget-bytes",
+        type=_positive_int,
+        help="Transformer parameter byte ceiling, including retained float weights",
+    )
+    budget.add_argument(
+        "--budget-ratio",
+        type=_positive_float,
+        default=1.10,
+        help="Budget relative to base-bit transformer allocation (default: 1.10)",
+    )
+    quantization_parser.add_argument(
+        "--protect",
+        action="append",
+        default=[],
+        help="Transformer-relative linear module glob to retain in float; repeatable",
+    )
 
     # Launch command
     launch_parser = subparsers.add_parser(
@@ -1454,32 +1618,56 @@ Example directory structure:
     else:
         args, extra_args = parser.parse_known_args(argv)
 
-    if args.command == "launch":
-        launch_command(args, extra_args=extra_args)
-    else:
-        if extra_args:
-            parser.error(f"unrecognized arguments: {' '.join(extra_args)}")
-        if args.command == "serve":
-            if (
-                getattr(args, "memory_guard", None) == "off"
-                and getattr(args, "memory_guard_gb", None) is not None
-            ):
-                parser.error(
-                    "--memory-guard off cannot be combined with "
-                    "--memory-guard-gb (a custom ceiling needs the guard on)"
-                )
-            serve_command(args)
-        elif args.command in {"start", "stop", "restart"}:
-            sys.exit(lifecycle_command(args))
-        elif args.command == "mflux-save":
-            sys.exit(mflux_save_command(args))
-        elif args.command in {"diffusion-calibrate", "diffusion-quantize"}:
-            sys.exit(diffusion_prepare_command(args))
-        elif args.command == "cluster":
-            sys.exit(cluster_command(args))
+    try:
+        if args.command == "launch":
+            launch_command(args, extra_args=extra_args)
         else:
-            parser.print_help()
-            sys.exit(1)
+            if extra_args:
+                parser.error(f"unrecognized arguments: {' '.join(extra_args)}")
+            if args.command == "serve":
+                if (
+                    getattr(args, "memory_guard", None) == "off"
+                    and getattr(args, "memory_guard_gb", None) is not None
+                ):
+                    parser.error(
+                        "--memory-guard off cannot be combined with "
+                        "--memory-guard-gb (a custom ceiling needs the guard on)"
+                    )
+                serve_command(args)
+            elif getattr(args, "management_command", False):
+                from .cli_commands import run
+
+                sys.exit(run(args))
+            elif args.command in {"start", "stop", "restart", "status"}:
+                sys.exit(lifecycle_command(args))
+            elif args.command == "init":
+                sys.exit(init_command(args))
+            elif args.command == "open":
+                import webbrowser
+
+                from .cli_client import resolve_connection
+
+                url, _, _ = resolve_connection(args, require_key=False)
+                if not webbrowser.open(url):
+                    raise CLIError(f"Could not open a browser. Open {url} manually.")
+                Output(args).emit({"url": url, "opened": True})
+            elif args.command == "mflux-save":
+                sys.exit(mflux_save_command(args))
+            elif args.command in {"diffusion-calibrate", "diffusion-quantize"}:
+                sys.exit(diffusion_prepare_command(args))
+            elif args.command == "cluster":
+                sys.exit(cluster_command(args))
+            else:
+                parser.print_help()
+                sys.exit(1)
+    except CLIError as error:
+        Output(args).error(error)
+        sys.exit(error.exit_code)
+    except KeyboardInterrupt:
+        Output(args).error(CLIError("Operation cancelled.", 130))
+        sys.exit(130)
+    except BrokenPipeError:
+        sys.exit(0)
 
 
 if __name__ == "__main__":

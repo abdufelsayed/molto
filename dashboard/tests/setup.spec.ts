@@ -14,10 +14,16 @@ async function setupModule() {
   const compile = (source: string) =>
     `data:text/javascript;base64,${Buffer.from(ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText).toString("base64")}`
   const schema = await readFile("src/lib/openapi.json", "utf8")
+  const targetUrl = compile(
+    (await readFile("src/server/management-target.server.ts", "utf8")).replace(
+      'import openapi from "@/lib/openapi.json"',
+      () => `const openapi = ${schema}`
+    )
+  )
   const gatewayUrl = compile(
     (await readFile("src/server/connection.server.ts", "utf8")).replace(
-      'import openapi from "@/lib/openapi.json"',
-      `const openapi = ${schema}`
+      '"./management-target.server"',
+      () => JSON.stringify(targetUrl)
     )
   )
   const source = (await readFile("server/routes/api/setup.ts", "utf8"))

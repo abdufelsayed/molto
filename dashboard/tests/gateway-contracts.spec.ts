@@ -9,8 +9,20 @@ type Gateway = {
 }
 
 test("gateway forwards retained cluster paths and rejects unsupported operations", async () => {
-  const source = await readFile("src/server/connection.server.ts", "utf8")
+  let source = await readFile("src/server/connection.server.ts", "utf8")
   const schema = await readFile("src/lib/openapi.json", "utf8")
+  const targets = (
+    await readFile("src/server/management-target.server.ts", "utf8")
+  )
+    .replace(
+      'import openapi from "@/lib/openapi.json"',
+      `const openapi = ${schema}`
+    )
+    .replace("export function operationTarget", "function operationTarget")
+  source = source.replace(
+    'import { operationTarget } from "./management-target.server"',
+    () => targets
+  )
   const code = ts.transpileModule(
     source.replace(
       'import openapi from "@/lib/openapi.json"',

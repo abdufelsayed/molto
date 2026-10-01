@@ -4,7 +4,20 @@ This is the HTTP contract for a script or separate dashboard that controls a
 running oMLX server. The base URL is `http://127.0.0.1:8000` by default;
 all routes below start with `/management/v1`. The management API controls the
 same engine pool used by inference requests. It can request a restart only when a supported supervisor is active. Start and
-configure the process with `omlx serve` or the Homebrew service.
+configure the process with `omlx start`, `omlx serve`, or the Homebrew service.
+
+## Public transport
+
+The route names in this guide describe the private FastAPI contract. The
+application exposes authenticated native clients through
+`/api/management/v1/<relative-path>` on the public dashboard origin, for example
+`http://127.0.0.1:8000/api/management/v1/models`. This gateway requires the main
+bearer key even when local inference verification is bypassed, and rejects
+browser Origin-bearing requests. Raw `/management/v1` and `/admin` paths stay
+blocked by the public proxy. Dashboard browsers use opaque sessions through
+`/api/omlx`; their session flow is separate. Use the [CLI](cli.md) for public
+management commands. Direct private-route examples below apply only when
+accessing the backend listener itself.
 
 ## Authentication
 

@@ -99,9 +99,10 @@ brew services info omlx
 omlx stop
 ```
 
-For Homebrew installs, `omlx start`, `stop`, and `restart` delegate to
-`brew services`. A source or pip install uses `omlx serve` in the foreground;
-those lifecycle commands do not install a background supervisor. The service
+For default Homebrew installs, `omlx start`, `stop`, and `restart` delegate to
+`brew services`. Source and pip installs can use the same commands to manage
+a background application, or `omlx serve` in the foreground. Custom base paths
+and startup options select the local application manager. The service
 uses the default model directory `~/.omlx/models` and port 8000 unless you
 configure them. Server settings live under the selected oMLX base path,
 normally `~/.omlx/settings.json`.
@@ -142,6 +143,25 @@ Model discovery and settings are available through the
 [model control](docs/model-control.md) for load, unload, profiles, and cache
 behavior. The [backend architecture](docs/backend-architecture.md) describes
 the server boundary and limitations.
+
+## Command line
+
+`omlx start`, `stop`, `restart`, and `status` manage the application lifecycle;
+`omlx serve` runs it in the foreground. `omlx init` creates a main key on a
+fresh running local server, and `omlx open` opens the dashboard.
+
+```sh
+omlx start
+omlx status
+omlx models list
+omlx keys create --name coding
+omlx --url https://inference.example --api-key-file ~/.config/omlx/main-key models list --json
+```
+
+Management groups cover models, keys, settings, jobs, logs, cache, diagnostics,
+and monitoring. The CLI uses the same public port as the dashboard through a
+main-key bearer gateway. See the [CLI guide](docs/cli.md) for typed settings,
+confirmation, credential handling, output, and exit codes.
 
 ## Serving controls
 

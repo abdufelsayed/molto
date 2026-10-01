@@ -1,5 +1,6 @@
 import { HTTPError, proxyRequest } from "nitro/h3"
 import type { H3Event } from "nitro"
+import { operationTarget } from "./management-target.server"
 
 export const realtimePath = "/v1/audio/transcriptions/realtime"
 const routes: Record<string, RegExp> = {
@@ -59,6 +60,34 @@ export function inferenceBackendOrigin() {
 
 export function inferenceProxy(event: H3Event) {
   const path = event.url.pathname
+  const rawPath =
+    event.req.runtime?.node?.req.url?.split("?")[0] || event.url.pathname
+  const managementPrefix = "/api/management/v1/"
+  let managementTarget: string | undefined
+  const managementRequest =
+    path.startsWith("/api/management") || rawPath.startsWith("/api/management")
+  if (managementRequest) {
+    if (rawPath !== path)
+      throw new HTTPError({ status: 404, message: "Invalid management path." })
+    if (event.req.headers.has("origin"))
+      throw new HTTPError({
+        status: 403,
+        message: "Use dashboard sign-in for browser management requests.",
+      })
+    if (!/^Bearer [^\s]+$/i.test(event.req.headers.get("authorization") ?? ""))
+      throw new HTTPError({
+        status: 401,
+        message: "An explicit Bearer main API key is required.",
+      })
+    managementTarget = path.startsWith(managementPrefix)
+      ? operationTarget(event.req.method, path.slice(managementPrefix.length))
+      : undefined
+    if (!managementTarget)
+      throw new HTTPError({
+        status: 404,
+        message: "Unknown management operation.",
+      })
+  }
   const reserved =
     path.startsWith("/v1/") ||
     path === "/health" ||
@@ -67,8 +96,8 @@ export function inferenceProxy(event: H3Event) {
     path.startsWith("/admin/") ||
     path.startsWith("/api/cluster") ||
     path.startsWith("/cluster/")
-  if (!reserved || path === realtimePath) return
-  if (!inferencePathAllowed(path, event.req.method))
+  if ((!reserved && !managementRequest) || path === realtimePath) return
+  if (!managementTarget && !inferencePathAllowed(path, event.req.method))
     throw new HTTPError({
       status: 404,
       message: "Unknown inference operation.",
@@ -80,13 +109,23 @@ export function inferenceProxy(event: H3Event) {
       name.startsWith("x-forwarded-") ||
       name === "x-real-ip"
   )
-  return proxyRequest(
+  const response = proxyRequest(
     event,
-    `${inferenceBackendOrigin()}${path}${event.url.search}`,
+    `${inferenceBackendOrigin()}${managementTarget ?? path}${event.url.search}`,
     {
       filterHeaders: filtered,
       xfwd: true,
       fetchOptions: { redirect: "error" },
     }
   )
+  return response.then((result) => {
+    if (!managementTarget) return result
+    const headers = new Headers(result.headers)
+    headers.set("Cache-Control", "no-store")
+    return new Response(result.body, {
+      status: result.status,
+      statusText: result.statusText,
+      headers,
+    })
+  })
 }

@@ -204,7 +204,7 @@ def test_readiness_timeout_reaps_partial_start(tmp_path):
         os.kill(int(pid.read_text()), 0)
 
 
-def test_runtime_contract_preserves_args_and_public_settings(monkeypatch):
+def test_runtime_contract_preserves_args_and_public_settings(monkeypatch, tmp_path):
     monkeypatch.setattr(application, "dashboard_command", lambda: ["node", "index.mjs"])
     monkeypatch.setenv("OMLX_API_KEY", "never-log-this")
     observed = {}
@@ -227,6 +227,7 @@ def test_runtime_contract_preserves_args_and_public_settings(monkeypatch):
 
     monkeypatch.setattr(application, "supervise", capture)
     configured = settings(0)
+    configured.base_path = tmp_path
     assert (
         application.run_application(configured, ["serve", "--model-dir", "/example"])
         == 0
@@ -309,12 +310,21 @@ def test_restart_settings_honors_original_overrides(monkeypatch, tmp_path):
     assert observed == [{"base_path": tmp_path, "cli_args": args}]
 
 
-def test_changed_public_binding_restarts_application(monkeypatch):
+def test_changed_public_binding_restarts_application(monkeypatch, tmp_path):
     import json
+
+    from omlx import cli_lifecycle
 
     monkeypatch.setattr(application, "dashboard_command", lambda: ["node", "index.mjs"])
     current = settings(0)
     changed = settings(0, "localhost")
+    current.base_path = changed.base_path = tmp_path
+    binding_updates = []
+    monkeypatch.setattr(
+        cli_lifecycle,
+        "update_binding",
+        lambda base, host, port: binding_updates.append((base, host, port)),
+    )
     commands_seen = []
     monkeypatch.setattr(
         application, "restart_settings", lambda marker, active, args: changed
@@ -340,6 +350,7 @@ def test_changed_public_binding_restarts_application(monkeypatch):
         == 0
     )
     assert commands_seen == ["127.0.0.1", "localhost"]
+    assert binding_updates == [(tmp_path, "127.0.0.1", 0), (tmp_path, "localhost", 0)]
 
 
 def test_invalid_restart_marker_is_actionable(tmp_path):
@@ -577,7 +588,7 @@ def test_development_mode_missing_pnpm_is_actionable(monkeypatch, tmp_path):
         application.development_command("127.0.0.1", 8000)
 
 
-def test_development_launch_needs_no_production_assets(monkeypatch):
+def test_development_launch_needs_no_production_assets(monkeypatch, tmp_path):
     monkeypatch.setattr(
         application,
         "dashboard_command",
@@ -599,9 +610,11 @@ def test_development_launch_needs_no_production_assets(monkeypatch):
         stop.set()
 
     monkeypatch.setattr(application, "supervise", capture)
+    configured = settings(0)
+    configured.base_path = tmp_path
     assert (
         application.run_application(
-            settings(0),
+            configured,
             ["serve", "--dashboard-dev"],
             cli_args=SimpleNamespace(dashboard_dev=True),
         )

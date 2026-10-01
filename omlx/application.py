@@ -379,6 +379,9 @@ def run_application(settings, argv: list[str] | None = None, *, cli_args=None) -
             # Nitro performs its own bind after this preflight and remains authoritative.
             for listener in bind_public(host, settings.server.port):
                 listener.close()
+            from .cli_lifecycle import update_binding
+
+            update_binding(settings.base_path, host, settings.server.port)
             probe_host = {"0.0.0.0": "127.0.0.1", "::": "::1"}.get(host, host)
             with tempfile.TemporaryDirectory(prefix="omlx-", dir="/tmp") as directory:
                 os.chmod(directory, 0o700)
@@ -418,8 +421,9 @@ def run_application(settings, argv: list[str] | None = None, *, cli_args=None) -
                         "dashboard": node_command,
                         "backend": [sys.executable, "-m", "omlx.cli", *command_args],
                     }
+                    address = f"[{host}]" if ":" in host else host
                     print(
-                        f"Starting oMLX dashboard at http://{host}:{settings.server.port}",
+                        f"Starting oMLX dashboard at http://{address}:{settings.server.port}",
                         flush=True,
                     )
                     updated_settings = []

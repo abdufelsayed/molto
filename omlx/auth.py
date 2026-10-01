@@ -82,9 +82,15 @@ def _bearer_token(request: Request) -> str | None:
 
 def _require_key(request: Request, *, allow_subkeys: bool) -> bool:
     context = _auth_context(request)
-    if context.skip_api_key_verification and is_loopback_bind(context.bind_host):
-        return True
     token = _bearer_token(request)
+    # A management client presenting a key must authenticate that key, even
+    # when direct local management without a key is explicitly enabled.
+    if (
+        context.skip_api_key_verification
+        and is_loopback_bind(context.bind_host)
+        and (allow_subkeys or token is None)
+    ):
+        return True
     if token is not None and (
         verify_any_api_key(token, context.main_key, context.sub_keys)
         if allow_subkeys
