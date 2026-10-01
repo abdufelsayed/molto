@@ -423,6 +423,16 @@ class TestGetSamplingParams:
         assert top_p == 0.8  # forced, not request
         assert max_tokens == 8192  # output cap, not forced sampling
 
+    def test_sampling_override_honors_session_values_and_inherits_unset(self):
+        """Session requests override forced knobs without changing global settings."""
+        self._state.sampling = SamplingDefaults(
+            temperature=0.5, top_p=0.8, top_k=40, force_sampling=True
+        )
+        result = get_sampling_params(0.9, None, req_top_k=5, sampling_override=True)
+        assert result[:3] == (0.9, 0.8, 5)
+        assert self._state.sampling.force_sampling is True
+        assert self._state.sampling.temperature == 0.5
+
     def test_force_sampling_request_max_tokens_overrides_model(self):
         """Test request max_tokens wins over model settings in force mode."""
         import tempfile

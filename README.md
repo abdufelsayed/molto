@@ -4,7 +4,8 @@ Molto runs and manages local AI models on Apple Silicon. It serves text and
 vision language models, embeddings, rerankers, image generation, and optional
 audio models through HTTP APIs. `molto serve` starts the TanStack Start dashboard and
 Python inference backend together on one public origin. The dashboard handles
-model and server management. Both share this repository. Dashboard source and development instructions are in
+model and server management and a [model experimentation studio](docs/studio.md).
+Both share this repository. Dashboard source and development instructions are in
 [apps/dashboard/](apps/dashboard/README.md).
 
 Requires macOS 15.0 or newer, Apple Silicon, and Python 3.11, 3.12, or 3.13.

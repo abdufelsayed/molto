@@ -766,6 +766,7 @@ class OpenaiController:
             if (
                 self.state.mcp_manager
                 and not tools_disabled
+                and request.include_mcp_tools
                 and self.mcp_tools_exposed()
             ):
                 # Convert Pydantic ToolDefinition models to dicts for merge_tools
@@ -838,6 +839,7 @@ class OpenaiController:
                 req_presence_penalty=getattr(request, "presence_penalty", None),
                 req_frequency_penalty=getattr(request, "frequency_penalty", None),
                 req_max_tokens=request.max_tokens,
+                sampling_override=request.sampling_override,
                 req_xtc_probability=getattr(request, "xtc_probability", None),
                 req_xtc_threshold=getattr(request, "xtc_threshold", None),
             )

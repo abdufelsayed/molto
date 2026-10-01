@@ -893,6 +893,17 @@ class ClaudeCodeSettings:
         )
 
 
+SEARCH_TEXT_ENGINES = (
+    "brave",
+    "duckduckgo",
+    "grokipedia",
+    "mojeek",
+    "wikipedia",
+    "yahoo",
+    "yandex",
+)
+
+
 @dataclass
 class IntegrationSettings:
     """Other integrations settings."""

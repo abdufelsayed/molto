@@ -453,6 +453,7 @@ function WebSearchTest() {
   const [provider, setProvider] = useState("saved")
   const [credential, setCredential] = useState("")
   const [url, setUrl] = useState("")
+  const [backends, setBackends] = useState("")
   const mutation = useMutation({
     mutationFn: () =>
       managementRequest<SearchTest>("server/web-search/test", {
@@ -463,6 +464,7 @@ function WebSearchTest() {
             ? { brave_api_key: credential }
             : {}),
           ...(provider === "searxng" && url ? { searxng_url: url } : {}),
+          ...(provider === "ddgs_custom" ? { ddgs_backends: backends } : {}),
         },
       }),
     onSuccess: async () => {
@@ -496,7 +498,9 @@ function WebSearchTest() {
                   { value: "saved", label: "Saved server settings" },
                   { value: "brave", label: "Brave" },
                   { value: "searxng", label: "SearXNG" },
-                  { value: "ddgs", label: "DuckDuckGo" },
+                  { value: "ddgs", label: "Automatic metasearch" },
+                  { value: "ddgs_custom", label: "Selected engines" },
+                  { value: "duckduckgo", label: "DuckDuckGo" },
                 ]}
                 value={provider}
                 onValueChange={(value) => {
@@ -517,11 +521,33 @@ function WebSearchTest() {
                     <SelectItem value="saved">Saved server settings</SelectItem>
                     <SelectItem value="brave">Brave</SelectItem>
                     <SelectItem value="searxng">SearXNG</SelectItem>
-                    <SelectItem value="ddgs">DuckDuckGo</SelectItem>
+                    <SelectItem value="ddgs">Automatic metasearch</SelectItem>
+                    <SelectItem value="ddgs_custom">
+                      Selected engines
+                    </SelectItem>
+                    <SelectItem value="duckduckgo">DuckDuckGo</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>
             </Field>
+            {provider === "ddgs_custom" && (
+              <Field>
+                <FieldLabel htmlFor="test-search-engines">
+                  Search engines
+                </FieldLabel>
+                <Input
+                  id="test-search-engines"
+                  value={backends}
+                  onChange={(event) => setBackends(event.target.value)}
+                  disabled={mutation.isPending}
+                  placeholder="duckduckgo,wikipedia"
+                />
+                <FieldDescription>
+                  Comma-separated: brave, duckduckgo, grokipedia, mojeek,
+                  wikipedia, yahoo, yandex.
+                </FieldDescription>
+              </Field>
+            )}
             {provider === "brave" && (
               <Field>
                 <FieldLabel htmlFor="test-brave-key">

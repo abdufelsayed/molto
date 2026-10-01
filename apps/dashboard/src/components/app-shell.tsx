@@ -48,6 +48,7 @@ import {
 
 const navigation = [
   { title: "Overview", to: "/", icon: LayoutDashboardIcon },
+  { title: "Studio", to: "/studio", icon: FlaskConicalIcon },
   { title: "Models", to: "/models", icon: BoxesIcon },
   { title: "Add model", to: "/add-model", icon: PackagePlusIcon },
   { title: "Activity", to: "/activity", icon: ActivityIcon },
@@ -125,7 +126,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Button>
           </div>
         </header>
-        <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-4 md:p-8">
+        <div
+          className={
+            pathname === "/studio"
+              ? "flex h-[calc(100dvh-4rem)] min-h-0 w-full flex-col overflow-hidden"
+              : "mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-4 md:p-8"
+          }
+        >
           <QueryState query={access}>{children}</QueryState>
         </div>
       </SidebarInset>

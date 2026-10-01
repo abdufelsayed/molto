@@ -14,7 +14,6 @@ dependencies = [
   "huggingface-hub>=1.19",
   "requests>=2.28",
   "psutil>=5.9",
-  "ddgs==9.16.0",
   "pydantic>=2",
   "rich>=13",
   "packaging>=24",

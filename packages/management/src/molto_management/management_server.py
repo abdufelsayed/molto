@@ -19,7 +19,7 @@ from typing import Any, get_type_hints
 
 import httpx
 from molto_config.auth import validate_api_key
-from molto_config.settings import GlobalSettings, SubKeyEntry
+from molto_config.settings import SEARCH_TEXT_ENGINES, GlobalSettings, SubKeyEntry
 from molto_config.utils.network import network_auth_error
 from molto_runtime import __version__
 from packaging.version import InvalidVersion, Version
@@ -278,8 +278,6 @@ class ServerManagementService:
                     errors.append(
                         f"{section}.{field.name} cannot contain a null character"
                     )
-        from molto_management.websearch import DDGS_TEXT_BACKENDS
-
         unknown = set(
             filter(
                 None,
@@ -288,7 +286,7 @@ class ServerManagementService:
                     for p in candidate.integrations.web_search_ddgs_backends.split(",")
                 ),
             )
-        ) - set(DDGS_TEXT_BACKENDS)
+        ) - set(SEARCH_TEXT_ENGINES)
         if unknown:
             errors.append("Unknown DDGS backends: " + ", ".join(sorted(unknown)))
         host = (
@@ -865,30 +863,6 @@ class ServerManagementService:
                 }
             )
         return {"integrations": commands}
-
-    async def web_search_test(self, values: dict[str, Any]):
-        allowed = {
-            "provider",
-            "brave_api_key",
-            "searxng_url",
-            "ddgs_backends",
-            "max_results",
-        }
-        if set(values) - allowed:
-            invalid("Unknown web-search test fields")
-        mapping = {
-            "provider": "web_search_provider",
-            "brave_api_key": "web_search_brave_api_key",
-            "searxng_url": "web_search_searxng_url",
-            "ddgs_backends": "web_search_ddgs_backends",
-            "max_results": "web_search_max_results",
-        }
-        pending = {mapping[k]: v for k, v in values.items()}
-        candidate, _ = self._candidate({"integrations": pending})
-        from molto_management.websearch import run_web_search_test
-
-        args = {k: getattr(candidate.integrations, v) for k, v in mapping.items()}
-        return await run_web_search_test(**args)
 
     async def update(self, channel: str = "stable"):
         if channel not in {"stable", "beta"}:

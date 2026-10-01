@@ -5,7 +5,7 @@ import { operationTarget } from "./management-target.server"
 export const realtimePath = "/v1/audio/transcriptions/realtime"
 const routes: Record<string, RegExp> = {
   GET: /^(?:\/health|\/api\/status|\/v1\/(?:models(?:\/status)?|responses\/[^/]+|images\/capabilities|audio\/voices|mcp\/(?:tools|servers)))$/,
-  POST: /^\/v1\/(?:models\/.+\/(?:load|unload)|embeddings|rerank|completions|chat\/completions|messages(?:\/count_tokens)?|responses|images\/(?:generations|edits|operations)|audio\/(?:transcriptions|speech|process)|mcp\/execute|web\/(?:search|fetch))$/,
+  POST: /^\/v1\/(?:models\/.+\/(?:load|unload)|embeddings|rerank|completions|chat\/completions|messages(?:\/count_tokens)?|responses|images\/(?:generations|edits|operations)|audio\/(?:transcriptions|speech|process)|mcp\/execute)$/,
   DELETE: /^\/v1\/responses\/[^/]+$/,
 }
 

@@ -351,6 +351,11 @@ class ChatCompletionRequest(BaseModel):
     # Tool calling
     tools: list[ToolDefinition] | None = None
     tool_choice: str | dict | None = None  # "auto", "none", or specific tool
+    # Clients that own their tool loop can opt out of server-configured MCP tools.
+    include_mcp_tools: bool = True
+    # Explicit request sampling takes precedence over configured force_sampling.
+    # Unset fields continue to inherit the model/server defaults.
+    sampling_override: bool = False
     # Structured output
     response_format: ResponseFormat | dict | None = None
     # vLLM-compatible structured output (grammar, regex, choice, json)

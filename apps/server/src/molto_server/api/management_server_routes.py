@@ -36,17 +36,6 @@ class PolicyWrite(BaseModel):
     allow_unauthenticated_inference: StrictBool | None = None
 
 
-class WebSearchTest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    provider: (
-        Literal["ddgs", "ddgs_custom", "duckduckgo", "brave", "searxng"] | None
-    ) = None
-    brave_api_key: StrictStr | None = None
-    searxng_url: StrictStr | None = None
-    ddgs_backends: StrictStr | None = None
-    max_results: int | None = Field(default=None, ge=1, le=10, strict=True)
-
-
 ERROR_STATUS = {
     "not_found": 404,
     "conflict": 409,
@@ -173,13 +162,3 @@ async def update(channel: Literal["stable", "beta"] = "stable", svc=Depends(serv
 @router.get("/server/integrations")
 def integrations(svc=Depends(service)):
     return run(svc.integrations)
-
-
-@router.post("/server/web-search/test")
-async def web_search_test(body: WebSearchTest, svc=Depends(service)):
-    try:
-        return await svc.web_search_test(body.model_dump(exclude_unset=True))
-    except ManagementError as exc:
-        raise HTTPException(
-            ERROR_STATUS.get(exc.code, 500), {"code": exc.code, "message": exc.detail}
-        ) from exc

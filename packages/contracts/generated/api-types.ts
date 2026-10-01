@@ -1190,23 +1190,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/management/v1/server/web-search/test": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Web Search Test */
-        post: operations["web_search_test_management_v1_server_web_search_test_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/management/v1/workspace/registry": {
         parameters: {
             query?: never;
@@ -4345,19 +4328,6 @@ export interface components {
              */
             mode: "structural" | "smoke";
         };
-        /** WebSearchTest */
-        WebSearchTest: {
-            /** Provider */
-            provider?: ("ddgs" | "ddgs_custom" | "duckduckgo" | "brave" | "searxng") | null;
-            /** Brave Api Key */
-            brave_api_key?: string | null;
-            /** Searxng Url */
-            searxng_url?: string | null;
-            /** Ddgs Backends */
-            ddgs_backends?: string | null;
-            /** Max Results */
-            max_results?: number | null;
-        };
     };
     responses: never;
     parameters: never;
@@ -6765,39 +6735,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-        };
-    };
-    web_search_test_management_v1_server_web_search_test_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WebSearchTest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

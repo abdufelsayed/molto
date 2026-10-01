@@ -369,14 +369,131 @@ async def inference_error():
 
 
 @app.post("/v1/chat/completions", dependencies=[Depends(require_model_load_key)])
-async def inference_stream():
+async def inference_stream(request: Request):
+    payload = await request.json()
+    app.state.proxy_metrics["requests"].append(
+        {"path": request.url.path, "body": payload}
+    )
+
     async def stream():
         app.state.proxy_metrics["streams_started"] += 1
         try:
-            yield 'data: {"fixture":"first"}\n\n'
-            # A buffered proxy cannot finish this response. The client must see
-            # the first chunk and abort, propagating cancellation to this wait.
-            await asyncio.Event().wait()
+            if "messages" not in payload:
+                yield 'data: {"fixture":"first"}\n\n'
+                await asyncio.Event().wait()
+                return
+            messages = payload["messages"]
+            prompt = next(
+                (
+                    m.get("content", "")
+                    for m in reversed(messages)
+                    if m["role"] == "user"
+                ),
+                "",
+            )
+            if not isinstance(prompt, str):
+                prompt = " ".join(
+                    p.get("text", "") for p in prompt if p.get("type") == "text"
+                )
+            latest_user = max(
+                i for i, message in enumerate(messages) if message["role"] == "user"
+            )
+            results = [m for m in messages[latest_user + 1 :] if m["role"] == "tool"]
+
+            def chunk(delta, finish=None):
+                return (
+                    "data: "
+                    + json.dumps(
+                        {
+                            "id": "fixture-chat",
+                            "object": "chat.completion.chunk",
+                            "created": 1,
+                            "model": MODEL,
+                            "choices": [
+                                {"index": 0, "delta": delta, "finish_reason": finish}
+                            ],
+                        }
+                    )
+                    + "\n\n"
+                )
+
+            yield chunk({"role": "assistant"})
+            yield chunk({"reasoning_content": "Inspecting the experiment."})
+            await asyncio.sleep(0.03)
+            call = None
+            if "sandbox" in prompt and not results:
+                call = (
+                    "bash",
+                    {
+                        "command": "printf 'worker persisted' > experiment.txt; cat experiment.txt"
+                    },
+                )
+            elif "question" in prompt and not results:
+                call = (
+                    "ask_question",
+                    {"question": "Which direction?", "options": ["Explore", "Verify"]},
+                )
+            elif "confirmation" in prompt and not results:
+                call = (
+                    "write",
+                    {"path": "denied.txt", "content": "must not be written"},
+                )
+            elif "web replay" in prompt and not results:
+                call = ("web_search", {"query": "fixture sources"})
+            if call:
+                name, args = call
+                encoded = json.dumps(args)
+                yield chunk(
+                    {
+                        "tool_calls": [
+                            {
+                                "index": 0,
+                                "id": "fixture-call",
+                                "type": "function",
+                                "function": {"name": name, "arguments": encoded[:4]},
+                            }
+                        ]
+                    }
+                )
+                yield chunk(
+                    {
+                        "tool_calls": [
+                            {"index": 0, "function": {"arguments": encoded[4:]}}
+                        ]
+                    }
+                )
+                yield chunk({}, "tool_calls")
+            else:
+                text = "Fixture response: " + (
+                    str(results[-1].get("content", "")) if results else prompt
+                )
+                for part in [text[:18], text[18:]]:
+                    yield chunk({"content": part})
+                    await asyncio.sleep(0.03)
+                if "long stream" in prompt:
+                    await asyncio.Event().wait()
+                yield chunk({}, "stop")
+            yield (
+                "data: "
+                + json.dumps(
+                    {
+                        "id": "fixture-chat",
+                        "object": "chat.completion.chunk",
+                        "created": 1,
+                        "model": MODEL,
+                        "choices": [],
+                        "usage": {
+                            "prompt_tokens": 12,
+                            "completion_tokens": 8,
+                            "total_tokens": 20,
+                            "time_to_first_token": 0.03,
+                            "generation_tokens_per_second": 45,
+                        },
+                    }
+                )
+                + "\n\n"
+            )
+            yield "data: [DONE]\n\n"
         finally:
             app.state.proxy_metrics["streams_cancelled"] += 1
 

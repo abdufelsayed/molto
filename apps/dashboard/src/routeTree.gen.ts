@@ -19,9 +19,11 @@ import { Route as LogsRouteImport } from './routes/logs'
 import { Route as ModelsRouteImport } from './routes/models'
 import { Route as MonitoringRouteImport } from './routes/monitoring'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as StudioRouteImport } from './routes/studio'
 import { Route as ApiConnectionRouteImport } from './routes/api.connection'
 import { Route as ModelsModelIdRouteImport } from './routes/models_.$modelId'
 import { Route as ApiMoltoSplatRouteImport } from './routes/api.molto.$'
+import { Route as ApiStudioSplatRouteImport } from './routes/api.studio.$'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -73,6 +75,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StudioRoute = StudioRouteImport.update({
+  id: '/studio',
+  path: '/studio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiConnectionRoute = ApiConnectionRouteImport.update({
   id: '/api/connection',
   path: '/api/connection',
@@ -88,6 +95,11 @@ const ApiMoltoSplatRoute = ApiMoltoSplatRouteImport.update({
   path: '/api/molto/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiStudioSplatRoute = ApiStudioSplatRouteImport.update({
+  id: '/api/studio/$',
+  path: '/api/studio/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -100,9 +112,11 @@ export interface FileRoutesByFullPath {
   '/models': typeof ModelsRoute
   '/monitoring': typeof MonitoringRoute
   '/settings': typeof SettingsRoute
+  '/studio': typeof StudioRoute
   '/api/connection': typeof ApiConnectionRoute
   '/models/$modelId': typeof ModelsModelIdRoute
   '/api/molto/$': typeof ApiMoltoSplatRoute
+  '/api/studio/$': typeof ApiStudioSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -115,9 +129,11 @@ export interface FileRoutesByTo {
   '/models': typeof ModelsRoute
   '/monitoring': typeof MonitoringRoute
   '/settings': typeof SettingsRoute
+  '/studio': typeof StudioRoute
   '/api/connection': typeof ApiConnectionRoute
   '/models/$modelId': typeof ModelsModelIdRoute
   '/api/molto/$': typeof ApiMoltoSplatRoute
+  '/api/studio/$': typeof ApiStudioSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -131,9 +147,11 @@ export interface FileRoutesById {
   '/models': typeof ModelsRoute
   '/monitoring': typeof MonitoringRoute
   '/settings': typeof SettingsRoute
+  '/studio': typeof StudioRoute
   '/api/connection': typeof ApiConnectionRoute
   '/models_/$modelId': typeof ModelsModelIdRoute
   '/api/molto/$': typeof ApiMoltoSplatRoute
+  '/api/studio/$': typeof ApiStudioSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -148,9 +166,11 @@ export interface FileRouteTypes {
     | '/models'
     | '/monitoring'
     | '/settings'
+    | '/studio'
     | '/api/connection'
     | '/models/$modelId'
     | '/api/molto/$'
+    | '/api/studio/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -163,9 +183,11 @@ export interface FileRouteTypes {
     | '/models'
     | '/monitoring'
     | '/settings'
+    | '/studio'
     | '/api/connection'
     | '/models/$modelId'
     | '/api/molto/$'
+    | '/api/studio/$'
   id:
     | '__root__'
     | '/'
@@ -178,9 +200,11 @@ export interface FileRouteTypes {
     | '/models'
     | '/monitoring'
     | '/settings'
+    | '/studio'
     | '/api/connection'
     | '/models_/$modelId'
     | '/api/molto/$'
+    | '/api/studio/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -194,9 +218,11 @@ export interface RootRouteChildren {
   ModelsRoute: typeof ModelsRoute
   MonitoringRoute: typeof MonitoringRoute
   SettingsRoute: typeof SettingsRoute
+  StudioRoute: typeof StudioRoute
   ApiConnectionRoute: typeof ApiConnectionRoute
   ModelsModelIdRoute: typeof ModelsModelIdRoute
   ApiMoltoSplatRoute: typeof ApiMoltoSplatRoute
+  ApiStudioSplatRoute: typeof ApiStudioSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -271,6 +297,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/studio': {
+      id: '/studio'
+      path: '/studio'
+      fullPath: '/studio'
+      preLoaderRoute: typeof StudioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/connection': {
       id: '/api/connection'
       path: '/api/connection'
@@ -292,6 +325,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMoltoSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/studio/$': {
+      id: '/api/studio/$'
+      path: '/api/studio/$'
+      fullPath: '/api/studio/$'
+      preLoaderRoute: typeof ApiStudioSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -306,9 +346,11 @@ const rootRouteChildren: RootRouteChildren = {
   ModelsRoute: ModelsRoute,
   MonitoringRoute: MonitoringRoute,
   SettingsRoute: SettingsRoute,
+  StudioRoute: StudioRoute,
   ApiConnectionRoute: ApiConnectionRoute,
   ModelsModelIdRoute: ModelsModelIdRoute,
   ApiMoltoSplatRoute: ApiMoltoSplatRoute,
+  ApiStudioSplatRoute: ApiStudioSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

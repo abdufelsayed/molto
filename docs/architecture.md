@@ -6,6 +6,10 @@ management CLI all connect to the same public origin. The Python and TypeScript
 workspaces organize development; the release assembler ships their required
 code and assets together in one wheel.
 
+The dashboard also owns the [model studio](studio.md): its TypeScript agent loop,
+server web tools, browser worker sandbox, and browser persistence. The agent
+accesses inference only through the model API and has no Python runtime imports.
+
 ## Ownership
 
 The uv workspace has six Python members. Python projects use `src/` layouts and

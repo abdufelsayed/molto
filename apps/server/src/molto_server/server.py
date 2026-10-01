@@ -66,9 +66,8 @@ def create_app(state: ServerState | None = None) -> FastAPI:
     from .api.management_routes import router as management_router
     from .api.management_setup_routes import router as setup_router
     from .api.mcp_routes import router as mcp_router
-    from .api.websearch_routes import router as websearch_router
 
-    for router in (mcp_router, websearch_router, image_router):
+    for router in (mcp_router, image_router):
         app.include_router(router, dependencies=[Depends(verify_inference_api_key)])
     app.include_router(management_router)
     app.include_router(setup_router)

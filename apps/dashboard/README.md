@@ -69,7 +69,9 @@ Server resource inspection shows hardware memory, the Metal allocation cap, acti
 
 File maintenance preserves model identity when moving between configured roots. Moving a cached model moves its whole repository, including revisions, refs, and shared blobs. External path dependencies and active operations block the move. Virtual profile models do not have physical checkpoint actions. STT and speech-to-speech models can receive structural verification, but have no inference smoke probe.
 
-Chat is outside this dashboard. Downloads and publishing contact their selected providers; model preparation and local diagnostics require the corresponding Molto runtime dependencies and compatible checkpoints.
+**Studio** is the dashboard's local-model playground. It provides per-session model and tool controls, a browser sandbox, and recorded experiment runs. The TypeScript agent uses the inference API; the dashboard owns session persistence. See [Studio](../../docs/studio.md) for controls, tools, run inspection, branching, and replay.
+
+Downloads and publishing contact their selected providers; model preparation and local diagnostics require the corresponding Molto runtime dependencies and compatible checkpoints.
 
 ## Connection and hosting
 

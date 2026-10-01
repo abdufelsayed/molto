@@ -471,6 +471,7 @@ class EngineRequestsController:
         ocr_defaults: dict | None = None,
         req_xtc_probability: float | None = None,
         req_xtc_threshold: float | None = None,
+        sampling_override: bool = False,
     ) -> tuple[float, float, int, float, float, float, float, int, float, float]:
         """
         Get effective sampling parameters with per-model settings support.
@@ -498,8 +499,9 @@ class EngineRequestsController:
             ocr_defaults = self._get_ocr_defaults(model_id)
 
         # Check force at any level
-        force = global_sampling.force_sampling or (
-            model_settings and model_settings.force_sampling
+        force = not sampling_override and (
+            global_sampling.force_sampling
+            or (model_settings and model_settings.force_sampling)
         )
 
         if force:

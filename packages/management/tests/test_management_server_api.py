@@ -206,21 +206,6 @@ def test_copyable_integration_commands_quote_models(setup):
     ]
 
 
-def test_websearch_test_uses_pending_values_without_save(setup, monkeypatch):
-    from unittest.mock import AsyncMock
-
-    mock = AsyncMock(return_value={"ok": False, "error": {"code": "request_failed"}})
-    monkeypatch.setattr("molto_management.websearch.run_web_search_test", mock)
-    response = setup.client.post(
-        "/management/v1/server/web-search/test",
-        json={"provider": "brave", "brave_api_key": "pending"},
-    )
-    assert response.status_code == 200 and response.json()["ok"] is False
-    assert mock.call_args.kwargs["brave_api_key"] == "pending"
-    assert setup.settings.integrations.web_search_brave_api_key == ""
-    assert not (setup.settings.base_path / "settings.json").exists()
-
-
 def test_update_distinguishes_network_failure_from_no_update(setup, monkeypatch):
     class Client:
         def __init__(self, **kwargs):

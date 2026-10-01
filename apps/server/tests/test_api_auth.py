@@ -741,16 +741,12 @@ class TestUnauthenticatedInference:
         from types import SimpleNamespace
         from unittest.mock import AsyncMock
 
-        from molto_server.api import websearch_routes
-
         server, _ = configured_server
         result = SimpleNamespace(
             tool_name="example", content=[], is_error=False, error_message=None
         )
         manager = SimpleNamespace(execute_tool=AsyncMock(return_value=result))
         server.state.mcp_manager = manager
-        search = AsyncMock(return_value={"ok": True, "results": []})
-        monkeypatch.setattr(websearch_routes, "run_web_search", search)
         server.app.state.global_settings_provider = lambda: server.state.global_settings
         client = TestClient(server.app)
         response = client.post(
@@ -758,8 +754,9 @@ class TestUnauthenticatedInference:
         )
         assert response.status_code == 200
         manager.execute_tool.assert_awaited_once_with("example", {})
-        assert client.post("/v1/web/search", json={"query": "example"}).json()["ok"]
-        search.assert_awaited_once()
+        assert (
+            client.post("/v1/web/search", json={"query": "example"}).status_code == 404
+        )
 
     def test_stored_responses_can_be_read_and_deleted(
         self, configured_server, monkeypatch

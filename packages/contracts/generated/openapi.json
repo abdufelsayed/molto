@@ -3355,45 +3355,6 @@
         }
       }
     },
-    "/management/v1/server/web-search/test": {
-      "post": {
-        "tags": [
-          "management"
-        ],
-        "summary": "Web Search Test",
-        "operationId": "web_search_test_management_v1_server_web_search_test_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WebSearchTest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/management/v1/workspace/registry": {
       "get": {
         "tags": [
@@ -10955,77 +10916,6 @@
         "additionalProperties": false,
         "type": "object",
         "title": "Verify"
-      },
-      "WebSearchTest": {
-        "properties": {
-          "provider": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "ddgs",
-                  "ddgs_custom",
-                  "duckduckgo",
-                  "brave",
-                  "searxng"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Provider"
-          },
-          "brave_api_key": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Brave Api Key"
-          },
-          "searxng_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Searxng Url"
-          },
-          "ddgs_backends": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ddgs Backends"
-          },
-          "max_results": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "maximum": 10.0,
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Max Results"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "WebSearchTest"
       }
     }
   }
