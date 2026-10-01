@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Expert offload for the DeepSeek V4 / glm5_next MoE block.
 
-(omlx/patches/deepseek_v4/moe_offload.py)
+(molto/patches/deepseek_v4/moe_offload.py)
 
 The adapter swaps the module's projection tensors for resident slots and
 runs the module's own forward on slot indices, so every path the resident
@@ -17,9 +17,9 @@ import json
 import mlx.core as mx
 import mlx.nn as nn
 import pytest
-from omlx_runtime.patches.deepseek_v4 import moe_offload as dsv4
-from omlx_runtime.patches.deepseek_v4.switch_layers import SwitchGLU
-from omlx_runtime.patches.moe_expert_offload import (
+from molto_runtime.patches.deepseek_v4 import moe_offload as dsv4
+from molto_runtime.patches.deepseek_v4.switch_layers import SwitchGLU
+from molto_runtime.patches.moe_expert_offload import (
     apply_moe_expert_offload,
     estimate_offload_admission_bytes,
     materialize_offload_state,
@@ -122,7 +122,7 @@ def kernels(request, monkeypatch):
     """With the native GLM/DSv4 kernels, or without them as on a CI runner:
     the module then returns sorted routes unsummed and the caller applies the
     scores, and the adapter must follow the same rule."""
-    from omlx_runtime.custom_kernels.glm_moe_dsa import fast as k
+    from molto_runtime.custom_kernels.glm_moe_dsa import fast as k
 
     if request.param == "fallback":
         monkeypatch.setattr(k, "_ext", None)
@@ -243,7 +243,7 @@ def test_uncovered_checkpoint_is_skipped(tmp_path):
 
 
 def test_kill_switch(tmp_path, reference, monkeypatch):
-    monkeypatch.setenv("OMLX_MOE_EXPERT_OFFLOAD", "0")
+    monkeypatch.setenv("MOLTO_MOE_EXPERT_OFFLOAD", "0")
     model = _Model([_copy(reference)])
     assert dsv4.apply_deepseek_v4_moe_expert_offload(model, tmp_path, 0.25) == 0
     assert apply_moe_expert_offload(model, tmp_path, 0.25) == 0
@@ -402,9 +402,9 @@ def test_wrap_and_release_return_descriptors_to_baseline(
     import gc
     import os
 
-    from omlx_runtime.patches.moe_expert_offload import _shutdown_io_pool
+    from molto_runtime.patches.moe_expert_offload import _shutdown_io_pool
 
-    monkeypatch.setenv("OMLX_MOE_OFFLOAD_IO_WORKERS", workers)
+    monkeypatch.setenv("MOLTO_MOE_OFFLOAD_IO_WORKERS", workers)
     _shutdown_io_pool()
 
     def cycle():

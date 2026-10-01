@@ -8,7 +8,7 @@ output on the VLM engine rejected every sampled token until max_tokens
 
 from types import SimpleNamespace
 
-from omlx_runtime.utils.tokenizer import resolve_vocab_size
+from molto_runtime.utils.tokenizer import resolve_vocab_size
 
 
 def test_nested_text_config_wins_over_top_level_placeholder():

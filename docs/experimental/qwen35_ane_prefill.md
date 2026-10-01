@@ -24,7 +24,7 @@ logits remain on GPU.
 - Apple silicon with the private `AppleNeuralEngine.framework` runtime present.
 - The dual path is intended for M3 Ultra, where the two dies expose physical
   ANE instances 1 and 2.
-- The oMLX native custom kernels must be built (`OMLX_WITH_CUSTOM_KERNEL=1`).
+- The Molto native custom kernels must be built (`MOLTO_WITH_CUSTOM_KERNEL=1`).
 - Dense Qwen3.5/3.6/3.8 affine q4/q5/q6/q8 gate/up linears with group size 64
   or 128. The optimized fused q4 path remains unchanged; compatible quantized
   weights are retained for every GPU suffix. The down projection may use
@@ -63,14 +63,14 @@ prefill. The optimal ANE/GPU balance sits well below the classic ~50%
 optimum there, so benchmark the split for the specific machine before enabling
 and set the measured fractions in the model settings. If the NAX
 metallib is missing at runtime, the suffix quietly falls back to the
-classic Metal kernels, and `OMLX_QWEN35_QMM_NAX=0` forces that fallback.
-`OMLX_QWEN35_ANE_PREFILL=0` keeps the whole feature off everywhere
+classic Metal kernels, and `MOLTO_QWEN35_QMM_NAX=0` forces that fallback.
+`MOLTO_QWEN35_ANE_PREFILL=0` keeps the whole feature off everywhere
 regardless of the per-model setting.
 
 The ANE GDN dispatch runs through the mlx-lm prefill linear patch, so
-`OMLX_QWEN35_Q4_LM_LINEAR=0` disables ANE GDN acceleration as well as the
+`MOLTO_QWEN35_Q4_LM_LINEAR=0` disables ANE GDN acceleration as well as the
 standalone GPU qmm routing. GDN b/a suffix projections follow the same q8
-token threshold as that patch: below `OMLX_QWEN35_Q8_LINEAR_MIN_TOKENS`
+token threshold as that patch: below `MOLTO_QWEN35_Q8_LINEAR_MIN_TOKENS`
 (default 16384, which covers every fixed ANE shape) q8 b/a use stock MLX,
 where the native q8 tile is not profitable.
 
@@ -109,9 +109,9 @@ address window at program-create. That window is about 4 GiB per ANE
 instance, so the dual 53%/50% Qwen3.8-27B layout at roughly 3.75 GiB per
 bank fits one bank per die on M3 Ultra but cannot host both banks on a
 single-die chip such as M3 Max, where the load fails with 0x20004. When a
-bank fails to load, oMLX first retries with two near-half banks per
+bank fails to load, Molto first retries with two near-half banks per
 instance and then with progressively smaller split banks before falling
-back to per-layer programs; `OMLX_QWEN35_ANE_BANK_MAX_BYTES`
+back to per-layer programs; `MOLTO_QWEN35_ANE_BANK_MAX_BYTES`
 forces an initial per-bank cap for testing, counted on the source weights
 handed to the bank compiler (about four times the compiled INT8 program
 size). An interleaved M3 Ultra A/B measured split banks about 1% faster at
@@ -358,7 +358,7 @@ the ANE and GPU GDN portions take about 10.1 ms and 9.95 ms respectively. The
 at 54% and 4.5370 s at 55%. Larger 60% banks were slower, and a monolithic
 60%/60% bank exceeded the compiler's model-verification or weight-blob limit.
 
-Set `OMLX_ANE_PROFILE=1` when running the benchmark to collect opt-in phase
+Set `MOLTO_ANE_PROFILE=1` when running the benchmark to collect opt-in phase
 timings. In the final paired run, ANE0 and ANE1 were executing requests for
 38.81% each of total body time. Request launch delay was only 29-37 us. The
 dominant downtime was dependency/input readiness: 25.1 ms before each MLP

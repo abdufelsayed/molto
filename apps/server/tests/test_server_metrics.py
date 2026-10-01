@@ -5,7 +5,7 @@ import json
 import threading
 
 import pytest
-from omlx_runtime.server_metrics import (
+from molto_runtime.server_metrics import (
     ServerMetrics,
     get_server_metrics,
     reset_server_metrics,

@@ -2,18 +2,18 @@
 """Stored model profiles through the backend management service."""
 
 import pytest
-from omlx_config.model_settings import ModelSettings, ModelSettingsManager
-from omlx_contracts.management import (
+from molto_config.model_settings import ModelSettings, ModelSettingsManager
+from molto_contracts.management import (
     ModelSettingsPatch,
     ProfileUpdate,
     ProfileWrite,
 )
-from omlx_management.management import (
+from molto_management.management import (
     ManagementContext,
     ManagementError,
     ManagementService,
 )
-from omlx_runtime.engine_pool import EngineEntry, EnginePool
+from molto_runtime.engine_pool import EngineEntry, EnginePool
 from pydantic import ValidationError
 
 

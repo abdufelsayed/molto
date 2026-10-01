@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Post-load gate/up fusion for oMLX's own SwitchGLU variants.
+"""Post-load gate/up fusion for Molto's own SwitchGLU variants.
 
-(omlx/patches/moe_gate_up_fusion.py)
+(molto/patches/moe_gate_up_fusion.py)
 
 MiMo V2 (GLM DSA SwitchGLU) and GLM-5.3 (DeepSeek V4 SwitchGLU) run the
 routed gate and up projections as one gather_qmm over the concatenated
@@ -14,9 +14,9 @@ with and without the native weighted-sum combine.
 import mlx.core as mx
 import mlx.nn as nn
 import pytest
-from omlx_runtime.patches import moe_gate_up_fusion as fusion
-from omlx_runtime.patches.deepseek_v4 import switch_layers as v4
-from omlx_runtime.patches.glm_moe_dsa import switch_layers as dsa
+from molto_runtime.patches import moe_gate_up_fusion as fusion
+from molto_runtime.patches.deepseek_v4 import switch_layers as v4
+from molto_runtime.patches.glm_moe_dsa import switch_layers as dsa
 
 E, D, INTER, TOP_K = 16, 128, 64, 8
 
@@ -161,22 +161,22 @@ def test_only_mimo_and_glm5_next_families_and_kill_switch(monkeypatch):
     assert fusion.apply_switch_glu_gate_up_fusion(other) == 0
     assert fusion.apply_switch_glu_gate_up_fusion(object()) == 0
 
-    monkeypatch.setenv("OMLX_MOE_GATE_UP_FUSION", "0")
+    monkeypatch.setenv("MOLTO_MOE_GATE_UP_FUSION", "0")
     glm = _holder_class("glm5_next")(_make_glu(v4, quant))
     assert fusion.apply_switch_glu_gate_up_fusion(glm) == 0
-    monkeypatch.delenv("OMLX_MOE_GATE_UP_FUSION")
+    monkeypatch.delenv("MOLTO_MOE_GATE_UP_FUSION")
     assert fusion.apply_switch_glu_gate_up_fusion(glm) == 1
 
 
 def _mimo_moe(T):
     import importlib
 
-    from omlx_runtime.patches.mimo_v2 import apply_mimo_v2_patch
+    from molto_runtime.patches.mimo_v2 import apply_mimo_v2_patch
 
     apply_mimo_v2_patch()
     mimo = importlib.import_module("mlx_lm.models.mimo_v2")
     if mimo._FusedSwitchGLU is None:
-        pytest.skip("oMLX GLM MoE kernels unavailable")
+        pytest.skip("Molto GLM MoE kernels unavailable")
     cfg = mimo.ModelArgs.from_dict(
         {
             "model_type": "mimo_v2",
@@ -241,7 +241,7 @@ def test_mimo_moe_block_fused_matches_unfused(T):
 
 
 def _glm5_language():
-    from omlx_runtime.patches import mlx_vlm_glm5_next_compat as compat
+    from molto_runtime.patches import mlx_vlm_glm5_next_compat as compat
 
     compat.apply_mlx_vlm_glm5_next_compat_patch()
     import importlib

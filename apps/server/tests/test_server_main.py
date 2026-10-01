@@ -15,17 +15,17 @@ import pytest
 
 @pytest.fixture
 def module_entry(monkeypatch, tmp_path, request):
-    """Run server.main() as ``python -m omlx_server.server --model-dir <tmp>``."""
-    from omlx_config.settings import reset_settings
-    from omlx_server import server
+    """Run server.main() as ``python -m molto_server.server --model-dir <tmp>``."""
+    from molto_config.settings import reset_settings
+    from molto_server import server
 
-    # main() loads GlobalSettings. OMLX_BASE_PATH is first in its base
+    # main() loads GlobalSettings. MOLTO_BASE_PATH is first in its base
     # path resolution order, so setting it (plus HOME for any other ~
     # expansion) keeps the test away from the real user configuration;
     # HOME alone is not enough when a macOS app bootstrap file exists.
     monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setenv("OMLX_BASE_PATH", str(tmp_path / "omlx-base"))
-    monkeypatch.delenv("OMLX_API_KEY", raising=False)
+    monkeypatch.setenv("MOLTO_BASE_PATH", str(tmp_path / "molto-base"))
+    monkeypatch.delenv("MOLTO_API_KEY", raising=False)
     reset_settings()
 
     # Reset the middleware stack so init_server's add_middleware works
@@ -35,7 +35,7 @@ def module_entry(monkeypatch, tmp_path, request):
     model_dir = tmp_path / "models"
     model_dir.mkdir()
     argv = [
-        "omlx_server.server",
+        "molto_server.server",
         "--model-dir",
         str(model_dir),
         "--api-key",
@@ -92,17 +92,17 @@ def test_module_port_matches_management_listener(module_entry):
 
 
 def test_main_rejects_network_bind_without_api_key(monkeypatch, tmp_path, capsys):
-    from omlx_config.settings import reset_settings
-    from omlx_server import server
+    from molto_config.settings import reset_settings
+    from molto_server import server
 
     monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setenv("OMLX_BASE_PATH", str(tmp_path / "omlx-base"))
-    monkeypatch.delenv("OMLX_API_KEY", raising=False)
+    monkeypatch.setenv("MOLTO_BASE_PATH", str(tmp_path / "molto-base"))
+    monkeypatch.delenv("MOLTO_API_KEY", raising=False)
     reset_settings()
     model_dir = tmp_path / "models"
     model_dir.mkdir()
     argv = [
-        "omlx_server.server",
+        "molto_server.server",
         "--model-dir",
         str(model_dir),
         "--host",
@@ -127,17 +127,17 @@ def test_main_rejects_network_bind_without_api_key(monkeypatch, tmp_path, capsys
 
 
 def test_main_accepts_network_bind_with_api_key(monkeypatch, tmp_path):
-    from omlx_config.settings import reset_settings
-    from omlx_server import server
+    from molto_config.settings import reset_settings
+    from molto_server import server
 
     monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setenv("OMLX_BASE_PATH", str(tmp_path / "omlx-base"))
-    monkeypatch.delenv("OMLX_API_KEY", raising=False)
+    monkeypatch.setenv("MOLTO_BASE_PATH", str(tmp_path / "molto-base"))
+    monkeypatch.delenv("MOLTO_API_KEY", raising=False)
     reset_settings()
     model_dir = tmp_path / "models"
     model_dir.mkdir()
     argv = [
-        "omlx_server.server",
+        "molto_server.server",
         "--model-dir",
         str(model_dir),
         "--host",
@@ -163,8 +163,8 @@ def test_main_accepts_network_bind_with_api_key(monkeypatch, tmp_path):
 
 
 def test_init_server_rejects_network_bind_without_api_key(tmp_path):
-    from omlx_config.settings import GlobalSettings
-    from omlx_server import server
+    from molto_config.settings import GlobalSettings
+    from molto_server import server
 
     settings = GlobalSettings(base_path=tmp_path)
     settings.server.host = "0.0.0.0"
@@ -208,8 +208,8 @@ def test_management_reads_initialized_runtime(module_entry):
 
 
 def test_bad_preparation_history_preserves_inference_startup(monkeypatch, tmp_path):
-    from omlx_config.settings import GlobalSettings
-    from omlx_server import server
+    from molto_config.settings import GlobalSettings
+    from molto_server import server
 
     model_dir = tmp_path / "models"
     model_dir.mkdir()
@@ -238,8 +238,8 @@ def test_module_entry_management_end_to_end(tmp_path):
     model_dir.mkdir()
     env = os.environ.copy()
     env["HOME"] = str(tmp_path)
-    env["OMLX_BASE_PATH"] = str(tmp_path / "base")
-    env["OMLX_API_KEY"] = "e2e-key-1234"
+    env["MOLTO_BASE_PATH"] = str(tmp_path / "base")
+    env["MOLTO_API_KEY"] = "e2e-key-1234"
     env["HF_HUB_OFFLINE"] = "1"
     env["TRANSFORMERS_OFFLINE"] = "1"
 
@@ -247,7 +247,7 @@ def test_module_entry_management_end_to_end(tmp_path):
         [
             sys.executable,
             "-m",
-            "omlx_server.server",
+            "molto_server.server",
             "--model-dir",
             str(model_dir),
             "--host",

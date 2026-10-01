@@ -2,7 +2,7 @@
 """Muse Glimmer mlx-vlm compatibility patch tests.
 
 Covers the vendor install/discovery surface (inkling test pattern), the
-model behaviors oMLX depends on (mixed sliding/full cache, NoPE layers,
+model behaviors Molto depends on (mixed sliding/full cache, NoPE layers,
 logit tail, vision-cache encode_image contract), the PR #1839 quantized
 embedding-norm preservation, and the real checkpoint's chat template
 contract (dict tool arguments, to=self reasoning, reasoning_strength).
@@ -28,7 +28,7 @@ _CHECKPOINT = Path("~/Workspace/models/meta-models/Muse-Glimmer-30B").expanduser
 
 @pytest.fixture(scope="module")
 def applied():
-    from omlx_runtime.patches.mlx_vlm_muse_glimmer_compat import (
+    from molto_runtime.patches.mlx_vlm_muse_glimmer_compat import (
         apply_mlx_vlm_muse_glimmer_compat_patch,
         is_applied,
     )
@@ -96,7 +96,7 @@ def test_vendor_module_resolves(applied):
 
 
 def test_double_apply_is_noop(applied):
-    from omlx_runtime.patches.mlx_vlm_muse_glimmer_compat import (
+    from molto_runtime.patches.mlx_vlm_muse_glimmer_compat import (
         apply_mlx_vlm_muse_glimmer_compat_patch,
     )
 

@@ -4,7 +4,7 @@
 import json
 
 import pytest
-from omlx_runtime.cluster.strategy_benchmarks import (
+from molto_runtime.cluster.strategy_benchmarks import (
     StrategyBenchmark,
     StrategyBenchmarkStore,
     context_bucket,

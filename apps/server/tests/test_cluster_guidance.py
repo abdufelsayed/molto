@@ -2,12 +2,12 @@
 """Failures must arrive as something a person can act on."""
 
 import pytest
-from omlx_runtime.cluster.guidance import explain
+from molto_runtime.cluster.guidance import explain
 
 
 def test_missing_worker_runtime_is_explained_as_online_setup():
     guidance = explain(
-        "cuda-worker-1 is online, but its oMLX worker runtime is not installed yet."
+        "cuda-worker-1 is online, but its Molto worker runtime is not installed yet."
     )
 
     assert guidance.title == "The device is online but its worker runtime is missing"
@@ -18,14 +18,14 @@ def test_unverifiable_runtime_is_not_reported_as_a_missing_one():
     """#2680: a probe that could not run is not proof the runtime is absent."""
 
     unverified = explain(
-        "studio is online, but oMLX worker runtime could not be verified."
+        "studio is online, but Molto worker runtime could not be verified."
     )
-    missing = explain("studio is online, but oMLX worker runtime is not installed.")
+    missing = explain("studio is online, but Molto worker runtime is not installed.")
 
     assert unverified.title != missing.title
     assert "could not be checked" in unverified.title
     assert "install" not in unverified.title.lower()
-    assert any("open omlx once" in step.lower() for step in unverified.steps)
+    assert any("open molto once" in step.lower() for step in unverified.steps)
 
 
 @pytest.mark.parametrize(
@@ -97,7 +97,7 @@ def test_guidance_serialises_for_the_dashboard():
 
 
 def test_every_rule_carries_a_stable_code():
-    from omlx_runtime.cluster.guidance import _FALLBACK, _RULES
+    from molto_runtime.cluster.guidance import _FALLBACK, _RULES
 
     assert _FALLBACK.code == "unknown_failure"
     codes = [guidance.code for _pattern, guidance in _RULES]
@@ -115,7 +115,7 @@ def test_first_seen_host_key_has_a_copyable_terminal_fallback():
     assert "isn't trusted yet" in guidance.title
     assert guidance.doc_anchor == "pairing"
     assert guidance.command == (
-        "ssh-copy-id -i ~/.ssh/omlx_cluster.pub clusteruser@studio"
+        "ssh-copy-id -i ~/.ssh/molto_cluster.pub clusteruser@studio"
     )
     assert guidance.keygen_command.startswith("ssh-keygen -t ed25519")
 

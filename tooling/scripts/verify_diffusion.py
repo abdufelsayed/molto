@@ -20,9 +20,9 @@ from pathlib import Path
 
 import httpx
 import mlx.core as mx
-from omlx_runtime.engine_core import get_mlx_executor
-from omlx_runtime.engine_pool import EnginePool
-from omlx_server.server import create_app
+from molto_runtime.engine_core import get_mlx_executor
+from molto_runtime.engine_pool import EnginePool
+from molto_server.server import create_app
 from PIL import Image
 
 
@@ -30,11 +30,11 @@ async def verify(z_image: Path, flux2: Path, output: Path) -> dict:
     output.mkdir(parents=True, exist_ok=True)
     report = {
         "platform": platform.platform(),
-        "versions": {name: version(name) for name in ("mflux", "mlx", "omlx")},
+        "versions": {name: version(name) for name in ("mflux", "mlx", "molto")},
         "models": {"z-image": str(z_image), "flux2": str(flux2)},
         "results": [],
     }
-    with tempfile.TemporaryDirectory(prefix="omlx-diffusion-models-") as directory:
+    with tempfile.TemporaryDirectory(prefix="molto-diffusion-models-") as directory:
         roots = Path(directory)
         (roots / "z-image").symlink_to(z_image, target_is_directory=True)
         (roots / "flux2").symlink_to(flux2, target_is_directory=True)

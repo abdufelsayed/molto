@@ -22,10 +22,10 @@ import logging
 from types import SimpleNamespace
 
 import mlx.core as mx
-import omlx_runtime.scheduler as scheduler_mod
+import molto_runtime.scheduler as scheduler_mod
 import pytest
-from omlx_runtime.request import RequestStatus
-from omlx_runtime.scheduler import Scheduler
+from molto_runtime.request import RequestStatus
+from molto_runtime.scheduler import Scheduler
 
 
 def _make_fixture(monkeypatch, drafter_returns_uid):
@@ -182,7 +182,7 @@ def test_route_declines_per_request_processors(caplog):
     reaching further would raise AttributeError."""
     sched = SimpleNamespace(_vlm_mtp_drafter=object())
 
-    with caplog.at_level(logging.INFO, logger="omlx_runtime.scheduler"):
+    with caplog.at_level(logging.INFO, logger="molto_runtime.scheduler"):
         uid = Scheduler._route_to_vlm_mtp(
             sched,
             _make_route_request(),
@@ -203,7 +203,7 @@ def test_route_passes_gate_with_suppress_only_processors(caplog):
     _language_model, so passing the gate surfaces as the later
     rollback-hook decline, not the processor one."""
     suppress = scheduler_mod._make_suppress_logits_processor({5})
-    assert getattr(suppress, "_omlx_suppress_processor", False)
+    assert getattr(suppress, "_molto_suppress_processor", False)
 
     sched = SimpleNamespace(
         _vlm_mtp_drafter=object(),
@@ -211,7 +211,7 @@ def test_route_passes_gate_with_suppress_only_processors(caplog):
         model=SimpleNamespace(),
     )
 
-    with caplog.at_level(logging.INFO, logger="omlx_runtime.scheduler"):
+    with caplog.at_level(logging.INFO, logger="molto_runtime.scheduler"):
         uid = Scheduler._route_to_vlm_mtp(
             sched,
             _make_route_request(),
@@ -236,7 +236,7 @@ def test_route_passes_gate_with_empty_processors(caplog):
             model=SimpleNamespace(),
         )
         caplog.clear()
-        with caplog.at_level(logging.INFO, logger="omlx_runtime.scheduler"):
+        with caplog.at_level(logging.INFO, logger="molto_runtime.scheduler"):
             uid = Scheduler._route_to_vlm_mtp(
                 sched,
                 _make_route_request(),
@@ -279,7 +279,7 @@ def test_route_declines_before_model_forward_under_contention(caplog, peer_state
         _stream=mx.default_stream(mx.default_device()),
     )
 
-    with caplog.at_level(logging.INFO, logger="omlx_runtime.scheduler"):
+    with caplog.at_level(logging.INFO, logger="molto_runtime.scheduler"):
         uid = Scheduler._route_to_vlm_mtp(
             sched,
             _make_route_request(),
@@ -306,7 +306,7 @@ def test_route_does_not_count_current_prefilling_request_as_contention(caplog):
         model=SimpleNamespace(),
     )
 
-    with caplog.at_level(logging.INFO, logger="omlx_runtime.scheduler"):
+    with caplog.at_level(logging.INFO, logger="molto_runtime.scheduler"):
         uid = Scheduler._route_to_vlm_mtp(
             sched,
             request,

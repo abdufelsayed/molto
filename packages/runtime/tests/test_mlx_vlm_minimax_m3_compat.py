@@ -10,7 +10,7 @@ import pytest
 
 
 def test_minimax_m3_compat_installs_vendor_modules():
-    from omlx_runtime.patches.mlx_vlm_minimax_m3_compat import (
+    from molto_runtime.patches.mlx_vlm_minimax_m3_compat import (
         apply_mlx_vlm_minimax_m3_compat_patch,
     )
 
@@ -28,7 +28,7 @@ def test_minimax_m3_compat_installs_vendor_modules():
 
 
 def test_minimax_architecture_fallback_selects_text_model():
-    from omlx_runtime.patches.mlx_vlm_minimax_m3_compat import (
+    from molto_runtime.patches.mlx_vlm_minimax_m3_compat import (
         apply_mlx_vlm_minimax_m3_compat_patch,
     )
 
@@ -48,7 +48,7 @@ def test_minimax_architecture_fallback_selects_text_model():
 
 
 def test_minimax_vl_model_type_is_not_downgraded_by_architecture():
-    from omlx_runtime.patches.mlx_vlm_minimax_m3_compat import (
+    from molto_runtime.patches.mlx_vlm_minimax_m3_compat import (
         apply_mlx_vlm_minimax_m3_compat_patch,
     )
 
@@ -68,7 +68,7 @@ def test_minimax_vl_model_type_is_not_downgraded_by_architecture():
 
 
 def test_process_inputs_forwards_kwargs_to_var_kwargs_processor():
-    from omlx_runtime.patches.mlx_vlm_minimax_m3_compat import (
+    from molto_runtime.patches.mlx_vlm_minimax_m3_compat import (
         apply_mlx_vlm_minimax_m3_compat_patch,
     )
 
@@ -105,7 +105,7 @@ def test_process_inputs_forwards_kwargs_to_var_kwargs_processor():
 
 
 def test_minimax_prompt_utils_restore_image_placeholders():
-    from omlx_runtime.patches.mlx_vlm_minimax_m3_compat import (
+    from molto_runtime.patches.mlx_vlm_minimax_m3_compat import (
         apply_mlx_vlm_minimax_m3_compat_patch,
     )
 
@@ -131,7 +131,7 @@ def test_minimax_prompt_utils_restore_image_placeholders():
 
 
 def test_stopping_criteria_accepts_none_eos_ids():
-    from omlx_runtime.patches.mlx_vlm_minimax_m3_compat import (
+    from molto_runtime.patches.mlx_vlm_minimax_m3_compat import (
         apply_mlx_vlm_minimax_m3_compat_patch,
     )
 
@@ -147,7 +147,7 @@ def test_stopping_criteria_accepts_none_eos_ids():
 
 
 def test_minimax_quantization_compat_restores_mxfp8_and_skip_module(tmp_path):
-    from omlx_runtime.patches.mlx_vlm_minimax_m3_compat import (
+    from molto_runtime.patches.mlx_vlm_minimax_m3_compat import (
         apply_mlx_vlm_minimax_m3_compat_patch,
     )
 
@@ -178,7 +178,7 @@ def test_minimax_quantization_compat_restores_mxfp8_and_skip_module(tmp_path):
 
 
 def test_ignored_layer_matching_covers_children():
-    from omlx_runtime.patches.mlx_vlm_minimax_m3_compat import (
+    from molto_runtime.patches.mlx_vlm_minimax_m3_compat import (
         _is_ignored_layer,
     )
 
@@ -210,7 +210,7 @@ def _tiny_text_config(*, pack_shared_expert):
 
 def test_minimax_unpack_sanitizer_keeps_shared_expert_separate():
     mx = pytest.importorskip("mlx.core")
-    from omlx_runtime.patches.mlx_vlm_minimax_m3_compat import (
+    from molto_runtime.patches.mlx_vlm_minimax_m3_compat import (
         apply_mlx_vlm_minimax_m3_compat_patch,
     )
 
@@ -246,7 +246,7 @@ def test_minimax_unpack_sanitizer_keeps_shared_expert_separate():
 def test_minimax_unpacked_mixed_bit_moe_forward():
     mx = pytest.importorskip("mlx.core")
     nn = pytest.importorskip("mlx.nn")
-    from omlx_runtime.patches.mlx_vlm_minimax_m3_compat import (
+    from molto_runtime.patches.mlx_vlm_minimax_m3_compat import (
         apply_mlx_vlm_minimax_m3_compat_patch,
     )
 
@@ -286,8 +286,8 @@ def test_minimax_unpacked_mixed_bit_moe_forward():
     assert bool(mx.all(mx.isfinite(output)).item())
 
 
-def test_omlx_loader_respects_minimax_shared_expert_layout_override():
-    from omlx_runtime.engine.vlm import _should_pack_minimax_m3_shared_expert
+def test_molto_loader_respects_minimax_shared_expert_layout_override():
+    from molto_runtime.engine.vlm import _should_pack_minimax_m3_shared_expert
 
     base = {
         "n_shared_experts": 1,

@@ -79,7 +79,7 @@ def _inputs(q_len, offset, window, pooled_len, ratio, trim=0):
 
 
 def _reset_wsdpa(monkeypatch):
-    from omlx_runtime.patches.deepseek_v4 import wsdpa_attention as wsdpa
+    from molto_runtime.patches.deepseek_v4 import wsdpa_attention as wsdpa
 
     monkeypatch.setattr(wsdpa, "_ENABLED", True)
     monkeypatch.setattr(wsdpa, "_TOPK_ENABLED", True)
@@ -214,8 +214,8 @@ def test_wsdpa_route_state_respects_disable_and_failure(monkeypatch):
 
 
 def test_wsdpa_import_does_not_register_head_dim_512_globally():
-    from omlx_runtime import memory_monitor
-    from omlx_runtime.patches.deepseek_v4 import wsdpa_attention  # noqa: F401
+    from molto_runtime import memory_monitor
+    from molto_runtime.patches.deepseek_v4 import wsdpa_attention  # noqa: F401
 
     assert 512 not in memory_monitor._SDPA_TILED_PREFILL_HEAD_DIMS
 

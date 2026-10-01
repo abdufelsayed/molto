@@ -15,7 +15,7 @@ import copy
 import mlx.core as mx
 import pytest
 from mlx_lm.models.switch_layers import SwitchLinear
-from omlx_runtime.cluster.tensor_strategies import (
+from molto_runtime.cluster.tensor_strategies import (
     _shard_switch_mlp_uneven,
     _uneven_group_ranges,
 )

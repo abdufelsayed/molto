@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx/websearch.py and omlx/api/websearch_routes.py.
+"""Tests for molto/websearch.py and molto/api/websearch_routes.py.
 
 Covers result sanitization, provider adapters (ddgs is monkeypatched,
 brave/searxng use httpx.MockTransport), backend selection for the ddgs
@@ -11,12 +11,12 @@ guard, and the /v1/web HTTP layer.
 from __future__ import annotations
 
 import httpx
-import omlx_management.websearch as websearch
+import molto_management.websearch as websearch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from omlx_config.settings import IntegrationSettings
-from omlx_management.websearch import (
+from molto_config.settings import IntegrationSettings
+from molto_management.websearch import (
     BraveProvider,
     SearXNGProvider,
     WebSearchError,
@@ -28,7 +28,7 @@ from omlx_management.websearch import (
     run_web_search_test,
     sanitize_result,
 )
-from omlx_server.api import websearch_routes
+from molto_server.api import websearch_routes
 
 PUBLIC_IP = "93.184.216.34"
 
@@ -645,7 +645,7 @@ class TestWebRoutes:
 
     @pytest.fixture(autouse=True)
     def reset_settings_state(self):
-        from omlx_server.state import ServerState
+        from molto_server.state import ServerState
 
         self.server_state = ServerState()
 

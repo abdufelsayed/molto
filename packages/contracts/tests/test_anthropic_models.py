@@ -7,7 +7,7 @@ including content blocks, tools, and streaming events.
 """
 
 import pytest
-from omlx_contracts.api.anthropic_models import (
+from molto_contracts.api.anthropic_models import (
     AnthropicErrorDetail,
     AnthropicErrorResponse,
     AnthropicMessage,

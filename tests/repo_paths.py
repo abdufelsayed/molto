@@ -9,4 +9,4 @@ def repository_root(source: str) -> Path:
             directory / "pyproject.toml"
         ).is_file():
             return directory
-    raise RuntimeError(f"Cannot locate oMLX workspace from {source}")
+    raise RuntimeError(f"Cannot locate Molto workspace from {source}")

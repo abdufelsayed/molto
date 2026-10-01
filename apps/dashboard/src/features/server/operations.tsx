@@ -96,7 +96,7 @@ export function ConnectionPanel() {
       setRestartNotice(true)
       setRestartOpen(false)
       setConfirmation("")
-      await queryClient.invalidateQueries({ queryKey: ["omlx"] })
+      await queryClient.invalidateQueries({ queryKey: ["molto"] })
     },
   })
   const update = useMutation({
@@ -117,7 +117,7 @@ export function ConnectionPanel() {
           </div>
           <CardDescription>
             {connection.data?.server ??
-              "Connect to your oMLX server to manage its configuration."}
+              "Connect to your Molto server to manage its configuration."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -303,7 +303,7 @@ export function ConnectionPanel() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Restart oMLX?</DialogTitle>
+            <DialogTitle>Restart Molto?</DialogTitle>
             <DialogDescription>
               Active inference will be interrupted. Save your settings first.
               Restarting loads the configuration on disk.
@@ -466,7 +466,7 @@ function WebSearchTest() {
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
-        queryKey: ["omlx", "server", "integrations"],
+        queryKey: ["molto", "server", "integrations"],
       })
     },
   })

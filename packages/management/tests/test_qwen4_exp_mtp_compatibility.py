@@ -2,7 +2,7 @@
 """Regression tests for Lightning-MTP compatibility with qwen4_exp.
 
 Qwen3.8 Flash Next (``model_type == "qwen4_exp"``) attaches its Lightning
-MTP head through the dedicated VLM path in ``omlx_runtime.utils.model_loading``
+MTP head through the dedicated VLM path in ``molto_runtime.utils.model_loading``
 (vendored mlx-vlm qwen4_exp model + ``mlx_lm_mtp`` dispatch patch) and is
 deliberately absent from the mlx-lm ``_is_mtp_compatible`` whitelist, which
 is the runtime gate for the *generic* text-model patch.
@@ -18,7 +18,7 @@ runtime path applies.
 import json
 
 import pytest
-from omlx_management.model_compat import mtp_compatibility
+from molto_management.model_compat import mtp_compatibility
 
 QWEN4_EXP_CONFIG = {
     "model_type": "qwen4_exp",

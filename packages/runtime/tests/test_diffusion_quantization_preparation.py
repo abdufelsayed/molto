@@ -12,11 +12,11 @@ pytest.importorskip("mflux")
 from mflux.models.common.weights.loading.weight_definition import ComponentDefinition
 from mflux.models.common.weights.saving.model_saver import ModelSaver
 from mlx.utils import tree_flatten
-from omlx_runtime.diffusion import preparation
-from omlx_runtime.diffusion.backend import MFluxBackend
-from omlx_runtime.diffusion.checkpoint import detect_checkpoint
-from omlx_runtime.diffusion.quantization import ActivationCollector
-from omlx_runtime.diffusion.registry import ImageTask, get_pipeline
+from molto_runtime.diffusion import preparation
+from molto_runtime.diffusion.backend import MFluxBackend
+from molto_runtime.diffusion.checkpoint import detect_checkpoint
+from molto_runtime.diffusion.quantization import ActivationCollector
+from molto_runtime.diffusion.registry import ImageTask, get_pipeline
 from PIL import Image
 
 
@@ -64,7 +64,7 @@ def tiny_source(tmp_path, monkeypatch):
     tokenizer.mkdir()
     (tokenizer / "tokenizer.json").write_text("{}")
     spec = get_pipeline("flux2-klein-4b")
-    (source / "omlx-mflux.json").write_text(
+    (source / "molto-mflux.json").write_text(
         json.dumps(
             {
                 "version": 2,
@@ -139,7 +139,7 @@ def test_complete_workflow_preserves_source_and_other_components(tiny_source, tm
     checkpoint = detect_checkpoint(output)
     assert checkpoint.quantization == 4
     assert plan["actual_transformer_bytes"] == plan["budget_bytes"]
-    manifest = json.loads((output / "omlx-mflux.json").read_text())
+    manifest = json.loads((output / "molto-mflux.json").read_text())
     assert manifest["quantization_policy"]["method"] == "diffusion-oQe"
     assert (output / "diffusion-quantization.json").is_file()
     assert (output / "tokenizer" / "tokenizer.json").read_text() == "{}"
@@ -219,7 +219,7 @@ def test_packed_source_rejected_before_loading(tiny_source, tmp_path, monkeypatc
     nn.quantize(native.transformer, bits=4, group_size=64)
     native.bits = 4
     native.save_model(source)
-    manifest = source / "omlx-mflux.json"
+    manifest = source / "molto-mflux.json"
     data = json.loads(manifest.read_text())
     data["quantization_bits"] = 4
     manifest.write_text(json.dumps(data))

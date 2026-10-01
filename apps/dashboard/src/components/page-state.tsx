@@ -75,7 +75,7 @@ export function QueryState({
           </EmptyTitle>
           <EmptyDescription>
             {needsKey
-              ? "Connect with your oMLX main API key to view and manage models."
+              ? "Connect with your Molto main API key to view and manage models."
               : errorMessage(query.error)}
           </EmptyDescription>
         </EmptyHeader>

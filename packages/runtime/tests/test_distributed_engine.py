@@ -7,12 +7,12 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
-from omlx_runtime.cluster.deployment import ClusterDeployment, ClusterHost
-from omlx_runtime.cluster.performance import execution_profile
-from omlx_runtime.cluster.planner import PipelineAssignment
-from omlx_runtime.cluster.strategy_benchmarks import configure_strategy_benchmark_store
-from omlx_runtime.engine import distributed
-from omlx_runtime.engine.distributed import (
+from molto_runtime.cluster.deployment import ClusterDeployment, ClusterHost
+from molto_runtime.cluster.performance import execution_profile
+from molto_runtime.cluster.planner import PipelineAssignment
+from molto_runtime.cluster.strategy_benchmarks import configure_strategy_benchmark_store
+from molto_runtime.engine import distributed
+from molto_runtime.engine.distributed import (
     DistributedBatchedEngine,
     DistributedInferenceError,
 )
@@ -127,8 +127,8 @@ async def test_distributed_ssd_clear_reaches_every_rank(monkeypatch):
 
     assert result["ssd_deleted"] == 8
     assert len(result["ranks"]) == 2
-    assert requests[0].url.path == "/omlx/internal/cache/ssd/clear"
-    assert requests[0].headers["X-oMLX-Plan-Hash"] == "d" * 64
+    assert requests[0].url.path == "/molto/internal/cache/ssd/clear"
+    assert requests[0].headers["X-Molto-Plan-Hash"] == "d" * 64
     assert remote_calls[0][0] == "peer.local"
     assert "engine-test-cache-clear.json" in remote_calls[0][1]
     assert '"ssd":true' in remote_calls[0][1]
@@ -192,7 +192,7 @@ async def test_private_rank_zero_client_has_finite_inactivity_timeouts():
 
 @pytest.mark.asyncio
 async def test_request_read_timeout_defaults_from_env_var(monkeypatch):
-    monkeypatch.setenv("OMLX_DISTRIBUTED_REQUEST_READ_TIMEOUT", "600")
+    monkeypatch.setenv("MOLTO_DISTRIBUTED_REQUEST_READ_TIMEOUT", "600")
     engine = DistributedBatchedEngine(_deployment())
     client = engine._new_client("http://127.0.0.1:1")
     try:
@@ -203,7 +203,7 @@ async def test_request_read_timeout_defaults_from_env_var(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_request_read_timeout_env_var_takes_backseat_to_explicit_arg(monkeypatch):
-    monkeypatch.setenv("OMLX_DISTRIBUTED_REQUEST_READ_TIMEOUT", "600")
+    monkeypatch.setenv("MOLTO_DISTRIBUTED_REQUEST_READ_TIMEOUT", "600")
     engine = DistributedBatchedEngine(_deployment(), request_read_timeout=12.5)
     client = engine._new_client("http://127.0.0.1:1")
     try:
@@ -214,7 +214,7 @@ async def test_request_read_timeout_env_var_takes_backseat_to_explicit_arg(monke
 
 @pytest.mark.asyncio
 async def test_request_read_timeout_env_var_rejects_non_numeric(monkeypatch):
-    monkeypatch.setenv("OMLX_DISTRIBUTED_REQUEST_READ_TIMEOUT", "not-a-number")
+    monkeypatch.setenv("MOLTO_DISTRIBUTED_REQUEST_READ_TIMEOUT", "not-a-number")
     with pytest.raises(ValueError, match="must be a number"):
         DistributedBatchedEngine(_deployment())
 
@@ -222,11 +222,11 @@ async def test_request_read_timeout_env_var_rejects_non_numeric(monkeypatch):
 @pytest.mark.asyncio
 async def test_request_read_timeout_rejects_non_finite_and_non_positive(monkeypatch):
     for bad in ("nan", "inf", "0", "-5"):
-        monkeypatch.setenv("OMLX_DISTRIBUTED_REQUEST_READ_TIMEOUT", bad)
+        monkeypatch.setenv("MOLTO_DISTRIBUTED_REQUEST_READ_TIMEOUT", bad)
         with pytest.raises(ValueError, match="finite positive"):
             DistributedBatchedEngine(_deployment())
 
-    monkeypatch.delenv("OMLX_DISTRIBUTED_REQUEST_READ_TIMEOUT")
+    monkeypatch.delenv("MOLTO_DISTRIBUTED_REQUEST_READ_TIMEOUT")
     with pytest.raises(ValueError, match="finite positive"):
         DistributedBatchedEngine(_deployment(), request_read_timeout=float("nan"))
     with pytest.raises(ValueError, match="finite positive"):
@@ -240,7 +240,7 @@ def _stalled_engine():
     engine = _ready_engine(handler)
     # Read timeouts now drop a rank-side cancel file; keep it out of the
     # real runtime state dir.
-    engine._supervisor.state_dir = tempfile.mkdtemp(prefix="omlx-test-runtime-")
+    engine._supervisor.state_dir = tempfile.mkdtemp(prefix="molto-test-runtime-")
     status_calls = []
 
     def status():
@@ -680,7 +680,7 @@ async def test_stream_records_real_prefill_and_decode_for_automatic_choice(
     monkeypatch,
     tmp_path,
 ):
-    from omlx_runtime.engine import distributed
+    from molto_runtime.engine import distributed
 
     events = [
         {"choices": [{"text": "A", "finish_reason": None}]},
@@ -826,7 +826,7 @@ async def test_distributed_transport_error_surfaces_peer_failure_reason():
         returncode=1,
         failure_reason=(
             "Studio stopped publishing its runtime heartbeat. "
-            "Check oMLX is running on that Mac."
+            "Check Molto is running on that Mac."
         ),
         phase="failed",
         stderr_tail=(),
@@ -928,7 +928,7 @@ async def test_distributed_preflight_rejects_features_before_stream_starts():
 
 
 def test_reasoning_effort_retry_payloads_maps_alias_first():
-    from omlx_runtime.engine.distributed import _reasoning_effort_retry_payloads
+    from molto_runtime.engine.distributed import _reasoning_effort_retry_payloads
 
     payload = {"chat_template_kwargs": {"reasoning_effort": "high"}}
     variants = _reasoning_effort_retry_payloads(
@@ -941,7 +941,7 @@ def test_reasoning_effort_retry_payloads_maps_alias_first():
 
 
 def test_reasoning_effort_retry_payloads_drops_when_no_alias_helps():
-    from omlx_runtime.engine.distributed import _reasoning_effort_retry_payloads
+    from molto_runtime.engine.distributed import _reasoning_effort_retry_payloads
 
     # "xhigh" has no further fallback in _ALIAS_FALLBACKS beyond "max", but if
     # the alias candidate equals the normalized value there is nothing to
@@ -957,14 +957,14 @@ def test_reasoning_effort_retry_payloads_drops_when_no_alias_helps():
 
 
 def test_reasoning_effort_retry_payloads_ignores_unrelated_failures():
-    from omlx_runtime.engine.distributed import _reasoning_effort_retry_payloads
+    from molto_runtime.engine.distributed import _reasoning_effort_retry_payloads
 
     payload = {"chat_template_kwargs": {"reasoning_effort": "high"}}
     assert _reasoning_effort_retry_payloads(payload, "model not found") == []
 
 
 def test_reasoning_effort_retry_payloads_ignores_when_not_requested():
-    from omlx_runtime.engine.distributed import _reasoning_effort_retry_payloads
+    from molto_runtime.engine.distributed import _reasoning_effort_retry_payloads
 
     payload = {"chat_template_kwargs": {}}
     assert (

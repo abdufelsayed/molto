@@ -7,7 +7,7 @@ from __future__ import annotations
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.custom_kernels.glm_moe_dsa import fast
+from molto_runtime.custom_kernels.glm_moe_dsa import fast
 
 TOPK = 512
 

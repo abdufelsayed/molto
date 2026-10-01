@@ -9,10 +9,10 @@ import subprocess
 from types import SimpleNamespace
 
 import pytest
-from omlx_runtime.cluster.rdma.daemon import DaemonStatus
-from omlx_runtime.cluster.rdma.links import RdmaLink
-from omlx_runtime.cluster.rdma.store import RdmaLinkStore
-from omlx_runtime.cluster.rdma.verification import (
+from molto_runtime.cluster.rdma.daemon import DaemonStatus
+from molto_runtime.cluster.rdma.links import RdmaLink
+from molto_runtime.cluster.rdma.store import RdmaLinkStore
+from molto_runtime.cluster.rdma.verification import (
     DriverIdentity,
     LinkVerification,
     ProbeMeasurements,

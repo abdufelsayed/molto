@@ -4,7 +4,7 @@
 import mlx.core as mx
 import pytest
 
-fast = pytest.importorskip("omlx_runtime.custom_kernels.decode_fast.fast")
+fast = pytest.importorskip("molto_runtime.custom_kernels.decode_fast.fast")
 
 
 @pytest.mark.skipif(not fast.NATIVE_AVAILABLE, reason="native extension not built")

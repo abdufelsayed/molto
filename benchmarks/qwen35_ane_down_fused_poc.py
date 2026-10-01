@@ -79,9 +79,9 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
-    from omlx_runtime.patches.qwen35_q4_mlp import _linear_qmm
-    from omlx_runtime.utils.model_loading import load_text_model
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
+    from molto_runtime.patches.qwen35_q4_mlp import _linear_qmm
+    from molto_runtime.utils.model_loading import load_text_model
 
     if not fast.qwen35_ane_swiglu_down_available():
         raise RuntimeError("The private ANE fused SwiGLU/down path is unavailable")

@@ -11,7 +11,7 @@ from __future__ import annotations
 import mlx.core as mx
 import mlx.nn as nn
 import pytest
-from omlx_runtime.patches import qwen35_verify_qmm, row_exact_qmv
+from molto_runtime.patches import qwen35_verify_qmm, row_exact_qmv
 
 pytestmark = pytest.mark.skipif(not mx.metal.is_available(), reason="requires Metal")
 

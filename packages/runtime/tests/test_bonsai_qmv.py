@@ -18,16 +18,16 @@ from types import SimpleNamespace
 
 import mlx.core as mx
 import mlx.nn as nn
+import molto_runtime.custom_kernels.bonsai.fast as bonsai_fast
 import numpy as np
-import omlx_runtime.custom_kernels.bonsai.fast as bonsai_fast
 import pytest
-from omlx_runtime.patches.bonsai_qmv import (
+from molto_runtime.patches.bonsai_qmv import (
     apply_bonsai_qmv_patch,
     is_patch_active,
     remove_bonsai_qmv_patch,
 )
-from omlx_runtime.utils import model_loading
-from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+from molto_runtime.utils import model_loading
+from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -454,21 +454,21 @@ def _make_sym_layer(bits: int, N: int = 64, K: int = 256, group_size: int = 128)
 
 
 def test_is_symmetric_detects_bonsai_1bit():
-    from omlx_runtime.patches.bonsai_qmv import _is_symmetric
+    from molto_runtime.patches.bonsai_qmv import _is_symmetric
 
     layer = _make_sym_layer(bits=1)
     assert _is_symmetric(layer, bits=1) is True
 
 
 def test_is_symmetric_detects_bonsai_2bit():
-    from omlx_runtime.patches.bonsai_qmv import _is_symmetric
+    from molto_runtime.patches.bonsai_qmv import _is_symmetric
 
     layer = _make_sym_layer(bits=2)
     assert _is_symmetric(layer, bits=2) is True
 
 
 def test_is_symmetric_rejects_non_symmetric():
-    from omlx_runtime.patches.bonsai_qmv import _is_symmetric
+    from molto_runtime.patches.bonsai_qmv import _is_symmetric
 
     layer = _make_sym_layer(bits=1)
     # Corrupt one bias entry
@@ -478,7 +478,7 @@ def test_is_symmetric_rejects_non_symmetric():
 
 
 def test_is_symmetric_cached():
-    from omlx_runtime.patches.bonsai_qmv import _is_symmetric
+    from molto_runtime.patches.bonsai_qmv import _is_symmetric
 
     layer = _make_sym_layer(bits=1)
     first = _is_symmetric(layer, bits=1)
@@ -561,7 +561,7 @@ def test_patch_skipped_when_no_native(monkeypatch):
     monkeypatch.setattr(bonsai_fast, "_ext", None)
     remove_bonsai_qmv_patch()
 
-    from omlx_runtime.patches import bonsai_qmv as bonsai_qmv_mod
+    from molto_runtime.patches import bonsai_qmv as bonsai_qmv_mod
 
     monkeypatch.setattr(bonsai_qmv_mod, "has_native", lambda: False)
 
@@ -574,7 +574,7 @@ def test_patch_idempotent(monkeypatch):
     monkeypatch.setattr(bonsai_fast, "_ext", SimpleNamespace(abi_probe=lambda a: 1))
     remove_bonsai_qmv_patch()
 
-    from omlx_runtime.patches import bonsai_qmv as bonsai_qmv_mod
+    from molto_runtime.patches import bonsai_qmv as bonsai_qmv_mod
 
     monkeypatch.setattr(bonsai_qmv_mod, "has_native", lambda: True)
 
@@ -585,7 +585,7 @@ def test_patch_idempotent(monkeypatch):
 
 
 def test_remove_restores_original():
-    from omlx_runtime.patches import bonsai_qmv as bonsai_qmv_mod
+    from molto_runtime.patches import bonsai_qmv as bonsai_qmv_mod
 
     original = nn.QuantizedLinear.__call__
     bonsai_qmv_mod._original_quantized_linear_call = original
@@ -621,7 +621,7 @@ class TestModelLoadingBonsaiWiring:
             lambda: None,
         )
         # Stub out apply_bonsai_qmv_patch inside model_loading
-        from omlx_runtime.patches import bonsai_qmv as bonsai_qmv_mod
+        from molto_runtime.patches import bonsai_qmv as bonsai_qmv_mod
 
         monkeypatch.setattr(bonsai_qmv_mod, "has_native", lambda: True)
         monkeypatch.setattr(
@@ -639,7 +639,7 @@ class TestModelLoadingBonsaiWiring:
         )
         applied = []
         monkeypatch.setattr(model_loading, "_patch_mlx_lm_load_config", lambda: None)
-        from omlx_runtime.patches import bonsai_qmv as bonsai_qmv_mod
+        from molto_runtime.patches import bonsai_qmv as bonsai_qmv_mod
 
         monkeypatch.setattr(bonsai_qmv_mod, "has_native", lambda: True)
         monkeypatch.setattr(
@@ -657,7 +657,7 @@ class TestModelLoadingBonsaiWiring:
         )
         applied = []
         monkeypatch.setattr(model_loading, "_patch_mlx_lm_load_config", lambda: None)
-        from omlx_runtime.patches import bonsai_qmv as bonsai_qmv_mod
+        from molto_runtime.patches import bonsai_qmv as bonsai_qmv_mod
 
         monkeypatch.setattr(
             bonsai_qmv_mod,
@@ -671,7 +671,7 @@ class TestModelLoadingBonsaiWiring:
         model_dir = _write_config(tmp_path, '{"model_type": "llama"}')
         applied = []
         monkeypatch.setattr(model_loading, "_patch_mlx_lm_load_config", lambda: None)
-        from omlx_runtime.patches import bonsai_qmv as bonsai_qmv_mod
+        from molto_runtime.patches import bonsai_qmv as bonsai_qmv_mod
 
         monkeypatch.setattr(
             bonsai_qmv_mod,
@@ -817,19 +817,19 @@ class TestT5FormatDetection:
     """Tests for _is_t5_format detection in bonsai_qmv patch."""
 
     def test_detects_t5_gs128(self):
-        from omlx_runtime.patches.bonsai_qmv import _is_t5_format
+        from molto_runtime.patches.bonsai_qmv import _is_t5_format
 
         layer = _make_t5_layer(N=64, K=256, group_size=128)
         assert _is_t5_format(layer) is True
 
     def test_detects_t5_gs64(self):
-        from omlx_runtime.patches.bonsai_qmv import _is_t5_format
+        from molto_runtime.patches.bonsai_qmv import _is_t5_format
 
         layer = _make_t5_layer(N=64, K=256, group_size=64)
         assert _is_t5_format(layer) is True
 
     def test_rejects_uint32_weight(self):
-        from omlx_runtime.patches.bonsai_qmv import _is_t5_format
+        from molto_runtime.patches.bonsai_qmv import _is_t5_format
 
         layer = _make_sym_layer(bits=2, N=64, K=256, group_size=128)
         # weight is uint32 (2-bit MLX format), not t5
@@ -837,7 +837,7 @@ class TestT5FormatDetection:
 
     def test_rejects_wrong_bytes_per_group(self):
         import mlx.nn as nn_inner
-        from omlx_runtime.patches.bonsai_qmv import _is_t5_format
+        from molto_runtime.patches.bonsai_qmv import _is_t5_format
 
         # uint8 weight but bytes_per_group=32 (not 13 or 26)
         layer = nn_inner.QuantizedLinear.__new__(nn_inner.QuantizedLinear)
@@ -848,7 +848,7 @@ class TestT5FormatDetection:
         assert _is_t5_format(layer) is False
 
     def test_detection_cached(self):
-        from omlx_runtime.patches.bonsai_qmv import _is_t5_format
+        from molto_runtime.patches.bonsai_qmv import _is_t5_format
 
         layer = _make_t5_layer(N=16, K=128, group_size=128)
         first = _is_t5_format(layer)
@@ -860,8 +860,8 @@ class TestT5FormatDetection:
 
 def test_vlm_one_bit_modules_keep_bonsai_paths(monkeypatch):
     from mlx_vlm.quantization.one_bit import OneBitEmbedding, OneBitLinear
-    from omlx_runtime.models.vlm import restore_bonsai_quantized_modules
-    from omlx_runtime.patches import bonsai_qmv
+    from molto_runtime.models.vlm import restore_bonsai_quantized_modules
+    from molto_runtime.patches import bonsai_qmv
 
     model = nn.Module()
     model.linear = OneBitLinear(128, 32, bias=False)

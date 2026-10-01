@@ -5,7 +5,7 @@ import io
 import json
 import struct
 
-from omlx_runtime.patches.mlx_lm_pipeline_index import (
+from molto_runtime.patches.mlx_lm_pipeline_index import (
     TolerantWeightMap,
     apply_mlx_lm_pipeline_index_patch,
     is_applied,
@@ -65,7 +65,7 @@ def test_an_empty_index_still_yields_a_usable_name():
 def test_the_patch_only_touches_safetensors_indexes():
     """config.json and every other json read in that module must be unaffected."""
 
-    from omlx_runtime.patches.mlx_lm_pipeline_index import _JsonProxy
+    from molto_runtime.patches.mlx_lm_pipeline_index import _JsonProxy
 
     proxy = _JsonProxy()
     config = proxy.load(io.StringIO(json.dumps({"model_type": "glm_moe_dsa"})))

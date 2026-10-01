@@ -5,7 +5,7 @@ import threading
 import time
 
 import pytest
-from omlx_runtime.cluster.memory_guard import (
+from molto_runtime.cluster.memory_guard import (
     LoadMemoryWatchdog,
     admission_budget,
     ceiling_breakdown,
@@ -15,7 +15,7 @@ from omlx_runtime.cluster.memory_guard import (
     stage_budget,
     watch_rank_load,
 )
-from omlx_runtime.exceptions import InsufficientMemoryError
+from molto_runtime.exceptions import InsufficientMemoryError
 
 GIB = 1024**3
 
@@ -26,12 +26,12 @@ def _deterministic_machine(monkeypatch):
     The tier tests below assert tier semantics (reserves, reclaim ratios,
     operator clamping). On a small-RAM CI runner the dynamic vm_stat
     ceiling binds instead and fluctuates between calls, which is not what
-    they are about. Profile: 64 GiB RAM, 2 GiB oMLX footprint, 16/8/24 GiB
+    they are about. Profile: 64 GiB RAM, 2 GiB Molto footprint, 16/8/24 GiB
     free/inactive/active, 48 GiB Metal cap.
     """
-    import omlx_config.settings as settings_module
-    import omlx_runtime.process_memory_enforcer as enforcer_module
-    from omlx_runtime.process_memory_enforcer import ProcessMemoryEnforcer
+    import molto_config.settings as settings_module
+    import molto_runtime.process_memory_enforcer as enforcer_module
+    from molto_runtime.process_memory_enforcer import ProcessMemoryEnforcer
 
     monkeypatch.setattr(settings_module, "get_system_memory", lambda: 64 * GIB)
     monkeypatch.setattr(enforcer_module, "get_phys_footprint", lambda: 2 * GIB)
@@ -58,7 +58,7 @@ def test_cuda_ceiling_uses_device_memory_instead_of_host_ram(monkeypatch):
     monkeypatch.setattr(mx.cuda, "is_available", lambda: True)
     monkeypatch.setattr(mx, "device_info", lambda: {"memory_size": 128 * GIB})
     monkeypatch.setattr(
-        "omlx_runtime.cluster.memory_guard._operator_memory_settings",
+        "molto_runtime.cluster.memory_guard._operator_memory_settings",
         lambda: ("balanced", 0.0, True),
     )
 
@@ -81,7 +81,7 @@ def test_cuda_ceiling_respects_live_free_memory(monkeypatch):
         },
     )
     monkeypatch.setattr(
-        "omlx_runtime.cluster.memory_guard._operator_memory_settings",
+        "molto_runtime.cluster.memory_guard._operator_memory_settings",
         lambda: ("balanced", 0.0, True),
     )
 
@@ -114,7 +114,7 @@ def test_a_stage_that_overruns_the_ceiling_is_refused():
 def test_a_manual_slider_is_the_rank_guard_limit_even_on_a_workstation():
     """Role selects automatic memory; an explicit slider value supersedes it."""
 
-    from omlx_runtime.cluster.planner import PipelineAssignment
+    from molto_runtime.cluster.planner import PipelineAssignment
 
     assignment = PipelineAssignment(
         node_id="test-mbp",
@@ -177,9 +177,9 @@ def test_it_works_straight_from_a_planner_assignment():
 
 
 def test_the_real_ceiling_is_readable_on_this_machine():
-    """Reuses oMLX's own enforcer rather than reimplementing the arithmetic."""
+    """Reuses Molto's own enforcer rather than reimplementing the arithmetic."""
 
-    from omlx_runtime.cluster.memory_guard import ceiling_breakdown
+    from molto_runtime.cluster.memory_guard import ceiling_breakdown
 
     ceiling = int(ceiling_breakdown().get("hard_limit", 0))
     assert ceiling >= 0
@@ -194,7 +194,7 @@ def test_a_plan_tier_cannot_admit_above_the_operators_own_ceiling(monkeypatch):
 
     _deterministic_machine(monkeypatch)
 
-    from omlx_runtime.cluster import memory_guard
+    from molto_runtime.cluster import memory_guard
 
     monkeypatch.setattr(
         memory_guard, "_operator_memory_settings", lambda: ("custom", 8.0, True)
@@ -212,7 +212,7 @@ def test_a_disabled_local_guard_is_not_resurrected_by_a_plan_tier(monkeypatch):
 
     _deterministic_machine(monkeypatch)
 
-    from omlx_runtime.cluster import memory_guard
+    from molto_runtime.cluster import memory_guard
 
     monkeypatch.setattr(
         memory_guard, "_operator_memory_settings", lambda: ("custom", 4.0, False)
@@ -231,7 +231,7 @@ def test_a_disabled_local_guard_is_not_resurrected_by_a_plan_tier(monkeypatch):
 
 
 def test_the_binding_limit_is_named_in_the_error(monkeypatch):
-    from omlx_runtime.cluster import memory_guard
+    from molto_runtime.cluster import memory_guard
 
     # Other apps have taken the machine down to 30 GiB reclaimable, even though
     # 122 GiB is installed and the GPU cap allows 107.
@@ -255,7 +255,7 @@ def test_the_binding_limit_is_named_in_the_error(monkeypatch):
 
 
 def test_a_gpu_capped_machine_says_so(monkeypatch):
-    from omlx_runtime.cluster import memory_guard
+    from molto_runtime.cluster import memory_guard
 
     monkeypatch.setattr(
         memory_guard,
@@ -275,7 +275,7 @@ def test_a_gpu_capped_machine_says_so(monkeypatch):
 def test_pressure_from_other_apps_changes_the_verdict(monkeypatch):
     """The same stage is admitted on an idle Mac and refused on a busy one."""
 
-    from omlx_runtime.cluster import memory_guard
+    from molto_runtime.cluster import memory_guard
 
     idle = {
         "static": 122 * GIB,
@@ -299,7 +299,7 @@ def test_pressure_from_other_apps_changes_the_verdict(monkeypatch):
 
 
 def test_the_live_breakdown_has_all_three_components():
-    from omlx_runtime.cluster.memory_guard import ceiling_breakdown
+    from molto_runtime.cluster.memory_guard import ceiling_breakdown
 
     breakdown = ceiling_breakdown()
     assert set(breakdown) >= {"static", "dynamic", "metal_cap", "hard_limit"}
@@ -318,7 +318,7 @@ def test_a_host_without_the_full_engine_stack_loads_unguarded_not_crashed(caplog
 
     import logging
 
-    from omlx_runtime.cluster import memory_guard
+    from molto_runtime.cluster import memory_guard
 
     def _boom(_tier):
         raise ModuleNotFoundError("No module named 'mlx_vlm'")
@@ -469,7 +469,7 @@ def test_a_sample_that_cannot_be_read_does_not_kill_a_healthy_rank():
 
 
 def test_what_the_rank_is_holding_is_measured_not_guessed():
-    from omlx_runtime.cluster.memory_guard import current_usage_bytes
+    from molto_runtime.cluster.memory_guard import current_usage_bytes
 
     assert current_usage_bytes() > 0
 
@@ -485,7 +485,7 @@ def test_what_the_rank_is_holding_is_measured_not_guessed():
 def _mac(monkeypatch, ceiling: int) -> None:
     """A Mac whose GPU can address ``ceiling`` and which is otherwise idle."""
 
-    from omlx_runtime.cluster import memory_guard
+    from molto_runtime.cluster import memory_guard
 
     monkeypatch.setattr(
         memory_guard,
@@ -619,8 +619,8 @@ def _plan_for(role: str, *, ceiling: int = _MACBOOK_CEILING_BYTES):
     so the node budget the planner sees is the one a deployment really gets.
     """
 
-    from omlx_runtime.cluster.node_role import role_for
-    from omlx_runtime.cluster.planner import (
+    from molto_runtime.cluster.node_role import role_for
+    from molto_runtime.cluster.planner import (
         NodeBudget,
         plan_unequal_pipeline,
         synthetic_model_layout,
@@ -649,7 +649,7 @@ def _plan_for(role: str, *, ceiling: int = _MACBOOK_CEILING_BYTES):
 def _as_the_rank_sees_it(assignments):
     """Round-trip through the encoded worker contract, like a launch does."""
 
-    from omlx_runtime.cluster.deployment import (
+    from molto_runtime.cluster.deployment import (
         ClusterDeployment,
         ClusterHost,
         decode_worker_contract,
@@ -714,8 +714,8 @@ def test_the_largest_stage_the_planner_could_assign_is_admitted(role):
     "do these two agree" is interesting.
     """
 
-    from omlx_runtime.cluster.node_role import role_for
-    from omlx_runtime.cluster.planner import NodeBudget, PipelineAssignment
+    from molto_runtime.cluster.node_role import role_for
+    from molto_runtime.cluster.planner import NodeBudget, PipelineAssignment
 
     ceiling = _MACBOOK_CEILING_BYTES
     node_role = role_for(role)
@@ -773,7 +773,7 @@ def test_the_guard_never_admits_less_than_the_planner_may_assign(role, capacity_
     some plan somewhere is unlaunchable.
     """
 
-    from omlx_runtime.cluster.node_role import role_for
+    from molto_runtime.cluster.node_role import role_for
 
     capacity = capacity_gib * GIB
     node_role = role_for(role)
@@ -814,7 +814,7 @@ def test_a_headless_rank_admits_what_the_same_mac_admits_on_its_own():
 def test_the_incident_stage_is_refused_on_a_mac_someone_is_using():
     """(c) The protection that was 3 GiB away and unreachable, driven from a plan."""
 
-    from omlx_runtime.cluster.node_role import role_for
+    from molto_runtime.cluster.node_role import role_for
 
     ceiling = _MACBOOK_CEILING_BYTES
     assert role_for("workstation").usable_for(ceiling) < _MACBOOK_INCIDENT_STAGE, (
@@ -847,7 +847,7 @@ def test_a_plan_that_reserved_nothing_does_not_widen_the_guard():
     is still bounded by what the Mac's role allows.
     """
 
-    from omlx_runtime.cluster.planner import PipelineAssignment
+    from molto_runtime.cluster.planner import PipelineAssignment
 
     reserved_nothing = PipelineAssignment(
         node_id="macbook",
@@ -902,14 +902,14 @@ def test_the_refusal_states_a_comparison_that_is_actually_true():
 # ---------------------------------------------------------------------------
 # The ceiling the guard measures must be the one the operator configured. It
 # used to hard-code "balanced", so the only control that says "cap this
-# machine" reached every part of oMLX except a cluster rank.
+# machine" reached every part of Molto except a cluster rank.
 # ---------------------------------------------------------------------------
 
 
 def _operator_memory(monkeypatch, **fields):
     from types import SimpleNamespace
 
-    import omlx_config.settings as settings_module
+    import molto_config.settings as settings_module
 
     settings = {
         "memory_guard_tier": "balanced",
@@ -928,7 +928,7 @@ def _operator_memory(monkeypatch, **fields):
 def test_a_custom_ceiling_the_operator_set_binds_the_rank(monkeypatch):
     """A user who capped their Mac at 8 GiB got a rank admitting against 107."""
 
-    from omlx_runtime.cluster.memory_guard import ceiling_breakdown
+    from molto_runtime.cluster.memory_guard import ceiling_breakdown
 
     _operator_memory(
         monkeypatch, memory_guard_tier="custom", memory_guard_custom_ceiling_gb=8.0
@@ -944,7 +944,7 @@ def test_a_custom_tier_with_no_ceiling_typed_in_is_still_guarded(monkeypatch):
     """0 would read as "unmeasurable host, load unguarded" — the strictest
     setting in the product becoming the only one with no rank guard at all."""
 
-    from omlx_runtime.cluster.memory_guard import ceiling_breakdown
+    from molto_runtime.cluster.memory_guard import ceiling_breakdown
 
     _operator_memory(
         monkeypatch, memory_guard_tier="custom", memory_guard_custom_ceiling_gb=0.0
@@ -959,7 +959,7 @@ def test_the_tier_the_operator_chose_is_the_tier_that_is_measured(monkeypatch):
 
     _deterministic_machine(monkeypatch)
 
-    from omlx_runtime.cluster.memory_guard import ceiling_breakdown
+    from molto_runtime.cluster.memory_guard import ceiling_breakdown
 
     _operator_memory(monkeypatch, memory_guard_tier="safe")
     safe = ceiling_breakdown()
@@ -980,8 +980,8 @@ def test_operator_memory_settings_reads_real_settings_when_uninitialized(
     not publish the process-wide singleton as a side effect."""
     import json
 
-    import omlx_config.settings as settings_module
-    from omlx_runtime.cluster.memory_guard import _operator_memory_settings
+    import molto_config.settings as settings_module
+    from molto_runtime.cluster.memory_guard import _operator_memory_settings
 
     (tmp_path / "settings.json").write_text(
         json.dumps(
@@ -993,7 +993,7 @@ def test_operator_memory_settings_reads_real_settings_when_uninitialized(
             }
         )
     )
-    monkeypatch.setenv("OMLX_BASE_PATH", str(tmp_path))
+    monkeypatch.setenv("MOLTO_BASE_PATH", str(tmp_path))
     monkeypatch.setattr(settings_module, "_global_settings", None)
 
     tier, custom_gb, enabled = _operator_memory_settings()
@@ -1005,8 +1005,8 @@ def test_operator_memory_settings_reads_real_settings_when_uninitialized(
 
 
 def test_operator_memory_settings_falls_back_when_load_fails(monkeypatch):
-    import omlx_config.settings as settings_module
-    from omlx_runtime.cluster.memory_guard import _operator_memory_settings
+    import molto_config.settings as settings_module
+    from molto_runtime.cluster.memory_guard import _operator_memory_settings
 
     def fake_get_settings():
         raise RuntimeError("Settings not initialized")

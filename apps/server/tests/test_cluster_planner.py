@@ -6,7 +6,7 @@ import struct
 
 import pytest
 from mlx_lm.models.pipeline import PipelineMixin
-from omlx_runtime.cluster.planner import (
+from molto_runtime.cluster.planner import (
     ModelLayout,
     NodeBudget,
     PipelineAssignment,
@@ -336,7 +336,7 @@ def test_the_planner_puts_each_nodes_role_on_its_own_assignment():
     place a per-Mac setting can be written down.
     """
 
-    from omlx_runtime.cluster.planner import plan_hybrid
+    from molto_runtime.cluster.planner import plan_hybrid
 
     model = synthetic_model_layout(total_weight_bytes=60 * GIB, layer_count=8)
     nodes = [
@@ -366,7 +366,7 @@ def test_the_planner_puts_each_nodes_role_on_its_own_assignment():
 def test_tp_width_one_is_exactly_the_pipeline_plan_the_launcher_recomputes():
     """Autoconfigure and activation must sign the same unequal-memory cut."""
 
-    from omlx_runtime.cluster.planner import ModelLayout, plan_hybrid
+    from molto_runtime.cluster.planner import ModelLayout, plan_hybrid
 
     model = ModelLayout(
         source="uneven",
@@ -400,7 +400,7 @@ def test_tp_width_one_is_exactly_the_pipeline_plan_the_launcher_recomputes():
 
 
 def test_the_planner_puts_each_nodes_memory_tier_on_its_own_assignment():
-    from omlx_runtime.cluster.planner import plan_hybrid
+    from molto_runtime.cluster.planner import plan_hybrid
 
     model = synthetic_model_layout(total_weight_bytes=60 * GIB, layer_count=8)
     nodes = [
@@ -467,7 +467,7 @@ def test_a_node_role_changes_the_plan_hash():
     staleness check between here and the rank.
     """
 
-    from omlx_runtime.cluster.planner import plan_hybrid
+    from molto_runtime.cluster.planner import plan_hybrid
 
     model = synthetic_model_layout(total_weight_bytes=60 * GIB, layer_count=8)
 
@@ -544,7 +544,7 @@ def test_nemotron_h_quant_group_divisors_cap_tp_degree():
     the ``num_key_value_heads=2`` reason.
     """
 
-    from omlx_runtime.cluster.planner import _tensor_parallel_divisors
+    from molto_runtime.cluster.planner import _tensor_parallel_divisors
 
     config = {
         "model_type": "nemotron_h",
@@ -568,7 +568,7 @@ def test_nemotron_h_quant_group_divisors_cap_tp_degree():
 def test_nemotron_h_divisors_omit_quant_groups_when_unquantized():
     """Without a quantization block there are no group-count constraints."""
 
-    from omlx_runtime.cluster.planner import _tensor_parallel_divisors
+    from molto_runtime.cluster.planner import _tensor_parallel_divisors
 
     config = {
         "model_type": "nemotron_h",
@@ -591,7 +591,7 @@ def test_complete_model_layout_cache_invalidates_on_shard_overwrite(
     """An in-place shard rewrite bumps neither the directory mtime nor
     config.json's, so the shard stats themselves must be in the cache key."""
 
-    from omlx_runtime.cluster import planner
+    from molto_runtime.cluster import planner
 
     (tmp_path / "config.json").write_text(json.dumps({"num_hidden_layers": 1}))
     _write_safetensors(tmp_path / "model.safetensors", [("model.layers.0.weight", 100)])
@@ -620,7 +620,7 @@ def test_nemotron_h_per_module_quant_overrides_tighten_the_guard():
     quantization dict; a coarser override can leave a prime group count the
     top-level size hides, so its group counts must constrain the degree too."""
 
-    from omlx_runtime.cluster.planner import _tensor_parallel_divisors
+    from molto_runtime.cluster.planner import _tensor_parallel_divisors
 
     config = {
         "model_type": "nemotron_h",
@@ -651,7 +651,7 @@ def test_nemotron_h_head_dim_falls_back_to_hidden_over_heads():
     constraint; the runtime falls back to hidden_size // heads and so must
     the guard."""
 
-    from omlx_runtime.cluster.planner import _tensor_parallel_divisors
+    from molto_runtime.cluster.planner import _tensor_parallel_divisors
 
     config = {
         "model_type": "nemotron_h",
@@ -671,7 +671,7 @@ def test_supports_pipeline_false_for_vision_config_vlm(monkeypatch):
     # checkpoint carries a vision sub-config, so it is served by mlx-vlm and has
     # no model.model.pipeline (progressive_loading gates on exactly that). The
     # static flag must mirror the runtime, i.e. report False.
-    from omlx_runtime.cluster import planner
+    from molto_runtime.cluster import planner
 
     monkeypatch.setattr(
         planner, "_model_source", lambda mt: "def pipeline(self, group): ..."
@@ -681,7 +681,7 @@ def test_supports_pipeline_false_for_vision_config_vlm(monkeypatch):
 
 
 def test_supports_pipeline_true_for_text_model(monkeypatch):
-    from omlx_runtime.cluster import planner
+    from molto_runtime.cluster import planner
 
     monkeypatch.setattr(
         planner, "_model_source", lambda mt: "def pipeline(self, group): ..."
@@ -690,11 +690,11 @@ def test_supports_pipeline_true_for_text_model(monkeypatch):
 
 
 def test_explicit_support_declaration_wins_over_vision_guard(monkeypatch):
-    # A VLM oMLX explicitly vouches for (ships its own pipeline()) stays True.
+    # A VLM Molto explicitly vouches for (ships its own pipeline()) stays True.
     import sys
     import types
 
-    from omlx_runtime.cluster import planner
+    from molto_runtime.cluster import planner
 
     monkeypatch.setitem(
         sys.modules,

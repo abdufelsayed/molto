@@ -26,7 +26,7 @@ from types import SimpleNamespace
 import pytest
 from cluster_app import cluster_app
 from fastapi.testclient import TestClient
-from omlx_server.cluster import routes
+from molto_server.cluster import routes
 
 GiB = 1024**3
 # The two Macs from the incident. Rank 0 is the local coordinator, which on the
@@ -50,7 +50,7 @@ def _client() -> TestClient:
 def test_soft_weight_target_is_clamped_to_current_safe_budget():
     """A role change after dragging a slider must replan, not reject."""
 
-    from omlx_server.cluster import routes
+    from molto_server.cluster import routes
 
     gib = 1024**3
     request = routes.ClusterPlanNodeRequest(
@@ -72,7 +72,7 @@ def test_soft_weight_target_is_clamped_to_current_safe_budget():
 
 
 def _layout(path: str):
-    from omlx_runtime.cluster.planner import ModelLayout
+    from molto_runtime.cluster.planner import ModelLayout
 
     return ModelLayout(
         source=path,
@@ -128,7 +128,7 @@ def _hosts() -> list[dict]:
 def cluster(tmp_path, monkeypatch):
     """A router whose only fakes are the things that touch another Mac."""
 
-    from omlx_runtime.cluster.registry import configure_cluster_registry
+    from molto_runtime.cluster.registry import configure_cluster_registry
 
     configure_cluster_registry(tmp_path)
     model_path = tmp_path / "models" / "big"
@@ -171,7 +171,7 @@ def cluster(tmp_path, monkeypatch):
             assert model_id == "big"
             deployment = (
                 __import__(
-                    "omlx_runtime.cluster.registry", fromlist=["get_cluster_registry"]
+                    "molto_runtime.cluster.registry", fromlist=["get_cluster_registry"]
                 )
                 .get_cluster_registry()
                 .get_for_model(str(model_path))
@@ -300,11 +300,11 @@ def test_the_role_and_the_cap_reach_the_rank_through_the_launch_argv(cluster):
     admission from. Nothing here starts a process.
     """
 
-    from omlx_runtime.cluster.deployment import (
+    from molto_runtime.cluster.deployment import (
         ClusterDeployment,
         decode_worker_contract,
     )
-    from omlx_runtime.cluster.launch import build_mlx_launch_argv
+    from molto_runtime.cluster.launch import build_mlx_launch_argv
 
     response = _activate(cluster, auto_tune=False)
     assert response.status_code == 200, response.text
@@ -312,7 +312,7 @@ def test_the_role_and_the_cap_reach_the_rank_through_the_launch_argv(cluster):
     deployment = ClusterDeployment.from_dict(response.json()["deployment"])
     argv = build_mlx_launch_argv(
         deployment,
-        hostfile=Path("/tmp/omlx-approval-test-hostfile.json"),
+        hostfile=Path("/tmp/molto-approval-test-hostfile.json"),
         api_port=8080,
         collective_port=9090,
     )
@@ -362,8 +362,8 @@ def test_auto_tuning_replans_from_the_budgets_the_user_approved(cluster, monkeyp
     # The same probe, planned without the cap and the role, is what used to be
     # persisted. Asserting it here keeps the test pinned to the real regression
     # rather than to an arithmetic identity.
-    from omlx_runtime.cluster.performance import NodePerformanceProfile
-    from omlx_runtime.cluster.planner import NodeBudget, plan_unequal_pipeline
+    from molto_runtime.cluster.performance import NodePerformanceProfile
+    from molto_runtime.cluster.planner import NodeBudget, plan_unequal_pipeline
 
     unconstrained = plan_unequal_pipeline(
         _layout(str(cluster)),
@@ -514,7 +514,7 @@ def test_the_approval_signature_ignores_tuning_that_moves_no_layer(cluster):
     activations with a reason nothing on the page could explain.
     """
 
-    from omlx_runtime.cluster.planner import plan_unequal_pipeline
+    from molto_runtime.cluster.planner import plan_unequal_pipeline
 
     budgets = routes._node_budgets(
         [routes.ClusterPlanNodeRequest(**node) for node in _nodes()]
@@ -532,7 +532,7 @@ def test_an_approved_plan_survives_auto_tune_when_the_probe_cannot_run(
 ):
     """The memory fallback still has to be the plan that was approved."""
 
-    from omlx_runtime.cluster.launch import DistributedLaunchError
+    from molto_runtime.cluster.launch import DistributedLaunchError
 
     monkeypatch.setattr(
         routes,

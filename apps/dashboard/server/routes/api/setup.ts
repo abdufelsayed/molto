@@ -51,12 +51,12 @@ function setupError(data: unknown, status: number) {
   )
     return data.detail.message
   if (status === 409)
-    return "oMLX already has a main key. Connect with that key."
+    return "Molto already has a main key. Connect with that key."
   if (status === 403)
     return "Initial setup requires a directly connected local browser and loopback server binding."
   if (status === 422)
     return "Use matching keys with at least four printable ASCII characters and no spaces."
-  return `oMLX setup returned HTTP ${status}.`
+  return `Molto setup returned HTTP ${status}.`
 }
 
 export async function setupHandler(event: Pick<H3Event, "req">) {
@@ -134,7 +134,7 @@ export async function setupHandler(event: Pick<H3Event, "req">) {
         typeof data.setup_required !== "boolean" ||
         typeof data.allowed !== "boolean"
       )
-        return json({ detail: "oMLX returned an invalid setup status." }, 502)
+        return json({ detail: "Molto returned an invalid setup status." }, 502)
       return json({
         setup_required: data.setup_required,
         allowed: data.allowed,
@@ -153,7 +153,7 @@ export async function setupHandler(event: Pick<H3Event, "req">) {
       return json(
         {
           detail:
-            "oMLX did not confirm initial setup. Check server status before retrying.",
+            "Molto did not confirm initial setup. Check server status before retrying.",
         },
         502
       )
@@ -163,8 +163,8 @@ export async function setupHandler(event: Pick<H3Event, "req">) {
       {
         detail:
           request.method === "GET"
-            ? "Could not check oMLX initial setup."
-            : "Lost contact with oMLX during setup. Check setup status before retrying, or connect using your new key.",
+            ? "Could not check Molto initial setup."
+            : "Lost contact with Molto during setup. Check setup status before retrying, or connect using your new key.",
       },
       502
     )

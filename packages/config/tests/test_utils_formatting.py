@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx_config.utils.formatting module."""
+"""Tests for molto_config.utils.formatting module."""
 
-from omlx_config.utils.formatting import format_bytes
+from molto_config.utils.formatting import format_bytes
 
 
 class TestFormatBytes:

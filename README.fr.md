@@ -1,7 +1,7 @@
-# oMLX
+# Molto
 
-Cette traduction décrit une ancienne version d'oMLX avec application macOS et interface web. Elle n'est plus à jour.
+Molto exécute et gère des modèles d'IA locaux sur Apple Silicon. Une seule commande lance le tableau de bord web et le serveur d'inférence sur le même port public. Molto est un fork de [oMLX](https://github.com/jundot/omlx).
 
-Ce dépôt contient désormais le serveur d'inférence autonome et une petite API REST de gestion. Pour l'installation, les commandes et les limites actuelles, consultez le [README en anglais](README.md), la [référence de l'API de gestion](docs/management-api.md) et l'[architecture du backend](docs/backend-architecture.md). La documentation anglaise fait foi pour cette version.
+[Installation, CLI, development, and migration](README.md) · [Architecture](docs/architecture.md) · [Management API](docs/management-api.md)
 
-Licence : [Apache 2.0](LICENSE). oMLX est issu de [vllm-mlx](https://github.com/waybarrios/vllm-mlx).
+[Apache 2.0](LICENSE)

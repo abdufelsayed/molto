@@ -1,7 +1,7 @@
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.patches.deepseek_v41.head import project_logits
+from molto_runtime.patches.deepseek_v41.head import project_logits
 
 
 @pytest.mark.parametrize("length", [1, 3, 5])

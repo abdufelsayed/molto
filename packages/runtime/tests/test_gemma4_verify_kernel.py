@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.patches import gemma4_verify_kernel as gvk
+from molto_runtime.patches import gemma4_verify_kernel as gvk
 
 pytestmark = pytest.mark.skipif(not mx.metal.is_available(), reason="requires Metal")
 

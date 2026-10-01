@@ -9,20 +9,20 @@ import sys
 import threading
 
 import pytest
-from omlx_runtime.cluster.rdma import probe_wire
-from omlx_runtime.cluster.rdma.daemon import DaemonStatus
-from omlx_runtime.cluster.rdma.link_probe import (
+from molto_runtime.cluster.rdma import probe_wire
+from molto_runtime.cluster.rdma.daemon import DaemonStatus
+from molto_runtime.cluster.rdma.link_probe import (
     ProbeService,
     ProbeSettings,
     probe_link,
     start_probe_service,
     verify_link,
 )
-from omlx_runtime.cluster.rdma.link_probe_service import serve_probe
-from omlx_runtime.cluster.rdma.links import NodeAddress, RdmaLink
-from omlx_runtime.cluster.rdma.mailbox import ClientMailbox, ServiceMailbox
-from omlx_runtime.cluster.rdma.probe_wire import ProbeError
-from omlx_runtime.cluster.rdma.words import load_word_ops
+from molto_runtime.cluster.rdma.link_probe_service import serve_probe
+from molto_runtime.cluster.rdma.links import NodeAddress, RdmaLink
+from molto_runtime.cluster.rdma.mailbox import ClientMailbox, ServiceMailbox
+from molto_runtime.cluster.rdma.probe_wire import ProbeError
+from molto_runtime.cluster.rdma.words import load_word_ops
 from rdma_loopback import LoopbackLink, PythonWordOps
 
 _SMALL = ProbeSettings(
@@ -99,7 +99,7 @@ def test_a_probe_service_whose_coordinator_goes_away_frees_the_link(link):
         [
             sys.executable,
             "-m",
-            "omlx_runtime.cluster.rdma.link_probe_service",
+            "molto_runtime.cluster.rdma.link_probe_service",
             "--name",
             link.name,
             "--socket",
@@ -311,7 +311,7 @@ def test_the_probe_service_starts_over_the_cluster_ssh_policy():
     assert argv[-2] == "worker@10.0.0.2"
     assert (
         argv[-1]
-        == "/opt/py -m omlx_runtime.cluster.rdma.link_probe_service --name linka --socket /tmp/mcdma-rpcd.linka.sock"
+        == "/opt/py -m molto_runtime.cluster.rdma.link_probe_service --name linka --socket /tmp/mcdma-rpcd.linka.sock"
     )
 
 

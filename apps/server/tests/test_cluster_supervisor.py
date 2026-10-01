@@ -3,8 +3,8 @@
 
 from pathlib import Path
 
-from omlx_runtime.cluster.models import WORKER_PROTOCOL_VERSION
-from omlx_runtime.cluster.supervisor import (
+from molto_runtime.cluster.models import WORKER_PROTOCOL_VERSION
+from molto_runtime.cluster.supervisor import (
     JacclLaunchConfig,
     WorkerSupervisor,
     run_worker_smoke,
@@ -15,14 +15,14 @@ def test_jaccl_launch_config_matches_mlx_environment_contract():
     config = JacclLaunchConfig(
         rank=1,
         coordinator="169.254.42.1:5000",
-        ibv_devices_file=Path("/tmp/omlx-ibv-devices.json"),
+        ibv_devices_file=Path("/tmp/molto-ibv-devices.json"),
         ring=True,
     )
 
     assert config.environment() == {
         "MLX_RANK": "1",
         "MLX_JACCL_COORDINATOR": "169.254.42.1:5000",
-        "MLX_IBV_DEVICES": "/tmp/omlx-ibv-devices.json",
+        "MLX_IBV_DEVICES": "/tmp/molto-ibv-devices.json",
         "MLX_JACCL_RING": "1",
     }
 

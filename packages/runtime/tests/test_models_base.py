@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 
 import mlx.core as mx
-from omlx_runtime.models.base_model import (
+from molto_runtime.models.base_model import (
     BaseModelArgs,
     BaseModelOutput,
     last_token_pool,

@@ -5,7 +5,7 @@ from dataclasses import replace
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.patches.deepseek_v41.language import LanguageModel
+from molto_runtime.patches.deepseek_v41.language import LanguageModel
 from test_deepseek_v41 import load_reference_weights, tiny
 
 
@@ -59,7 +59,7 @@ def test_verify_rollback_restores_all_csa2_slots(prefix, accepted, ratio, monkey
 
 
 def test_rollback_restores_engram_history():
-    from omlx_runtime.patches.deepseek_v41.language import LanguageModel
+    from molto_runtime.patches.deepseek_v41.language import LanguageModel
 
     model = LanguageModel(
         tiny(
@@ -87,7 +87,7 @@ def test_rollback_restores_engram_history():
 
 def test_shared_batch_generator_activates_and_matches_greedy(monkeypatch):
     from mlx_lm.generate import BatchGenerator
-    from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+    from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
     batch_generator.apply()
     model = LanguageModel(mtp_config())
@@ -140,21 +140,21 @@ def test_shared_batch_generator_activates_and_matches_greedy(monkeypatch):
 
 
 def test_mtp_load_flag_is_instance_owned(monkeypatch):
-    from omlx_runtime.patches import mlx_lm_mtp
-    from omlx_runtime.patches.deepseek_v41.language import LanguageModel
+    from molto_runtime.patches import mlx_lm_mtp
+    from molto_runtime.patches.deepseek_v41.language import LanguageModel
 
     monkeypatch.setattr(mlx_lm_mtp, "_MTP_ACTIVE", True)
     enabled = LanguageModel(mtp_config())
     monkeypatch.setattr(mlx_lm_mtp, "_MTP_ACTIVE", False)
     disabled = LanguageModel(mtp_config())
-    assert enabled._omlx_dspark_decode_enabled
-    assert not disabled._omlx_dspark_decode_enabled
+    assert enabled._molto_dspark_decode_enabled
+    assert not disabled._molto_dspark_decode_enabled
     assert disabled.mtp  # Weight preservation is independent of execution.
-    assert enabled._omlx_mtp_rowwise_unsupported
+    assert enabled._molto_mtp_rowwise_unsupported
 
 
 def test_v41_dspark_config_is_eligible():
-    from omlx_runtime.utils.model_loading import _is_mtp_compatible
+    from molto_runtime.utils.model_loading import _is_mtp_compatible
 
     assert _is_mtp_compatible(
         {"dspark_block_size": 5, "dspark_target_layer_ids": [37, 38, 39]},
@@ -164,7 +164,7 @@ def test_v41_dspark_config_is_eligible():
 
 
 def test_acceptance_depth_is_independent_of_timing():
-    from omlx_runtime.patches.deepseek_v41.mtp import AcceptanceDepthController
+    from molto_runtime.patches.deepseek_v41.mtp import AcceptanceDepthController
 
     a, b = AcceptanceDepthController(3), AcceptanceDepthController(3)
     depths = []
@@ -187,8 +187,8 @@ def test_second_request_prefix_preparation_preserves_dspark_owner(
     from types import SimpleNamespace
     from unittest.mock import Mock
 
-    from omlx_runtime.models.vlm import VLMModelAdapter
-    from omlx_runtime.patches.mlx_lm_mtp import prompt_priming
+    from molto_runtime.models.vlm import VLMModelAdapter
+    from molto_runtime.patches.mlx_lm_mtp import prompt_priming
 
     model = LanguageModel(mtp_config())
     load_reference_weights(model)
@@ -201,7 +201,7 @@ def test_second_request_prefix_preparation_preserves_dspark_owner(
     first_cache = model.make_cache()
     if has_active_prompt:
         model(mx.array([[3, 4, 5]]), cache=first_cache)
-    before = getattr(model, "_omlx_mtp_prime_ctx", None)
+    before = getattr(model, "_molto_mtp_prime_ctx", None)
     sidecar = Mock(block_size=8)
     assert not prompt_priming.prepare_prefix_context(
         adapter,
@@ -210,8 +210,8 @@ def test_second_request_prefix_preparation_preserves_dspark_owner(
         cached_tokens=cached_tokens,
         prefix_cache=sidecar,
     )
-    assert getattr(model, "_omlx_mtp_prime_ctx", None) is before
-    assert getattr(model, "_omlx_mtp_prime_plan", None) is None
+    assert getattr(model, "_molto_mtp_prime_ctx", None) is before
+    assert getattr(model, "_molto_mtp_prime_plan", None) is None
     sidecar.restore_mtp_prefix_snapshot.assert_not_called()
     if has_active_prompt:
         model(mx.array([[6]]), cache=first_cache, return_hidden=True)

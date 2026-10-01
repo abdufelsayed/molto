@@ -14,10 +14,10 @@ from unittest.mock import MagicMock, patch
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.exceptions import PrefillMemoryExceededError
-from omlx_runtime.memory_monitor import MemoryMonitor
-from omlx_runtime.request import Request, SamplingParams
-from omlx_runtime.scheduler import Scheduler, SchedulerConfig
+from molto_runtime.exceptions import PrefillMemoryExceededError
+from molto_runtime.memory_monitor import MemoryMonitor
+from molto_runtime.request import Request, SamplingParams
+from molto_runtime.scheduler import Scheduler, SchedulerConfig
 
 
 class _ModelConfig:
@@ -102,8 +102,8 @@ def test_preflight_positive_control_passes_normal_request():
     # Huge limit — even a multi-GB peak fits comfortably.
     scheduler._memory_hard_limit_bytes = 10**18
     with (
-        patch("omlx_runtime.scheduler.mx.get_active_memory", return_value=0),
-        patch("omlx_runtime.scheduler.get_phys_footprint", return_value=0),
+        patch("molto_runtime.scheduler.mx.get_active_memory", return_value=0),
+        patch("molto_runtime.scheduler.get_phys_footprint", return_value=0),
     ):
         assert scheduler._preflight_memory_check(_make_request(32768)) is None
 
@@ -114,8 +114,8 @@ def test_preflight_rejects_when_estimated_peak_exceeds_hard_limit():
     scheduler._memory_hard_limit_bytes = 1  # any allocation exceeds
 
     with (
-        patch("omlx_runtime.scheduler.mx.get_active_memory", return_value=0),
-        patch("omlx_runtime.scheduler.get_phys_footprint", return_value=0),
+        patch("molto_runtime.scheduler.mx.get_active_memory", return_value=0),
+        patch("molto_runtime.scheduler.get_phys_footprint", return_value=0),
     ):
         rejection = scheduler._preflight_memory_check(_make_request(65536))
 
@@ -133,7 +133,7 @@ def test_preflight_does_not_charge_a_resumed_request_for_its_own_reserve():
     not also count as current usage.
     """
     from mlx_lm.models.cache import KVCache
-    from omlx_runtime import scheduler as sched_mod
+    from molto_runtime import scheduler as sched_mod
 
     cache = KVCache()
     keys = mx.zeros((1, 1, 256, 8), dtype=mx.float16)
@@ -153,8 +153,8 @@ def test_preflight_does_not_charge_a_resumed_request_for_its_own_reserve():
     # Isolate the admission line from the physical safety cap.
     scheduler._memory_abort_limit_bytes = 10**18
     with (
-        patch("omlx_runtime.scheduler.mx.get_active_memory", return_value=0),
-        patch("omlx_runtime.scheduler.get_phys_footprint", return_value=spare),
+        patch("molto_runtime.scheduler.mx.get_active_memory", return_value=0),
+        patch("molto_runtime.scheduler.get_phys_footprint", return_value=spare),
     ):
         assert scheduler._preflight_memory_check(req) is not None
         req.prompt_cache = [cache]
@@ -171,7 +171,7 @@ def test_route_preflight_requests_eviction_before_safety_cap_rejection(monkeypat
     scheduler.memory_monitor.estimate_prompt_kv_bytes = MagicMock(return_value=20)
     scheduler._predicted_chunk_transient = MagicMock(return_value=30)
 
-    import omlx_runtime.scheduler as scheduler_mod
+    import molto_runtime.scheduler as scheduler_mod
 
     monkeypatch.setattr(scheduler_mod.mx, "get_active_memory", lambda: 0)
     monkeypatch.setattr(scheduler_mod, "get_phys_footprint", lambda: 60)
@@ -206,8 +206,8 @@ def test_current_usage_subtracts_shared_hot_cache_bytes_from_phys_side():
     scheduler.config.hot_cache_budget = SimpleNamespace(total_bytes=3 * 1024**3)
 
     with (
-        patch("omlx_runtime.scheduler.mx.get_active_memory", return_value=4 * 1024**3),
-        patch("omlx_runtime.scheduler.get_phys_footprint", return_value=10 * 1024**3),
+        patch("molto_runtime.scheduler.mx.get_active_memory", return_value=4 * 1024**3),
+        patch("molto_runtime.scheduler.get_phys_footprint", return_value=10 * 1024**3),
     ):
         assert scheduler._current_usage_bytes() == 7 * 1024**3
 
@@ -217,8 +217,8 @@ def test_current_usage_keeps_mlx_active_as_floor_after_hot_cache_subtract():
     scheduler.config.hot_cache_budget = SimpleNamespace(total_bytes=9 * 1024**3)
 
     with (
-        patch("omlx_runtime.scheduler.mx.get_active_memory", return_value=6 * 1024**3),
-        patch("omlx_runtime.scheduler.get_phys_footprint", return_value=10 * 1024**3),
+        patch("molto_runtime.scheduler.mx.get_active_memory", return_value=6 * 1024**3),
+        patch("molto_runtime.scheduler.get_phys_footprint", return_value=10 * 1024**3),
     ):
         assert scheduler._current_usage_bytes() == 6 * 1024**3
 
@@ -228,11 +228,11 @@ def test_current_usage_discounts_pool_release_the_kernel_still_charges():
     gb = 1024**3
     scheduler = _make_scheduler()
     with (
-        patch("omlx_runtime.scheduler.mx.get_active_memory", return_value=22 * gb),
-        patch("omlx_runtime.scheduler.mx.get_cache_memory", side_effect=[8 * gb, 0]),
-        patch("omlx_runtime.scheduler.get_phys_footprint", return_value=40 * gb),
+        patch("molto_runtime.scheduler.mx.get_active_memory", return_value=22 * gb),
+        patch("molto_runtime.scheduler.mx.get_cache_memory", side_effect=[8 * gb, 0]),
+        patch("molto_runtime.scheduler.get_phys_footprint", return_value=40 * gb),
         patch(
-            "omlx_runtime.utils.metal_sync.get_graphics_footprint",
+            "molto_runtime.utils.metal_sync.get_graphics_footprint",
             return_value=30.5 * gb,
         ),
     ):
@@ -254,8 +254,8 @@ def test_current_usage_falls_back_to_local_hot_cache_counter():
     scheduler.paged_ssd_cache_manager = _LocalHotCacheManager()
 
     with (
-        patch("omlx_runtime.scheduler.mx.get_active_memory", return_value=1 * 1024**3),
-        patch("omlx_runtime.scheduler.get_phys_footprint", return_value=8 * 1024**3),
+        patch("molto_runtime.scheduler.mx.get_active_memory", return_value=1 * 1024**3),
+        patch("molto_runtime.scheduler.get_phys_footprint", return_value=8 * 1024**3),
     ):
         assert scheduler._current_usage_bytes() == 6 * 1024**3
 
@@ -291,8 +291,8 @@ def test_preflight_rejects_heavily_cached_long_context():
     req = _make_request(100_000)
     req.cached_tokens = 99_000  # only 1k new tokens but kv_len = 100k
     with (
-        patch("omlx_runtime.scheduler.mx.get_active_memory", return_value=0),
-        patch("omlx_runtime.scheduler.get_phys_footprint", return_value=0),
+        patch("molto_runtime.scheduler.mx.get_active_memory", return_value=0),
+        patch("molto_runtime.scheduler.get_phys_footprint", return_value=0),
     ):
         error = scheduler._preflight_memory_check(req)
     assert error is not None, (
@@ -314,8 +314,8 @@ def test_preflight_rejects_uncached_long_context():
     req = _make_request(100_000)
     req.cached_tokens = 1_000  # almost everything is new
     with (
-        patch("omlx_runtime.scheduler.mx.get_active_memory", return_value=0),
-        patch("omlx_runtime.scheduler.get_phys_footprint", return_value=0),
+        patch("molto_runtime.scheduler.mx.get_active_memory", return_value=0),
+        patch("molto_runtime.scheduler.get_phys_footprint", return_value=0),
     ):
         error = scheduler._preflight_memory_check(req)
     assert error is not None, "guard must trip on uncached long-context too"
@@ -420,8 +420,8 @@ def test_dict_nested_config_populates_estimator_dims_and_preflight_rejects():
     scheduler._prefill_memory_guard = True
     scheduler._memory_hard_limit_bytes = 2 * 1024**3
     with (
-        patch("omlx_runtime.scheduler.mx.get_active_memory", return_value=0),
-        patch("omlx_runtime.scheduler.get_phys_footprint", return_value=0),
+        patch("molto_runtime.scheduler.mx.get_active_memory", return_value=0),
+        patch("molto_runtime.scheduler.get_phys_footprint", return_value=0),
         pytest.raises(PrefillMemoryExceededError),
     ):
         scheduler.preflight_or_raise(num_prompt_tokens=50_000, request_id="dict-cfg")
@@ -514,7 +514,7 @@ def test_preflight_rejection_path_invokes_release_helper():
     # _ensure_batch_generator runs — patch the preflight check to
     # short-circuit on entry and keep this test independent of the
     # batch-generator construction path.
-    from omlx_runtime.scheduler import _PreflightRejection
+    from molto_runtime.scheduler import _PreflightRejection
 
     def _force_reject(_request):
         return _PreflightRejection(
@@ -543,8 +543,10 @@ def test_vlm_preflight_rejects_oversize_request():
     scheduler._memory_hard_limit_bytes = 36 * 1024 * 1024 * 1024  # 36 GiB hard limit
 
     with (
-        patch("omlx_runtime.scheduler.mx.get_active_memory", return_value=28 * 1024**3),
-        patch("omlx_runtime.scheduler.get_phys_footprint", return_value=28 * 1024**3),
+        patch(
+            "molto_runtime.scheduler.mx.get_active_memory", return_value=28 * 1024**3
+        ),
+        patch("molto_runtime.scheduler.get_phys_footprint", return_value=28 * 1024**3),
     ):
         # 100k tokens at head_dim=256 should push (28 GiB baseline + KV+SDPA
         # peak) past the 36 GiB limit.
@@ -817,8 +819,8 @@ def test_admission_estimate_is_the_single_formula():
     scheduler._memory_hard_limit_bytes = 10**18
 
     with (
-        patch("omlx_runtime.scheduler.mx.get_active_memory", return_value=0),
-        patch("omlx_runtime.scheduler.get_phys_footprint", return_value=0),
+        patch("molto_runtime.scheduler.mx.get_active_memory", return_value=0),
+        patch("molto_runtime.scheduler.get_phys_footprint", return_value=0),
     ):
         est = scheduler._admission_estimate(
             num_prompt_tokens=32768, cached_tokens=0, current=0
@@ -845,8 +847,8 @@ def test_admission_charges_full_step_under_speed_priority():
     scheduler._memory_hard_limit_bytes = 10**18
 
     patches = (
-        patch("omlx_runtime.scheduler.mx.get_active_memory", return_value=0),
-        patch("omlx_runtime.scheduler.get_phys_footprint", return_value=0),
+        patch("molto_runtime.scheduler.mx.get_active_memory", return_value=0),
+        patch("molto_runtime.scheduler.get_phys_footprint", return_value=0),
     )
     with patches[0], patches[1]:
         est_context = scheduler._admission_estimate(
@@ -888,7 +890,7 @@ def test_admission_charges_full_step_under_speed_priority():
 
     # Qwen4-Exp widens later chunks of a long prompt; the widest step is
     # charged, not the configured one.
-    from omlx_runtime.scheduler import _QWEN4_WIDE_PREFILL_STEP
+    from molto_runtime.scheduler import _QWEN4_WIDE_PREFILL_STEP
 
     scheduler._qwen4_wide_prefill_step = _QWEN4_WIDE_PREFILL_STEP
     with patches[0], patches[1]:
@@ -903,10 +905,10 @@ def test_deepseek_v4_200k_native_admission_avoids_81_gib_dense_charge(
 ):
     """Issue #2521: V4's local + pooled sparse cache must not be priced as
     43 full-context K/V layers followed by a dense 200K SDPA."""
-    import omlx_runtime.memory_monitor as memory_monitor
+    import molto_runtime.memory_monitor as memory_monitor
     from mlx_lm.models.cache import RotatingKVCache
-    from omlx_runtime.memory_monitor import estimate_unfused_sdpa_call_bytes
-    from omlx_runtime.patches.deepseek_v4 import wsdpa_attention as wsdpa
+    from molto_runtime.memory_monitor import estimate_unfused_sdpa_call_bytes
+    from molto_runtime.patches.deepseek_v4 import wsdpa_attention as wsdpa
 
     monkeypatch.setattr(
         memory_monitor,
@@ -1005,8 +1007,8 @@ def test_preflight_charges_observed_max_transient():
     scheduler._memory_abort_limit_bytes = 10**18
 
     patches = (
-        patch("omlx_runtime.scheduler.mx.get_active_memory", return_value=0),
-        patch("omlx_runtime.scheduler.get_phys_footprint", return_value=0),
+        patch("molto_runtime.scheduler.mx.get_active_memory", return_value=0),
+        patch("molto_runtime.scheduler.get_phys_footprint", return_value=0),
     )
     with patches[0], patches[1]:
         est = scheduler._admission_estimate(
@@ -1033,8 +1035,8 @@ def test_admission_compares_against_hard_watermark():
     scheduler._memory_abort_limit_bytes = 10**18  # keep safety cap out
 
     patches = (
-        patch("omlx_runtime.scheduler.mx.get_active_memory", return_value=0),
-        patch("omlx_runtime.scheduler.get_phys_footprint", return_value=0),
+        patch("molto_runtime.scheduler.mx.get_active_memory", return_value=0),
+        patch("molto_runtime.scheduler.get_phys_footprint", return_value=0),
     )
     with patches[0], patches[1]:
         est = scheduler._admission_estimate(
@@ -1068,8 +1070,8 @@ def test_admission_plans_against_the_prefill_headroom_line():
     scheduler._memory_abort_limit_bytes = 10**18  # keep safety cap out
 
     patches = (
-        patch("omlx_runtime.scheduler.mx.get_active_memory", return_value=0),
-        patch("omlx_runtime.scheduler.get_phys_footprint", return_value=0),
+        patch("molto_runtime.scheduler.mx.get_active_memory", return_value=0),
+        patch("molto_runtime.scheduler.get_phys_footprint", return_value=0),
     )
     with patches[0], patches[1]:
         est = scheduler._admission_estimate(
@@ -1099,8 +1101,8 @@ def test_resumed_prefill_is_not_readmitted_against_the_full_prompt():
     req.prompt_cache = [object()]
     req._prefill_resumed = True
     with (
-        patch("omlx_runtime.scheduler.mx.get_active_memory", return_value=0),
-        patch("omlx_runtime.scheduler.get_phys_footprint", return_value=0),
+        patch("molto_runtime.scheduler.mx.get_active_memory", return_value=0),
+        patch("molto_runtime.scheduler.get_phys_footprint", return_value=0),
     ):
         assert scheduler._preflight_memory_check(req) is None
         # One-shot: a later admission of the same request is checked again.
@@ -1108,7 +1110,7 @@ def test_resumed_prefill_is_not_readmitted_against_the_full_prompt():
 
 
 def _qwen4_prefill_profile():
-    from omlx_runtime.memory_monitor import make_prefill_memory_profile
+    from molto_runtime.memory_monitor import make_prefill_memory_profile
 
     return make_prefill_memory_profile(
         SimpleNamespace(
@@ -1186,8 +1188,8 @@ def test_qwen4_preflight_doors_use_gathered_for_text_only():
     scheduler._memory_hard_limit_bytes = cap
     scheduler._memory_abort_limit_bytes = 10**18
     with (
-        patch("omlx_runtime.scheduler.mx.get_active_memory", return_value=current),
-        patch("omlx_runtime.scheduler.get_phys_footprint", return_value=current),
+        patch("molto_runtime.scheduler.mx.get_active_memory", return_value=current),
+        patch("molto_runtime.scheduler.get_phys_footprint", return_value=current),
     ):
         with pytest.raises(PrefillMemoryExceededError):
             scheduler.preflight_or_raise(num_prompt_tokens=233_472, text_only=False)
@@ -1229,8 +1231,8 @@ def test_qwen4_image_request_preflight_stays_dense():
     request = _make_request(233_472)
     request.vlm_inputs_embeds = object()
     with (
-        patch("omlx_runtime.scheduler.mx.get_active_memory", return_value=current),
-        patch("omlx_runtime.scheduler.get_phys_footprint", return_value=current),
+        patch("molto_runtime.scheduler.mx.get_active_memory", return_value=current),
+        patch("molto_runtime.scheduler.get_phys_footprint", return_value=current),
     ):
         rejection = scheduler._preflight_memory_check(request)
     assert rejection is not None

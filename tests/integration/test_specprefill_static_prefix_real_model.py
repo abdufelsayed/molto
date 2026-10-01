@@ -16,19 +16,19 @@ four deliberately distinct phases:
 3. Hot-cache clearing and pressure reclaim leave the SSD prefix reusable.
 4. Changed system material misses safely and creates a distinct exact chain.
 
-The test never downloads checkpoints, never contacts a running oMLX server,
+The test never downloads checkpoints, never contacts a running Molto server,
 never reads or writes the user's persisted model settings, and stores its paged
 cache under pytest's temporary directory. It is marked ``slow`` and requires
 explicit model paths because the known validation pairs use a 27B or 35B target
 plus a 4B draft and consequently need substantial Apple Silicon unified
-memory. Timing is printed by oMLX for human inspection but is intentionally not
+memory. Timing is printed by Molto for human inspection but is intentionally not
 an assertion: target-prefill latency varies with hardware, thermals, and other
 processes, while the phase-specific cache telemetry is deterministic.
 
 Example using the locally available validation pair::
 
-    OMLX_SPECPREFILL_TARGET_PATH="$HOME/.omlx/models/Jundot/Qwen3.6-27B-oQ4e-mtp" \
-    OMLX_SPECPREFILL_DRAFT_PATH="$HOME/.omlx/models/lmstudio-community/Qwen3.5-4B-MLX-4bit" \
+    MOLTO_SPECPREFILL_TARGET_PATH="$HOME/.molto/models/Jundot/Qwen3.6-27B-oQ4e-mtp" \
+    MOLTO_SPECPREFILL_DRAFT_PATH="$HOME/.molto/models/lmstudio-community/Qwen3.5-4B-MLX-4bit" \
     uv run pytest tests/integration/test_specprefill_static_prefix_real_model.py \
       -o addopts="" -m slow -s -q
 """
@@ -56,8 +56,8 @@ pytestmark = [
     ),
 ]
 
-_TARGET_PATH_ENV = "OMLX_SPECPREFILL_TARGET_PATH"
-_DRAFT_PATH_ENV = "OMLX_SPECPREFILL_DRAFT_PATH"
+_TARGET_PATH_ENV = "MOLTO_SPECPREFILL_TARGET_PATH"
+_DRAFT_PATH_ENV = "MOLTO_SPECPREFILL_DRAFT_PATH"
 _PREFIX_CACHE_BLOCK_SIZE_TOKENS = 256
 _STATIC_PREFIX_MINIMUM_TOKENS = 1024
 _SPECPREFILL_THRESHOLD_TOKENS = 128
@@ -199,9 +199,9 @@ def test_issue_2177_static_prefix_reuse_with_real_qwen_models(
     # missing-path skip therefore does not initialize MLX, import VLM runtimes,
     # or accidentally reserve unified memory.
     import mlx.core as mx
-    from omlx_config.model_settings import ModelSettings
-    from omlx_runtime.engine.vlm import VLMBatchedEngine
-    from omlx_runtime.scheduler import SchedulerConfig
+    from molto_config.model_settings import ModelSettings
+    from molto_runtime.engine.vlm import VLMBatchedEngine
+    from molto_runtime.scheduler import SchedulerConfig
 
     async def run_real_model_validation() -> None:
         caplog.set_level(logging.INFO)

@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import mlx.core as mx
 from mlx_lm.models.cache import KVCache
-from omlx_runtime.cluster.telemetry import install_server_telemetry
+from molto_runtime.cluster.telemetry import install_server_telemetry
 
 STEP = 4
 MODEL = "model-key"

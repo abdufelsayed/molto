@@ -4,8 +4,8 @@
 import json
 
 import pytest
-from omlx_config.model_profiles import InvalidProfileNameError
-from omlx_config.model_settings import ModelSettings, ModelSettingsManager
+from molto_config.model_profiles import InvalidProfileNameError
+from molto_config.model_settings import ModelSettings, ModelSettingsManager
 
 
 @pytest.fixture
@@ -702,13 +702,13 @@ class TestExposedProfileRequestSettings:
         _save_exposed_profile(mgr)
 
         settings = mgr.get_settings_for_request(
-            "omlx/qwen-base:thinking",
+            "molto/qwen-base:thinking",
             resolved_model_id="qwen-base",
         )
 
         assert settings.temperature == 0.6
         assert (
-            mgr.get_exposed_profile_source_model_id("omlx/qwen-base:thinking")
+            mgr.get_exposed_profile_source_model_id("molto/qwen-base:thinking")
             == "qwen-base"
         )
 

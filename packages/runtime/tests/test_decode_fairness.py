@@ -10,8 +10,8 @@ decode time debt that must be repaid before the next chunk runs.
 from unittest.mock import MagicMock, patch
 
 import pytest
-from omlx_runtime.decode_activity import get_decode_activity
-from omlx_runtime.scheduler import (
+from molto_runtime.decode_activity import get_decode_activity
+from molto_runtime.scheduler import (
     _CONTENDED_PREFILL_CHUNK,
     Scheduler,
     SchedulerConfig,
@@ -20,7 +20,7 @@ from omlx_runtime.scheduler import (
 
 @pytest.fixture(autouse=True)
 def _quiet_decode_activity():
-    from omlx_runtime.prefill_progress import get_prefill_tracker
+    from molto_runtime.prefill_progress import get_prefill_tracker
 
     get_decode_activity().clear()
     get_prefill_tracker().clear()
@@ -213,7 +213,7 @@ class TestAdaptiveChunkCap:
         assert s._contended_prefill_cap() == 2048
 
     def test_decode_rate_sampling_solo_vs_contended(self):
-        from omlx_runtime.prefill_progress import get_prefill_tracker
+        from molto_runtime.prefill_progress import get_prefill_tracker
 
         s = _make_scheduler()
         s._sample_decode_rate(10, 0.1)  # no prefill anywhere -> solo

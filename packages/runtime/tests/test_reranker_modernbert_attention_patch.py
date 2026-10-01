@@ -2,15 +2,15 @@
 """Regression: a ModernBERT reranker must get the finite attention-mask patch.
 
 The stock mlx-embeddings mask uses -1e9, which overflows to -inf in fp16 and
-makes fully padded (short) queries produce NaN. omlx already patches this for
+makes fully padded (short) queries produce NaN. molto already patches this for
 embeddings (issue #3507); the reranker's mlx-embeddings branch must do the same.
 """
 
 import json
 from types import SimpleNamespace
 
-import omlx_runtime.models.reranker as reranker_module
-from omlx_runtime.models.reranker import MLXRerankerModel
+import molto_runtime.models.reranker as reranker_module
+from molto_runtime.models.reranker import MLXRerankerModel
 
 
 def test_modernbert_reranker_applies_finite_attention_patch(tmp_path, monkeypatch):

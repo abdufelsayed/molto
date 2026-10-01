@@ -15,20 +15,20 @@ import io
 
 import mlx.core as mx
 import mlx.nn as nn
+import molto_runtime.patches.m5_gather_qmm as patch_mod
+import molto_runtime.patches.m5_gather_qmm_nax as nax
 import numpy as np
-import omlx_runtime.patches.m5_gather_qmm as patch_mod
-import omlx_runtime.patches.m5_gather_qmm_nax as nax
 import pytest
-from omlx_runtime.patches import moe_gate_up_fusion as fusion
-from omlx_runtime.patches.m5_gather_qmm import apply_m5_gather_qmm_workaround
-from omlx_runtime.patches.moe_routes import sort_routes
+from molto_runtime.patches import moe_gate_up_fusion as fusion
+from molto_runtime.patches.m5_gather_qmm import apply_m5_gather_qmm_workaround
+from molto_runtime.patches.moe_routes import sort_routes
 
 
 def _on_nax() -> bool:
     if not mx.metal.is_available():
         return False
     try:
-        from omlx_runtime.custom_kernels.nax import is_nax_available
+        from molto_runtime.custom_kernels.nax import is_nax_available
 
         return bool(is_nax_available())
     except Exception:  # noqa: BLE001
@@ -40,13 +40,13 @@ needs_nax = pytest.mark.skipif(not _on_nax(), reason="needs an M5 (NAX) GPU")
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
-    monkeypatch.delenv("OMLX_M5_GATHER_QMM_NAX", raising=False)
-    monkeypatch.delenv("OMLX_M5_GATHER_QMM_NAX_PLAN", raising=False)
+    monkeypatch.delenv("MOLTO_M5_GATHER_QMM_NAX", raising=False)
+    monkeypatch.delenv("MOLTO_M5_GATHER_QMM_NAX_PLAN", raising=False)
 
 
 def _stock():
     fn = mx.gather_qmm
-    if getattr(fn, "_omlx_m5_reroute", False):
+    if getattr(fn, "_molto_m5_reroute", False):
         fn = patch_mod._original_gather_qmm
     return fn
 
@@ -171,7 +171,7 @@ def test_supports_gating():
 
 
 def test_kill_switch(monkeypatch):
-    monkeypatch.setenv("OMLX_M5_GATHER_QMM_NAX", "0")
+    monkeypatch.setenv("MOLTO_M5_GATHER_QMM_NAX", "0")
     x = mx.zeros((16, 1, 128), dtype=mx.bfloat16)
     w = mx.zeros((4, 64, 16), dtype=mx.uint32)
     s = mx.zeros((4, 64, 2), dtype=mx.bfloat16)
@@ -228,7 +228,7 @@ def forced_plan(request, monkeypatch):
     plan = request.param
     sched = "seg" if plan.sched == SEG else "db"
     monkeypatch.setenv(
-        "OMLX_M5_GATHER_QMM_NAX_PLAN",
+        "MOLTO_M5_GATHER_QMM_NAX_PLAN",
         f"{sched},{plan.bm},{plan.bk},{plan.gx},{plan.pad}",
     )
     return plan
@@ -443,10 +443,10 @@ def test_tile_scan_bounded_on_unsorted_indices():
 @pytest.fixture
 def installed(monkeypatch):
     """The m5 reroute wrapper on mx.gather_qmm (restored afterwards)."""
-    was_installed = getattr(mx.gather_qmm, "_omlx_m5_reroute", False)
+    was_installed = getattr(mx.gather_qmm, "_molto_m5_reroute", False)
     raw = patch_mod._original_gather_qmm if was_installed else mx.gather_qmm
     mx.gather_qmm = raw
-    monkeypatch.delenv("OMLX_M5_GATHER_QMM_FIX", raising=False)
+    monkeypatch.delenv("MOLTO_M5_GATHER_QMM_FIX", raising=False)
     assert apply_m5_gather_qmm_workaround()
     yield raw
     mx.gather_qmm = raw
@@ -513,7 +513,7 @@ def test_wrapper_routes_sorted_calls_to_nax(installed, monkeypatch):
 
 @needs_nax
 def test_wrapper_kill_switch_keeps_stock_path(installed, monkeypatch):
-    monkeypatch.setenv("OMLX_M5_GATHER_QMM_NAX", "0")
+    monkeypatch.setenv("MOLTO_M5_GATHER_QMM_NAX", "0")
     seen = []
     monkeypatch.setattr(nax, "_launch", lambda *a, **k: seen.append(1) or None)
     E, N, K = 8, 128, 128
@@ -768,7 +768,7 @@ def test_epilogue_non_finite_projections(limit):
 
 
 def _glm5_language():
-    from omlx_runtime.patches import mlx_vlm_glm5_next_compat as compat
+    from molto_runtime.patches import mlx_vlm_glm5_next_compat as compat
 
     compat.apply_mlx_vlm_glm5_next_compat_patch()
     return importlib.import_module("mlx_vlm.models.glm5_next.language")
@@ -779,8 +779,8 @@ def test_reference_activation_matches_the_model_activations():
     from mlx_lm.models.activations import swiglu as lm_swiglu
     from mlx_lm.models.switch_layers import SwiGLU as LmSwiGLU
     from mlx_vlm.models.switch_layers import SwiGLU as VlmSwiGLU
-    from omlx_runtime.patches.deepseek_v4.switch_layers import SwiGLU as V4SwiGLU
-    from omlx_runtime.patches.glm_moe_dsa.switch_layers import SwiGLU as DsaSwiGLU
+    from molto_runtime.patches.deepseek_v4.switch_layers import SwiGLU as V4SwiGLU
+    from molto_runtime.patches.glm_moe_dsa.switch_layers import SwiGLU as DsaSwiGLU
 
     lang = _glm5_language()
     gate_up = (mx.random.normal((3000, 1, 256), key=mx.random.key(3)) * 8).astype(
@@ -820,7 +820,7 @@ def test_epilogue_unsupported_calls_return_none(monkeypatch):
     assert call(64, limit=float("inf")) is None
     assert call(64, limit=float("nan")) is None
     assert call(64, x=x.astype(mx.float32)) is None
-    monkeypatch.setenv("OMLX_M5_GATHER_QMM_NAX", "0")
+    monkeypatch.setenv("MOLTO_M5_GATHER_QMM_NAX", "0")
     assert call(64) is None
 
 
@@ -856,8 +856,8 @@ def test_epilogue_failed_self_tests_fall_back(monkeypatch):
 def test_activation_classes():
     from mlx_lm.models.switch_layers import SwiGLU as LmSwiGLU
     from mlx_vlm.models.switch_layers import SwiGLU as VlmSwiGLU
-    from omlx_runtime.patches.deepseek_v4.switch_layers import SwiGLU as V4SwiGLU
-    from omlx_runtime.patches.glm_moe_dsa.switch_layers import SwiGLU as DsaSwiGLU
+    from molto_runtime.patches.deepseek_v4.switch_layers import SwiGLU as V4SwiGLU
+    from molto_runtime.patches.glm_moe_dsa.switch_layers import SwiGLU as DsaSwiGLU
 
     lang = _glm5_language()
     for act in (LmSwiGLU(), VlmSwiGLU(), V4SwiGLU(), DsaSwiGLU()):
@@ -873,7 +873,7 @@ def test_activation_classes():
 
 
 def _dsa_gate_up(mode="affine", gs=64, E=16, n=64, K=128, bias=False):
-    from omlx_runtime.patches.glm_moe_dsa import switch_layers as dsa
+    from molto_runtime.patches.glm_moe_dsa import switch_layers as dsa
 
     lin = dsa.SwitchLinear(K, 2 * n, E, bias=bias)
     w = mx.random.normal(lin.weight.shape, key=mx.random.key(9)) * 0.05
@@ -887,7 +887,7 @@ def _dsa_gate_up(mode="affine", gs=64, E=16, n=64, K=128, bias=False):
 
 @needs_nax
 def test_fused_gate_up_activation_routing(installed, epilogue_calls, monkeypatch):
-    from omlx_runtime.patches.glm_moe_dsa.switch_layers import SwiGLU
+    from molto_runtime.patches.glm_moe_dsa.switch_layers import SwiGLU
 
     proj = _dsa_gate_up()
     x, idx = _routed_rows(96, 8, 16, 128, mx.bfloat16, 0.5, x_scale=4.0)
@@ -904,9 +904,9 @@ def test_fused_gate_up_activation_routing(installed, epilogue_calls, monkeypatch
     assert patch_mod.fused_gate_up_activation(proj, few_x, few_idx, act) is None
     biased = _dsa_gate_up(bias=True)
     assert patch_mod.fused_gate_up_activation(biased, x, idx, act) is None
-    monkeypatch.setenv("OMLX_M5_GATHER_QMM_NAX", "0")
+    monkeypatch.setenv("MOLTO_M5_GATHER_QMM_NAX", "0")
     assert patch_mod.fused_gate_up_activation(proj, x, idx, act) is None
-    monkeypatch.delenv("OMLX_M5_GATHER_QMM_NAX")
+    monkeypatch.delenv("MOLTO_M5_GATHER_QMM_NAX")
     mx.gather_qmm = installed
     assert patch_mod.fused_gate_up_activation(proj, x, idx, act) is None
     assert epilogue_calls == [True]
@@ -1014,7 +1014,7 @@ def test_row_map_unsupported_calls_return_none(monkeypatch):
     assert call(rmap, x=x_tok.reshape(T, K)) is None  # token rows [T, 1, K]
     assert not nax.supports(x_tok, w, s, s, idx, 64, 4, "affine")  # no map
     assert nax.supports(x_tok, w, s, s, idx, 64, 4, "affine", rmap)
-    monkeypatch.setenv("OMLX_M5_GATHER_QMM_NAX", "0")
+    monkeypatch.setenv("MOLTO_M5_GATHER_QMM_NAX", "0")
     assert call(rmap) is None
 
 
@@ -1031,7 +1031,7 @@ def _dsa_problem(tokens=96, E=16, n=64, K=128, top_k=8):
 
 @needs_nax
 def test_failed_row_map_self_test_falls_back(monkeypatch, installed, launches):
-    from omlx_runtime.patches.glm_moe_dsa.switch_layers import SwiGLU
+    from molto_runtime.patches.glm_moe_dsa.switch_layers import SwiGLU
 
     proj, h, inds = _dsa_problem()
     x_tok, row_map, idx, _ = sort_routes(mx.expand_dims(h, (-2, -3)), inds)
@@ -1051,7 +1051,7 @@ def test_failed_row_map_self_test_falls_back(monkeypatch, installed, launches):
 
 @needs_nax
 def test_fused_gate_up_activation_reads_token_rows(installed, launches, monkeypatch):
-    from omlx_runtime.patches.glm_moe_dsa.switch_layers import SwiGLU
+    from molto_runtime.patches.glm_moe_dsa.switch_layers import SwiGLU
 
     proj, h, inds = _dsa_problem()
     x_tok, row_map, idx, _ = sort_routes(mx.expand_dims(h, (-2, -3)), inds)
@@ -1189,7 +1189,7 @@ def test_glm_dsa_switch_glu_epilogue_bit_exact(
 ):
     """MiMo V2's experts (GLM DSA SwitchGLU): fused gate/up + epilogue vs
     the original separate gate and up projections."""
-    from omlx_runtime.patches.glm_moe_dsa import switch_layers as dsa
+    from molto_runtime.patches.glm_moe_dsa import switch_layers as dsa
 
     reference = _make_glu(dsa, quant)
     fused = _fused_twin(dsa, reference, quant, "mimo_v2")
@@ -1202,7 +1202,7 @@ def test_deepseek_v4_switch_glu_clamped_epilogue_bit_exact(
     installed, epilogue_calls, monkeypatch, quant
 ):
     """GLM-5.3's experts (DeepSeek V4 SwitchGLU, Glm5NextClampedSwiGLU)."""
-    from omlx_runtime.patches.deepseek_v4 import switch_layers as v4
+    from molto_runtime.patches.deepseek_v4 import switch_layers as v4
 
     act = _glm5_language().Glm5NextClampedSwiGLU(10.0)
     reference = _make_glu(v4, quant, activation=act)
@@ -1212,7 +1212,7 @@ def test_deepseek_v4_switch_glu_clamped_epilogue_bit_exact(
 
 @needs_nax
 def test_decode_and_short_blocks_keep_the_unfused_path(installed, epilogue_calls):
-    from omlx_runtime.patches.glm_moe_dsa import switch_layers as dsa
+    from molto_runtime.patches.glm_moe_dsa import switch_layers as dsa
 
     quant = (32, 4, "mxfp4")
     reference = _make_glu(dsa, quant)
@@ -1233,7 +1233,7 @@ def test_decode_and_short_blocks_keep_the_unfused_path(installed, epilogue_calls
 
 
 def _mimo_moe(T):
-    from omlx_runtime.patches.mimo_v2 import apply_mimo_v2_patch
+    from molto_runtime.patches.mimo_v2 import apply_mimo_v2_patch
 
     apply_mimo_v2_patch()
     mimo = importlib.import_module("mlx_lm.models.mimo_v2")
@@ -1303,7 +1303,7 @@ def test_mimo_moe_block_epilogue_matches_unfused(installed, epilogue_calls, T):
 @pytest.mark.parametrize("quant", [(32, 4, "mxfp4"), (64, 4, "affine")])
 def test_glm_dsa_switch_glu_row_map(installed, launches, monkeypatch, quant):
     """MiMo V2's experts (GLM DSA SwitchGLU), both inverse-order variants."""
-    from omlx_runtime.patches.glm_moe_dsa import switch_layers as dsa
+    from molto_runtime.patches.glm_moe_dsa import switch_layers as dsa
 
     glu = _fused_glu(dsa, quant, "mimo_v2")
     for tokens in (96, 300):
@@ -1321,7 +1321,7 @@ def test_glm_dsa_switch_glu_row_map(installed, launches, monkeypatch, quant):
 @needs_nax
 def test_deepseek_v4_switch_glu_row_map(installed, launches, monkeypatch):
     """GLM-5.3's experts (DeepSeek V4 SwitchGLU, clamped SwiGLU)."""
-    from omlx_runtime.patches.deepseek_v4 import switch_layers as v4
+    from molto_runtime.patches.deepseek_v4 import switch_layers as v4
 
     act = _glm5_language().Glm5NextClampedSwiGLU(10.0)
     glu = _fused_glu(v4, (64, 4, "affine"), "glm5_next", activation=act)
@@ -1354,19 +1354,19 @@ def _qwen_glu(seed=7):
 @pytest.fixture
 def qwen_regroup(monkeypatch):
     """qwen35_moe_gate_up with its SwitchGLU call patch restored afterwards."""
-    import omlx_runtime.patches.qwen35_moe_gate_up as gate_up
+    import molto_runtime.patches.qwen35_moe_gate_up as gate_up
     from mlx_lm.models.switch_layers import SwitchGLU
     from mlx_vlm.models.qwen3_5.speculative_verifier import Qwen3_5BatchInvariantForward
     from mlx_vlm.models.switch_layers import SwitchGLU as VLMSwitchGLU
 
-    monkeypatch.delenv("OMLX_QWEN35_MOE_GATE_UP", raising=False)
+    monkeypatch.delenv("MOLTO_QWEN35_MOE_GATE_UP", raising=False)
     verifier = Qwen3_5BatchInvariantForward
     monkeypatch.setattr(verifier, "_switch_glu", verifier._switch_glu)
     saved = {cls: cls.__dict__.get("__call__") for cls in (SwitchGLU, VLMSwitchGLU)}
-    flags = ("_omlx_gate_up_fused_call", "_omlx_gate_up_original_call")
+    flags = ("_molto_gate_up_fused_call", "_molto_gate_up_original_call")
     yield gate_up
     for cls, call in saved.items():
-        original = cls.__dict__.get("_omlx_gate_up_original_call", call)
+        original = cls.__dict__.get("_molto_gate_up_original_call", call)
         cls.__call__ = original if original is not None else call
         for attr in flags:
             if attr in cls.__dict__:
@@ -1386,7 +1386,7 @@ def _regrouped(gate_up_mod, glu):
 
 
 def _qwen_weighted_sum_kernel():
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
 
     if not fast.has_symbol("qwen35_moe_weighted_sum"):
         pytest.skip("qwen35_moe_weighted_sum native kernel unavailable")
@@ -1397,7 +1397,7 @@ def _qwen_weighted_sum_kernel():
 def test_qwen_weighted_sum_prefill_epilogue_bit_exact(
     installed, epilogue_calls, qwen_regroup
 ):
-    import omlx_runtime.patches.qwen35_moe_weighted_sum as ws
+    import molto_runtime.patches.qwen35_moe_weighted_sum as ws
 
     kernel = _qwen_weighted_sum_kernel()
     reference = _qwen_glu()
@@ -1432,7 +1432,7 @@ def test_qwen_regrouped_call_epilogue_bit_exact(
 def test_qwen_weighted_sum_prefill_row_map(
     installed, launches, monkeypatch, qwen_regroup
 ):
-    import omlx_runtime.patches.qwen35_moe_weighted_sum as ws
+    import molto_runtime.patches.qwen35_moe_weighted_sum as ws
 
     kernel = _qwen_weighted_sum_kernel()
     glu = _regrouped(qwen_regroup, _qwen_glu())

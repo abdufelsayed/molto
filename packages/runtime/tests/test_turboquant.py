@@ -1,4 +1,4 @@
-"""Tests for TurboQuant KV cache (mlx-vlm backend + omlx BatchTurboQuantKVCache)."""
+"""Tests for TurboQuant KV cache (mlx-vlm backend + molto BatchTurboQuantKVCache)."""
 
 import mlx.core as mx
 import pytest
@@ -10,7 +10,7 @@ from mlx_vlm.turboquant import (
     _TurboQuantProdCodec,
     turboquant_enabled,
 )
-from omlx_runtime.turboquant_kv import (
+from molto_runtime.turboquant_kv import (
     BatchTurboQuantKVCache,
     _concat_state,
     _concat_state_token_axis,
@@ -356,7 +356,7 @@ def test_batch_tq_meta_state_round_trip():
 
 
 def test_attention_patch_routes_tq():
-    from omlx_runtime.patches.turboquant_attention import (
+    from molto_runtime.patches.turboquant_attention import (
         apply_turboquant_attention_patch,
     )
 
@@ -380,7 +380,7 @@ def test_attention_patch_routes_tq():
 
 def test_attention_patch_preserves_sinks_with_dequant_fallback(monkeypatch):
     from mlx_lm.models import base as mlx_base
-    from omlx_runtime.patches.turboquant_attention import (
+    from molto_runtime.patches.turboquant_attention import (
         apply_turboquant_attention_patch,
     )
 
@@ -432,7 +432,7 @@ def test_attention_patch_preserves_sinks_with_dequant_fallback(monkeypatch):
 
 def test_attention_patch_routes_long_tq_prefill_to_quantized_attention(monkeypatch):
     from mlx_lm.models import base as mlx_base
-    from omlx_runtime.patches import turboquant_attention as tq_attention
+    from molto_runtime.patches import turboquant_attention as tq_attention
 
     tq_attention.apply_turboquant_attention_patch()
     monkeypatch.setattr(tq_attention, "_LONG_PREFILL_QUANTIZED_THRESHOLD", 4)
@@ -486,7 +486,7 @@ def test_attention_patch_routes_long_tq_prefill_to_quantized_attention(monkeypat
 
 def test_attention_patch_keeps_short_prefill_fast_path(monkeypatch):
     from mlx_lm.models import base as mlx_base
-    from omlx_runtime.patches import turboquant_attention as tq_attention
+    from molto_runtime.patches import turboquant_attention as tq_attention
 
     tq_attention.apply_turboquant_attention_patch()
     monkeypatch.setattr(tq_attention, "_LONG_PREFILL_QUANTIZED_THRESHOLD", 4096)
@@ -522,7 +522,7 @@ def test_attention_patch_keeps_short_prefill_fast_path(monkeypatch):
 
 def test_attention_patch_falls_back_when_quantized_prefill_fails(monkeypatch):
     from mlx_lm.models import base as mlx_base
-    from omlx_runtime.patches import turboquant_attention as tq_attention
+    from molto_runtime.patches import turboquant_attention as tq_attention
 
     tq_attention.apply_turboquant_attention_patch()
     monkeypatch.setattr(tq_attention, "_LONG_PREFILL_QUANTIZED_THRESHOLD", 4)
@@ -580,7 +580,7 @@ def test_decode_multirow_matches_dequantize_reference(q_len):
     """MTP-verify-shaped attention (fold path at small q_len, single-chunk
     quantized_attention above the folded-repeat knee) must match the
     dequantize+SDPA reference with an explicit causal tail mask."""
-    from omlx_runtime.patches.turboquant_attention import _decode_multirow_attention
+    from molto_runtime.patches.turboquant_attention import _decode_multirow_attention
 
     mx.random.seed(0)
     B, n_q, n_kv, D, T = 1, 24, 4, 256, 512
@@ -617,7 +617,7 @@ def test_fused_multirow_kernel_matches_dequantize_reference(q_len):
     kernel (one KV unpack shared across rows, issue #2215). Its output must
     match the dequantize+SDPA reference with the causal tail mask, and the
     dispatcher must route to it bit-exactly."""
-    from omlx_runtime.patches import turboquant_attention as tq_attention
+    from molto_runtime.patches import turboquant_attention as tq_attention
 
     mx.random.seed(0)
     B, n_q, n_kv, D = 1, 16, 2, 256
@@ -654,7 +654,7 @@ def test_fused_multirow_kernel_handles_mixed_bit_codecs(bits):
     """Fractional turboquant_kv_bits split into different K/V integer bit
     widths (2.5 -> K=2/V=3); the fused kernel templates the two widths
     independently and must stay parity-correct across them."""
-    from omlx_runtime.patches import turboquant_attention as tq_attention
+    from molto_runtime.patches import turboquant_attention as tq_attention
 
     mx.random.seed(0)
     B, n_q, n_kv, D = 1, 16, 2, 256
@@ -686,7 +686,7 @@ def test_fused_multirow_kernel_respects_token_floor(monkeypatch):
     """Below the token floor the dispatcher must not call the fused helper
     (the fold path is already cheap there and the 2-pass block split needs
     enough tokens per block)."""
-    from omlx_runtime.patches import turboquant_attention as tq_attention
+    from molto_runtime.patches import turboquant_attention as tq_attention
 
     mx.random.seed(0)
     B, n_q, n_kv, D, T = 1, 16, 2, 256, 512
@@ -713,7 +713,7 @@ def test_attention_patch_routes_decode_multirow_causal(monkeypatch):
     multirow decode route — never prefill_attention / dequantize (issue
     #2127 class: those re-scan the whole cache per verify cycle)."""
     from mlx_lm.models import base as mlx_base
-    from omlx_runtime.patches import turboquant_attention as tq_attention
+    from molto_runtime.patches import turboquant_attention as tq_attention
 
     tq_attention.apply_turboquant_attention_patch()
 
@@ -745,7 +745,7 @@ def test_attention_patch_routes_decode_multirow_causal(monkeypatch):
 def test_attention_patch_multirow_ignores_non_causal_masks():
     """Array masks and mask=None keep the existing prefill routing (the
     multirow route encodes causal-tail semantics only)."""
-    from omlx_runtime.patches import turboquant_attention as tq_attention
+    from molto_runtime.patches import turboquant_attention as tq_attention
 
     tq_attention.apply_turboquant_attention_patch()
 
@@ -783,14 +783,14 @@ def test_vlm_target_verify_attention_handles_tq_proxies():
     caches through one causal SDPA call with identical per-row semantics."""
     pytest.importorskip("mlx_vlm.models.qwen3_5.language")
 
-    from omlx_runtime.patches import turboquant_attention as tq_attention
+    from molto_runtime.patches import turboquant_attention as tq_attention
 
     tq_attention.apply_turboquant_attention_patch()
     tq_attention._patch_vlm_target_verify_attention()
 
     from mlx_vlm.models.qwen3_5 import language as q35_lang
 
-    assert getattr(q35_lang, "_omlx_tq_target_verify_patched", False)
+    assert getattr(q35_lang, "_molto_tq_target_verify_patched", False)
 
     mx.random.seed(0)
     B, n_q, n_kv, D, T, L = 1, 4, 2, 32, 24, 3
@@ -916,7 +916,7 @@ def test_concat_state_token_axis_mse_matches_pairwise_concat():
 
 def test_ssd_type_map_completeness():
     """All TQ state types from turboquant_kv must be in SSD type_map."""
-    from omlx_runtime.turboquant_kv import (
+    from molto_runtime.turboquant_kv import (
         TurboQuantMSEState,
         TurboQuantPolarProdState,
         TurboQuantPolarState,
@@ -965,7 +965,7 @@ def test_turboquant_eligible_gate():
         QuantizedKVCache,
         RotatingKVCache,
     )
-    from omlx_runtime.scheduler import Scheduler
+    from molto_runtime.scheduler import Scheduler
 
     # _turboquant_eligible consults the model for MLA architecture (#1613)
     # and attention sinks before checking cache types; inject a compatible stub
@@ -998,7 +998,7 @@ def test_turboquant_convert_hybrid_cache_keeps_rotating_passthrough():
     from types import SimpleNamespace
 
     from mlx_lm.models.cache import KVCache, RotatingKVCache
-    from omlx_runtime.scheduler import Scheduler
+    from molto_runtime.scheduler import Scheduler
 
     first = KVCache()
     first.update_and_fetch(
@@ -1033,7 +1033,7 @@ def test_turboquant_convert_preserves_skip_last_after_partial_tq_restore():
     from types import SimpleNamespace
 
     from mlx_lm.models.cache import KVCache, RotatingKVCache
-    from omlx_runtime.scheduler import Scheduler
+    from molto_runtime.scheduler import Scheduler
 
     first_fp = KVCache()
     first_fp.update_and_fetch(
@@ -1070,11 +1070,11 @@ def test_from_cache_merge_builds_working_batch():
     """Mirror the scheduler path: fp16 prefill -> from_cache (post-prefill
     quantize) -> _merge_caches builds a BatchTurboQuantKVCache that decodes.
 
-    Importing omlx_runtime.scheduler installs the TurboQuantKVCache.merge monkey-patch
+    Importing molto_runtime.scheduler installs the TurboQuantKVCache.merge monkey-patch
     that _merge_caches() relies on, so caches[0].merge([...]) is what the
     BatchGenerator actually calls at insert() time.
     """
-    import omlx_runtime.scheduler  # noqa: F401  (applies the merge monkey-patch)
+    import molto_runtime.scheduler  # noqa: F401  (applies the merge monkey-patch)
 
     per_request = []
     for length in (8, 4):  # two requests of different prefill lengths
@@ -1119,7 +1119,7 @@ def test_decode_single_token_quantize_is_accurate():
     depth — which garbled generation once TurboQuant decode engaged. It is fixed
     on the pinned mlx-vlm (main). This test fails loudly if that regresses.
     """
-    from omlx_runtime.patches.turboquant_attention import (
+    from molto_runtime.patches.turboquant_attention import (
         apply_turboquant_attention_patch,
     )
 
@@ -1153,7 +1153,7 @@ def test_batch_masked_decode_is_accurate():
     array mask — matching the dequantize+SDPA reference over the same states.
     """
     from mlx_lm.models import base as mlx_base
-    from omlx_runtime.patches.turboquant_attention import (
+    from molto_runtime.patches.turboquant_attention import (
         apply_turboquant_attention_patch,
     )
 
@@ -1332,7 +1332,7 @@ def test_batch_tq_append_growth_keeps_content_and_geometry():
     mx.eval(batch.keys, batch.values)
 
     ks, _ = batch.state
-    from omlx_runtime.turboquant_kv import _state_length as _sl
+    from molto_runtime.turboquant_kv import _state_length as _sl
 
     assert _sl(getattr(ks, "_state", ks)) == 49, (
         f".state exposes {_sl(getattr(ks, '_state', ks))} columns, expected 49"

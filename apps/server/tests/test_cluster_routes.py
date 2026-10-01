@@ -8,16 +8,16 @@ from types import SimpleNamespace
 import pytest
 from cluster_app import cluster_app
 from fastapi.testclient import TestClient
-from omlx_runtime.cluster import registry as runtime_registry
-from omlx_runtime.cluster.enrollment import ClusterEnrollmentStore
-from omlx_runtime.cluster.models import (
+from molto_runtime.cluster import registry as runtime_registry
+from molto_runtime.cluster.enrollment import ClusterEnrollmentStore
+from molto_runtime.cluster.models import (
     ClusterStatus,
     RDMACapability,
     RuntimeCapability,
     TransportState,
 )
-from omlx_runtime.exceptions import ModelBusyError
-from omlx_server.cluster import routes
+from molto_runtime.exceptions import ModelBusyError
+from molto_server.cluster import routes
 
 
 def _status() -> ClusterStatus:
@@ -29,7 +29,7 @@ def _status() -> ClusterStatus:
         physical_memory_bytes=128 * 1024**3,
         recommended_working_set_bytes=115_448_725_504,
         runtime=RuntimeCapability(
-            omlx_version="0.5.3",
+            molto_version="0.5.3",
             mlx_version="0.32.0",
             mlx_lm_version="0.31.3",
             python_version="3.11.14",
@@ -61,15 +61,15 @@ def _enrollment_client() -> TestClient:
 
 
 def test_ssh_key_generation_requires_explicit_overwrite(monkeypatch, tmp_path):
-    from omlx_runtime.cluster import ssh_keys
+    from molto_runtime.cluster import ssh_keys
 
     calls = []
     key_pair = SimpleNamespace(
         key_type="ed25519",
         fingerprint="SHA256:test",
         public_key="ssh-ed25519 AAAA test",
-        private_key_path=tmp_path / "omlx_cluster",
-        public_key_path=tmp_path / "omlx_cluster.pub",
+        private_key_path=tmp_path / "molto_cluster",
+        public_key_path=tmp_path / "molto_cluster.pub",
         created_at=123.0,
     )
 
@@ -93,7 +93,7 @@ def _worker_claim() -> dict:
     return {
         "node_id": "cuda-worker-1-machine",
         "hostname": "cuda-worker-1",
-        "ssh_user": "omlxworker",
+        "ssh_user": "moltoworker",
         "ssh_port": 22,
         "addresses": ["10.42.0.21"],
         "accelerator": "cuda",
@@ -161,7 +161,7 @@ class _ReadyClusterPool:
     def resolve_cluster_model_id(self, model_path):
         assert model_path == self.model_path
         if self.remote_only and not self.cluster_registered:
-            from omlx_runtime.exceptions import ModelNotFoundError
+            from molto_runtime.exceptions import ModelNotFoundError
 
             raise ModelNotFoundError(model_path, [])
         return self.model_id
@@ -274,7 +274,7 @@ def test_cluster_status_route_rejects_invalid_route_target():
 
 
 def test_link_setup_route_exposes_only_the_fixed_gui_operation(monkeypatch):
-    from omlx_runtime.cluster.transport import LinkStatus
+    from molto_runtime.cluster.transport import LinkStatus
 
     seen = []
     monkeypatch.setattr(
@@ -330,7 +330,7 @@ def test_link_setup_rejects_ssh_options_before_configuring(monkeypatch):
 
 
 def test_link_setup_route_reports_cancelled_native_authorization(monkeypatch):
-    from omlx_runtime.cluster.transport import LinkAuthorizationCancelledError
+    from molto_runtime.cluster.transport import LinkAuthorizationCancelledError
 
     def cancelled(hosts):
         raise LinkAuthorizationCancelledError("Administrator approval was cancelled.")
@@ -369,7 +369,7 @@ def test_cluster_diagnostics_bundles_and_redacts_local_evidence(monkeypatch):
                 {
                     "rank": 0,
                     "phase": "failed",
-                    "model": f"{Path.home()}/.omlx/models/example",
+                    "model": f"{Path.home()}/.molto/models/example",
                     "detail": "user@Studio.local stopped",
                     "join_key": "must-not-leak-either",
                     "pairing_token": "must-not-leak",
@@ -396,7 +396,7 @@ def test_cluster_diagnostics_bundles_and_redacts_local_evidence(monkeypatch):
     assert payload["scope"] == "local-only cluster support bundle"
     assert payload["status"]["node"]["chip_name"] == "Apple M5 Max"
     marker = payload["runtime"]["jobs"][0]
-    assert marker["model"].startswith("~/.omlx/")
+    assert marker["model"].startswith("~/.molto/")
     assert marker["detail"] == "<user>@Studio.local stopped"
     assert marker["join_key"] == "<redacted>"
     assert marker["pairing_token"] == "<redacted>"
@@ -411,7 +411,7 @@ def test_cluster_discovery_never_implies_trust(monkeypatch):
                 {
                     "name": "Studio",
                     "ssh": "studio.local",
-                    "service": "oMLX Distributed",
+                    "service": "Molto Distributed",
                     "transport": "unknown",
                 }
             ],
@@ -512,7 +512,7 @@ def test_cluster_node_budgets_use_each_hosts_live_admission_ceiling(monkeypatch)
     gib = 1024**3
     asked = {}
     monkeypatch.setattr(
-        "omlx_runtime.cluster.node_role._enforcer_ceiling_bytes",
+        "molto_runtime.cluster.node_role._enforcer_ceiling_bytes",
         lambda: 100 * gib,
     )
     monkeypatch.setattr(
@@ -534,7 +534,7 @@ def test_cluster_node_budgets_use_each_hosts_live_admission_ceiling(monkeypatch)
                 {
                     "node_id": "studio",
                     "ssh": "studio.local",
-                    "python_executable": "/opt/omlx/bin/python",
+                    "python_executable": "/opt/molto/bin/python",
                 },
             ],
             "roles": {"local": "workstation", "studio": "headless"},
@@ -542,7 +542,7 @@ def test_cluster_node_budgets_use_each_hosts_live_admission_ceiling(monkeypatch)
     )
     assert asked == {
         "ssh": "studio.local",
-        "python": "/opt/omlx/bin/python",
+        "python": "/opt/molto/bin/python",
     }
 
     assert response.status_code == 200
@@ -561,7 +561,7 @@ def test_cluster_node_budgets_let_the_probe_discover_an_unknown_interpreter(
     gib = 1024**3
     asked = {}
     monkeypatch.setattr(
-        "omlx_runtime.cluster.node_role._enforcer_ceiling_bytes",
+        "molto_runtime.cluster.node_role._enforcer_ceiling_bytes",
         lambda: 100 * gib,
     )
     monkeypatch.setattr(
@@ -665,7 +665,7 @@ def test_cluster_plan_route_requires_exactly_one_model_source():
 
 
 def test_cluster_plan_route_uses_downloaded_model_headers(monkeypatch):
-    from omlx_runtime.cluster.planner import ModelLayout
+    from molto_runtime.cluster.planner import ModelLayout
 
     monkeypatch.setattr(
         routes,
@@ -696,7 +696,7 @@ def test_cluster_plan_route_uses_downloaded_model_headers(monkeypatch):
 
 
 def test_cluster_plan_context_changes_kv_memory_and_signed_placement(monkeypatch):
-    from omlx_runtime.cluster.planner import ModelLayout
+    from molto_runtime.cluster.planner import ModelLayout
 
     gib = 1024**3
     monkeypatch.setattr(
@@ -760,7 +760,7 @@ def test_selected_context_is_the_runtime_kv_ceiling():
 def test_cluster_plan_route_refuses_hybrid_tp_the_worker_cannot_run(monkeypatch):
     gib = 1024**3
 
-    from omlx_runtime.cluster.planner import ModelLayout
+    from molto_runtime.cluster.planner import ModelLayout
 
     monkeypatch.setattr(
         routes,
@@ -808,8 +808,8 @@ def test_cluster_plan_route_refuses_hybrid_tp_the_worker_cannot_run(monkeypatch)
 
 
 def test_cluster_deployment_recomputes_plan_and_preflights(tmp_path, monkeypatch):
-    from omlx_runtime.cluster.planner import ModelLayout
-    from omlx_runtime.cluster.registry import configure_cluster_registry
+    from molto_runtime.cluster.planner import ModelLayout
+    from molto_runtime.cluster.registry import configure_cluster_registry
 
     configure_cluster_registry(tmp_path)
     model_path = tmp_path / "models" / "nemotron"
@@ -938,9 +938,9 @@ def test_cluster_deployment_keeps_memory_plan_when_benchmark_is_unavailable(
     tmp_path,
     monkeypatch,
 ):
-    from omlx_runtime.cluster.launch import DistributedLaunchError
-    from omlx_runtime.cluster.planner import ModelLayout
-    from omlx_runtime.cluster.registry import configure_cluster_registry
+    from molto_runtime.cluster.launch import DistributedLaunchError
+    from molto_runtime.cluster.planner import ModelLayout
+    from molto_runtime.cluster.registry import configure_cluster_registry
 
     configure_cluster_registry(tmp_path)
     model_path = tmp_path / "models" / "fallback"
@@ -1006,8 +1006,8 @@ def test_cluster_deployment_keeps_memory_plan_when_benchmark_is_unavailable(
 def test_cluster_activation_rolls_back_when_canary_fails(
     tmp_path, monkeypatch, reload_busy
 ):
-    from omlx_runtime.cluster.planner import ModelLayout
-    from omlx_runtime.cluster.registry import configure_cluster_registry
+    from molto_runtime.cluster.planner import ModelLayout
+    from molto_runtime.cluster.registry import configure_cluster_registry
 
     registry = configure_cluster_registry(tmp_path)
     model_path = tmp_path / "models" / "canary-failure"
@@ -1068,8 +1068,8 @@ def test_cluster_activation_rolls_back_when_canary_fails(
 
 
 def test_cluster_deployment_rejects_unsafe_ssh_target(tmp_path, monkeypatch):
-    from omlx_runtime.cluster.planner import ModelLayout
-    from omlx_runtime.cluster.registry import configure_cluster_registry
+    from molto_runtime.cluster.planner import ModelLayout
+    from molto_runtime.cluster.registry import configure_cluster_registry
 
     configure_cluster_registry(tmp_path)
     monkeypatch.setattr(
@@ -1149,7 +1149,7 @@ def test_cluster_deployment_cannot_disable_preflight():
 
 
 def _interfaces(name, addresses, *, rdma=(), thunderbolt=None):
-    from omlx_runtime.cluster.transport import HostInterfaces, InterfaceAddress
+    from molto_runtime.cluster.transport import HostInterfaces, InterfaceAddress
 
     return HostInterfaces(
         host=name,
@@ -1169,7 +1169,7 @@ def _readings(monkeypatch, hosts):
 
 
 def _no_links():
-    from omlx_runtime.cluster.transport import TransportMatrix
+    from molto_runtime.cluster.transport import TransportMatrix
 
     return TransportMatrix(transports=(), backend="ring")
 
@@ -1255,7 +1255,7 @@ def test_pairing_token_route_authenticates_with_the_shared_secret():
 
 
 def test_cuda_join_command_is_single_use_pinned_and_not_cached(monkeypatch, tmp_path):
-    from omlx_runtime.cluster import ssh_keys
+    from molto_runtime.cluster import ssh_keys
 
     store = ClusterEnrollmentStore(tmp_path)
     public_key = "ssh-ed25519 " + base64.b64encode(b"controller-key-material").decode()
@@ -1304,7 +1304,7 @@ def test_cuda_join_command_only_accepts_a_private_ipv4_controller():
 
 
 def test_cuda_worker_claim_replay_and_completion_fail_closed(monkeypatch, tmp_path):
-    from omlx_runtime.cluster import ssh_keys
+    from molto_runtime.cluster import ssh_keys
 
     store = ClusterEnrollmentStore(tmp_path)
     public_key = "ssh-ed25519 " + base64.b64encode(b"controller-key-material").decode()
@@ -1356,7 +1356,7 @@ def test_cuda_worker_claim_replay_and_completion_fail_closed(monkeypatch, tmp_pa
     assert source.headers["cache-control"] == "no-store"
 
     completion = _worker_claim() | {
-        "python_executable": "/opt/omlx-cluster-worker/venv/bin/python",
+        "python_executable": "/opt/molto-cluster-worker/venv/bin/python",
         "source_digest": "b" * 64,
         "ssh_host_public_key": worker_key,
         "ssh_host_fingerprint": worker_fingerprint,
@@ -1377,7 +1377,7 @@ def test_cuda_worker_claim_replay_and_completion_fail_closed(monkeypatch, tmp_pa
         headers={"Authorization": f"Bearer {session}"},
     )
     assert completed.status_code == 200
-    assert completed.json()["ssh"] == "omlxworker@10.42.0.21"
+    assert completed.json()["ssh"] == "moltoworker@10.42.0.21"
     assert pinned == [{"hostname": "10.42.0.21", "public_key": worker_key}]
     status = client.get("/admin/api/cluster/join-status")
     assert status.json()["nodes"][0]["node_id"] == "cuda-worker-1-machine"
@@ -1388,7 +1388,7 @@ def test_cuda_worker_claim_replay_and_completion_fail_closed(monkeypatch, tmp_pa
 def test_cuda_worker_completion_refuses_a_forged_host_fingerprint(
     monkeypatch, tmp_path
 ):
-    from omlx_runtime.cluster import ssh_keys
+    from molto_runtime.cluster import ssh_keys
 
     store = ClusterEnrollmentStore(tmp_path)
     controller_key = "ssh-ed25519 " + base64.b64encode(b"controller").decode()
@@ -1420,7 +1420,7 @@ def test_cuda_worker_completion_refuses_a_forged_host_fingerprint(
         "/cluster/join/complete",
         json=_worker_claim()
         | {
-            "python_executable": "/opt/omlx-cluster-worker/venv/bin/python",
+            "python_executable": "/opt/molto-cluster-worker/venv/bin/python",
             "source_digest": "b" * 64,
             "ssh_host_public_key": worker_key,
             "ssh_host_fingerprint": "SHA256:" + "A" * 43,
@@ -1433,7 +1433,7 @@ def test_cuda_worker_completion_refuses_a_forged_host_fingerprint(
 
 
 def test_key_exchange_routes_keep_the_shared_secret_out_of_the_url(monkeypatch):
-    from omlx_runtime.cluster import ssh_keys
+    from molto_runtime.cluster import ssh_keys
 
     calls = []
 
@@ -1571,7 +1571,7 @@ def test_the_fabric_reports_an_unpaired_mac_instead_of_a_scrubbed_500(monkeypatc
 def test_link_status_redacts_the_username_but_keeps_the_evidence(monkeypatch):
     """Remote stderr leaves the admin API without the local account name."""
 
-    from omlx_runtime.cluster.transport import LinkStatus
+    from molto_runtime.cluster.transport import LinkStatus
 
     monkeypatch.setattr(
         routes,
@@ -1582,7 +1582,7 @@ def test_link_status_redacts_the_username_but_keeps_the_evidence(monkeypatch):
             detail="user@studio.local: Permission denied (publickey).",
             backend="ring",
             ready=False,
-            commands=("ssh-copy-id -i ~/.ssh/omlx_cluster.pub user@studio.local",),
+            commands=("ssh-copy-id -i ~/.ssh/molto_cluster.pub user@studio.local",),
         ),
     )
 
@@ -1599,7 +1599,7 @@ def test_link_status_redacts_the_username_but_keeps_the_evidence(monkeypatch):
     assert "Permission denied" in body["detail"]
     # Pasteable fixes keep their real target untouched.
     assert body["commands"] == [
-        "ssh-copy-id -i ~/.ssh/omlx_cluster.pub user@studio.local"
+        "ssh-copy-id -i ~/.ssh/molto_cluster.pub user@studio.local"
     ]
 
 
@@ -1971,8 +1971,8 @@ def test_a_peer_that_cannot_import_blocks_activation_with_its_fix(
 ):
     """Rank 1 died on "No module named 'mlx_vlm'" after every rank paid for weights."""
 
-    from omlx_runtime.cluster.autoconfigure import PreflightIssue
-    from omlx_runtime.cluster.planner import ModelLayout
+    from molto_runtime.cluster.autoconfigure import PreflightIssue
+    from molto_runtime.cluster.planner import ModelLayout
 
     model = tmp_path / "model"
     model.mkdir()
@@ -2175,8 +2175,8 @@ def test_verified_cuda_pair_is_kept_adjacent_in_outer_ring():
 def _incident_store(tmp_path, monkeypatch):
     """Configure a fresh incident store without leaking into other tests."""
 
-    from omlx_runtime.cluster import incidents as incidents_module
-    from omlx_runtime.cluster.incidents import IncidentStore
+    from molto_runtime.cluster import incidents as incidents_module
+    from molto_runtime.cluster.incidents import IncidentStore
 
     store = IncidentStore(tmp_path)
     monkeypatch.setattr(incidents_module, "_configured_incidents", store)
@@ -2184,7 +2184,7 @@ def _incident_store(tmp_path, monkeypatch):
 
 
 def test_activation_failure_records_matching_incident(tmp_path, monkeypatch):
-    from omlx_runtime.cluster.planner import PlanningError
+    from molto_runtime.cluster.planner import PlanningError
 
     store = _incident_store(tmp_path, monkeypatch)
 
@@ -2193,7 +2193,7 @@ def test_activation_failure_records_matching_incident(tmp_path, monkeypatch):
 
     monkeypatch.setattr(routes, "_create_deployment", raise_planning)
     body = {
-        "model_path": "~/.omlx/models/example",
+        "model_path": "~/.molto/models/example",
         "backend": "ring",
         "nodes": [
             {"node_id": "large", "capacity_bytes": 100, "reserve_bytes": 10},
@@ -2221,7 +2221,7 @@ def test_activation_failure_records_matching_incident(tmp_path, monkeypatch):
 
 
 def test_cluster_incidents_cursor_only_returns_unseen(tmp_path, monkeypatch):
-    from omlx_runtime.cluster.incidents import Severity
+    from molto_runtime.cluster.incidents import Severity
 
     store = _incident_store(tmp_path, monkeypatch)
     first = store.record(
@@ -2256,7 +2256,7 @@ def test_cluster_incidents_cursor_only_returns_unseen(tmp_path, monkeypatch):
 
 
 def test_dismissed_incident_stays_in_diagnostics_bundle(tmp_path, monkeypatch):
-    from omlx_runtime.cluster.incidents import Severity
+    from molto_runtime.cluster.incidents import Severity
 
     store = _incident_store(tmp_path, monkeypatch)
     incident = store.record(

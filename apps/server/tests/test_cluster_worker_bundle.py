@@ -7,8 +7,8 @@ import sys
 import tarfile
 
 import pytest
-from omlx_runtime.cluster import cuda_worker_bootstrap
-from omlx_runtime.cluster.worker_bundle import (
+from molto_runtime.cluster import cuda_worker_bootstrap
+from molto_runtime.cluster.worker_bundle import (
     build_cuda_join_command,
     cuda_bootstrap_digest,
     cuda_bootstrap_program,
@@ -56,8 +56,8 @@ def test_worker_bundle_contains_runtime_source_but_no_native_controller_binary()
     with tarfile.open(fileobj=io.BytesIO(bundle), mode="r:gz") as archive:
         names = set(archive.getnames())
 
-    assert "omlx_runtime/cluster/inference_worker.py" in names
-    assert "omlx_runtime/adapter/output_parser.py" in names
+    assert "molto_runtime/cluster/inference_worker.py" in names
+    assert "molto_runtime/adapter/output_parser.py" in names
     assert not any(name.endswith((".so", ".dylib", ".pyc")) for name in names)
     assert hashlib.sha256(bundle).hexdigest() == worker_source_digest()
 
@@ -107,7 +107,7 @@ def test_bootstrap_rejects_unsafe_source_archive_paths(tmp_path, unsafe_name):
 def test_bootstrap_rejects_source_archive_links(tmp_path):
     archive = tmp_path / "source.tar.gz"
     with tarfile.open(archive, "w:gz") as bundle:
-        info = tarfile.TarInfo("omlx/link")
+        info = tarfile.TarInfo("molto/link")
         info.type = tarfile.SYMTYPE
         info.linkname = "/etc/passwd"
         bundle.addfile(info)
@@ -323,17 +323,17 @@ def test_worker_bundle_installs_all_namespaces_without_checkout(monkeypatch, tmp
     release = cuda_worker_bootstrap._install_worker_source(
         archive, worker_source_digest()
     )
-    assert (release / "omlx_runtime/cluster/inference_worker.py").is_file()
-    assert (release / "omlx_config/settings.py").is_file()
-    assert (release / "omlx_contracts/__init__.py").is_file()
+    assert (release / "molto_runtime/cluster/inference_worker.py").is_file()
+    assert (release / "molto_config/settings.py").is_file()
+    assert (release / "molto_contracts/__init__.py").is_file()
     program = (
         "import sys; sys.path.insert(0, sys.argv[1]); "
-        "import omlx_config, omlx_contracts; "
-        "from omlx_runtime.cluster import cuda_worker_bootstrap; "
+        "import molto_config, molto_contracts; "
+        "from molto_runtime.cluster import cuda_worker_bootstrap; "
         "from pathlib import Path; "
         "root=Path(sys.argv[1]).resolve(); "
         "assert all(Path(m.__file__).resolve().is_relative_to(root) "
-        "for m in (omlx_config, omlx_contracts, cuda_worker_bootstrap))"
+        "for m in (molto_config, molto_contracts, cuda_worker_bootstrap))"
     )
     result = subprocess.run(
         [sys.executable, "-I", "-c", program, str(release)],
@@ -349,7 +349,7 @@ def test_worker_install_rejects_missing_configuration_namespace(monkeypatch, tmp
     archive = tmp_path / "source.tar.gz"
     with tarfile.open(archive, "w:gz") as bundle:
         content = b"# runtime only\n"
-        info = tarfile.TarInfo("omlx_runtime/cluster/inference_worker.py")
+        info = tarfile.TarInfo("molto_runtime/cluster/inference_worker.py")
         info.size = len(content)
         bundle.addfile(info, io.BytesIO(content))
     monkeypatch.setattr(cuda_worker_bootstrap, "INSTALL_ROOT", tmp_path / "install")

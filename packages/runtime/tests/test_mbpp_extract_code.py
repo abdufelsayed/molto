@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx/eval/mbpp.py's _extract_code helper — the regex/
+"""Tests for molto/eval/mbpp.py's _extract_code helper — the regex/
 heuristic parser that pulls Python source out of an LLM response
 before MBPP runs it through the subprocess executor. The
 benchmark-runner logic itself is exercised by test_eval.py; here we
@@ -8,7 +8,7 @@ just pin the code-extraction branches.
 
 from __future__ import annotations
 
-from omlx_runtime.eval.mbpp import _extract_code
+from molto_runtime.eval.mbpp import _extract_code
 
 
 class TestFencedBlocks:

@@ -1,9 +1,9 @@
 {
-  "name": "omlx-workspace",
+  "name": "molto-workspace",
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "scripts": {
-    "dev": "uv run --package omlx-cli --inexact omlx serve --dashboard-dev",
+    "dev": "uv run --package molto-cli --inexact molto serve --dashboard-dev",
     "check": "pnpm check:boundaries && pnpm lint && pnpm format:check && pnpm typecheck",
     "test": "pnpm test:python && pnpm test:dashboard",
     "build": "uv run --all-packages --inexact python tooling/release/build.py",
@@ -17,12 +17,12 @@
     "format:check": "oxfmt --check . && uv run --all-packages --inexact ruff format --check .",
     "typecheck": "pnpm typecheck:typescript && pnpm typecheck:python",
     "test:python": "uv run --all-packages --inexact pytest",
-    "test:dashboard": "pnpm --filter omlx-dashboard test",
+    "test:dashboard": "pnpm --filter molto-dashboard test",
     "check:boundaries": "python3 tooling/check_boundaries.py",
     "typecheck:typescript": "node node_modules/@typescript/native/bin/tsc --noEmit -p apps/dashboard/tsconfig.json",
-    "typecheck:python": "uv run --all-packages --inexact mypy --follow-imports=skip packages/runtime/setup.py apps/server/src/omlx_server/auth.py packages/contracts/src/omlx_contracts/management.py apps/server/src/omlx_server/api/management_routes.py packages/management/src/omlx_management/management.py",
-    "generate:contracts": "pnpm --filter omlx-dashboard generate-api",
-    "build:dashboard": "pnpm --filter omlx-dashboard build"
+    "typecheck:python": "uv run --all-packages --inexact mypy --follow-imports=skip packages/runtime/setup.py apps/server/src/molto_server/auth.py packages/contracts/src/molto_contracts/management.py apps/server/src/molto_server/api/management_routes.py packages/management/src/molto_management/management.py",
+    "generate:contracts": "pnpm --filter molto-dashboard generate-api",
+    "build:dashboard": "pnpm --filter molto-dashboard build"
   },
   "devDependencies": {
     "oxlint": "^1.86.0",

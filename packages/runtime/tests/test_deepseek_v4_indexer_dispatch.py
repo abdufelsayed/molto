@@ -1,6 +1,6 @@
 """Tests for shared DeepSeek V4 native-indexer dispatch state."""
 
-from omlx_runtime.patches.deepseek_v4 import indexer_dispatch
+from molto_runtime.patches.deepseek_v4 import indexer_dispatch
 
 
 def _shape_eligible(**overrides):

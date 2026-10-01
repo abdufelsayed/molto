@@ -3,7 +3,7 @@
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.cache.type_handlers import Qwen4QSAKVCacheHandler
+from molto_runtime.cache.type_handlers import Qwen4QSAKVCacheHandler
 
 
 def _state(positions):

@@ -6,7 +6,7 @@ import threading
 from unittest.mock import patch
 
 import pytest
-from omlx_runtime.cache.observability import (
+from molto_runtime.cache.observability import (
     BoundarySnapshotDiagnostics,
     CacheRateTracker,
 )
@@ -91,20 +91,20 @@ class TestCacheRateTrackerRates:
             return fake_time[0]
 
         with patch(
-            "omlx_runtime.cache.observability.time.monotonic",
+            "molto_runtime.cache.observability.time.monotonic",
             side_effect=mock_monotonic,
         ):
             tracker.maybe_snapshot(old_counters)
 
         fake_time[0] = 1000.0 + elapsed
         with patch(
-            "omlx_runtime.cache.observability.time.monotonic",
+            "molto_runtime.cache.observability.time.monotonic",
             side_effect=mock_monotonic,
         ):
             tracker.maybe_snapshot(new_counters)
 
         with patch(
-            "omlx_runtime.cache.observability.time.monotonic",
+            "molto_runtime.cache.observability.time.monotonic",
             return_value=fake_time[0],
         ):
             return tracker.get_rates(windows=(60, 300, 900))
@@ -165,17 +165,17 @@ class TestCacheRateTrackerRates:
         tracker = CacheRateTracker(min_interval=0.0)
 
         with patch(
-            "omlx_runtime.cache.observability.time.monotonic", return_value=1000.0
+            "molto_runtime.cache.observability.time.monotonic", return_value=1000.0
         ):
             tracker.maybe_snapshot(_make_counters(prefix_hits=10))
 
         with patch(
-            "omlx_runtime.cache.observability.time.monotonic", return_value=1000.5
+            "molto_runtime.cache.observability.time.monotonic", return_value=1000.5
         ):
             tracker.maybe_snapshot(_make_counters(prefix_hits=20))
 
         with patch(
-            "omlx_runtime.cache.observability.time.monotonic", return_value=1000.5
+            "molto_runtime.cache.observability.time.monotonic", return_value=1000.5
         ):
             result = tracker.get_rates(windows=(60,))
         assert result["windows"]["1m"] == {}
@@ -194,12 +194,12 @@ class TestCacheRateTrackerSnapshotAndGetRates:
         tracker = CacheRateTracker(min_interval=0.0)
 
         with patch(
-            "omlx_runtime.cache.observability.time.monotonic", return_value=1000.0
+            "molto_runtime.cache.observability.time.monotonic", return_value=1000.0
         ):
             tracker.maybe_snapshot(_make_counters(prefix_hits=0))
 
         with patch(
-            "omlx_runtime.cache.observability.time.monotonic", return_value=1060.0
+            "molto_runtime.cache.observability.time.monotonic", return_value=1060.0
         ):
             result = tracker.snapshot_and_get_rates(
                 _make_counters(prefix_hits=80, prefix_misses=20)

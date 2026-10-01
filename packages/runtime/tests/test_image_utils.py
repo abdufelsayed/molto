@@ -9,8 +9,8 @@ from threading import Barrier, Event
 from unittest.mock import MagicMock, patch
 
 import pytest
-from omlx_runtime.exceptions import InvalidRequestError
-from omlx_runtime.utils.image import (
+from molto_runtime.exceptions import InvalidRequestError
+from molto_runtime.utils.image import (
     compute_image_hash,
     compute_per_image_hashes,
     extract_images_from_messages,
@@ -540,7 +540,7 @@ class TestLoadImageDecodeCache:
     """Decoded images are cached by content hash across load_image calls."""
 
     def setup_method(self):
-        from omlx_runtime.utils.image import clear_image_decode_cache
+        from molto_runtime.utils.image import clear_image_decode_cache
 
         clear_image_decode_cache()
 
@@ -554,7 +554,7 @@ class TestLoadImageDecodeCache:
             calls["n"] += 1
             return real_open(*args, **kwargs)
 
-        with patch("omlx_runtime.utils.image.Image.open", side_effect=counting_open):
+        with patch("molto_runtime.utils.image.Image.open", side_effect=counting_open):
             first = load_image(uri)
             second = load_image(uri)
 
@@ -573,7 +573,7 @@ class TestLoadImageDecodeCache:
             calls["n"] += 1
             return real_open(*args, **kwargs)
 
-        with patch("omlx_runtime.utils.image.Image.open", side_effect=counting_open):
+        with patch("molto_runtime.utils.image.Image.open", side_effect=counting_open):
             load_image(uri_a)
             load_image(uri_b)
             load_image(uri_a)  # cache hit, no new decode
@@ -590,10 +590,10 @@ class TestLoadImageDecodeCache:
             calls["n"] += 1
             return real_open(*args, **kwargs)
 
-        with patch("omlx_runtime.utils.image.Image.open", side_effect=counting_open):
+        with patch("molto_runtime.utils.image.Image.open", side_effect=counting_open):
             load_image(uri)
             load_image(uri)
-            from omlx_runtime.utils.image import clear_image_decode_cache
+            from molto_runtime.utils.image import clear_image_decode_cache
 
             clear_image_decode_cache()
             load_image(uri)
@@ -613,14 +613,14 @@ class TestLoadImageDecodeCache:
 class TestDecodeCacheFollowup:
     @pytest.fixture(autouse=True)
     def isolate_cache(self):
-        from omlx_runtime.utils.image import clear_image_decode_cache
+        from molto_runtime.utils.image import clear_image_decode_cache
 
         clear_image_decode_cache()
         yield
         clear_image_decode_cache()
 
     def test_rgb_storage_budget_evicts_at_four_bytes_per_pixel(self, monkeypatch):
-        from omlx_runtime.utils import image as module
+        from molto_runtime.utils import image as module
 
         monkeypatch.setattr(
             module,
@@ -641,7 +641,7 @@ class TestDecodeCacheFollowup:
         assert opened.call_count == 1
 
     def test_over_capacity_history_preserves_hits_and_image_order(self, monkeypatch):
-        from omlx_runtime.utils import image as module
+        from molto_runtime.utils import image as module
 
         # Three screenshots with room for only two decoded images.
         monkeypatch.setattr(
@@ -680,7 +680,7 @@ class TestDecodeCacheFollowup:
             )
 
     def test_clear_during_decode_does_not_repopulate_cache(self):
-        from omlx_runtime.utils import image as module
+        from molto_runtime.utils import image as module
 
         entered, resume = Event(), Event()
         original = _unique_image(201)
@@ -709,7 +709,7 @@ class TestDecodeCacheFollowup:
         assert module._image_decode_cache
 
     def test_concurrent_duplicate_inserts_keep_exact_budget(self):
-        from omlx_runtime.utils import image as module
+        from molto_runtime.utils import image as module
 
         barrier = Barrier(4)
         real_open = Image.open
@@ -734,7 +734,7 @@ class TestDecodeCacheFollowup:
     def test_oversized_image_is_returned_without_evicting_existing_hit(
         self, monkeypatch
     ):
-        from omlx_runtime.utils import image as module
+        from molto_runtime.utils import image as module
 
         monkeypatch.setattr(module, "_IMAGE_DECODE_CACHE_MAX_BYTES", 2500)
         small = "data:image/png;base64," + _image_to_base64(_unique_image(401))
@@ -757,7 +757,7 @@ class TestImageSizeAndDownscaling:
 
     @pytest.fixture(autouse=True)
     def isolate_cache(self):
-        from omlx_runtime.utils.image import clear_image_decode_cache
+        from molto_runtime.utils.image import clear_image_decode_cache
 
         clear_image_decode_cache()
         yield
@@ -765,7 +765,7 @@ class TestImageSizeAndDownscaling:
 
     def test_rejects_oversized_payload(self, monkeypatch):
         """Images exceeding max payload bytes are rejected before decode."""
-        from omlx_runtime.utils import image as module
+        from molto_runtime.utils import image as module
 
         monkeypatch.setattr(module, "get_max_image_bytes", lambda: 100)
         img = _make_test_image(64, 64, "blue")
@@ -779,7 +779,7 @@ class TestImageSizeAndDownscaling:
 
     def test_rejects_oversized_encoded_length_early(self, monkeypatch):
         """Massive base64 strings are rejected early before b64decode."""
-        from omlx_runtime.utils import image as module
+        from molto_runtime.utils import image as module
 
         monkeypatch.setattr(module, "get_max_image_bytes", lambda: 100)
         fake_b64 = "A" * 2000
@@ -792,7 +792,7 @@ class TestImageSizeAndDownscaling:
 
     def test_downscales_oversized_width_preserving_aspect(self, monkeypatch):
         """Wide image exceeding max side length is downscaled preserving aspect ratio."""
-        from omlx_runtime.utils import image as module
+        from molto_runtime.utils import image as module
 
         monkeypatch.setattr(module, "get_max_image_side_length", lambda: 1024)
         img = _make_test_image(2048, 1024, "red")
@@ -804,7 +804,7 @@ class TestImageSizeAndDownscaling:
 
     def test_downscales_oversized_height_preserving_aspect(self, monkeypatch):
         """Tall image exceeding max side length is downscaled preserving aspect ratio."""
-        from omlx_runtime.utils import image as module
+        from molto_runtime.utils import image as module
 
         monkeypatch.setattr(module, "get_max_image_side_length", lambda: 1024)
         img = _make_test_image(1024, 2048, "green")
@@ -816,7 +816,7 @@ class TestImageSizeAndDownscaling:
 
     def test_preserves_dimensions_within_limit(self, monkeypatch):
         """Images within limits are not resized."""
-        from omlx_runtime.utils import image as module
+        from molto_runtime.utils import image as module
 
         monkeypatch.setattr(module, "get_max_image_side_length", lambda: 2048)
         img = _make_test_image(800, 600, "yellow")
@@ -828,7 +828,7 @@ class TestImageSizeAndDownscaling:
 
     def test_downscaling_disabled_when_side_limit_zero(self, monkeypatch):
         """Setting max side length to 0 disables downscaling."""
-        from omlx_runtime.utils import image as module
+        from molto_runtime.utils import image as module
 
         monkeypatch.setattr(module, "get_max_image_side_length", lambda: 0)
         img = _make_test_image(3000, 1500, "purple")
@@ -852,7 +852,7 @@ class TestImageSizeAndDownscaling:
 
     def test_extract_images_from_messages_downscales_oversized(self, monkeypatch):
         """extract_images_from_messages downscales oversized images in messages."""
-        from omlx_runtime.utils import image as module
+        from molto_runtime.utils import image as module
 
         monkeypatch.setattr(module, "get_max_image_side_length", lambda: 512)
         img = _make_test_image(1024, 512, "blue")
@@ -876,7 +876,7 @@ class TestImageSizeAndDownscaling:
 
     def test_extract_images_from_messages_rejects_oversized_payload(self, monkeypatch):
         """extract_images_from_messages rejects images exceeding payload limits."""
-        from omlx_runtime.utils import image as module
+        from molto_runtime.utils import image as module
 
         monkeypatch.setattr(module, "get_max_image_bytes", lambda: 100)
         img = _make_test_image(64, 64, "blue")
@@ -900,7 +900,7 @@ class TestImageSizeAndDownscaling:
 
     def test_cache_stores_downscaled_image_and_accounts_accurately(self, monkeypatch):
         """Cache holds downscaled image and byte accounting reflects downscaled size."""
-        from omlx_runtime.utils import image as module
+        from molto_runtime.utils import image as module
 
         monkeypatch.setattr(module, "get_max_image_side_length", lambda: 100)
         img = _make_test_image(400, 200, "cyan")
@@ -924,15 +924,15 @@ class TestImageSizeAndDownscaling:
     ):
         from argparse import Namespace
 
-        from omlx_config import settings as settings_module
-        from omlx_runtime.utils.image import (
+        from molto_config import settings as settings_module
+        from molto_runtime.utils.image import (
             get_max_image_bytes,
             get_max_image_side_length,
         )
 
         monkeypatch.setattr(settings_module, "_global_settings", None)
-        monkeypatch.setenv("OMLX_MAX_IMAGE_UPLOAD_SIZE", "20MB")
-        monkeypatch.setenv("OMLX_MAX_IMAGE_SIDE_LENGTH", "1500")
+        monkeypatch.setenv("MOLTO_MAX_IMAGE_UPLOAD_SIZE", "20MB")
+        monkeypatch.setenv("MOLTO_MAX_IMAGE_SIDE_LENGTH", "1500")
         args = Namespace(max_image_upload_size="30MB", max_image_side_length=512)
         settings_module.init_settings(
             base_path=tmp_path, cli_args=args if cli_override else None
@@ -946,8 +946,8 @@ class TestImageSizeAndDownscaling:
         assert load_image(uri).size == (side, side // 2)
 
     def test_uninitialized_settings_use_defaults(self, monkeypatch):
-        from omlx_config import settings as settings_module
-        from omlx_runtime.utils.image import (
+        from molto_config import settings as settings_module
+        from molto_runtime.utils.image import (
             get_max_image_bytes,
             get_max_image_side_length,
         )

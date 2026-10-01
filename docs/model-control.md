@@ -1,17 +1,17 @@
 # Model control without the web admin app
 
-Use this guide to inspect and control models on a running oMLX server. The
+Use this guide to inspect and control models on a running Molto server. The
 backend no longer serves the Models workspace. A separate dashboard can use
 the [management API](management-api.md); these examples use `curl`.
 
-Start `omlx serve` with a model directory as shown in the
+Start `molto serve` with a model directory as shown in the
 [quickstart](../README.md#quickstart), then set the same main key in the shell
 where you send requests:
 
 ```bash
-export OMLX_API_KEY=replace-with-your-main-key
+export MOLTO_API_KEY=replace-with-your-main-key
 BASE=http://127.0.0.1:8000/management/v1
-curl "$BASE/models" -H "Authorization: Bearer $OMLX_API_KEY"
+curl "$BASE/models" -H "Authorization: Bearer $MOLTO_API_KEY"
 ```
 
 The inventory lists discovered models, load state, and their persisted model
@@ -26,9 +26,9 @@ Use a model ID from the inventory:
 ```bash
 MODEL=my-model
 curl -X POST "$BASE/models/$MODEL/load" \
-  -H "Authorization: Bearer $OMLX_API_KEY"
+  -H "Authorization: Bearer $MOLTO_API_KEY"
 curl -X POST "$BASE/models/$MODEL/unload" \
-  -H "Authorization: Bearer $OMLX_API_KEY"
+  -H "Authorization: Bearer $MOLTO_API_KEY"
 ```
 
 Load can return an error if the model is unknown or already loading. Unload
@@ -50,7 +50,7 @@ the saved settings:
 
 ```bash
 curl -X PATCH "$BASE/models/$MODEL/settings" \
-  -H "Authorization: Bearer $OMLX_API_KEY" \
+  -H "Authorization: Bearer $MOLTO_API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"is_pinned":true,"ttl_seconds":300}'
 ```
@@ -58,8 +58,8 @@ curl -X PATCH "$BASE/models/$MODEL/settings" \
 An omitted field stays unchanged. For model settings, an explicit `null`
 restores that field's default. `GET /models/{model_id}/settings` returns the
 current values. Use `GET /models/{model_id}/options` for field metadata and capability reasons.
-The accepted patch schema is in `packages/contracts/src/omlx_contracts/management.py`.
-Service validation lives in `packages/management/src/omlx_management/model_control.py`
+The accepted patch schema is in `packages/contracts/src/molto_contracts/management.py`.
+Service validation lives in `packages/management/src/molto_management/model_control.py`
 and rejects unsupported model-specific options. Templates, presets, generation-config import,
 recipes, and optimal snapshots provide additional ways to select settings.
 

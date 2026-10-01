@@ -87,11 +87,11 @@ def _teardown(model, tok):
 
 
 def test_offloaded_generation_matches_resident():
-    from omlx_runtime.patches.moe_expert_offload import (
+    from molto_runtime.patches.moe_expert_offload import (
         apply_moe_expert_offload,
         moe_offload_stats,
     )
-    from omlx_runtime.utils.model_loading import lm_load_compat, materialize_lazy_state
+    from molto_runtime.utils.model_loading import lm_load_compat, materialize_lazy_state
 
     # Offloaded arm first: its peak sample must precede the resident load,
     # because mx.get_peak_memory() is a process-global high-water mark.
@@ -135,11 +135,11 @@ def test_vlm_dispatch_gemma4():
     cache traffic."""
     pytest.importorskip("mlx_vlm")
     from mlx_vlm.utils import load as vlm_load
-    from omlx_runtime.patches.moe_expert_offload import (
+    from molto_runtime.patches.moe_expert_offload import (
         apply_moe_expert_offload,
         moe_offload_stats,
     )
-    from omlx_runtime.utils.model_loading import materialize_lazy_state
+    from molto_runtime.utils.model_loading import materialize_lazy_state
 
     model, processor = vlm_load(MODEL_REPO, lazy=True)
     wrapped = apply_moe_expert_offload(model, MODEL_REPO, RESIDENT_FRACTION)

@@ -7,7 +7,7 @@ class TestMetalReleaseLag:
     GB = 1024**3
 
     def test_lag_is_graphics_above_the_settled_residual(self, monkeypatch):
-        from omlx_runtime.utils import metal_sync
+        from molto_runtime.utils import metal_sync
 
         graphics = [16.1 * self.GB]
         monkeypatch.setattr(
@@ -24,7 +24,7 @@ class TestMetalReleaseLag:
         assert metal_sync.unreleased_graphics_bytes(13 * self.GB) == 0
 
     def test_settled_level_follows_the_recent_window(self, monkeypatch):
-        from omlx_runtime.utils import metal_sync
+        from molto_runtime.utils import metal_sync
 
         now = [100.0]
         monkeypatch.setattr(metal_sync.time, "monotonic", lambda: now[0])

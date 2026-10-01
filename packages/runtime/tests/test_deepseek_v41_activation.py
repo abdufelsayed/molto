@@ -4,8 +4,8 @@ import mlx.core as mx
 import mlx.nn as nn
 import numpy as np
 import pytest
-from omlx_runtime.patches.deepseek_v41.activation import quantize_swiglu_activation
-from omlx_runtime.patches.deepseek_v41.quantization import (
+from molto_runtime.patches.deepseek_v41.activation import quantize_swiglu_activation
+from molto_runtime.patches.deepseek_v41.quantization import (
     _compiled_quantize_activation,
     quantize_activation,
 )
@@ -106,7 +106,7 @@ def test_swiglu_fusion_preserves_weighted_intermediate_rounding(
 def test_paired_swiglu_preserves_row_and_quantization_boundaries(
     dtype, weighted, limit
 ):
-    from omlx_runtime.patches.deepseek_v41.activation import (
+    from molto_runtime.patches.deepseek_v41.activation import (
         quantize_paired_swiglu_activation,
     )
 
@@ -128,7 +128,7 @@ def test_paired_swiglu_preserves_row_and_quantization_boundaries(
 
 @pytest.mark.parametrize("device", [mx.cpu, mx.gpu])
 def test_normal_scales_are_exact_and_nonzero(device):
-    from omlx_runtime.patches.deepseek_v41.quantization import _normal_power_of_two
+    from molto_runtime.patches.deepseek_v41.quantization import _normal_power_of_two
 
     with mx.stream(device):
         exponent = mx.arange(-126, 128, dtype=mx.float32)
@@ -143,7 +143,7 @@ def test_normal_scales_are_exact_and_nonzero(device):
     "bits,group,e4m3", [(8, 32, False), (4, 32, False), (4, 16, True)]
 )
 def test_zero_activation_groups_remain_zero(bits, group, e4m3):
-    from omlx_runtime.patches.deepseek_v41.quantization import (
+    from molto_runtime.patches.deepseek_v41.quantization import (
         _quantize_activation,
         pack_activation,
         unpack_activation,

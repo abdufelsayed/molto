@@ -20,7 +20,7 @@ export function ServerSettingsPage() {
     <>
       <PageTitle
         title="Server settings"
-        description="Configure oMLX, manage API access, and connect your clients."
+        description="Configure Molto, manage API access, and connect your clients."
       />
       <Tabs
         value={active}

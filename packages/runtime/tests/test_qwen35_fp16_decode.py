@@ -12,7 +12,7 @@ from mlx_vlm.models.cache import ArraysCache
 from mlx_vlm.models.qwen3_5 import language
 from mlx_vlm.models.qwen3_5.speculative_verifier import Qwen3_5BatchInvariantForward
 from mlx_vlm.speculative.cache_state import start_speculative_cache
-from omlx_runtime.patches import qwen35_gdn_prework as prework
+from molto_runtime.patches import qwen35_gdn_prework as prework
 
 pytestmark = pytest.mark.skipif(not mx.metal.is_available(), reason="requires Metal")
 
@@ -21,7 +21,7 @@ pytestmark = pytest.mark.skipif(not mx.metal.is_available(), reason="requires Me
 def restore_hooks(monkeypatch):
     cls = language.Qwen3_5GatedDeltaNet
     monkeypatch.setattr(cls, "__call__", cls.__call__)
-    monkeypatch.setattr(cls, "_omlx_gdn_prework_patched", False, raising=False)
+    monkeypatch.setattr(cls, "_molto_gdn_prework_patched", False, raising=False)
     verifier = Qwen3_5BatchInvariantForward
     monkeypatch.setattr(verifier, "_gated_delta", verifier._gated_delta)
     monkeypatch.setattr(prework, "_PATCHED", False)

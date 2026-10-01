@@ -11,13 +11,15 @@ import pytest
 
 mx = pytest.importorskip("mlx.core")
 
-from omlx_runtime.patches.bailing_hybrid import apply_bailing_hybrid_patch  # noqa: E402
-from omlx_runtime.patches.bailing_hybrid.swiglu_clamp import (  # noqa: E402
+from molto_runtime.patches.bailing_hybrid import (
+    apply_bailing_hybrid_patch,  # noqa: E402
+)
+from molto_runtime.patches.bailing_hybrid.swiglu_clamp import (  # noqa: E402
     bind_limits,
     layer_swiglu_limit,
 )
 
-# The live module may be oMLX's vendored copy or an mlx-lm build that already
+# The live module may be Molto's vendored copy or an mlx-lm build that already
 # ships bailing_hybrid; apply() resolves whichever and installs the clamp on
 # it. Its return value only says which, so it is not a skip condition.
 apply_bailing_hybrid_patch()
@@ -65,7 +67,7 @@ def _shared_limit(mlp):
     The vendored copy takes ``swiglu_limit`` as a constructor argument; the
     installed path tags the module with a private attribute instead.
     """
-    for name in ("swiglu_limit", "_omlx_swiglu_limit"):
+    for name in ("swiglu_limit", "_molto_swiglu_limit"):
         value = getattr(mlp, name, None)
         if value:
             return value
@@ -161,9 +163,9 @@ class TestWiring:
         )
 
         assert bind_limits(module, model, config) == 2
-        assert not hasattr(dense, "_omlx_swiglu_limit")
+        assert not hasattr(dense, "_molto_swiglu_limit")
         assert routed.activation.limit == 4.0
-        assert shared._omlx_swiglu_limit == 5.0
+        assert shared._molto_swiglu_limit == 5.0
 
     def test_without_limits_model_is_unclamped(self):
         model = bh.Model(bh.ModelArgs.from_dict(dict(CFG)))

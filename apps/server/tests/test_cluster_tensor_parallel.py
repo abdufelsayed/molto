@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-from omlx_runtime.cluster.planner import (
+from molto_runtime.cluster.planner import (
     ModelLayout,
     NodeBudget,
     PlanningError,

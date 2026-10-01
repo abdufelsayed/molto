@@ -4,7 +4,7 @@
 import logging
 
 import pytest
-from omlx_config.logging_config import ManagementAccessFilter
+from molto_config.logging_config import ManagementAccessFilter
 
 
 @pytest.mark.parametrize("path", ["state", "stats", "stats?scope=alltime", "cache"])

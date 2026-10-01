@@ -13,7 +13,7 @@ import mlx.core as mx
 import mlx.nn as nn
 import numpy as np
 import pytest
-from omlx_runtime.patches.qwen35_moe_router import fused_router_topk, router_eligible
+from molto_runtime.patches.qwen35_moe_router import fused_router_topk, router_eligible
 
 K = 8
 NE = 256
@@ -84,7 +84,7 @@ def test_verifier_routes_short_moe_blocks_through_fused_router(
 
     from mlx_vlm.models.qwen3_5.speculative_verifier import Qwen3_5BatchInvariantForward
     from mlx_vlm.models.qwen3_5_moe.language import Qwen3_5MoeSparseMoeBlock
-    from omlx_runtime.patches import qwen35_moe_router as router
+    from molto_runtime.patches import qwen35_moe_router as router
 
     monkeypatch.setattr(
         Qwen3_5BatchInvariantForward,
@@ -132,7 +132,7 @@ def _same_bits(a, b):
 @pytest.mark.parametrize("top_k,hidden", [(10, 2560), (8, 2048)])
 @pytest.mark.parametrize("seed", [0, 1, 2])
 def test_fused_combine_matches_composed_ops(top_k, hidden, seed):
-    from omlx_runtime.patches.qwen35_moe_router import fused_moe_combine
+    from molto_runtime.patches.qwen35_moe_router import fused_moe_combine
 
     mx.random.seed(seed)
     routed = (mx.random.normal((1, 1, top_k, hidden)) * (1 + 4 * seed)).astype(
@@ -154,7 +154,7 @@ def test_fused_combine_matches_composed_ops(top_k, hidden, seed):
 
 @pytest.mark.skipif(not mx.metal.is_available(), reason="requires Metal")
 def test_fused_combine_sigmoid_matches_every_bf16_gate():
-    from omlx_runtime.patches.qwen35_moe_router import fused_moe_combine
+    from molto_runtime.patches.qwen35_moe_router import fused_moe_combine
 
     mx.random.seed(9)
     routed = mx.random.normal((1, 1, 10, 64)).astype(mx.bfloat16)
@@ -172,7 +172,7 @@ def test_fused_combine_sigmoid_matches_every_bf16_gate():
 
 
 def test_fused_combine_declines_other_layouts(monkeypatch):
-    from omlx_runtime.patches import qwen35_moe_router as router
+    from molto_runtime.patches import qwen35_moe_router as router
 
     def operands(rows=1, top_k=10, dtype=mx.bfloat16):
         return (
@@ -198,7 +198,7 @@ def test_one_row_moe_block_matches_composed_combine(monkeypatch, seed):
     from types import SimpleNamespace
 
     from mlx_vlm.models.qwen3_5_moe.language import Qwen3_5MoeSparseMoeBlock
-    from omlx_runtime.patches import qwen35_moe_router as router
+    from molto_runtime.patches import qwen35_moe_router as router
 
     assert router.apply_qwen35_moe_router_patch()
     mx.random.seed(seed)
@@ -263,7 +263,7 @@ def _near_tie_logits(kind, experts, seed):
 @pytest.mark.parametrize("experts", [512, 128])
 @pytest.mark.parametrize("kind", ["random", "duplicates", "adjacent", "two_values"])
 def test_softmax_topk_row_matches_softmax_then_topk(experts, kind):
-    from omlx_runtime.patches.qwen35_moe_router import softmax_topk_row
+    from molto_runtime.patches.qwen35_moe_router import softmax_topk_row
 
     for seed in range(40):
         logits = _near_tie_logits(kind, experts, seed)
@@ -279,7 +279,7 @@ def test_softmax_row_matches_mlx_softmax_in_fp32(experts):
     """Rounded BF16 probabilities hide one-ulp FP32 differences (a fast-math
     reciprocal or a precise exp passes the routing test), so run the softmax
     in FP32 against MLX's FP32 softmax, which shares its reduction."""
-    from omlx_runtime.patches import qwen35_moe_router as router
+    from molto_runtime.patches import qwen35_moe_router as router
 
     probe = mx.fast.metal_kernel(
         name="test_router_softmax_row_probe",
@@ -289,7 +289,7 @@ def test_softmax_row_matches_mlx_softmax_in_fp32(experts):
         source="""
         const uint lane = thread_position_in_threadgroup.x;
         float vals[NE / 32];
-        omlx_router_softmax_row<T, NE>(logits, lane, vals);
+        molto_router_softmax_row<T, NE>(logits, lane, vals);
         for (int k = 0; k < NE / 32; k++) {
           p[((k / 4) * 32 + lane) * 4 + (k % 4)] = vals[k];
         }
@@ -314,7 +314,7 @@ def test_softmax_row_matches_mlx_softmax_in_fp32(experts):
 
 
 def test_softmax_topk_row_declines_layouts_it_does_not_reproduce():
-    from omlx_runtime.patches.qwen35_moe_router import softmax_topk_row
+    from molto_runtime.patches.qwen35_moe_router import softmax_topk_row
 
     # MLX's softmax ends 320 experts in a partial simdgroup.
     assert softmax_topk_row(mx.zeros((1, 1, 320), mx.bfloat16), 10) is None
@@ -328,7 +328,7 @@ def test_router_gemv_matches_mlx_linear(experts, width):
     """BF16 logits and, because rounding hides one-ulp FP32 differences (a
     simd_sum in place of MLX's shuffle-down tree changes only a few BF16
     logits), the FP32 row sums against MLX's gemv on the same values in FP32."""
-    from omlx_runtime.patches import qwen35_moe_router as router
+    from molto_runtime.patches import qwen35_moe_router as router
 
     probe = mx.fast.metal_kernel(
         name="test_router_gemv_probe",
@@ -339,7 +339,7 @@ def test_router_gemv_matches_mlx_linear(experts, width):
         const uint lane = thread_index_in_simdgroup;
         const int row = int(threadgroup_position_in_grid.y) * 4 + int(simdgroup_index_in_threadgroup);
         float result[1];
-        omlx_router_gemv_rows<T, K, 1>(w + size_t(row) * K, x, lane, result);
+        molto_router_gemv_rows<T, K, 1>(w + size_t(row) * K, x, lane, result);
         if (lane == 0) {
           y[row] = result[0];
         }
@@ -368,7 +368,7 @@ def test_router_gemv_matches_mlx_linear(experts, width):
 
 
 def test_router_gemv_declines_layouts_mlx_reduces_differently():
-    from omlx_runtime.patches.qwen35_moe_router import router_logits_row
+    from molto_runtime.patches.qwen35_moe_router import router_logits_row
 
     x = mx.zeros((1, 1, 2048), mx.bfloat16)
     # K >= 16 * N: MLX splits K over eight simdgroups.

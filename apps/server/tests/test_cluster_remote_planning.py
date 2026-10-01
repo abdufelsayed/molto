@@ -5,8 +5,8 @@ import json
 import struct
 
 import pytest
-from omlx_runtime.cluster import planner, staging
-from omlx_runtime.cluster.planner import (
+from molto_runtime.cluster import planner, staging
+from molto_runtime.cluster.planner import (
     LOCAL_NODE,
     ModelLayout,
     NodeBudget,
@@ -219,7 +219,7 @@ def test_the_peer_runs_the_same_layout_code(monkeypatch):
     def fake_run(ssh_target, snippet, argument, **kwargs):
         captured.update(target=ssh_target, snippet=snippet, argument=argument)
         return ModelLayout(
-            source="/Users/omlx/.omlx/models/m",
+            source="/Users/molto/.molto/models/m",
             fixed_weight_bytes=2048,
             layer_weight_bytes=(100, 200, 300),
             tensor_count=9,
@@ -228,14 +228,14 @@ def test_the_peer_runs_the_same_layout_code(monkeypatch):
 
     monkeypatch.setattr(planner, "run_remote_python", fake_run)
 
-    layout = remote_model_layout("studio", "~/.omlx/models/m")
+    layout = remote_model_layout("studio", "~/.molto/models/m")
 
     assert captured["target"] == "studio"
-    assert captured["argument"] == "~/.omlx/models/m"
+    assert captured["argument"] == "~/.molto/models/m"
     assert "complete_model_layout" in captured["snippet"], (
         "the peer runs our checks too"
     )
-    assert layout.source == "/Users/omlx/.omlx/models/m"
+    assert layout.source == "/Users/molto/.molto/models/m"
     assert layout.layer_weight_bytes == (100, 200, 300)
     assert layout.supports_pipeline
 
@@ -352,7 +352,7 @@ def test_the_remote_interpreter_path_still_expands_on_the_peer(monkeypatch):
 
     staging.run_remote_python("studio", "print(1)", "/m", description="test")
 
-    assert captured["command"].startswith("~/omlx-distributed/.venv/bin/python -c ")
+    assert captured["command"].startswith("~/molto-distributed/.venv/bin/python -c ")
 
 
 def _plan_cli(model_root, *extra):
@@ -363,7 +363,7 @@ def _plan_cli(model_root, *extra):
         [
             sys.executable,
             "-m",
-            "omlx_cli.cli",
+            "molto_cli.cli",
             "cluster",
             "plan",
             "--model",
@@ -394,7 +394,7 @@ def test_the_cli_asks_the_peers_it_was_given(monkeypatch, capsys):
 
     import argparse
 
-    from omlx_cli.cli import cluster_command
+    from molto_cli.cli import cluster_command
 
     asked = {}
 
@@ -412,7 +412,7 @@ def test_the_cli_asks_the_peers_it_was_given(monkeypatch, capsys):
     code = cluster_command(
         argparse.Namespace(
             cluster_action="plan",
-            model="~/.omlx/models/m",
+            model="~/.molto/models/m",
             model_size=None,
             layers=8,
             node=["studio=8GiB", "mbp=4GiB"],

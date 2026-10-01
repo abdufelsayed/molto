@@ -15,7 +15,7 @@ Then run the same checkout and MLX version on every host::
       --cuda-supernode-ranks 4,5 \
       --collective-mib 1,64
 
-The distributed form checks the actual prerequisites for a heterogeneous oMLX
+The distributed form checks the actual prerequisites for a heterogeneous Molto
 model pool: every rank can execute representative BF16 attention and 4-bit
 quantized matrix work, every rank joins the same TCP Ring, Metal and CUDA are
 both present, results remain numerically close, and small/large collectives
@@ -91,7 +91,7 @@ def _available(callable_obj: Any) -> bool:
 
 
 def detect_local_capability(mx: Any) -> LocalCapability:
-    """Return platform-neutral facts without relying on oMLX's Mac probes."""
+    """Return platform-neutral facts without relying on Molto's Mac probes."""
 
     metal = _available(getattr(getattr(mx, "metal", None), "is_available", None))
     cuda = _available(getattr(getattr(mx, "cuda", None), "is_available", None))
@@ -416,7 +416,7 @@ def _cuda_supernode_records(
                 "transport_tested": None,
                 "nccl_ready": True,
                 "verified": False,
-                "next": "verify this pair from the oMLX dashboard",
+                "next": "verify this pair from the Molto dashboard",
             }
         )
     return results
@@ -590,7 +590,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "cuda_supernodes": supernodes,
                         "failures": failures,
                         "next": (
-                            "run oMLX's unequal pipeline smoke on this hostfile"
+                            "run Molto's unequal pipeline smoke on this hostfile"
                             if not failures
                             else "resolve failures before loading model weights"
                         ),

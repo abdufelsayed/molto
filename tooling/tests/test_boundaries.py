@@ -33,43 +33,45 @@ def test_current_workspace_passes():
 
 def test_lazy_config_import_cannot_reach_runtime(workspace):
     source(
-        workspace, "omlx_config", "def read():\n    import omlx_runtime.engine_pool\n"
+        workspace, "molto_config", "def read():\n    import molto_runtime.engine_pool\n"
     )
     assert any(
-        "omlx_config cannot import omlx_runtime" in error
+        "molto_config cannot import molto_runtime" in error
         for error in violations(workspace)
     )
 
 
 def test_allowed_import_requires_declared_member_dependency(workspace):
-    source(workspace, "omlx_runtime", "from omlx_contracts.runtime import ModelView\n")
+    source(
+        workspace, "molto_runtime", "from molto_contracts.runtime import ModelView\n"
+    )
     assert any(
-        "undeclared dependency omlx-contracts" in error
+        "undeclared dependency molto-contracts" in error
         for error in violations(workspace)
     )
 
 
 def test_forbidden_dependency_is_rejected_without_an_import(workspace):
-    path = workspace / PROJECTS["omlx_config"] / "pyproject.toml"
+    path = workspace / PROJECTS["molto_config"] / "pyproject.toml"
     path.write_text(
         path.read_text().replace(
-            "dependencies = []", 'dependencies = ["omlx-server>=1"]'
+            "dependencies = []", 'dependencies = ["molto-server>=1"]'
         )
     )
     assert any(
-        "forbidden dependency omlx-server" in error for error in violations(workspace)
+        "forbidden dependency molto-server" in error for error in violations(workspace)
     )
 
 
 def test_runtime_cannot_own_http_framework(workspace):
-    source(workspace, "omlx_runtime", "from fastapi import HTTPException\n")
+    source(workspace, "molto_runtime", "from fastapi import HTTPException\n")
     assert any(
         "runtime imports HTTP framework" in error for error in violations(workspace)
     )
 
 
 def test_member_versions_cannot_drift(workspace):
-    path = workspace / PROJECTS["omlx_cli"] / "pyproject.toml"
+    path = workspace / PROJECTS["molto_cli"] / "pyproject.toml"
     path.write_text(path.read_text().replace('version = "1.0"', 'version = "2.0"'))
     assert any(
         "version differs from workspace" in error for error in violations(workspace)

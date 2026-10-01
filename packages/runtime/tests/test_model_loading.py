@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx_runtime.utils.model_loading.maybe_load_custom_quantization."""
+"""Tests for molto_runtime.utils.model_loading.maybe_load_custom_quantization."""
 
 import json
 import sys
@@ -7,8 +7,8 @@ import types
 from unittest.mock import MagicMock
 
 import pytest
-from omlx_runtime.utils import model_loading
-from omlx_runtime.utils.model_loading import (
+from molto_runtime.utils import model_loading
+from molto_runtime.utils.model_loading import (
     ensure_model_code_trusted,
     maybe_apply_pre_load_patches,
     maybe_load_custom_quantization,
@@ -256,13 +256,13 @@ class TestLlama4PreLoadDispatch:
         monkeypatch.setattr(model_loading, "_patch_mlx_lm_load_config", lambda: None)
         monkeypatch.setitem(
             sys.modules,
-            "omlx_runtime.patches.mlx_lm_mtp",
+            "molto_runtime.patches.mlx_lm_mtp",
             MagicMock(set_mtp_active=MagicMock()),
         )
         apply_mock = MagicMock(return_value=True)
         monkeypatch.setitem(
             sys.modules,
-            "omlx_runtime.patches.llama4_attention",
+            "molto_runtime.patches.llama4_attention",
             MagicMock(apply_llama4_attention_patch=apply_mock),
         )
 
@@ -356,7 +356,7 @@ class TestVlmMtpPreLoadDispatch:
         monkeypatch.setattr(model_loading, "_patch_mlx_lm_load_config", lambda: None)
         monkeypatch.setitem(
             sys.modules,
-            "omlx_runtime.patches.mlx_lm_mtp",
+            "molto_runtime.patches.mlx_lm_mtp",
             MagicMock(
                 set_mtp_active=MagicMock(),
                 apply_mlx_lm_mtp_patch=MagicMock(return_value=True),
@@ -364,7 +364,7 @@ class TestVlmMtpPreLoadDispatch:
         )
         monkeypatch.setitem(
             sys.modules,
-            "omlx_runtime.patches.mlx_vlm_mtp",
+            "molto_runtime.patches.mlx_vlm_mtp",
             MagicMock(
                 apply_mlx_vlm_mtp_patch=sanitize_mock,
                 apply_mlx_vlm_mtp_runtime_patch=runtime_mock,
@@ -529,7 +529,7 @@ class TestVlmMtpPreLoadDispatch:
 
         maybe_apply_pre_load_patches(path, model_settings=settings, for_vlm=True)
 
-        stub = sys.modules["omlx_runtime.patches.mlx_lm_mtp"]
+        stub = sys.modules["molto_runtime.patches.mlx_lm_mtp"]
         stub.set_mtp_depth.assert_called_once_with(8)
 
     def test_gemma4_unified_merged_assistant_dispatch(self, tmp_path, monkeypatch):
@@ -565,7 +565,7 @@ class TestVlmMtpPreLoadDispatch:
 
         maybe_apply_pre_load_patches(path, model_settings=settings, for_vlm=True)
 
-        stub = sys.modules["omlx_runtime.patches.mlx_lm_mtp"]
+        stub = sys.modules["molto_runtime.patches.mlx_lm_mtp"]
         stub.set_mtp_depth.assert_called_once_with(2)
 
     def test_fixed_depth_takes_precedence_over_adaptive_max(
@@ -584,7 +584,7 @@ class TestVlmMtpPreLoadDispatch:
 
         maybe_apply_pre_load_patches(path, model_settings=settings, for_vlm=True)
 
-        stub = sys.modules["omlx_runtime.patches.mlx_lm_mtp"]
+        stub = sys.modules["molto_runtime.patches.mlx_lm_mtp"]
         stub.set_mtp_depth.assert_called_once_with(2, fixed=True)
 
     @pytest.mark.parametrize(
@@ -606,7 +606,7 @@ class TestVlmMtpPreLoadDispatch:
 
         maybe_apply_pre_load_patches(path, model_settings=settings, for_vlm=True)
 
-        stub = sys.modules["omlx_runtime.patches.mlx_lm_mtp"]
+        stub = sys.modules["molto_runtime.patches.mlx_lm_mtp"]
         stub.set_mtp_depth.assert_called_once_with(expected)
 
     @pytest.mark.parametrize("nax", [True, False])
@@ -633,7 +633,7 @@ class TestVlmMtpPreLoadDispatch:
 
         maybe_apply_pre_load_patches(path, model_settings=settings, for_vlm=for_vlm)
 
-        stub = sys.modules["omlx_runtime.patches.mlx_lm_mtp"]
+        stub = sys.modules["molto_runtime.patches.mlx_lm_mtp"]
         stub.set_mtp_depth.assert_called_once_with(max(4, depth or 4))
 
     def test_gemma4_without_mtp_heads_skips_mtp_patches(self, tmp_path, monkeypatch):
@@ -978,7 +978,7 @@ class TestMaterializeLazyState:
 
         import mlx.core as mx
         import mlx.nn as nn
-        from omlx_runtime.utils.model_loading import materialize_lazy_state
+        from molto_runtime.utils.model_loading import materialize_lazy_state
 
         class _PlainRotary:
             def __init__(self):

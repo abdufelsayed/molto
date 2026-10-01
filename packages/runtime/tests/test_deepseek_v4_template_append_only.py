@@ -8,7 +8,7 @@ rendering never changes once it is historical. Default rendering
 """
 
 import pytest
-from omlx_runtime.patches.deepseek_v4 import chat_template_v4 as tmpl
+from molto_runtime.patches.deepseek_v4 import chat_template_v4 as tmpl
 
 SYSTEM = {"role": "system", "content": "You are a coding agent."}
 U1 = {"role": "user", "content": "Refactor the parser module."}

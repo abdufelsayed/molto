@@ -7,7 +7,7 @@ import struct
 from pathlib import Path
 
 import pytest
-from omlx_runtime.model_discovery import (
+from molto_runtime.model_discovery import (
     DiscoveredModel,
     _is_adapter_dir,
     _is_causal_lm_reranker,
@@ -2032,7 +2032,7 @@ class TestHfCacheDiscovery:
             (
                 {
                     "model_type": "deepseek_v41",
-                    "omlx_deepseek_v41": {"version": 1, "preserve_mtp": True},
+                    "molto_deepseek_v41": {"version": 1, "preserve_mtp": True},
                 },
                 True,
             ),
@@ -2050,11 +2050,11 @@ class TestHfCacheDiscovery:
             ({"model_type": "deepseek_v41"}, True),
             # An unknown conversion version stays hidden.
             (
-                {"model_type": "deepseek_v41", "omlx_deepseek_v41": {"version": 2}},
+                {"model_type": "deepseek_v41", "molto_deepseek_v41": {"version": 2}},
                 False,
             ),
             # Community mlx_lm affine conversions declare their format in a
-            # top-level quantization dict instead of the oMLX spec.
+            # top-level quantization dict instead of the Molto spec.
             (
                 {
                     "model_type": "deepseek_v41",
@@ -2129,13 +2129,13 @@ class TestHfCacheDiscovery:
             ),
             ({"model_type": "deepseek_v41", "quantization": "mlx"}, False),
             (
-                {"model_type": "deepseek_v4", "omlx_deepseek_v41": {"version": 1}},
+                {"model_type": "deepseek_v4", "molto_deepseek_v41": {"version": 1}},
                 False,
             ),
         ],
     )
     def test_hf_cache_deepseek_v41_loadable_layouts(self, tmp_path, config, discovered):
-        """oMLX-converted and original V4.1 checkpoints need no MLX metadata."""
+        """Molto-converted and original V4.1 checkpoints need no MLX metadata."""
         repo = "Jundot/DeepSeek-V4.1-oQ3e-mtp"
         _, snapshot = self._make_hf_cache_entry(
             tmp_path, "Jundot", "DeepSeek-V4.1-oQ3e-mtp"

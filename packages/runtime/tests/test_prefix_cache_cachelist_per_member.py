@@ -21,18 +21,18 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import omlx_runtime.cache.prefix_cache as prefix_cache_module
+import molto_runtime.cache.prefix_cache as prefix_cache_module
 import pytest
-from omlx_runtime.cache.paged_cache import PagedCacheManager
-from omlx_runtime.cache.paged_ssd_cache import (
+from molto_runtime.cache.paged_cache import PagedCacheManager
+from molto_runtime.cache.paged_ssd_cache import (
     PagedSSDCacheManager,
     cachelist_pm_class_eligible,
 )
-from omlx_runtime.cache.prefix_cache import (
+from molto_runtime.cache.prefix_cache import (
     BlockAwarePrefixCache,
     cachelist_pm_member_plan,
 )
-from omlx_runtime.cache.type_registry import CacheTypeRegistry
+from molto_runtime.cache.type_registry import CacheTypeRegistry
 
 try:
     import mlx.core as mx
@@ -232,7 +232,7 @@ def test_pm_multiblock_roundtrip(tmp_path):
 
 
 def test_pm_partial_prefix_roundtrip(tmp_path):
-    from omlx_runtime.cache.paged_cache import BlockTable
+    from molto_runtime.cache.paged_cache import BlockTable
 
     cache, _ = _make_cache(tmp_path)
     table = _store_blocks(cache, num_blocks=3, request_id="req-part")
@@ -366,7 +366,7 @@ def test_legacy_blocks_swept_on_pm_expectation(tmp_path, monkeypatch):
     """Upgrade path (#2550 review): pre-upgrade legacy blocks must be
     invalidated by the layout-aware signature, so a post-upgrade store
     cannot recreate a mixed chain via token-hash dedup."""
-    from omlx_runtime.cache.paged_ssd_cache import cachelist_subtypes_from_cache_list
+    from molto_runtime.cache.paged_ssd_cache import cachelist_subtypes_from_cache_list
 
     # The live-model expectation now carries the layout token.
     live = [_build_mixed_cachelist(seq_len=4)]
@@ -418,7 +418,7 @@ def test_decode_snapshot_fallback_filters_kv(tmp_path):
     retaining the full KV prefix."""
     from types import SimpleNamespace
 
-    from omlx_runtime.scheduler import Scheduler
+    from molto_runtime.scheduler import Scheduler
 
     live = _build_mixed_cachelist(seq_len=BLOCK_SIZE)
 

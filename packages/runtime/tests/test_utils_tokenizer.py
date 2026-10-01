@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx_runtime.utils.tokenizer module."""
+"""Tests for molto_runtime.utils.tokenizer module."""
 
 import json
 
-from omlx_runtime.utils.tokenizer import (
+from molto_runtime.utils.tokenizer import (
     apply_qwen3_fix,
     create_streaming_detokenizer,
     get_tokenizer_config,

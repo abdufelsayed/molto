@@ -5,9 +5,12 @@ import json
 from types import SimpleNamespace
 
 import pytest
-from omlx_runtime.adapter.output_parser import _K2_MARKERS, K2HorizonOutputParserSession
-from omlx_runtime.generation.tool_calling import ToolCallStreamFilter, parse_tool_calls
-from omlx_runtime.patches.k2_horizon.tool_parser import parse_tool_call
+from molto_runtime.adapter.output_parser import (
+    _K2_MARKERS,
+    K2HorizonOutputParserSession,
+)
+from molto_runtime.generation.tool_calling import ToolCallStreamFilter, parse_tool_calls
+from molto_runtime.patches.k2_horizon.tool_parser import parse_tool_call
 
 
 def k2_tokenizer():
@@ -149,8 +152,8 @@ def test_failed_group_parse_preserves_the_whole_attempt_without_partial_executio
 def test_missing_grammar_backend_does_not_reject_k2_tools():
     # Keep this outside the xgrammar-dependent test module so a core-only
     # installation still tests the optional-dependency contract.
-    from omlx_runtime.engine.batched import BatchedEngine
-    from omlx_runtime.patches.k2_horizon.tool_grammar import compile_tool_grammar
+    from molto_runtime.engine.batched import BatchedEngine
+    from molto_runtime.patches.k2_horizon.tool_grammar import compile_tool_grammar
 
     tools = [{"type": "function", "function": {"name": "read"}}]
     assert compile_tool_grammar(None, tools) is None
@@ -163,8 +166,8 @@ def test_missing_grammar_backend_does_not_reject_k2_tools():
 
 
 def test_missing_grammar_does_not_apply_the_constrained_prefix_guard():
-    from omlx_runtime.engine.batched import BatchedEngine
-    from omlx_runtime.exceptions import InvalidRequestError
+    from molto_runtime.engine.batched import BatchedEngine
+    from molto_runtime.exceptions import InvalidRequestError
 
     engine = BatchedEngine("K2")
     engine._model = SimpleNamespace(args=SimpleNamespace(model_type="k2_horizon"))
@@ -179,8 +182,8 @@ def test_missing_grammar_does_not_apply_the_constrained_prefix_guard():
 
 
 def test_malformed_output_does_not_fail_its_batch_request(mock_model, mock_tokenizer):
-    from omlx_runtime.request import Request, RequestStatus, SamplingParams
-    from omlx_runtime.scheduler import Scheduler, SchedulerConfig
+    from molto_runtime.request import Request, RequestStatus, SamplingParams
+    from molto_runtime.scheduler import Scheduler, SchedulerConfig
 
     scheduler = Scheduler(
         model=mock_model,

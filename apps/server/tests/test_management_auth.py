@@ -6,15 +6,15 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
-from omlx_server.auth import (
+from molto_server.auth import (
     compare_keys,
     fingerprint_key,
     validate_api_key,
     verify_any_api_key,
     verify_api_key,
 )
-from omlx_server.server import create_app
-from omlx_server.state import ServerState
+from molto_server.server import create_app
+from molto_server.state import ServerState
 
 
 def test_key_utilities_accept_unicode_without_leaking_key():

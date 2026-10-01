@@ -1,6 +1,6 @@
-# oQ: oMLX Universal Dynamic Quantization
+# oQ: Molto Universal Dynamic Quantization
 
-Quantization should not be exclusive to any particular inference server. oQ produces standard mlx-lm compatible models that work everywhere — oMLX, mlx-lm, and any app that supports MLX safetensors. No custom loader required.
+Quantization should not be exclusive to any particular inference server. oQ produces standard mlx-lm compatible models that work everywhere — Molto, mlx-lm, and any app that supports MLX safetensors. No custom loader required.
 
 **oQ is a data-driven mixed-precision quantization system for Apple Silicon.** Instead of assigning bits by fixed rules or tensor type, oQ measures each layer's actual quantization sensitivity through calibration and allocates bits where the data says they matter most.
 

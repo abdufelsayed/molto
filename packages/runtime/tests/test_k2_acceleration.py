@@ -9,8 +9,8 @@ import mlx.core as mx
 import mlx.nn as nn
 import pytest
 from mlx_lm.models.cache import make_prompt_cache
-from omlx_runtime.patches.k2_horizon.ane_prefill import PrefillMLP, enable_ane_prefill
-from omlx_runtime.patches.k2_horizon.k2_horizon_model import Model, ModelArgs
+from molto_runtime.patches.k2_horizon.ane_prefill import PrefillMLP, enable_ane_prefill
+from molto_runtime.patches.k2_horizon.k2_horizon_model import Model, ModelArgs
 from test_k2_horizon import small_config
 
 
@@ -30,7 +30,7 @@ def close(a, b):
     )
 
 
-@pytest.mark.skipif(os.environ.get("OMLX_TEST_K2_ANE") != "1", reason="requires ANE")
+@pytest.mark.skipif(os.environ.get("MOLTO_TEST_K2_ANE") != "1", reason="requires ANE")
 @pytest.mark.parametrize("rows", [7, 32])
 @pytest.mark.parametrize("bits", [None, 4, 8])
 @pytest.mark.parametrize("dtype", [mx.float16, mx.bfloat16])
@@ -70,9 +70,9 @@ def test_native_prefill_owns_weights_outputs_and_keeps_gpu_decode(rows, bits, dt
     assert mx.array_equal(target, ref(x)).item()
 
 
-@pytest.mark.skipif(os.environ.get("OMLX_TEST_K2_ANE") != "1", reason="requires ANE")
+@pytest.mark.skipif(os.environ.get("MOLTO_TEST_K2_ANE") != "1", reason="requires ANE")
 def test_mova_prefill_preserves_routes_and_gpu_decode():
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
 
     mx.random.seed(51)
     config = small_config(
@@ -119,7 +119,7 @@ def test_mova_prefill_preserves_routes_and_gpu_decode():
             assert a is layer.mlp.gate.weight and b is layer.self_attn.v_router.weight
     finally:
         fast.qwen35_ane_profile_set_enabled(False)
-    program = model.layers[0].mlp._omlx_ane_prefill
+    program = model.layers[0].mlp._molto_ane_prefill
     finish = program.finish
     program.finish = Mock(side_effect=RuntimeError("injected failure"))
     with pytest.raises(RuntimeError, match="injected"):
@@ -132,7 +132,7 @@ def test_mova_prefill_preserves_routes_and_gpu_decode():
 
 
 def test_family_partitions_use_checkpoint_dimensions():
-    from omlx_runtime.patches.k2_horizon.ane_prefill import (
+    from molto_runtime.patches.k2_horizon.ane_prefill import (
         partition_channels,
         prefill_memory_reservation,
     )
@@ -147,13 +147,13 @@ def test_family_partitions_use_checkpoint_dimensions():
     )
 
 
-@pytest.mark.skipif(os.getenv("OMLX_TEST_K2_ANE") != "1", reason="requires local ANE")
+@pytest.mark.skipif(os.getenv("MOLTO_TEST_K2_ANE") != "1", reason="requires local ANE")
 @pytest.mark.parametrize("chunked", [False, True])
 @pytest.mark.parametrize("prefix", [0, 16, 48])
 def test_mova_scheduler_prefill_and_restored_cache(mock_tokenizer, chunked, prefix):
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
-    from omlx_runtime.request import Request, SamplingParams
-    from omlx_runtime.scheduler import Scheduler, SchedulerConfig
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
+    from molto_runtime.request import Request, SamplingParams
+    from molto_runtime.scheduler import Scheduler, SchedulerConfig
 
     model = Model(
         ModelArgs.from_dict(
@@ -219,15 +219,15 @@ def test_mova_scheduler_prefill_and_restored_cache(mock_tokenizer, chunked, pref
         fast.qwen35_ane_profile_set_enabled(False)
 
 
-@pytest.mark.skipif(os.getenv("OMLX_TEST_K2_ANE") != "1", reason="requires local ANE")
+@pytest.mark.skipif(os.getenv("MOLTO_TEST_K2_ANE") != "1", reason="requires local ANE")
 @pytest.mark.parametrize("prefix", [0, 32])
 def test_ane_prefill_preserves_eight_decode_rows_and_cache_after_removal(
     mock_tokenizer, monkeypatch, prefix
 ):
     from mlx_lm.generate import BatchGenerator, GenerationBatch
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
-    from omlx_runtime.request import Request, SamplingParams
-    from omlx_runtime.scheduler import Scheduler, SchedulerConfig
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
+    from molto_runtime.request import Request, SamplingParams
+    from molto_runtime.scheduler import Scheduler, SchedulerConfig
 
     model = make_model()
     enable_ane_prefill(model, fraction=0.5, width=32)
@@ -262,7 +262,7 @@ def test_ane_prefill_preserves_eight_decode_rows_and_cache_after_removal(
         prompt = prompts[index]
         cache = make_prompt_cache(model)
         if prefix:
-            model._omlx_prefill(mx.array([prompt[:prefix]]), cache=cache)
+            model._molto_prefill(mx.array([prompt[:prefix]]), cache=cache)
             cache = [type(c).from_state(c.state, c.meta_state) for c in cache]
         request = Request(
             request_id=str(index), prompt=prompt, sampling_params=SamplingParams()
@@ -272,7 +272,7 @@ def test_ane_prefill_preserves_eight_decode_rows_and_cache_after_removal(
         before = fast.qwen35_ane_profile_snapshot()["mlp"]["operations"]
         cache, last = scheduler._do_external_prefill(request, prompt[prefix:], cache)
         after = fast.qwen35_ane_profile_snapshot()["mlp"]["operations"]
-        assert after - before == (0 if prefix else model._omlx_k2_ane_prefill_count)
+        assert after - before == (0 if prefix else model._molto_k2_ane_prefill_count)
         return batch.insert([last], caches=[cache], all_tokens=[prompt[:-1]])[0]
 
     fast.qwen35_ane_profile_set_enabled(True)
@@ -314,13 +314,13 @@ def test_ane_prefill_preserves_eight_decode_rows_and_cache_after_removal(
         scheduler.shutdown()
 
 
-@pytest.mark.skipif(os.getenv("OMLX_TEST_K2_ANE") != "1", reason="requires local ANE")
+@pytest.mark.skipif(os.getenv("MOLTO_TEST_K2_ANE") != "1", reason="requires local ANE")
 @pytest.mark.parametrize("asynchronous", [False, True])
 @pytest.mark.parametrize("reverse", [False, True])
 def test_planar_transfer_preserves_outputs_from_lazy_inputs_on_multiple_streams(
     asynchronous, reverse
 ):
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
 
     model = make_model()
     model.set_dtype(mx.float16)

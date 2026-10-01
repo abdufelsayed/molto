@@ -3,8 +3,8 @@
 
 import json
 
-from omlx_runtime.cluster import incidents as incidents_module
-from omlx_runtime.cluster.incidents import (
+from molto_runtime.cluster import incidents as incidents_module
+from molto_runtime.cluster.incidents import (
     IncidentStore,
     Severity,
     configure_cluster_incidents,

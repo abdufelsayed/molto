@@ -4,24 +4,24 @@
 import pytest
 from cluster_app import cluster_app
 from fastapi.testclient import TestClient
-from omlx_runtime.cluster.discovery import (
+from molto_runtime.cluster.discovery import (
     DiscoveryConfig,
     DiscoveryService,
     PeerCaps,
     PeerRecord,
     configure_discovery_service,
 )
-from omlx_runtime.cluster.identity import (
+from molto_runtime.cluster.identity import (
     NodeIdentity,
     configure_node_identity,
     reset_configured_identity,
 )
-from omlx_runtime.cluster.registry import (
+from molto_runtime.cluster.registry import (
     DeviceRegistry,
     configure_device_registry,
     reset_configured_device_registry,
 )
-from omlx_server.cluster import discovery_routes
+from molto_server.cluster import discovery_routes
 
 
 @pytest.fixture(autouse=True)
@@ -55,7 +55,7 @@ def test_node_id_probe_is_public_and_returns_identity(_configured_stores):
     payload = response.json()
     assert payload["node_id"] == identity.node_id
     assert payload["version"]
-    assert payload["cluster_name"] == "omlx"  # default with no service
+    assert payload["cluster_name"] == "molto"  # default with no service
     # The probe must not leak capabilities or the device inventory.
     assert "caps" not in payload
     assert "devices" not in payload
@@ -232,33 +232,33 @@ def test_devices_paired_rows_carry_enrolled_ssh_target(_configured_stores, monke
 
     _, registry, client = _configured_stores
     registry.mark_paired("peer-1", friendly_name="studio-b")
-    enrolled = SimpleNamespace(node_id="peer-1", ssh="omlx@studio-b.local")
+    enrolled = SimpleNamespace(node_id="peer-1", ssh="molto@studio-b.local")
     fake_store = SimpleNamespace(list_nodes=lambda: (enrolled,))
     client.app.state.server_state.cluster_services.enrollment = fake_store
 
     payload = client.get("/api/cluster/devices").json()
 
-    assert payload["paired"][0]["ssh_target"] == "omlx@studio-b.local"
+    assert payload["paired"][0]["ssh_target"] == "molto@studio-b.local"
 
 
 def test_cluster_name_persisted_config(tmp_path, monkeypatch):
-    from omlx_runtime.cluster.discovery import (
+    from molto_runtime.cluster.discovery import (
         default_cluster_config_path,
         load_cluster_name,
     )
 
-    assert load_cluster_name(tmp_path) == "omlx"  # no file yet
+    assert load_cluster_name(tmp_path) == "molto"  # no file yet
     path = default_cluster_config_path(tmp_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text('{"cluster_name": "studio-lan"}')
     assert load_cluster_name(tmp_path) == "studio-lan"
     # Malformed JSON falls back to the default instead of raising.
     path.write_text("{not json")
-    assert load_cluster_name(tmp_path) == "omlx"
+    assert load_cluster_name(tmp_path) == "molto"
 
 
 def test_devices_requires_main_key(tmp_path):
-    from omlx_server.auth import AuthContext
+    from molto_server.auth import AuthContext
 
     # Without the dependency override, an unauthenticated call is rejected.
     reset_configured_identity()
@@ -295,7 +295,7 @@ def _live_service(registry, prober=None):
     service = DiscoveryService(
         NodeIdentity(node_id="self-node", friendly_name="self", created_at=1.0),
         registry,
-        DiscoveryConfig(cluster_name="omlx", http_port=8000),
+        DiscoveryConfig(cluster_name="molto", http_port=8000),
         prober=prober or (lambda ip, port, timeout: None),
         interface_lister=lambda: [],
         zeroconf_module=None,
@@ -565,7 +565,7 @@ def test_devices_paired_row_normalizes_last_addrs_and_keeps_ssh_target(
         caps={"chip": "M4", "ram_gb": 64},
         addrs=["192.168.1.20", "192.168.1.21"],
     )
-    enrolled = SimpleNamespace(node_id="peer-1", ssh="omlx@studio-b.local")
+    enrolled = SimpleNamespace(node_id="peer-1", ssh="molto@studio-b.local")
     fake_store = SimpleNamespace(list_nodes=lambda: (enrolled,))
     client.app.state.server_state.cluster_services.enrollment = fake_store
 
@@ -583,7 +583,7 @@ def test_devices_paired_row_normalizes_last_addrs_and_keeps_ssh_target(
     assert row["last_seen"] is None
     assert row["http_port"] == 0
     # The enrollment seam still applies on top of the normalization.
-    assert row["ssh_target"] == "omlx@studio-b.local"
+    assert row["ssh_target"] == "molto@studio-b.local"
 
 
 def test_manual_paired_endpoint_persists_and_rehydrates_on_reboot(
@@ -598,7 +598,7 @@ def test_manual_paired_endpoint_persists_and_rehydrates_on_reboot(
                 "node_id": "tb-peer",
                 "friendly_name": "m5-max",
                 "version": "0.6.1",
-                "cluster_name": "omlx",
+                "cluster_name": "molto",
             }
         return None
 
@@ -624,7 +624,7 @@ def test_manual_paired_endpoint_persists_and_rehydrates_on_reboot(
     rebooted = DiscoveryService(
         identity,
         persisted,
-        DiscoveryConfig(cluster_name="omlx", http_port=8000),
+        DiscoveryConfig(cluster_name="molto", http_port=8000),
         prober=prober,
         interface_lister=lambda: [],
         zeroconf_module=None,
@@ -635,7 +635,7 @@ def test_manual_paired_endpoint_persists_and_rehydrates_on_reboot(
 
 
 def test_two_apps_keep_distinct_identity_and_device_stores(tmp_path):
-    from omlx_server.cluster.services import ClusterServices
+    from molto_server.cluster.services import ClusterServices
 
     first = cluster_app()
     second = cluster_app()

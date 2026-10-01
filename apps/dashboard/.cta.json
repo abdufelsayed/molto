@@ -1,5 +1,5 @@
 {
-  "projectName": "omlx-dashboard",
+  "projectName": "molto-dashboard",
   "mode": "file-router",
   "typescript": true,
   "packageManager": "pnpm",

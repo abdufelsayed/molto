@@ -7,7 +7,7 @@ import socket
 import threading
 
 import pytest
-from omlx_runtime.cluster.jaccl_side_channel import (
+from molto_runtime.cluster.jaccl_side_channel import (
     _coordinator_endpoint,
     init_cluster_group,
     jaccl_all_gather_factory,
@@ -23,8 +23,8 @@ def _free_loopback_port() -> int:
 def test_socket_side_channel_orders_ranks_and_reuses_connections(monkeypatch):
     port = _free_loopback_port()
     monkeypatch.setenv("MLX_JACCL_COORDINATOR", f"127.0.0.1:{port}")
-    monkeypatch.setenv("OMLX_JACCL_SIDE_CHANNEL_TIMEOUT_SECONDS", "3")
-    monkeypatch.setenv("OMLX_JACCL_SIDE_CHANNEL_TRANSPORT", "direct")
+    monkeypatch.setenv("MOLTO_JACCL_SIDE_CHANNEL_TIMEOUT_SECONDS", "3")
+    monkeypatch.setenv("MOLTO_JACCL_SIDE_CHANNEL_TRANSPORT", "direct")
     results: dict[str, bytes] = {}
     errors: list[BaseException] = []
     server_ready = threading.Event()
@@ -59,11 +59,11 @@ def test_socket_side_channel_orders_ranks_and_reuses_connections(monkeypatch):
 
 def test_sidecar_orders_ranks_without_using_parent_network(monkeypatch, tmp_path):
     port = _free_loopback_port()
-    # oMLX.app exports PYTHONHOME for its bundled interpreter.
+    # Molto.app exports PYTHONHOME for its bundled interpreter.
     monkeypatch.setenv("PYTHONHOME", str(tmp_path))
     monkeypatch.setenv("MLX_JACCL_COORDINATOR", f"127.0.0.1:{port}")
-    monkeypatch.setenv("OMLX_JACCL_SIDE_CHANNEL_TIMEOUT_SECONDS", "3")
-    monkeypatch.setenv("OMLX_JACCL_SIDE_CHANNEL_TRANSPORT", "sidecar")
+    monkeypatch.setenv("MOLTO_JACCL_SIDE_CHANNEL_TIMEOUT_SECONDS", "3")
+    monkeypatch.setenv("MOLTO_JACCL_SIDE_CHANNEL_TRANSPORT", "sidecar")
     results: dict[str, bytes] = {}
     errors: list[BaseException] = []
 
@@ -114,7 +114,7 @@ def test_init_cluster_group_only_injects_factory_for_enabled_jaccl(monkeypatch):
     assert calls[-1]["strict"] is True
     assert calls[-1]["all_gather_factory"] is jaccl_all_gather_factory
 
-    monkeypatch.setenv("OMLX_JACCL_PYTHON_SIDE_CHANNEL", "0")
+    monkeypatch.setenv("MOLTO_JACCL_PYTHON_SIDE_CHANNEL", "0")
     assert init_cluster_group(MX(), backend="jaccl", strict=True) == "group"
     assert calls[-1] == {"backend": "jaccl", "strict": True}
 

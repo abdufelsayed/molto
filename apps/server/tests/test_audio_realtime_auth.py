@@ -7,8 +7,8 @@ from unittest.mock import Mock
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from omlx_config.settings import GlobalSettings, SubKeyEntry
-from omlx_server.api import audio_routes
+from molto_config.settings import GlobalSettings, SubKeyEntry
+from molto_server.api import audio_routes
 from starlette.websockets import WebSocketDisconnect
 
 

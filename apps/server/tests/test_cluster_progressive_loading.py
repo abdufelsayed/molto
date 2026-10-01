@@ -7,19 +7,19 @@ from types import SimpleNamespace
 
 import mlx.nn.layers.distributed as distributed_layers
 import pytest
-from omlx_runtime.cluster.planner import _supports_tensor_parallel
-from omlx_runtime.cluster.progressive_loading import (
+from molto_runtime.cluster.planner import _supports_tensor_parallel
+from molto_runtime.cluster.progressive_loading import (
     install_progressive_loader,
     materialize_parameters_progressively,
     progressive_sharded_load,
 )
-from omlx_runtime.cluster.tensor_strategies import (
+from molto_runtime.cluster.tensor_strategies import (
     apply_tensor_strategy,
     native_shard_is_layer_local,
     registered_model_types,
     supports_model_type,
 )
-from omlx_runtime.patches.mlx_lm_pipeline_index import (
+from molto_runtime.patches.mlx_lm_pipeline_index import (
     _JsonProxy,
     _open_with_single_file_index,
 )
@@ -313,7 +313,7 @@ def test_progressive_loader_patch_is_scoped_and_restored(monkeypatch):
     calls = []
 
     monkeypatch.setattr(
-        "omlx_runtime.cluster.progressive_loading.progressive_sharded_load",
+        "molto_runtime.cluster.progressive_loading.progressive_sharded_load",
         lambda *args, **kwargs: calls.append((args, kwargs)) or "progressive",
     )
 

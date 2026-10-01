@@ -10,10 +10,10 @@ import pytest
 
 pytest.importorskip("mlx.core")
 
-from omlx_runtime.engine import vlm as vlm_module
-from omlx_runtime.engine.vlm import VLMBatchedEngine
-from omlx_runtime.exceptions import InvalidRequestError
-from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+from molto_runtime.engine import vlm as vlm_module
+from molto_runtime.engine.vlm import VLMBatchedEngine
+from molto_runtime.exceptions import InvalidRequestError
+from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
 
 def test_qwen4_exp_runtime_rejects_audio_only():
@@ -86,7 +86,7 @@ async def test_only_qwen4_exp_loader_defers_parameter_eval_to_materialize(
     tmp_path, monkeypatch, model_type, expected_lazy
 ):
     import mlx_vlm.utils as vlm_utils
-    from omlx_runtime.utils import model_loading
+    from molto_runtime.utils import model_loading
 
     (tmp_path / "config.json").write_text(
         json.dumps({"model_type": model_type}), encoding="utf-8"
@@ -139,7 +139,7 @@ def test_qwen4_exp_loader_enables_adaptive_depth_three_lightning_mtp(tmp_path):
     maybe_apply_pre_load_patches(str(tmp_path), settings, for_vlm=True)
 
     from mlx_vlm.models.qwen4_exp.language import get_mtp_runtime
-    from omlx_runtime.patches.mlx_lm_mtp import get_mtp_depth, is_mtp_active
+    from molto_runtime.patches.mlx_lm_mtp import get_mtp_depth, is_mtp_active
 
     assert get_mtp_runtime().enabled is True
     assert get_mtp_runtime().checkpoint_prefix == "mtp."

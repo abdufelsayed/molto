@@ -4,13 +4,13 @@ Carry over the old admin's useful capabilities with workflows organized around
 models, server configuration, operations, monitoring, diagnostics, and clusters.
 Keep TanStack Start, shadcn Base UI preset b43fOHkIM, type-aware Oxlint, Oxfmt,
 and the native TypeScript compiler. The old reference remains at
-/tmp/omlx-old-admin-0b07cdd. Do not restore bundled HTML or chat.
+/tmp/molto-old-admin-0b07cdd. Do not restore bundled HTML or chat.
 
 ## Shared contracts and ownership
 
 Authenticated backend feature routers have no prefix of their own and export `router`.
 The supervisor mounts them under the existing authenticated `/management/v1`
-router. First-run setup is mounted separately under `/management/v1/setup`; its public BFF requires a direct local transport and creates a key before normal login. Use `omlx_server.api.management_dependencies.get_context`, `get_service`, and
+router. First-run setup is mounted separately under `/management/v1/setup`; its public BFF requires a direct local transport and creates a key before normal login. Use `molto_server.api.management_dependencies.get_context`, `get_service`, and
 `get_runtime`, never import the server to acquire state. New domain services
 must be importable without starting jobs or loading weights.
 
@@ -30,13 +30,13 @@ exclusive admission until native work has stopped. Shutdown releases workers.
 
 Frontend domain modules use `managementRequest<T>(path, options)` from
 src/features/management/request.ts. Paths are relative to /management/v1 and
-the request utility adds /api/omlx/. Mutations accept options.method and
+the request utility adds /api/molto/. Mutations accept options.method and
 options.body; options.signal controls queries. API errors use existing ApiError.
 Domain clients may define explicit wire types initially; supervisor regenerates
 the OpenAPI schema after integration. No raw JSON-only product workflows.
 Reuse existing FieldGroup/Field and Base UI components; preserve edits across
 refresh, render error/empty/loading states, disable duplicate submissions,
-invalidate ['omlx'] after successful mutations. No automatic mutation retries.
+invalidate ['molto'] after successful mutations. No automatic mutation retries.
 
 ## Feature slices
 
@@ -117,4 +117,4 @@ remote cluster changes are not executed as validation. Disposable launcher proce
 - [x] Backend tests, browser proof, type-aware lint, format, typecheck and build
 - [x] Independent review findings resolved and documentation current
 
-The bundled command uses native Nitro proxying with a separate private FastAPI process. Installed wheels carry Node and dashboard assets; source development uses `omlx serve --dashboard-dev`. The integration record in `../docs/dashboard-integration-plan.md` contains milestone and verification evidence.
+The bundled command uses native Nitro proxying with a separate private FastAPI process. Installed wheels carry Node and dashboard assets; source development uses `molto serve --dashboard-dev`. The integration record in `../docs/dashboard-integration-plan.md` contains milestone and verification evidence.

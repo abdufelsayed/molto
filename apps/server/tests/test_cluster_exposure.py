@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from omlx_runtime.cluster.exposure import distributed_inference_enabled
+from molto_runtime.cluster.exposure import distributed_inference_enabled
 from repo_paths import repository_root
 
 ROOT = repository_root(__file__)
@@ -27,7 +27,7 @@ def test_distributed_inference_requires_explicit_opt_in():
 
 
 def test_server_uses_one_startup_snapshot_for_routes_and_bonjour():
-    source = (ROOT / "apps/server/src/omlx_server/composition.py").read_text()
+    source = (ROOT / "apps/server/src/molto_server/composition.py").read_text()
 
     assert (
         "self.state.distributed_inference_enabled = is_enabled(global_settings)"
@@ -43,10 +43,10 @@ def test_server_uses_one_startup_snapshot_for_routes_and_bonjour():
 
 
 def test_worker_join_routes_use_enrollment_auth_not_the_admin_cookie():
-    source = (ROOT / "apps/server/src/omlx_server/composition.py").read_text()
+    source = (ROOT / "apps/server/src/molto_server/composition.py").read_text()
 
     assert (
-        "from omlx_server.cluster.routes import join_router as cluster_join_router"
+        "from molto_server.cluster.routes import join_router as cluster_join_router"
         in source
     )
     assert (

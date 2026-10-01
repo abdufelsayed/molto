@@ -1993,7 +1993,7 @@ export interface paths {
          *
          *     Device presence is not readiness: RDMA can be enabled but the port down, or
          *     active but unroutable. Each state has a different remedy and one of them
-         *     needs administrator rights oMLX does not have, so the page has to say so
+         *     needs administrator rights Molto does not have, so the page has to say so
          *     rather than silently falling back to TCP.
          */
         get: operations["cluster_link_status_admin_api_cluster_link_status_get"];
@@ -2206,7 +2206,7 @@ export interface paths {
          * Cluster Node Budgets
          * @description What each Mac should contribute, measured on the machine itself.
          *
-         *     Reads the live oMLX admission ceiling per node rather than installed RAM:
+         *     Reads the live Molto admission ceiling per node rather than installed RAM:
          *     a 256 GiB Studio can have a ~223 GiB MLX working set, and current unified
          *     memory pressure can lower that further. A plan built on the larger number
          *     is refused by the memory guard at load.
@@ -2428,7 +2428,7 @@ export interface paths {
          *
          *     Deliberately unauthenticated: a discovering node must be able to confirm
          *     an announced address belongs to the announced node_id before any pairing
-         *     trust exists. It reveals only the stable node_id, the oMLX version, and
+         *     trust exists. It reveals only the stable node_id, the Molto version, and
          *     the cluster name — no capabilities, no device inventory.
          */
         get: operations["cluster_node_id_probe_api_cluster_node_id_get"];
@@ -3055,7 +3055,7 @@ export interface components {
         };
         /**
          * ClusterInventoryHostRequest
-         * @description A selected worker whose local oMLX model inventory should be included.
+         * @description A selected worker whose local Molto model inventory should be included.
          */
         ClusterInventoryHostRequest: {
             /** Node Id */

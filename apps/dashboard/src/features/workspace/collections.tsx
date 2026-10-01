@@ -49,7 +49,7 @@ export function CollectionPanel({ selected }: { selected: string[] }) {
     onSuccess: () => {
       setEdit(null)
       setRemove(null)
-      void client.invalidateQueries({ queryKey: ["omlx"] })
+      void client.invalidateQueries({ queryKey: ["molto"] })
     },
   })
   function open(collection: Collection) {

@@ -9,12 +9,12 @@ import httpx
 import pytest
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.testclient import TestClient
-from omlx_config.settings import GlobalSettings
-from omlx_management.management import ManagementContext
-from omlx_management.management_server import ServerManagementService
-from omlx_server.api.management_dependencies import get_runtime
-from omlx_server.api.management_server_routes import router
-from omlx_server.auth import AuthContext, require_management_key
+from molto_config.settings import GlobalSettings
+from molto_management.management import ManagementContext
+from molto_management.management_server import ServerManagementService
+from molto_server.api.management_dependencies import get_runtime
+from molto_server.api.management_server_routes import router
+from molto_server.auth import AuthContext, require_management_key
 
 
 @pytest.fixture
@@ -194,7 +194,7 @@ def test_copyable_integration_commands_quote_models(setup):
     import shlex
 
     assert shlex.split(command) == [
-        "omlx",
+        "molto",
         "launch",
         "codex",
         "--model",
@@ -210,7 +210,7 @@ def test_websearch_test_uses_pending_values_without_save(setup, monkeypatch):
     from unittest.mock import AsyncMock
 
     mock = AsyncMock(return_value={"ok": False, "error": {"code": "request_failed"}})
-    monkeypatch.setattr("omlx_management.websearch.run_web_search_test", mock)
+    monkeypatch.setattr("molto_management.websearch.run_web_search_test", mock)
     response = setup.client.post(
         "/management/v1/server/web-search/test",
         json={"provider": "brave", "brave_api_key": "pending"},
@@ -235,7 +235,7 @@ def test_update_distinguishes_network_failure_from_no_update(setup, monkeypatch)
         async def get(self, *args, **kwargs):
             raise httpx.ConnectError("offline")
 
-    monkeypatch.setattr("omlx_management.management_server.httpx.AsyncClient", Client)
+    monkeypatch.setattr("molto_management.management_server.httpx.AsyncClient", Client)
     data = setup.client.get("/management/v1/server/update").json()
     assert data["status"] == "failed" and data["update_available"] is None
 
@@ -261,7 +261,7 @@ def test_update_filters_prereleases_even_with_false_flag(setup, monkeypatch):
                 ],
             )
 
-    monkeypatch.setattr("omlx_management.management_server.httpx.AsyncClient", Client)
+    monkeypatch.setattr("molto_management.management_server.httpx.AsyncClient", Client)
     assert (
         setup.client.get("/management/v1/server/update").json()["latest_version"]
         == "998.0.0"
@@ -408,7 +408,7 @@ def test_actual_info_callback_port_overrides_configured_and_state_fallback(setup
 def test_unsupervised_callable_restart_is_unavailable_and_never_invoked(setup):
     from dataclasses import replace
 
-    from omlx_server.api.management_server_routes import service
+    from molto_server.api.management_server_routes import service
 
     setup.state.request_restart = Mock(return_value=False)
     context = replace(
@@ -514,13 +514,13 @@ def test_disk_rollback_failure_reports_runtime_restoration_separately(
 
 @pytest.fixture
 def resource_reads(setup, monkeypatch):
-    from omlx_runtime import process_memory_enforcer as memory
+    from molto_runtime import process_memory_enforcer as memory
 
     gib = 1024**3
-    monkeypatch.setattr("omlx_config.settings.get_system_memory", lambda: 64 * gib)
-    monkeypatch.setattr("omlx_config.settings.detect_system_memory", lambda: 64 * gib)
+    monkeypatch.setattr("molto_config.settings.get_system_memory", lambda: 64 * gib)
+    monkeypatch.setattr("molto_config.settings.detect_system_memory", lambda: 64 * gib)
     monkeypatch.setattr(
-        "omlx_config.utils.psutil_compat.virtual_memory",
+        "molto_config.utils.psutil_compat.virtual_memory",
         lambda: SimpleNamespace(available=20 * gib),
     )
     monkeypatch.setattr(memory, "get_effective_metal_cap_bytes", lambda: 48 * gib)
@@ -657,7 +657,7 @@ def test_resources_unavailable_hardware_never_fakes_a_limit_or_command(
     setup, resource_reads, monkeypatch
 ):
     monkeypatch.setattr(
-        "omlx_config.settings.detect_system_memory",
+        "molto_config.settings.detect_system_memory",
         Mock(side_effect=OSError("unavailable")),
     )
     monkeypatch.setattr(
@@ -689,14 +689,14 @@ def test_resources_requires_main_key(setup, resource_reads):
 def test_actual_ram_detection_failure_is_unavailable_without_runtime_fallback(
     setup, monkeypatch
 ):
-    from omlx_config.settings import detect_system_memory, get_system_memory
-    from omlx_runtime import process_memory_enforcer as memory
+    from molto_config.settings import detect_system_memory, get_system_memory
+    from molto_runtime import process_memory_enforcer as memory
 
     # Exercise the actual detector's failure path, rather than replacing it.
-    monkeypatch.setattr("omlx_config.settings.os.sysconf", lambda _: 0)
-    monkeypatch.setattr("omlx_config.utils.psutil_compat.get_total_memory", lambda: 0)
+    monkeypatch.setattr("molto_config.settings.os.sysconf", lambda _: 0)
+    monkeypatch.setattr("molto_config.utils.psutil_compat.get_total_memory", lambda: 0)
     monkeypatch.setattr(
-        "omlx_config.utils.psutil_compat.virtual_memory",
+        "molto_config.utils.psutil_compat.virtual_memory",
         lambda: SimpleNamespace(available=2 * 1024**3),
     )
     monkeypatch.setattr(memory, "get_effective_metal_cap_bytes", lambda: 8 * 1024**3)

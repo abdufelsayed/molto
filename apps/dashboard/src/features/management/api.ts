@@ -1,5 +1,5 @@
 import { z } from "zod"
-import type { components } from "@omlx/contracts"
+import type { components } from "@molto/contracts"
 
 type Schema = components["schemas"]
 export type State = Schema["StateResponse"]
@@ -35,7 +35,7 @@ export class ApiError extends Error {
 }
 export function errorMessage(error: Error) {
   if (error.name === "TimeoutError")
-    return "The request timed out. oMLX may still be working; check current state before retrying."
+    return "The request timed out. Molto may still be working; check current state before retrying."
   if (error instanceof TypeError) return "Could not reach the dashboard server."
   return error.message
 }
@@ -102,11 +102,11 @@ export class ManagementClient {
     return this.request("/api/connection", undefined, "DELETE")
   }
   state(signal?: AbortSignal) {
-    return this.request<State>("/api/omlx/state", signal)
+    return this.request<State>("/api/molto/state", signal)
   }
   async models(signal?: AbortSignal) {
     const data = await this.request<Schema["InventoryResponse"]>(
-      "/api/omlx/models",
+      "/api/molto/models",
       signal
     )
     return {
@@ -119,16 +119,16 @@ export class ManagementClient {
   }
   stats(scope: "session" | "alltime", modelId = "", signal?: AbortSignal) {
     return this.request<Stats>(
-      `/api/omlx/stats?scope=${scope}&model_id=${encodeURIComponent(modelId)}`,
+      `/api/molto/stats?scope=${scope}&model_id=${encodeURIComponent(modelId)}`,
       signal
     )
   }
   settings(signal?: AbortSignal) {
-    return this.request<Settings>("/api/omlx/settings", signal)
+    return this.request<Settings>("/api/molto/settings", signal)
   }
   updateSettings(patch: Schema["GlobalSettingsPatch"]) {
     return this.request<Schema["GlobalSettingsUpdateResponse"]>(
-      "/api/omlx/settings",
+      "/api/molto/settings",
       undefined,
       "PATCH",
       patch
@@ -164,17 +164,17 @@ export class ManagementClient {
   }
   rescan() {
     return this.request<Schema["RefreshResponse"]>(
-      "/api/omlx/models/refresh",
+      "/api/molto/models/refresh",
       undefined,
       "POST"
     )
   }
   cache(signal?: AbortSignal) {
-    return this.request<Cache>("/api/omlx/cache", signal)
+    return this.request<Cache>("/api/molto/cache", signal)
   }
   clearCache(kind: "hot" | "ssd") {
     return this.request<Schema["CacheClearResponse"]>(
-      `/api/omlx/cache/${kind}/clear`,
+      `/api/molto/cache/${kind}/clear`,
       undefined,
       "POST"
     )
@@ -216,7 +216,7 @@ export class ManagementClient {
     )
   }
   private modelPath(id: string) {
-    return `/api/omlx/models/${encodeURIComponent(id)}`
+    return `/api/molto/models/${encodeURIComponent(id)}`
   }
 }
 export function modelState(model: {

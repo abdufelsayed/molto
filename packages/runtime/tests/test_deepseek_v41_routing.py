@@ -1,7 +1,7 @@
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.patches.deepseek_v41.routing import combine_sorted_experts as combine
+from molto_runtime.patches.deepseek_v41.routing import combine_sorted_experts as combine
 
 
 @pytest.mark.parametrize(
@@ -49,7 +49,7 @@ def test_unsupported_layouts():
 
 
 def test_moe_dispatch_preserves_sorted_reference(monkeypatch):
-    import omlx_runtime.patches.deepseek_v41.language as language
+    import molto_runtime.patches.deepseek_v41.language as language
     from mlx.utils import tree_flatten
     from test_deepseek_v41 import tiny
 

@@ -6,7 +6,7 @@ import pytest
 
 
 def _require_q4_kernel():
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
 
     if not fast.has_symbol("qwen35_q4_affine_qmm_t"):
         pytest.skip("qwen35_q4_affine_qmm_t native kernel unavailable")
@@ -14,7 +14,7 @@ def _require_q4_kernel():
 
 
 def _require_qmm_kernels(bits):
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
 
     for bit in bits:
         name = f"qwen35_q{bit}_affine_qmm_t"
@@ -67,10 +67,10 @@ def test_qwen35_q_affine_qmm_matches_mlx_quantized_matmul(bits):
 def test_qwen35_q4_mlp_patch_routes_prefill_and_skips_decode(monkeypatch):
     fast = _require_q4_kernel()
     import mlx_lm.models.qwen3_5 as qwen35
-    from omlx_runtime.patches.qwen35_q4_mlp import apply_qwen35_q4_mlp_patch
+    from molto_runtime.patches.qwen35_q4_mlp import apply_qwen35_q4_mlp_patch
 
-    monkeypatch.setenv("OMLX_QWEN35_Q4_MLP", "1")
-    monkeypatch.setenv("OMLX_QWEN35_Q4_MLP_MIN_TOKENS", "16")
+    monkeypatch.setenv("MOLTO_QWEN35_Q4_MLP", "1")
+    monkeypatch.setenv("MOLTO_QWEN35_Q4_MLP_MIN_TOKENS", "16")
 
     mlp = qwen35.MLP(256, 512)
     for name in ("gate_proj", "up_proj", "down_proj"):
@@ -103,10 +103,10 @@ def test_qwen35_q4_mlp_patch_routes_prefill_and_skips_decode(monkeypatch):
 def test_qwen35_mixed_bit_mlp_patch_routes_5_bit_down_proj(monkeypatch):
     fast = _require_qmm_kernels((4, 5))
     import mlx_lm.models.qwen3_5 as qwen35
-    from omlx_runtime.patches.qwen35_q4_mlp import apply_qwen35_q4_mlp_patch
+    from molto_runtime.patches.qwen35_q4_mlp import apply_qwen35_q4_mlp_patch
 
-    monkeypatch.setenv("OMLX_QWEN35_Q4_MLP", "1")
-    monkeypatch.setenv("OMLX_QWEN35_Q4_MLP_MIN_TOKENS", "16")
+    monkeypatch.setenv("MOLTO_QWEN35_Q4_MLP", "1")
+    monkeypatch.setenv("MOLTO_QWEN35_Q4_MLP_MIN_TOKENS", "16")
 
     mlp = qwen35.MLP(256, 512)
     mlp.gate_proj = _quantized_bf16(mlp.gate_proj, bits=4)
@@ -114,7 +114,7 @@ def test_qwen35_mixed_bit_mlp_patch_routes_5_bit_down_proj(monkeypatch):
     mlp.down_proj = _quantized_bf16(mlp.down_proj, bits=5)
 
     x = mx.random.normal((1, 32, 256)).astype(mx.bfloat16)
-    orig_call = getattr(qwen35.MLP, "_omlx_q4_mlp_original_call", qwen35.MLP.__call__)
+    orig_call = getattr(qwen35.MLP, "_molto_q4_mlp_original_call", qwen35.MLP.__call__)
     y_ref = orig_call(mlp, x)
     mx.eval(y_ref)
 
@@ -143,7 +143,7 @@ def test_qwen35_mixed_bit_mlp_patch_routes_5_bit_down_proj(monkeypatch):
 def test_qwen35_q8_route_uses_bit_specific_min_tokens():
     _require_qmm_kernels((4, 8))
 
-    import omlx_runtime.patches.qwen35_q4_mlp as q4patch
+    import molto_runtime.patches.qwen35_q4_mlp as q4patch
 
     q4_linear = nn.QuantizedLinear(
         256,
@@ -187,7 +187,7 @@ def test_qwen35_q8_route_uses_bit_specific_min_tokens():
 
 
 def test_post_ane_qmm_or_linear_routes_q8_through_env_threshold(monkeypatch):
-    import omlx_runtime.patches.qwen35_q4_mlp as q4patch
+    import molto_runtime.patches.qwen35_q4_mlp as q4patch
 
     routed = []
     monkeypatch.setattr(
@@ -213,7 +213,7 @@ def test_post_ane_qmm_or_linear_routes_q8_through_env_threshold(monkeypatch):
     assert q8.called == 1
     assert routed == []
 
-    monkeypatch.setenv("OMLX_QWEN35_Q8_LINEAR_MIN_TOKENS", "2048")
+    monkeypatch.setenv("MOLTO_QWEN35_Q8_LINEAR_MIN_TOKENS", "2048")
     q8_low = _Stock(bits=8)
     q4patch._post_ane_qmm_or_linear(q8_low, x, 8)
     assert q8_low.called == 0
@@ -229,15 +229,15 @@ def test_qwen35_q8_gdn_backend_has_first_refusal_before_gpu_threshold(
     monkeypatch,
 ):
     import mlx_lm.models.qwen3_5 as qwen35
-    import omlx_runtime.patches.qwen35_q4_mlp as q4patch
+    import molto_runtime.patches.qwen35_q4_mlp as q4patch
 
     class BackendCalledError(Exception):
         pass
 
     monkeypatch.setattr(q4patch, "_has_native_qmm", lambda: True)
-    monkeypatch.setenv("OMLX_QWEN35_Q4_LM_LINEAR", "1")
-    monkeypatch.setenv("OMLX_QWEN35_Q4_LINEAR_MIN_TOKENS", "16")
-    monkeypatch.setenv("OMLX_QWEN35_Q8_LINEAR_MIN_TOKENS", "16384")
+    monkeypatch.setenv("MOLTO_QWEN35_Q4_LM_LINEAR", "1")
+    monkeypatch.setenv("MOLTO_QWEN35_Q4_LINEAR_MIN_TOKENS", "16")
+    monkeypatch.setenv("MOLTO_QWEN35_Q8_LINEAR_MIN_TOKENS", "16384")
 
     class FakeGDN:
         sharding_group = None
@@ -263,9 +263,9 @@ def test_qwen35_q8_gdn_backend_has_first_refusal_before_gpu_threshold(
     orig_gdn_backend = q4patch._LM_GDN_PREFILL_BACKEND
     saved_attrs = {}
     for attr in (
-        "_omlx_q4_lm_gdn_patched",
-        "_omlx_q4_lm_gdn_original_call",
-        "_omlx_q4_lm_gdn_wrapper",
+        "_molto_q4_lm_gdn_patched",
+        "_molto_q4_lm_gdn_original_call",
+        "_molto_q4_lm_gdn_wrapper",
     ):
         saved_attrs[attr] = (
             getattr(qwen35.GatedDeltaNet, attr)
@@ -284,7 +284,7 @@ def test_qwen35_q8_gdn_backend_has_first_refusal_before_gpu_threshold(
 
         with pytest.raises(BackendCalledError):
             qwen35.GatedDeltaNet.__call__(gdn, x)
-        monkeypatch.setenv("OMLX_QWEN35_Q4_LM_LINEAR", "0")
+        monkeypatch.setenv("MOLTO_QWEN35_Q4_LM_LINEAR", "0")
         assert qwen35.GatedDeltaNet.__call__(gdn, x) is x
     finally:
         qwen35.GatedDeltaNet.__call__ = orig_gdn_call
@@ -323,8 +323,8 @@ def test_qwen35_qmm_routing_uses_stock_nax_availability(
     allow_gs128,
     expected,
 ):
-    import omlx_runtime.patches.qwen35_q4_mlp as q4patch
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
+    import molto_runtime.patches.qwen35_q4_mlp as q4patch
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
 
     linear = nn.QuantizedLinear(
         256,
@@ -345,9 +345,9 @@ def test_qwen35_qmm_routing_uses_stock_nax_availability(
         lambda: nax_qmm_kernels_built,
     )
     if allow_gs128:
-        monkeypatch.setenv("OMLX_QWEN35_Q4_MLP_ALLOW_GS128", "1")
+        monkeypatch.setenv("MOLTO_QWEN35_Q4_MLP_ALLOW_GS128", "1")
     else:
-        monkeypatch.delenv("OMLX_QWEN35_Q4_MLP_ALLOW_GS128", raising=False)
+        monkeypatch.delenv("MOLTO_QWEN35_Q4_MLP_ALLOW_GS128", raising=False)
 
     assert (
         q4patch._is_supported_affine_linear_shape(
@@ -364,10 +364,10 @@ def test_qwen35_qmm_routing_uses_stock_nax_availability(
 def test_qwen35_q4_mlp_patch_prechecks_down_proj_before_gate_up(monkeypatch):
     fast = _require_q4_kernel()
     import mlx_lm.models.qwen3_5 as qwen35
-    from omlx_runtime.patches.qwen35_q4_mlp import apply_qwen35_q4_mlp_patch
+    from molto_runtime.patches.qwen35_q4_mlp import apply_qwen35_q4_mlp_patch
 
-    monkeypatch.setenv("OMLX_QWEN35_Q4_MLP", "1")
-    monkeypatch.setenv("OMLX_QWEN35_Q4_MLP_MIN_TOKENS", "16")
+    monkeypatch.setenv("MOLTO_QWEN35_Q4_MLP", "1")
+    monkeypatch.setenv("MOLTO_QWEN35_Q4_MLP_MIN_TOKENS", "16")
 
     mlp = qwen35.MLP(256, 512)
     mlp.gate_proj = _quantized_bf16(mlp.gate_proj)
@@ -406,10 +406,10 @@ def test_qwen35_q4_mlp_patch_prechecks_down_proj_before_gate_up(monkeypatch):
 def test_qwen35_q4_prefill_linear_patch_routes_supported_only(monkeypatch):
     fast = _require_q4_kernel()
     import mlx_vlm.models.qwen3_5.language as qwen35_lang
-    from omlx_runtime.patches.qwen35_q4_mlp import apply_qwen35_q4_prefill_linear_patch
+    from molto_runtime.patches.qwen35_q4_mlp import apply_qwen35_q4_prefill_linear_patch
 
-    monkeypatch.setenv("OMLX_QWEN35_Q4_LINEAR", "1")
-    monkeypatch.setenv("OMLX_QWEN35_Q4_LINEAR_MIN_TOKENS", "16")
+    monkeypatch.setenv("MOLTO_QWEN35_Q4_LINEAR", "1")
+    monkeypatch.setenv("MOLTO_QWEN35_Q4_LINEAR_MIN_TOKENS", "16")
 
     supported = nn.QuantizedLinear(256, 128, bias=False, group_size=64, bits=4)
     unsupported = nn.QuantizedLinear(256, 48, bias=False, group_size=64, bits=4)
@@ -448,11 +448,11 @@ def test_qwen35_q4_prefill_linear_patch_offers_packed_projections(monkeypatch):
     """Packed projections give the prefill backend first refusal, as stock ones do."""
     _require_q4_kernel()
     import mlx_vlm.models.qwen3_5.language as qwen35_lang
-    import omlx_runtime.patches.qwen35_q4_mlp as q4patch
-    from omlx_runtime.patches.qwen35_packed_linear import PackedLinear, _pack
+    import molto_runtime.patches.qwen35_q4_mlp as q4patch
+    from molto_runtime.patches.qwen35_packed_linear import PackedLinear, _pack
 
-    monkeypatch.setenv("OMLX_QWEN35_Q4_LINEAR", "1")
-    monkeypatch.setenv("OMLX_QWEN35_Q4_LINEAR_MIN_TOKENS", "16")
+    monkeypatch.setenv("MOLTO_QWEN35_Q4_LINEAR", "1")
+    monkeypatch.setenv("MOLTO_QWEN35_Q4_LINEAR_MIN_TOKENS", "16")
     source = nn.QuantizedLinear(256, 128, bias=False, group_size=64, bits=4)
     source.set_dtype(mx.bfloat16)
     routed = mx.ones((1, 32, 128), dtype=mx.bfloat16)
@@ -487,10 +487,10 @@ def test_qwen35_q4_lm_attention_uses_sdpa_installed_after_the_patch(monkeypatch)
     import importlib
 
     import mlx_lm.models.qwen3_5 as qwen35
-    import omlx_runtime.patches.qwen35_q4_mlp as q4patch
+    import molto_runtime.patches.qwen35_q4_mlp as q4patch
 
-    monkeypatch.setenv("OMLX_QWEN35_Q4_LM_LINEAR", "1")
-    monkeypatch.setenv("OMLX_QWEN35_Q4_LINEAR_MIN_TOKENS", "16")
+    monkeypatch.setenv("MOLTO_QWEN35_Q4_LM_LINEAR", "1")
+    monkeypatch.setenv("MOLTO_QWEN35_Q4_LINEAR_MIN_TOKENS", "16")
 
     args = qwen35.TextModelArgs(
         model_type="qwen3_5",
@@ -521,8 +521,8 @@ def test_qwen35_q4_lm_attention_uses_sdpa_installed_after_the_patch(monkeypatch)
     orig_lm_patched = q4patch._LM_LINEAR_PATCHED
     saved_attrs = {}
     for attr in (
-        "_omlx_q4_lm_attention_patched",
-        "_omlx_q4_lm_attention_original_call",
+        "_molto_q4_lm_attention_patched",
+        "_molto_q4_lm_attention_original_call",
     ):
         existed = hasattr(qwen35.Attention, attr)
         saved_attrs[attr] = (
@@ -567,10 +567,10 @@ def test_qwen35_q4_lm_prefill_linear_patch_routes_attention_and_gdn(
 ):
     fast = _require_q4_kernel()
     import mlx_lm.models.qwen3_5 as qwen35
-    import omlx_runtime.patches.qwen35_q4_mlp as q4patch
+    import molto_runtime.patches.qwen35_q4_mlp as q4patch
 
-    monkeypatch.setenv("OMLX_QWEN35_Q4_LM_LINEAR", "1")
-    monkeypatch.setenv("OMLX_QWEN35_Q4_LINEAR_MIN_TOKENS", "16")
+    monkeypatch.setenv("MOLTO_QWEN35_Q4_LM_LINEAR", "1")
+    monkeypatch.setenv("MOLTO_QWEN35_Q4_LINEAR_MIN_TOKENS", "16")
 
     args = qwen35.TextModelArgs(
         model_type="qwen3_5",
@@ -623,17 +623,17 @@ def test_qwen35_q4_lm_prefill_linear_patch_routes_attention_and_gdn(
         (
             qwen35.Attention,
             (
-                "_omlx_q4_lm_attention_patched",
-                "_omlx_q4_lm_attention_original_call",
-                "_omlx_q4_lm_attention_wrapper",
+                "_molto_q4_lm_attention_patched",
+                "_molto_q4_lm_attention_original_call",
+                "_molto_q4_lm_attention_wrapper",
             ),
         ),
         (
             qwen35.GatedDeltaNet,
             (
-                "_omlx_q4_lm_gdn_patched",
-                "_omlx_q4_lm_gdn_original_call",
-                "_omlx_q4_lm_gdn_wrapper",
+                "_molto_q4_lm_gdn_patched",
+                "_molto_q4_lm_gdn_original_call",
+                "_molto_q4_lm_gdn_wrapper",
             ),
         ),
     ):
@@ -722,7 +722,7 @@ def test_qwen35_q4_lm_prefill_linear_patch_routes_attention_and_gdn(
         assert q4patch.apply_qwen35_q4_lm_prefill_linear_patch() is True
         assert (
             qwen35.GatedDeltaNet.__call__
-            is qwen35.GatedDeltaNet._omlx_q4_lm_gdn_wrapper
+            is qwen35.GatedDeltaNet._molto_q4_lm_gdn_wrapper
         )
         backend_calls.clear()
         y_gdn_reloaded = gdn(x)
@@ -747,10 +747,10 @@ def test_qwen35_q4_lm_prefill_linear_patch_routes_attention_and_gdn(
 
 
 def _muse_applied():
-    from omlx_runtime.patches.mlx_vlm_muse_glimmer_compat import (
+    from molto_runtime.patches.mlx_vlm_muse_glimmer_compat import (
         apply_mlx_vlm_muse_glimmer_compat_patch,
     )
-    from omlx_runtime.patches.qwen35_q4_mlp import apply_muse_glimmer_q4_prefill_patch
+    from molto_runtime.patches.qwen35_q4_mlp import apply_muse_glimmer_q4_prefill_patch
 
     apply_mlx_vlm_muse_glimmer_compat_patch()
     if not apply_muse_glimmer_q4_prefill_patch():
@@ -788,12 +788,12 @@ def _quantize_module_linears(module, names, bits=4):
 
 
 def test_muse_glimmer_q4_attention_wrapper_matches_bf16_reference(monkeypatch):
-    from omlx_runtime.patches.mlx_vlm_muse_glimmer_compat import (
+    from molto_runtime.patches.mlx_vlm_muse_glimmer_compat import (
         apply_mlx_vlm_muse_glimmer_compat_patch,
     )
 
     apply_mlx_vlm_muse_glimmer_compat_patch()
-    import omlx_runtime.patches.qwen35_q4_mlp as q4patch
+    import molto_runtime.patches.qwen35_q4_mlp as q4patch
     from mlx_vlm.models.muse_glimmer.language import Attention
 
     monkeypatch.setattr(
@@ -816,7 +816,7 @@ def test_muse_glimmer_q4_attention_wrapper_matches_bf16_reference(monkeypatch):
     )
     original_call = getattr(
         Attention,
-        "_omlx_q4_muse_attn_original_call",
+        "_molto_q4_muse_attn_original_call",
         Attention.__call__,
     )
     patched_call = q4patch._make_patched_muse_attention(
@@ -844,7 +844,7 @@ def _assert_muse_qmm_close(actual, expected):
 
 
 def _install_muse_qmm_spy(monkeypatch):
-    import omlx_runtime.patches.qwen35_q4_mlp as q4patch
+    import molto_runtime.patches.qwen35_q4_mlp as q4patch
 
     calls = {"count": 0}
     original_qmm = q4patch._linear_qmm
@@ -867,7 +867,7 @@ def test_muse_glimmer_q4_mlp_patch_matches_bf16_reference(monkeypatch):
     mlp = MLP(_tiny_muse_text_config())
     mlp.set_dtype(mx.bfloat16)
     _quantize_module_linears(mlp, ("gate_proj", "up_proj", "down_proj"))
-    orig_call = type(mlp)._omlx_q4_mlp_original_call
+    orig_call = type(mlp)._molto_q4_mlp_original_call
 
     prefill = mx.random.normal((1, 2048, 128)).astype(mx.bfloat16)
     decode = mx.random.normal((1, 1, 128)).astype(mx.bfloat16)
@@ -900,7 +900,7 @@ def test_muse_glimmer_q4_attention_patch_matches_bf16_reference(monkeypatch):
         _quantize_module_linears(
             attn, ("q_proj", "k_proj", "v_proj", "gate_proj", "o_proj")
         )
-        orig_call = type(attn)._omlx_q4_muse_attn_original_call
+        orig_call = type(attn)._molto_q4_muse_attn_original_call
 
         prefill = mx.random.normal((1, 2048, 128)).astype(mx.bfloat16)
         decode = mx.random.normal((1, 1, 128)).astype(mx.bfloat16)
@@ -935,7 +935,7 @@ def test_muse_glimmer_q4_attention_patch_with_cache_and_mask(monkeypatch):
     _quantize_module_linears(
         attn, ("q_proj", "k_proj", "v_proj", "gate_proj", "o_proj")
     )
-    orig_call = type(attn)._omlx_q4_muse_attn_original_call
+    orig_call = type(attn)._molto_q4_muse_attn_original_call
 
     x = mx.random.normal((1, 2048, 128)).astype(mx.bfloat16)
     cache_a = RotatingKVCache(max_size=64)

@@ -51,7 +51,7 @@ export function LibraryPanel() {
   const [focus, setFocus] = useState<Artifact | null>(null)
   const rescan = useMutation({
     mutationFn: () => api.rescan(),
-    onSuccess: () => void client.invalidateQueries({ queryKey: ["omlx"] }),
+    onSuccess: () => void client.invalidateQueries({ queryKey: ["molto"] }),
   })
   const plan = useMutation({
     mutationFn: (ids: string[]) =>

@@ -1,7 +1,7 @@
-# oMLX
+# Molto
 
-本译文介绍的是包含 macOS 应用和网页管理界面的旧版本，已不适用于当前代码。
+Molto 在 Apple Silicon 上运行和管理本地 AI 模型。一条命令启动网页控制面板和推理服务器，共用同一个公开端口。Molto 是 [oMLX](https://github.com/jundot/omlx) 的分支。
 
-本仓库现包含独立的推理服务器和小型管理 REST API。当前安装方法、命令及限制请参阅[英文 README](README.md)、[管理 API 文档](docs/management-api.md)和[后端架构](docs/backend-architecture.md)。此版本以英文文档为准。
+[Installation, CLI, development, and migration](README.md) · [Architecture](docs/architecture.md) · [Management API](docs/management-api.md)
 
-项目采用 [Apache 2.0](LICENSE) 许可证。oMLX 最初基于 [vllm-mlx](https://github.com/waybarrios/vllm-mlx)。
+[Apache 2.0](LICENSE)

@@ -17,7 +17,7 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from omlx_runtime.engine_pool import EnginePool
+from molto_runtime.engine_pool import EnginePool
 
 
 def _engine_pool_with_ceiling(ceiling=None):
@@ -90,7 +90,7 @@ class TestAudioMemoryTracking:
         mock_engine.stop = AsyncMock()
 
         with patch(
-            "omlx_runtime.engine_pool.STTEngine", return_value=mock_engine, create=True
+            "molto_runtime.engine_pool.STTEngine", return_value=mock_engine, create=True
         ):
             await pool.get_engine("whisper-tiny")
 
@@ -106,7 +106,7 @@ class TestAudioMemoryTracking:
         mock_engine.stop = AsyncMock()
 
         with patch(
-            "omlx_runtime.engine_pool.TTSEngine", return_value=mock_engine, create=True
+            "molto_runtime.engine_pool.TTSEngine", return_value=mock_engine, create=True
         ):
             await pool.get_engine("kokoro-tts")
 
@@ -122,7 +122,7 @@ class TestAudioMemoryTracking:
         mock_engine.stop = AsyncMock()
 
         with patch(
-            "omlx_runtime.engine_pool.STTEngine", return_value=mock_engine, create=True
+            "molto_runtime.engine_pool.STTEngine", return_value=mock_engine, create=True
         ):
             await pool.get_engine("whisper-tiny")
             memory_after_load = pool.current_model_memory
@@ -142,7 +142,7 @@ class TestAudioMemoryTracking:
         mock_engine.stop = AsyncMock()
 
         with patch(
-            "omlx_runtime.engine_pool.STTEngine", return_value=mock_engine, create=True
+            "molto_runtime.engine_pool.STTEngine", return_value=mock_engine, create=True
         ):
             await pool.get_engine("whisper-tiny")
             await pool._unload_engine("whisper-tiny")
@@ -169,7 +169,7 @@ class TestAudioLastAccess:
         mock_engine.start = AsyncMock()
 
         with patch(
-            "omlx_runtime.engine_pool.STTEngine", return_value=mock_engine, create=True
+            "molto_runtime.engine_pool.STTEngine", return_value=mock_engine, create=True
         ):
             with patch("time.time", return_value=1234.0):
                 await pool.get_engine("whisper-tiny")
@@ -185,7 +185,7 @@ class TestAudioLastAccess:
         mock_engine.start = AsyncMock()
 
         with patch(
-            "omlx_runtime.engine_pool.STTEngine", return_value=mock_engine, create=True
+            "molto_runtime.engine_pool.STTEngine", return_value=mock_engine, create=True
         ):
             with patch("time.time", return_value=1000.0):
                 await pool.get_engine("whisper-tiny")
@@ -332,10 +332,10 @@ class TestAudioPreLoadEviction:
         # against the byte-sized synthetic ceiling matches the test's intent
         # (real phys_footprint is ~100 MB and would dominate).
         monkeypatch.setattr(
-            "omlx_runtime.engine_pool.get_phys_footprint",
+            "molto_runtime.engine_pool.get_phys_footprint",
             lambda: pool._current_model_memory,
         )
-        monkeypatch.setattr("omlx_runtime.engine_pool.mx.get_active_memory", lambda: 0)
+        monkeypatch.setattr("molto_runtime.engine_pool.mx.get_active_memory", lambda: 0)
 
         mock_llm = MagicMock()
         mock_llm.start = AsyncMock()
@@ -347,11 +347,11 @@ class TestAudioPreLoadEviction:
         mock_stt.stop = AsyncMock()
         mock_stt.has_active_requests.return_value = False
 
-        with patch("omlx_runtime.engine_pool.BatchedEngine", return_value=mock_llm):
+        with patch("molto_runtime.engine_pool.BatchedEngine", return_value=mock_llm):
             await pool.get_engine("llama-3b")
 
         with patch(
-            "omlx_runtime.engine_pool.STTEngine", return_value=mock_stt, create=True
+            "molto_runtime.engine_pool.STTEngine", return_value=mock_stt, create=True
         ):
             await pool.get_engine("whisper-tiny")
 

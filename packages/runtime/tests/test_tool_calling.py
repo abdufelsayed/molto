@@ -13,14 +13,14 @@ import time
 from unittest.mock import MagicMock
 
 import pytest
-from omlx_contracts.api.openai_models import (
+from molto_contracts.api.openai_models import (
     FunctionCall,
     ResponseFormat,
     ResponseFormatJsonSchema,
     ToolCall,
     ToolDefinition,
 )
-from omlx_runtime.generation.tool_calling import (
+from molto_runtime.generation.tool_calling import (
     ToolCallStreamFilter,
     _coerce_param_value,
     _gemma4_args_to_json_robust,
@@ -1412,7 +1412,7 @@ def test_unclosed_paired_envelope_is_available_for_conditional_recovery(
     text = "Before " + suffix
 
     with caplog.at_level(
-        logging.WARNING, logger="omlx_runtime.generation.tool_calling"
+        logging.WARNING, logger="molto_runtime.generation.tool_calling"
     ):
         visible = "".join(f.feed(ch) for ch in text)
         visible += f.finish()
@@ -1435,7 +1435,7 @@ def test_closed_paired_envelope_never_creates_recovery_candidate(
     text = "Before " + start_marker + "payload" + end_marker + " After"
 
     with caplog.at_level(
-        logging.WARNING, logger="omlx_runtime.generation.tool_calling"
+        logging.WARNING, logger="molto_runtime.generation.tool_calling"
     ):
         visible = "".join(f.feed(ch) for ch in text)
         visible += f.finish()
@@ -1954,7 +1954,7 @@ class TestParseToolCallsSyntaxError:
         text = "<tool_call>not a function at all, just text</tool_call>"
 
         with caplog.at_level(
-            logging.WARNING, logger="omlx_runtime.generation.tool_calling"
+            logging.WARNING, logger="molto_runtime.generation.tool_calling"
         ):
             cleaned, tool_calls = parse_tool_calls(text, tok)
 
@@ -2058,7 +2058,7 @@ class TestParseBracketToolCalls:
 
     def test_tool_call_prefix_with_args(self):
         """[Tool call: name(args)] should be parsed as a tool call."""
-        from omlx_runtime.generation.tool_calling import _parse_bracket_tool_calls
+        from molto_runtime.generation.tool_calling import _parse_bracket_tool_calls
 
         text = 'Hello [Tool call: get_weather({"city":"Tokyo"})] done'
         cleaned, tool_calls = _parse_bracket_tool_calls(text)
@@ -2071,7 +2071,7 @@ class TestParseBracketToolCalls:
 
     def test_tool_call_prefix_without_args(self):
         """[Tool call: name] without args should be parsed with empty arguments."""
-        from omlx_runtime.generation.tool_calling import _parse_bracket_tool_calls
+        from molto_runtime.generation.tool_calling import _parse_bracket_tool_calls
 
         text = "Next [Tool call: mcp__notebooklm__chat_configure] done"
         cleaned, tool_calls = _parse_bracket_tool_calls(text)
@@ -2083,7 +2083,7 @@ class TestParseBracketToolCalls:
 
     def test_calling_tool_prefix_without_args(self):
         """[Calling tool: name] without args should also be parsed."""
-        from omlx_runtime.generation.tool_calling import _parse_bracket_tool_calls
+        from molto_runtime.generation.tool_calling import _parse_bracket_tool_calls
 
         text = "Next [Calling tool: do_thing] done"
         cleaned, tool_calls = _parse_bracket_tool_calls(text)
@@ -2094,7 +2094,7 @@ class TestParseBracketToolCalls:
 
     def test_calling_tool_prefix_with_args_still_works(self):
         """Existing [Calling tool: name(args)] format must still parse correctly."""
-        from omlx_runtime.generation.tool_calling import _parse_bracket_tool_calls
+        from molto_runtime.generation.tool_calling import _parse_bracket_tool_calls
 
         text = '[Calling tool: get_weather({"city":"SF"})]'
         cleaned, tool_calls = _parse_bracket_tool_calls(text)
@@ -2105,7 +2105,7 @@ class TestParseBracketToolCalls:
 
     def test_mixed_formats_parsed(self):
         """Both [Tool call:] and [Calling tool:] in same text should parse."""
-        from omlx_runtime.generation.tool_calling import _parse_bracket_tool_calls
+        from molto_runtime.generation.tool_calling import _parse_bracket_tool_calls
 
         text = '[Tool call: tool_a({"x":1})] middle [Calling tool: tool_b({"y":2})]'
         cleaned, tool_calls = _parse_bracket_tool_calls(text)
@@ -2116,7 +2116,7 @@ class TestParseBracketToolCalls:
 
     def test_no_match_returns_none(self):
         """Plain text without bracket patterns returns None tool_calls."""
-        from omlx_runtime.generation.tool_calling import _parse_bracket_tool_calls
+        from molto_runtime.generation.tool_calling import _parse_bracket_tool_calls
 
         text = "Just some regular text"
         cleaned, tool_calls = _parse_bracket_tool_calls(text)
@@ -2790,7 +2790,7 @@ class TestParseToolCallsGemma4Integration:
         text = "<|tool_call>garbage that matches no format<tool_call|>"
 
         with caplog.at_level(
-            logging.WARNING, logger="omlx_runtime.generation.tool_calling"
+            logging.WARNING, logger="molto_runtime.generation.tool_calling"
         ):
             cleaned, tool_calls = parse_tool_calls(text, tok, None)
 
@@ -3119,7 +3119,7 @@ class TestRemapToolCallNames:
     def test_namespaced_name_remaps_to_unique_suffix(self, caplog):
         calls = [self._call("google:mcp:text_generation:create-pdf-file")]
         with caplog.at_level(
-            logging.INFO, logger="omlx_runtime.generation.tool_calling"
+            logging.INFO, logger="molto_runtime.generation.tool_calling"
         ):
             _remap_tool_call_names(calls, self._tools("create-pdf-file"))
         assert calls[0].function.name == "create-pdf-file"
@@ -3214,7 +3214,7 @@ class TestParseToolCallsGemma4RealParser:
 
     def test_native_parser_rejects_namespaced_names(self):
         """Dispatch contract: mlx-lm's parser raises on colon names, which
-        is what routes #1830's emission into the oMLX fallback."""
+        is what routes #1830's emission into the Molto fallback."""
         from mlx_lm.tool_parsers import gemma4 as mlx_gemma4
 
         with pytest.raises(ValueError):
@@ -3528,7 +3528,7 @@ class TestSerializeToolCallArguments:
     """Tests for `_serialize_tool_call_arguments`.
 
     Guards the server-side exit: whatever the parser returns must leave
-    omlx as a valid JSON-object string so a subsequent turn's chat template
+    molto as a valid JSON-object string so a subsequent turn's chat template
     (which iterates `arguments.items()`) never crashes on the echo.
     """
 
@@ -3546,7 +3546,7 @@ class TestSerializeToolCallArguments:
 
     def test_non_dict_bare_string_coerced_to_empty(self, caplog):
         with caplog.at_level(
-            logging.WARNING, logger="omlx_runtime.generation.tool_calling"
+            logging.WARNING, logger="molto_runtime.generation.tool_calling"
         ):
             result = _serialize_tool_call_arguments("Tokyo")
         assert result == "{}"
@@ -3554,7 +3554,7 @@ class TestSerializeToolCallArguments:
 
     def test_non_dict_list_coerced_to_empty(self, caplog):
         with caplog.at_level(
-            logging.WARNING, logger="omlx_runtime.generation.tool_calling"
+            logging.WARNING, logger="molto_runtime.generation.tool_calling"
         ):
             result = _serialize_tool_call_arguments([1, 2])
         assert result == "{}"
@@ -3566,7 +3566,7 @@ class TestSerializeToolCallArguments:
         """mlx-vlm/mlx-lm gemma4 parser hands back a JSON-object string per
         the OpenAI spec; the validator must accept it instead of dropping it."""
         with caplog.at_level(
-            logging.WARNING, logger="omlx_runtime.generation.tool_calling"
+            logging.WARNING, logger="molto_runtime.generation.tool_calling"
         ):
             result = _serialize_tool_call_arguments('{"command": "ls /tmp\\n"}')
         assert json.loads(result) == {"command": "ls /tmp\n"}
@@ -3576,7 +3576,7 @@ class TestSerializeToolCallArguments:
         """JSON arrays/scalars do not satisfy ``arguments.items()`` so they
         must still be coerced."""
         with caplog.at_level(
-            logging.WARNING, logger="omlx_runtime.generation.tool_calling"
+            logging.WARNING, logger="molto_runtime.generation.tool_calling"
         ):
             result = _serialize_tool_call_arguments("[1, 2]")
         assert result == "{}"
@@ -4261,7 +4261,7 @@ class TestDeepNestingNeverEscapesParseChain:
     @pytest.mark.parametrize("error", ERRORS)
     def test_json_loads_raising_does_not_escape(self, monkeypatch, error):
         """Every json.loads site in the chain sits behind a guard."""
-        import omlx_runtime.generation.tool_calling as mod
+        import molto_runtime.generation.tool_calling as mod
 
         real = json.loads
 
@@ -4293,7 +4293,7 @@ class TestDeepNestingNeverEscapesParseChain:
         a payload that broke a decoder into it would hand the exact input the
         bounds exist to stop to the parser that does not apply them.
         """
-        import omlx_runtime.generation.tool_calling as mod
+        import molto_runtime.generation.tool_calling as mod
 
         def boom(_args):
             raise error("nested too deeply")
@@ -4313,7 +4313,7 @@ class TestDeepNestingNeverEscapesParseChain:
     @pytest.mark.parametrize("error", ERRORS)
     def test_gemma4_legacy_raising_is_converted(self, monkeypatch, error):
         """The legacy parser is unbounded, so guard its decoders too."""
-        import omlx_runtime.generation.tool_calling as mod
+        import molto_runtime.generation.tool_calling as mod
 
         def transcode_fails(_args):
             raise ValueError("ambiguous, retry with legacy")
@@ -4400,7 +4400,7 @@ def test_serialization_after_a_successful_decode_does_not_escape(
     Injecting at ``json.dumps`` rather than nesting for real keeps this
     meaningful on 3.14, where the interpreter does not raise at these depths.
     """
-    import omlx_runtime.generation.tool_calling as mod
+    import molto_runtime.generation.tool_calling as mod
 
     nested = "[" * 400 + "0" + "]" * 400
     real_dumps = json.dumps
@@ -4429,7 +4429,7 @@ def test_serialize_arguments_raises_so_the_caller_can_drop(monkeypatch, error):
     removed. The failure has to reach ``_build_tool_call`` so the call is
     dropped (jundot's review on #2593).
     """
-    import omlx_runtime.generation.tool_calling as mod
+    import molto_runtime.generation.tool_calling as mod
 
     real_dumps = json.dumps
 
@@ -4510,7 +4510,7 @@ def test_functioncall_validation_failure_drops_one_call(monkeypatch, error, temp
     ValueError is included because that is what the validator raises for
     ordinary malformed arguments, and it escaped the parse chain too.
     """
-    import omlx_contracts.api.openai_models as om
+    import molto_contracts.api.openai_models as om
 
     def boom(_v):
         raise error("nested too deeply")
@@ -4556,7 +4556,7 @@ def test_hermes_chained_expression_does_not_escape(chain):
 @pytest.mark.parametrize("error", [RecursionError, SyntaxError])
 def test_unrepresentable_argument_drops_the_call(monkeypatch, error):
     """An argument we cannot render drops the call, not just the argument."""
-    import omlx_runtime.generation.tool_calling as mod
+    import molto_runtime.generation.tool_calling as mod
 
     real_unparse = ast.unparse
 
@@ -4584,7 +4584,7 @@ def test_serialization_failure_drops_the_call_rather_than_emptying_it(
     to write. That is worse than dropping it. Distinct from the non-object
     coercion below, which is a benign parser quirk (jundot's review on #2593).
     """
-    import omlx_runtime.generation.tool_calling as mod
+    import molto_runtime.generation.tool_calling as mod
 
     real_dumps = json.dumps
 
@@ -4602,7 +4602,7 @@ def test_serialization_failure_drops_the_call_rather_than_emptying_it(
 
 def test_non_object_arguments_still_coerce_to_empty_object():
     """The benign coercion is unchanged: a parser quirk, not lost data."""
-    import omlx_runtime.generation.tool_calling as mod
+    import molto_runtime.generation.tool_calling as mod
 
     assert mod._serialize_tool_call_arguments([1, 2]) == "{}"
     assert mod._serialize_tool_call_arguments("not json") == "{}"
@@ -4622,7 +4622,7 @@ def test_string_parser_output_that_cannot_decode_drops_the_call(monkeypatch, err
     The decode is made to fail only for this exact payload, so the downstream
     validator still works and the drop is attributable to this branch.
     """
-    import omlx_runtime.generation.tool_calling as mod
+    import molto_runtime.generation.tool_calling as mod
 
     payload = '{"path": "notes.xml", "content": "IMPORTANT"}'
     real_loads = json.loads
@@ -4643,7 +4643,7 @@ def test_string_parser_output_that_cannot_decode_drops_the_call(monkeypatch, err
 
 def test_malformed_string_arguments_still_coerce():
     """Undecodable-but-shallow input stays a benign coercion, not a drop."""
-    import omlx_runtime.generation.tool_calling as mod
+    import molto_runtime.generation.tool_calling as mod
 
     assert mod._serialize_tool_call_arguments("not json at all") == "{}"
     assert mod._serialize_tool_call_arguments('{"a": 1}') == '{"a": 1}'

@@ -6,7 +6,7 @@ async function fixtures(
   overrides: Record<string, unknown> = {}
 ) {
   const requests: { path: string; method: string; body: unknown }[] = []
-  await page.route("**/api/omlx/cluster/**", async (route) => {
+  await page.route("**/api/molto/cluster/**", async (route) => {
     const request = route.request()
     const path = new URL(request.url()).pathname.split("/cluster/")[1] ?? ""
     requests.push({

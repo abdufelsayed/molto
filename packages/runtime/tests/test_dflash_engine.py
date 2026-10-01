@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from omlx_config.model_settings import ModelSettings
+from molto_config.model_settings import ModelSettings
 
 
 class TestDFlashModelSettings:
@@ -174,13 +174,13 @@ class TestDFlashEngineInit:
     """Test DFlashEngine initialization and configuration."""
 
     def test_import_without_dflash_mlx(self):
-        from omlx_runtime.engine import DFlashEngine  # noqa: F401
+        from molto_runtime.engine import DFlashEngine  # noqa: F401
 
         # Should not raise even if dflash-mlx is not installed
 
     def test_engine_properties(self):
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -200,7 +200,7 @@ class TestDFlashEngineInit:
 
     def test_scheduler_resolves_nested_fallback_scheduler(self):
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -221,11 +221,11 @@ class TestDFlashEngineInit:
         load, so DFlashEngine must snapshot it at construction time for the
         lazily started fallback engine (PR #2178 follow-up)."""
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
-        from omlx_runtime.scheduler import SchedulerConfig
+        from molto_runtime.scheduler import SchedulerConfig
 
         shared_config = SchedulerConfig(
             model_name="model-a", model_path="/models/model-a"
@@ -245,7 +245,7 @@ class TestDFlashEngineInit:
 
     def test_quant_disabled_keeps_none(self):
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -260,7 +260,7 @@ class TestDFlashEngineInit:
 
     def test_quant_enabled_true_uses_custom_values(self):
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -280,7 +280,7 @@ class TestDFlashEngineInit:
     def test_get_stats_no_verify_mode(self):
         """Stats should not include verify_mode (removed in v2)."""
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -297,7 +297,7 @@ class TestDFlashEngineInit:
 
     def test_cache_stats_returns_none(self):
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -311,7 +311,7 @@ class TestDFlashEngineInit:
         try:
             from dflash_mlx import runtime as dflash_runtime
             from dflash_mlx.server.prefix_cache_flow import PrefixCacheFlow
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -393,7 +393,7 @@ class TestDFlashEngineInit:
     def test_runtime_cache_request_boundary_calls_supported_manager(self, monkeypatch):
         try:
             from dflash_mlx.cache import manager as cache_manager_mod
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -422,7 +422,7 @@ class TestDFlashEngineInit:
     def test_runtime_cache_request_boundary_is_noop_on_old_manager(self, monkeypatch):
         try:
             from dflash_mlx.cache import manager as cache_manager_mod
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -439,9 +439,9 @@ class TestDFlashEngineInit:
     async def test_start_passes_verify_config_to_target_load(self, monkeypatch):
         try:
             from dflash_mlx.runtime import loading as dflash_loading
-            from omlx_runtime.engine import dflash as dflash_mod
-            from omlx_runtime.engine.dflash import DFlashEngine
-            from omlx_runtime.patches import dflash_lifecycle, qwen35_moe_gate_up
+            from molto_runtime.engine import dflash as dflash_mod
+            from molto_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.patches import dflash_lifecycle, qwen35_moe_gate_up
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -525,7 +525,7 @@ class TestDFlashEngineInit:
     def test_should_fallback_unlimited_when_max_ctx_none(self):
         """A None threshold means dflash handles every prompt size."""
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -538,7 +538,7 @@ class TestDFlashEngineInit:
 
     def test_should_fallback_triggers_at_threshold(self):
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -552,7 +552,7 @@ class TestDFlashEngineInit:
 
     def test_build_quant_spec(self):
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -565,7 +565,7 @@ class TestDFlashEngineInit:
         stays parseable when a profile or external API sets enabled=True
         without populating every field."""
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -574,9 +574,9 @@ class TestDFlashEngineInit:
         assert DFlashEngine._build_quant_spec(None, 32, None) == "w4a32:gs64"
         assert DFlashEngine._build_quant_spec(None, None, 128) == "w4a16:gs128"
 
-    def test_resolve_dflash_l2_dir_disabled_when_no_omlx_ssd(self, tmp_path):
+    def test_resolve_dflash_l2_dir_disabled_when_no_molto_ssd(self, tmp_path):
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -584,13 +584,13 @@ class TestDFlashEngineInit:
             model_name="test-model",
             draft_model_path="test-draft",
             model_settings=ModelSettings(dflash_ssd_cache=True),
-            omlx_ssd_cache_dir=None,
+            molto_ssd_cache_dir=None,
         )
         assert engine._resolve_dflash_l2_dir() is None
 
     def test_resolve_dflash_l2_dir_uses_subdir(self, tmp_path):
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -601,14 +601,14 @@ class TestDFlashEngineInit:
                 dflash_ssd_cache=True,
                 dflash_in_memory_cache=True,
             ),
-            omlx_ssd_cache_dir=tmp_path,
+            molto_ssd_cache_dir=tmp_path,
         )
         resolved = engine._resolve_dflash_l2_dir()
         assert resolved == tmp_path / "dflash_l2"
 
     def test_resolve_dflash_l2_dir_disabled_when_l1_off(self, tmp_path):
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -619,14 +619,14 @@ class TestDFlashEngineInit:
                 dflash_ssd_cache=True,
                 dflash_in_memory_cache=False,
             ),
-            omlx_ssd_cache_dir=tmp_path,
+            molto_ssd_cache_dir=tmp_path,
         )
         assert engine._resolve_dflash_l2_dir() is None
 
     def test_long_context_knobs_default_to_none(self):
         """No settings → engine stores None → dflash-mlx fills DEFAULT_RUNTIME_CONFIG."""
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -642,7 +642,7 @@ class TestDFlashEngineInit:
     def test_long_context_knobs_read_from_settings(self):
         """Issue #1276 — DFlashEngine picks up window/sink/verify_mode from ModelSettings."""
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -663,7 +663,7 @@ class TestDFlashEngineInit:
 
     def test_none_runtime_settings_remain_unset_before_checkpoint_load(self):
         """Explicit null window remains unset until draft metadata is loaded."""
-        from omlx_runtime.engine.dflash import DFlashEngine
+        from molto_runtime.engine.dflash import DFlashEngine
 
         engine = DFlashEngine(
             model_name="test-model",
@@ -689,12 +689,12 @@ class TestDFlashEngineInit:
         ],
     )
     def test_checkpoint_draft_window_size(self, draft_meta, expected):
-        from omlx_runtime.engine.dflash import DFlashEngine
+        from molto_runtime.engine.dflash import DFlashEngine
 
         assert DFlashEngine._checkpoint_draft_window_size(draft_meta) == expected
 
     def test_explicit_window_overrides_checkpoint_config(self):
-        from omlx_runtime.engine.dflash import DFlashEngine
+        from molto_runtime.engine.dflash import DFlashEngine
 
         engine = DFlashEngine(
             model_name="test-model",
@@ -707,7 +707,7 @@ class TestDFlashEngineInit:
     def test_build_runtime_context_passes_knobs(self):
         """The new kwargs reach dflash-mlx and end up in RuntimeContext.runtime."""
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -729,7 +729,7 @@ class TestDFlashEngineInit:
     def test_build_runtime_context_leaves_window_unset(self):
         """No setting leaves the window unset; checkpoint resolution happens at load."""
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -747,7 +747,7 @@ class TestDFlashEngineInit:
         """Issue #1326 — dflash L2 disk budget comes from the per-model setting,
         not a hard-coded 1 TiB sentinel, so dflash_l2/ stays bounded."""
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -759,7 +759,7 @@ class TestDFlashEngineInit:
                 dflash_in_memory_cache=True,
                 dflash_ssd_cache_max_bytes=5 * 1024**3,
             ),
-            omlx_ssd_cache_dir=tmp_path,
+            molto_ssd_cache_dir=tmp_path,
         )
         ctx = engine._build_runtime_context()
         runtime = ctx.runtime
@@ -768,7 +768,7 @@ class TestDFlashEngineInit:
     def test_l2_max_bytes_defaults_to_20gib(self, tmp_path):
         """No explicit setting → engine falls back to the 20 GiB default budget."""
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -779,7 +779,7 @@ class TestDFlashEngineInit:
                 dflash_ssd_cache=True,
                 dflash_in_memory_cache=True,
             ),
-            omlx_ssd_cache_dir=tmp_path,
+            molto_ssd_cache_dir=tmp_path,
         )
         ctx = engine._build_runtime_context()
         runtime = ctx.runtime
@@ -794,7 +794,7 @@ class TestDFlashCompatibility:
 
     def test_qwen_model_is_compatible(self, tmp_path):
         try:
-            from omlx_runtime.engine.dflash import is_dflash_compatible
+            from molto_runtime.engine.dflash import is_dflash_compatible
         except ImportError:
             pytest.skip("dflash-mlx not installed")
         self._write_config(tmp_path, "qwen3")
@@ -804,7 +804,7 @@ class TestDFlashCompatibility:
 
     def test_qwen_moe_is_compatible(self, tmp_path):
         try:
-            from omlx_runtime.engine.dflash import is_dflash_compatible
+            from molto_runtime.engine.dflash import is_dflash_compatible
         except ImportError:
             pytest.skip("dflash-mlx not installed")
         self._write_config(tmp_path, "qwen3_moe")
@@ -813,7 +813,7 @@ class TestDFlashCompatibility:
 
     def test_llama_is_incompatible(self, tmp_path):
         try:
-            from omlx_runtime.engine.dflash import is_dflash_compatible
+            from molto_runtime.engine.dflash import is_dflash_compatible
         except ImportError:
             pytest.skip("dflash-mlx not installed")
         self._write_config(tmp_path, "llama")
@@ -823,7 +823,7 @@ class TestDFlashCompatibility:
 
     def test_missing_config_is_incompatible(self, tmp_path):
         try:
-            from omlx_runtime.engine.dflash import is_dflash_compatible
+            from molto_runtime.engine.dflash import is_dflash_compatible
         except ImportError:
             pytest.skip("dflash-mlx not installed")
         compatible, reason = is_dflash_compatible(tmp_path)
@@ -832,7 +832,7 @@ class TestDFlashCompatibility:
 
     def test_invalid_json_is_incompatible(self, tmp_path):
         try:
-            from omlx_runtime.engine.dflash import is_dflash_compatible
+            from molto_runtime.engine.dflash import is_dflash_compatible
         except ImportError:
             pytest.skip("dflash-mlx not installed")
         (tmp_path / "config.json").write_text("{not valid json")
@@ -842,7 +842,7 @@ class TestDFlashCompatibility:
 
     def test_gemma4_top_level_is_compatible(self, tmp_path):
         try:
-            from omlx_runtime.engine.dflash import is_dflash_compatible
+            from molto_runtime.engine.dflash import is_dflash_compatible
         except ImportError:
             pytest.skip("dflash-mlx not installed")
         self._write_config(tmp_path, "gemma4")
@@ -853,7 +853,7 @@ class TestDFlashCompatibility:
     def test_gemma4_text_top_level_is_compatible(self, tmp_path):
         """Top-level model_type=gemma4_text is also accepted (text-only variant)."""
         try:
-            from omlx_runtime.engine.dflash import is_dflash_compatible
+            from molto_runtime.engine.dflash import is_dflash_compatible
         except ImportError:
             pytest.skip("dflash-mlx not installed")
         self._write_config(tmp_path, "gemma4_text")
@@ -864,7 +864,7 @@ class TestDFlashCompatibility:
     def test_muse_glimmer_is_compatible(self, tmp_path):
         """Muse Glimmer VLMs run text-only through dflash-mlx's bundled module."""
         try:
-            from omlx_runtime.engine.dflash import is_dflash_compatible
+            from molto_runtime.engine.dflash import is_dflash_compatible
         except ImportError:
             pytest.skip("dflash-mlx not installed")
         self._write_config(tmp_path, "muse_glimmer")
@@ -875,7 +875,7 @@ class TestDFlashCompatibility:
     def test_muse_glimmer_assistant_is_not_a_target(self, tmp_path):
         """The drafter checkpoint must not pass the target gate."""
         try:
-            from omlx_runtime.engine.dflash import is_dflash_compatible
+            from molto_runtime.engine.dflash import is_dflash_compatible
         except ImportError:
             pytest.skip("dflash-mlx not installed")
         self._write_config(tmp_path, "muse_glimmer_assistant")
@@ -884,9 +884,9 @@ class TestDFlashCompatibility:
         assert "Muse Glimmer" in reason
 
     def test_laguna_is_compatible(self, tmp_path):
-        """oMLX supplies the target and gated-drafter adapters for Laguna."""
+        """Molto supplies the target and gated-drafter adapters for Laguna."""
         try:
-            from omlx_runtime.engine.dflash import is_dflash_compatible
+            from molto_runtime.engine.dflash import is_dflash_compatible
         except ImportError:
             pytest.skip("dflash-mlx not installed")
         self._write_config(tmp_path, "laguna")
@@ -900,7 +900,7 @@ class TestDFlashCompatibility:
         mlx-lm remaps gemma4_unified onto the gemma4 module, so DFlash drives
         the same text stack and the gate must accept it."""
         try:
-            from omlx_runtime.engine.dflash import is_dflash_compatible
+            from molto_runtime.engine.dflash import is_dflash_compatible
         except ImportError:
             pytest.skip("dflash-mlx not installed")
         (tmp_path / "config.json").write_text(
@@ -920,7 +920,7 @@ class TestDFlashCompatibility:
         even though their text_config.model_type is gemma4_text. The toggle
         must read top-level only to keep these out of the DFlash gate."""
         try:
-            from omlx_runtime.engine.dflash import is_dflash_compatible
+            from molto_runtime.engine.dflash import is_dflash_compatible
         except ImportError:
             pytest.skip("dflash-mlx not installed")
         (tmp_path / "config.json").write_text(
@@ -938,7 +938,7 @@ class TestDFlashCompatibility:
     def test_gemma3_is_incompatible(self, tmp_path):
         """Gemma3 has no DFlash backend and must not pass the gate."""
         try:
-            from omlx_runtime.engine.dflash import is_dflash_compatible
+            from molto_runtime.engine.dflash import is_dflash_compatible
         except ImportError:
             pytest.skip("dflash-mlx not installed")
         self._write_config(tmp_path, "gemma3_text")
@@ -948,7 +948,7 @@ class TestDFlashCompatibility:
 
     def test_incompatible_reason_mentions_both_families(self, tmp_path):
         try:
-            from omlx_runtime.engine.dflash import is_dflash_compatible
+            from molto_runtime.engine.dflash import is_dflash_compatible
         except ImportError:
             pytest.skip("dflash-mlx not installed")
         self._write_config(tmp_path, "mistral")
@@ -986,7 +986,7 @@ class TestDFlashThinkPrefix:
     whole thinking block into content (issue #1068)."""
 
     def _make_engine(self, tokenizer):
-        from omlx_runtime.engine.dflash import DFlashEngine
+        from molto_runtime.engine.dflash import DFlashEngine
 
         engine = DFlashEngine(
             model_name="test-model",
@@ -1010,7 +1010,7 @@ class TestDFlashThinkPrefix:
 
     def test_detect_returns_true_when_prompt_ends_with_think(self):
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine  # noqa: F401
+            from molto_runtime.engine.dflash import DFlashEngine  # noqa: F401
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -1025,7 +1025,7 @@ class TestDFlashThinkPrefix:
 
     def test_detect_returns_false_when_close_follows_open(self):
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine  # noqa: F401
+            from molto_runtime.engine.dflash import DFlashEngine  # noqa: F401
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -1040,7 +1040,7 @@ class TestDFlashThinkPrefix:
 
     def test_detect_returns_false_when_think_start_id_unavailable(self):
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine  # noqa: F401
+            from molto_runtime.engine.dflash import DFlashEngine  # noqa: F401
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -1051,7 +1051,7 @@ class TestDFlashThinkPrefix:
 
     def test_detect_returns_false_for_empty_prompt(self):
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine  # noqa: F401
+            from molto_runtime.engine.dflash import DFlashEngine  # noqa: F401
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -1060,7 +1060,7 @@ class TestDFlashThinkPrefix:
 
     def test_detect_returns_false_when_think_not_in_tail(self):
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine  # noqa: F401
+            from molto_runtime.engine.dflash import DFlashEngine  # noqa: F401
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -1071,7 +1071,7 @@ class TestDFlashThinkPrefix:
 
     def test_think_prefix_text_uses_tokenizer_attr(self):
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine  # noqa: F401
+            from molto_runtime.engine.dflash import DFlashEngine  # noqa: F401
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -1084,7 +1084,7 @@ class TestDFlashThinkPrefix:
 
     def test_think_prefix_text_default(self):
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine  # noqa: F401
+            from molto_runtime.engine.dflash import DFlashEngine  # noqa: F401
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -1117,13 +1117,13 @@ class TestDFlashApplyChatTemplatePartialMode:
         dflash-routed request.
         """
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
         from unittest.mock import MagicMock
 
-        from omlx_runtime.generation.utils import detect_and_strip_partial
+        from molto_runtime.generation.utils import detect_and_strip_partial
 
         engine = DFlashEngine(
             model_name="test-model",
@@ -1188,7 +1188,7 @@ class TestDFlashOutputParserWiring:
 
     def test_output_parser_factory_defaults_to_none(self):
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
 
@@ -1204,8 +1204,8 @@ class TestDFlashOutputParserWiring:
         ``create_session`` produces a ``Gemma4OutputParserSession``."""
         from unittest.mock import MagicMock
 
-        from omlx_runtime.adapter.gemma4 import Gemma4OutputParserSession
-        from omlx_runtime.adapter.output_parser import detect_output_parser
+        from molto_runtime.adapter.gemma4 import Gemma4OutputParserSession
+        from molto_runtime.adapter.output_parser import detect_output_parser
 
         tokenizer = MagicMock()
         factory = detect_output_parser(
@@ -1223,7 +1223,7 @@ class TestDFlashOutputParserWiring:
         existing detokenizer / think_prefix path."""
         from unittest.mock import MagicMock
 
-        from omlx_runtime.adapter.output_parser import detect_output_parser
+        from molto_runtime.adapter.output_parser import detect_output_parser
 
         factory = detect_output_parser(
             "/some/path/Qwen3-4B-bf16",
@@ -1233,7 +1233,7 @@ class TestDFlashOutputParserWiring:
         assert factory is None
 
     def test_parser_without_tool_factory_uses_default_session(self):
-        from omlx_runtime.engine.dflash import DFlashEngine
+        from molto_runtime.engine.dflash import DFlashEngine
 
         engine = DFlashEngine(
             model_name="test-model",
@@ -1253,7 +1253,7 @@ class TestDFlashOutputParserWiring:
     def _tool_parser_engine(self):
         events = pytest.importorskip("dflash_mlx.engine.events")
 
-        from omlx_runtime.engine.dflash import DFlashEngine
+        from molto_runtime.engine.dflash import DFlashEngine
 
         engine = DFlashEngine(
             model_name="test-model",
@@ -1372,28 +1372,28 @@ class TestDFlashCachedTokens:
     """
 
     def test_hit_reports_matched_tokens(self):
-        from omlx_runtime.engine.dflash import DFlashEngine
+        from molto_runtime.engine.dflash import DFlashEngine
 
         flow = SimpleNamespace(hit_tokens=4273)
         assert DFlashEngine._cached_tokens_from_flow(flow) == 4273
 
     def test_miss_is_zero(self):
-        from omlx_runtime.engine.dflash import DFlashEngine
+        from molto_runtime.engine.dflash import DFlashEngine
 
         assert DFlashEngine._cached_tokens_from_flow(SimpleNamespace(hit_tokens=0)) == 0
 
     def test_none_flow_is_zero(self):
-        from omlx_runtime.engine.dflash import DFlashEngine
+        from molto_runtime.engine.dflash import DFlashEngine
 
         assert DFlashEngine._cached_tokens_from_flow(None) == 0
 
     def test_missing_attr_is_zero(self):
-        from omlx_runtime.engine.dflash import DFlashEngine
+        from molto_runtime.engine.dflash import DFlashEngine
 
         assert DFlashEngine._cached_tokens_from_flow(SimpleNamespace()) == 0
 
     def test_negative_is_clamped(self):
-        from omlx_runtime.engine.dflash import DFlashEngine
+        from molto_runtime.engine.dflash import DFlashEngine
 
         assert (
             DFlashEngine._cached_tokens_from_flow(SimpleNamespace(hit_tokens=-5)) == 0
@@ -1413,7 +1413,7 @@ class TestDFlashCachedTokensWiring:
             from dflash_mlx.engine.events import SummaryEvent
         except ImportError:
             pytest.skip("dflash-mlx not installed")
-        from omlx_runtime.engine.dflash import DFlashEngine
+        from molto_runtime.engine.dflash import DFlashEngine
 
         engine = DFlashEngine(
             model_name="test-model",
@@ -1470,7 +1470,7 @@ class TestDFlashCachedTokensWiring:
 
 class TestDFlashPretokenizedPrompt:
     def test_token_ids_bypass_tokenizer(self):
-        from omlx_runtime.engine.dflash import DFlashEngine
+        from molto_runtime.engine.dflash import DFlashEngine
 
         engine = DFlashEngine.__new__(DFlashEngine)
         engine._tokenizer_obj = MagicMock()
@@ -1483,7 +1483,7 @@ class TestDFlashPretokenizedPrompt:
         engine._tokenizer_obj.encode.assert_not_called()
 
     def test_text_prompt_uses_tokenizer(self):
-        from omlx_runtime.engine.dflash import DFlashEngine
+        from molto_runtime.engine.dflash import DFlashEngine
 
         engine = DFlashEngine.__new__(DFlashEngine)
         engine._tokenizer_obj = MagicMock()
@@ -1499,7 +1499,7 @@ class TestDFlashActivityTracking:
 
     def _engine(self):
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
         return DFlashEngine(model_name="test-model", draft_model_path="test-draft")
@@ -1563,16 +1563,16 @@ class TestDFlashRuntimeCacheStats:
     """DFlash adapts its dflash-mlx runtime cache to the scheduler stats
     shape so the admin cache observability panel can render it (#2396)."""
 
-    def _engine(self, model_settings=None, omlx_ssd_cache_dir=None):
+    def _engine(self, model_settings=None, molto_ssd_cache_dir=None):
         try:
-            from omlx_runtime.engine.dflash import DFlashEngine
+            from molto_runtime.engine.dflash import DFlashEngine
         except ImportError:
             pytest.skip("dflash-mlx not installed")
         return DFlashEngine(
             model_name="test-model",
             draft_model_path="test-draft",
             model_settings=model_settings,
-            omlx_ssd_cache_dir=omlx_ssd_cache_dir,
+            molto_ssd_cache_dir=molto_ssd_cache_dir,
         )
 
     def test_returns_none_when_memory_cache_disabled(self):
@@ -1665,7 +1665,7 @@ class TestDFlashRuntimeCacheStats:
 
     def test_l2_scan_counts_snapshot_files(self, tmp_path, monkeypatch):
         settings = ModelSettings(dflash_ssd_cache=True)
-        engine = self._engine(model_settings=settings, omlx_ssd_cache_dir=tmp_path)
+        engine = self._engine(model_settings=settings, molto_ssd_cache_dir=tmp_path)
         import dflash_mlx.cache.manager as manager_mod
 
         monkeypatch.setattr(manager_mod, "current_runtime_cache_manager", lambda: None)
@@ -1692,14 +1692,14 @@ class TestDFlashRuntimeCacheStats:
 
 class TestFormatPhaseTimings:
     def test_empty_or_invalid_returns_empty(self):
-        from omlx_runtime.engine.dflash import _format_phase_timings
+        from molto_runtime.engine.dflash import _format_phase_timings
 
         assert _format_phase_timings(None) == ""
         assert _format_phase_timings({}) == ""
         assert _format_phase_timings("nope") == ""
 
     def test_formats_all_phases_in_ms(self):
-        from omlx_runtime.engine.dflash import _format_phase_timings
+        from molto_runtime.engine.dflash import _format_phase_timings
 
         out = _format_phase_timings(
             {
@@ -1718,7 +1718,7 @@ class TestFormatPhaseTimings:
         )
 
     def test_missing_keys_render_zero(self):
-        from omlx_runtime.engine.dflash import _format_phase_timings
+        from molto_runtime.engine.dflash import _format_phase_timings
 
         out = _format_phase_timings({"verify": 1000.0})
         assert "verify=1.0ms" in out
@@ -1739,7 +1739,7 @@ class TestDraftTargetPrecisionPairing:
     BF16_CFG = {"model_type": "laguna", "torch_dtype": "bfloat16"}
 
     def _check(self, target, config, draft):
-        from omlx_runtime.engine.dflash import check_draft_target_precision_pairing
+        from molto_runtime.engine.dflash import check_draft_target_precision_pairing
 
         return check_draft_target_precision_pairing(target, config, draft)
 
@@ -1827,7 +1827,7 @@ class TestSpeculationStats:
     """Session speculation counters exposed for the dashboard (issue #2398)."""
 
     def _engine(self):
-        from omlx_runtime.engine.dflash import DFlashEngine
+        from molto_runtime.engine.dflash import DFlashEngine
 
         return DFlashEngine(
             model_name="test-model",
@@ -2005,11 +2005,11 @@ class TestSpeculationStats:
 )
 async def test_generation_abort_lifetime(monkeypatch, caplog, streaming, scenario):
     from dflash_mlx.engine.events import TokenEvent
-    from omlx_runtime.engine.dflash import DFlashEngine
-    from omlx_runtime.exceptions import PrefillMemoryAbortedError
-    from omlx_runtime.process_memory_enforcer import ProcessMemoryEnforcer
+    from molto_runtime.engine.dflash import DFlashEngine
+    from molto_runtime.exceptions import PrefillMemoryAbortedError
+    from molto_runtime.process_memory_enforcer import ProcessMemoryEnforcer
 
-    monkeypatch.setattr("omlx_runtime.engine.dflash._EXECUTOR_DRAIN_TIMEOUT", 0.01)
+    monkeypatch.setattr("molto_runtime.engine.dflash._EXECUTOR_DRAIN_TIMEOUT", 0.01)
     started = threading.Event()
     release = threading.Event()
     closed = threading.Event()
@@ -2031,7 +2031,7 @@ async def test_generation_abort_lifetime(monkeypatch, caplog, streaming, scenari
 
     engine._stream_dflash_events = events
     monkeypatch.setattr(
-        "omlx_runtime.engine.dflash.create_streaming_detokenizer",
+        "molto_runtime.engine.dflash.create_streaming_detokenizer",
         lambda *args, **kwargs: None,
     )
 
@@ -2042,7 +2042,7 @@ async def test_generation_abort_lifetime(monkeypatch, caplog, streaming, scenari
 
     with ThreadPoolExecutor(max_workers=1) as executor:
         monkeypatch.setattr(
-            "omlx_runtime.engine_core.get_mlx_executor", lambda: executor
+            "molto_runtime.engine_core.get_mlx_executor", lambda: executor
         )
         blocker = None
         if scenario == "cancel_queued":
@@ -2107,7 +2107,7 @@ async def test_generation_abort_lifetime(monkeypatch, caplog, streaming, scenari
 )
 async def test_finish_reason_at_max_tokens(monkeypatch, streaming, generated, expected):
     from dflash_mlx.engine.events import SummaryEvent
-    from omlx_runtime.engine.dflash import DFlashEngine
+    from molto_runtime.engine.dflash import DFlashEngine
 
     engine = DFlashEngine(model_name="test-model", draft_model_path="test-draft")
     engine._loaded = True
@@ -2125,13 +2125,13 @@ async def test_finish_reason_at_max_tokens(monkeypatch, streaming, generated, ex
     )
     engine._stream_dflash_events = lambda **kwargs: (iter([summary]), None, [2])
     monkeypatch.setattr(
-        "omlx_runtime.engine.dflash.create_streaming_detokenizer",
+        "molto_runtime.engine.dflash.create_streaming_detokenizer",
         lambda *args, **kwargs: None,
     )
 
     with ThreadPoolExecutor(max_workers=1) as executor:
         monkeypatch.setattr(
-            "omlx_runtime.engine_core.get_mlx_executor", lambda: executor
+            "molto_runtime.engine_core.get_mlx_executor", lambda: executor
         )
         if streaming:
             outputs = [o async for o in engine.stream_generate([1], max_tokens=2)]
@@ -2147,8 +2147,8 @@ async def test_shutdown_persists_snapshot_on_generation_thread(
     monkeypatch, tmp_path, method
 ):
     cache_manager = pytest.importorskip("dflash_mlx.cache.manager")
-    from omlx_runtime import engine_core
-    from omlx_runtime.engine import batched, dflash
+    from molto_runtime import engine_core
+    from molto_runtime.engine import batched, dflash
 
     engine = dflash.DFlashEngine("target", "draft")
     target = object()

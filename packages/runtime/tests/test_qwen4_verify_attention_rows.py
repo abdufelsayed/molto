@@ -18,7 +18,7 @@ import importlib
 import mlx.core as mx
 import mlx.nn as nn
 import pytest
-from omlx_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
+from molto_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
 
 pytestmark = pytest.mark.skipif(not mx.metal.is_available(), reason="requires Metal")
 
@@ -26,9 +26,9 @@ compat.apply_mlx_vlm_qwen4_exp_compat_patch()
 language = importlib.import_module("mlx_vlm.models.qwen4_exp.language")
 qwen4_exp = importlib.import_module("mlx_vlm.models.qwen4_exp")
 
-from omlx_runtime.patches import qwen35_verify_qmm  # noqa: E402
-from omlx_runtime.patches.mlx_vlm_mtp import qwen35_verify_linear  # noqa: E402
-from omlx_runtime.patches.qwen35_verify_sdpa_split import (  # noqa: E402
+from molto_runtime.patches import qwen35_verify_qmm  # noqa: E402
+from molto_runtime.patches.mlx_vlm_mtp import qwen35_verify_linear  # noqa: E402
+from molto_runtime.patches.qwen35_verify_sdpa_split import (  # noqa: E402
     apply_qwen35_verify_sdpa_split_patch,
 )
 

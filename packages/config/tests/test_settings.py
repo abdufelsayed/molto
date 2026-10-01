@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx_config.settings module."""
+"""Tests for molto_config.settings module."""
 
 import json
 import os
@@ -9,8 +9,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from omlx_config.config import OMLXConfig
-from omlx_config.settings import (
+from molto_config.config import MOLTOConfig
+from molto_config.settings import (
     BURST_DECODE_MODES,
     DEFAULT_BURST_DECODE_MODE,
     AuthSettings,
@@ -229,26 +229,27 @@ class TestServerSettings:
 
 
 class TestBurstDecodeEnv:
-    """Tests for the Burst Decode mode -> OMLX_DECODE_BURST_* env mapping."""
+    """Tests for the Burst Decode mode -> MOLTO_DECODE_BURST_* env mapping."""
 
     def test_off_disables_bursting(self):
         """'off' caps max_steps at 1, which disables bursting in _step_burst."""
-        assert burst_decode_env("off")["OMLX_DECODE_BURST_MAX_STEPS"] == "1"
+        assert burst_decode_env("off")["MOLTO_DECODE_BURST_MAX_STEPS"] == "1"
 
     def test_levels_set_single_request_budget(self):
         """light / balanced / aggressive map to the documented budgets."""
-        assert burst_decode_env("light")["OMLX_DECODE_BURST_BUDGET_SINGLE_S"] == "0.05"
+        assert burst_decode_env("light")["MOLTO_DECODE_BURST_BUDGET_SINGLE_S"] == "0.05"
         assert (
-            burst_decode_env("balanced")["OMLX_DECODE_BURST_BUDGET_SINGLE_S"] == "0.1"
+            burst_decode_env("balanced")["MOLTO_DECODE_BURST_BUDGET_SINGLE_S"] == "0.1"
         )
         assert (
-            burst_decode_env("aggressive")["OMLX_DECODE_BURST_BUDGET_SINGLE_S"] == "0.2"
+            burst_decode_env("aggressive")["MOLTO_DECODE_BURST_BUDGET_SINGLE_S"]
+            == "0.2"
         )
 
     def test_on_levels_keep_burst_enabled(self):
         """The on-levels keep max_steps above the disable threshold."""
         for mode in ("light", "balanced", "aggressive"):
-            assert int(burst_decode_env(mode)["OMLX_DECODE_BURST_MAX_STEPS"]) > 1
+            assert int(burst_decode_env(mode)["MOLTO_DECODE_BURST_MAX_STEPS"]) > 1
 
     def test_unknown_mode_falls_back_to_default(self):
         """An unknown mode never disables bursting; it uses the default."""
@@ -257,8 +258,8 @@ class TestBurstDecodeEnv:
     def test_keys_match_engine_config_env_vars(self):
         """The mapping only sets the env vars EngineConfig actually reads."""
         assert set(burst_decode_env("balanced")) == {
-            "OMLX_DECODE_BURST_MAX_STEPS",
-            "OMLX_DECODE_BURST_BUDGET_SINGLE_S",
+            "MOLTO_DECODE_BURST_MAX_STEPS",
+            "MOLTO_DECODE_BURST_BUDGET_SINGLE_S",
         }
 
 
@@ -274,20 +275,20 @@ class TestModelSettings:
     def test_get_model_dirs_default(self):
         """Test default model directories."""
         settings = ModelSettings()
-        base_path = Path("/tmp/omlx")
-        assert settings.get_model_dirs(base_path) == [Path("/tmp/omlx/models")]
-        assert settings.get_model_dir(base_path) == Path("/tmp/omlx/models")
+        base_path = Path("/tmp/molto")
+        assert settings.get_model_dirs(base_path) == [Path("/tmp/molto/models")]
+        assert settings.get_model_dir(base_path) == Path("/tmp/molto/models")
 
     def test_get_model_dirs_custom(self):
         """Test custom model directories."""
         settings = ModelSettings(model_dirs=["/custom/models"])
-        base_path = Path("/tmp/omlx")
+        base_path = Path("/tmp/molto")
         assert settings.get_model_dirs(base_path) == [Path("/custom/models")]
 
     def test_get_model_dirs_multiple(self):
         """Test multiple model directories."""
         settings = ModelSettings(model_dirs=["/path/a", "/path/b"])
-        base_path = Path("/tmp/omlx")
+        base_path = Path("/tmp/molto")
         result = settings.get_model_dirs(base_path)
         assert len(result) == 2
         assert result[0] == Path("/path/a")
@@ -298,14 +299,14 @@ class TestModelSettings:
     def test_get_model_dirs_with_tilde(self):
         """Test model directory with tilde expansion."""
         settings = ModelSettings(model_dirs=["~/models"])
-        base_path = Path("/tmp/omlx")
+        base_path = Path("/tmp/molto")
         result = settings.get_model_dirs(base_path)
         assert "~" not in str(result[0])  # Should be expanded
 
     def test_get_model_dirs_backward_compat(self):
         """Test backward compatibility: model_dir fallback when model_dirs is empty."""
         settings = ModelSettings(model_dir="/legacy/models")
-        base_path = Path("/tmp/omlx")
+        base_path = Path("/tmp/molto")
         assert settings.get_model_dirs(base_path) == [Path("/legacy/models")]
 
     def test_to_dict(self):
@@ -456,13 +457,13 @@ class TestCacheSettings:
     def test_get_ssd_cache_dir_default(self):
         """Test default SSD cache directory."""
         settings = CacheSettings(ssd_cache_dir=None)
-        base_path = Path("/tmp/omlx")
-        assert settings.get_ssd_cache_dir(base_path) == Path("/tmp/omlx/cache")
+        base_path = Path("/tmp/molto")
+        assert settings.get_ssd_cache_dir(base_path) == Path("/tmp/molto/cache")
 
     def test_get_ssd_cache_dir_custom(self):
         """Test custom SSD cache directory."""
         settings = CacheSettings(ssd_cache_dir="/custom/cache")
-        base_path = Path("/tmp/omlx")
+        base_path = Path("/tmp/molto")
         assert settings.get_ssd_cache_dir(base_path) == Path("/custom/cache")
 
     def test_get_ssd_cache_max_size_bytes_auto(self, tmp_path):
@@ -474,14 +475,14 @@ class TestCacheSettings:
         sidecars.mkdir(parents=True)
         (sidecars / "state.safetensors").write_bytes(b"x" * 40)
         (cache_dir / "unrelated").write_bytes(b"x" * 100)
-        with patch("omlx_config.settings.shutil.disk_usage") as usage:
+        with patch("molto_config.settings.shutil.disk_usage") as usage:
             usage.return_value.free = 200
             assert settings.get_ssd_cache_max_size_bytes(tmp_path) == 150
 
     def test_get_ssd_cache_max_size_bytes_explicit(self):
         """Test explicit SSD cache size."""
         settings = CacheSettings(ssd_cache_max_size="100GB")
-        base_path = Path("/tmp/omlx")
+        base_path = Path("/tmp/molto")
         assert settings.get_ssd_cache_max_size_bytes(base_path) == 100 * 1024**3
 
     def test_to_dict(self):
@@ -694,7 +695,7 @@ class TestAuthSettings:
 
     def test_to_dict_with_sub_keys(self):
         """Test conversion to dictionary with sub keys."""
-        from omlx_config.settings import SubKeyEntry
+        from molto_config.settings import SubKeyEntry
 
         settings = AuthSettings(
             api_key="my-key",
@@ -882,7 +883,7 @@ class TestUsageSettings:
         gs = GlobalSettings(base_path=tmp_path)
         gs.usage.usage_history = not expected
         gs.save()
-        monkeypatch.setenv("OMLX_USAGE_HISTORY", value)
+        monkeypatch.setenv("MOLTO_USAGE_HISTORY", value)
         assert GlobalSettings.load(base_path=tmp_path).usage.usage_history is expected
 
 
@@ -1009,19 +1010,19 @@ class TestLoggingSettings:
     def test_get_log_dir_default(self):
         """Test default log directory."""
         settings = LoggingSettings(log_dir=None)
-        base_path = Path("/tmp/omlx")
-        assert settings.get_log_dir(base_path) == Path("/tmp/omlx/logs")
+        base_path = Path("/tmp/molto")
+        assert settings.get_log_dir(base_path) == Path("/tmp/molto/logs")
 
     def test_get_log_dir_custom(self):
         """Test custom log directory."""
         settings = LoggingSettings(log_dir="/custom/logs")
-        base_path = Path("/tmp/omlx")
+        base_path = Path("/tmp/molto")
         assert settings.get_log_dir(base_path) == Path("/custom/logs")
 
     def test_get_log_dir_with_tilde(self):
         """Test log directory with tilde expansion."""
         settings = LoggingSettings(log_dir="~/logs")
-        base_path = Path("/tmp/omlx")
+        base_path = Path("/tmp/molto")
         result = settings.get_log_dir(base_path)
         assert "~" not in str(result)  # Should be expanded
 
@@ -1193,7 +1194,7 @@ class TestGlobalSettings:
         hf_cache.mkdir(parents=True)
         monkeypatch.setenv("HF_HUB_CACHE", str(hf_cache))
 
-        settings = GlobalSettings(base_path=tmp_path / "omlx")
+        settings = GlobalSettings(base_path=tmp_path / "molto")
         settings.model.model_dirs = [str(primary), str(additional)]
 
         assert settings.get_effective_model_dirs() == [
@@ -1212,7 +1213,7 @@ class TestGlobalSettings:
         hf_cache.mkdir(parents=True)
         monkeypatch.setenv("HF_HUB_CACHE", str(hf_cache))
 
-        settings = GlobalSettings(base_path=tmp_path / "omlx")
+        settings = GlobalSettings(base_path=tmp_path / "molto")
         settings.model.model_dirs = [str(primary)]
         settings.huggingface.hf_cache_enabled = False
 
@@ -1343,7 +1344,7 @@ class TestGlobalSettings:
         self, tmp_path, monkeypatch
     ):
         """A v0.6.0 settings file resets its persisted lossy default."""
-        monkeypatch.delenv("OMLX_GDN_SIDECAR_STATE_DTYPE", raising=False)
+        monkeypatch.delenv("MOLTO_GDN_SIDECAR_STATE_DTYPE", raising=False)
         settings_file = tmp_path / "settings.json"
         settings_file.write_text(
             json.dumps(
@@ -1463,7 +1464,7 @@ class TestGlobalSettings:
     def test_save_creates_directory(self):
         """Test save creates base directory if needed."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            base = Path(tmpdir) / "nested" / "omlx"
+            base = Path(tmpdir) / "nested" / "molto"
             settings = GlobalSettings(base_path=base)
             settings.save()
 
@@ -1473,7 +1474,7 @@ class TestGlobalSettings:
     def test_ensure_directories(self):
         """Test directory creation."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            base = Path(tmpdir) / "omlx"
+            base = Path(tmpdir) / "molto"
             settings = GlobalSettings(base_path=base)
             settings.ensure_directories()
 
@@ -1485,7 +1486,7 @@ class TestGlobalSettings:
     def test_ensure_directories_custom_paths(self):
         """Test directory creation with custom paths."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            base = Path(tmpdir) / "omlx"
+            base = Path(tmpdir) / "molto"
             custom_models = Path(tmpdir) / "custom_models"
             custom_cache = Path(tmpdir) / "custom_cache"
             custom_logs = Path(tmpdir) / "custom_logs"
@@ -1504,7 +1505,7 @@ class TestGlobalSettings:
     def test_ensure_directories_unavailable_model_dir(self):
         """Test that unavailable model dirs are skipped instead of crashing."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            base = Path(tmpdir) / "omlx"
+            base = Path(tmpdir) / "molto"
             valid_models = Path(tmpdir) / "valid_models"
             unavailable = Path("/Volumes/NonExistentDrive/Models")
 
@@ -1521,7 +1522,7 @@ class TestGlobalSettings:
 
     def test_ensure_directories_unreadable_model_dir(self, tmp_path, monkeypatch):
         """Test that existing but unreadable model dirs are skipped."""
-        base = tmp_path / "omlx"
+        base = tmp_path / "molto"
         valid_models = tmp_path / "valid_models"
         unreadable = tmp_path / "unreadable_models"
         unreadable.mkdir()
@@ -1773,13 +1774,13 @@ class TestGlobalSettings:
         with patch.dict(
             os.environ,
             {
-                "OMLX_GDN_SSD_SPLIT_ENABLED": "1",
-                "OMLX_GDN_SSD_PENDING_MAX_SIZE": "768MB",
-                "OMLX_GDN_SIDECAR_STATE_DTYPE": "bf16",
+                "MOLTO_GDN_SSD_SPLIT_ENABLED": "1",
+                "MOLTO_GDN_SSD_PENDING_MAX_SIZE": "768MB",
+                "MOLTO_GDN_SIDECAR_STATE_DTYPE": "bf16",
             },
             clear=False,
         ):
-            config = OMLXConfig.from_env()
+            config = MOLTOConfig.from_env()
         assert config.paged_ssd_cache.gdn_ssd_split_enabled is True
         assert config.paged_ssd_cache.gdn_ssd_pending_max_size == "768MB"
         assert config.paged_ssd_cache.gdn_sidecar_state_dtype == "bf16"
@@ -1792,12 +1793,12 @@ class TestGlobalSettings:
         with patch.dict(
             os.environ,
             {
-                "OMLX_GDN_SNAPSHOT_STORAGE": "embedded",
-                "OMLX_GDN_SSD_SPLIT_ENABLED": "1",
+                "MOLTO_GDN_SNAPSHOT_STORAGE": "embedded",
+                "MOLTO_GDN_SSD_SPLIT_ENABLED": "1",
             },
             clear=False,
         ):
-            config = OMLXConfig.from_env()
+            config = MOLTOConfig.from_env()
         assert config.paged_ssd_cache.gdn_ssd_split_enabled is False
         assert config.paged_ssd_cache.gdn_snapshot_storage == "embedded"
 
@@ -1849,9 +1850,9 @@ class TestGlobalSettings:
             with patch.dict(
                 os.environ,
                 {
-                    "OMLX_HOST": "0.0.0.0",
-                    "OMLX_PORT": "9999",
-                    "OMLX_LOG_LEVEL": "debug",
+                    "MOLTO_HOST": "0.0.0.0",
+                    "MOLTO_PORT": "9999",
+                    "MOLTO_LOG_LEVEL": "debug",
                 },
                 clear=False,
             ):
@@ -1861,11 +1862,11 @@ class TestGlobalSettings:
                 assert settings.server.log_level == "debug"
 
     def test_env_override_max_audio_upload_size(self):
-        """OMLX_MAX_AUDIO_UPLOAD_SIZE overrides the default 100MB cap."""
+        """MOLTO_MAX_AUDIO_UPLOAD_SIZE overrides the default 100MB cap."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.dict(
                 os.environ,
-                {"OMLX_MAX_AUDIO_UPLOAD_SIZE": "250MB"},
+                {"MOLTO_MAX_AUDIO_UPLOAD_SIZE": "250MB"},
                 clear=False,
             ):
                 settings = GlobalSettings.load(base_path=tmpdir)
@@ -1885,13 +1886,13 @@ class TestGlobalSettings:
             assert settings.server.max_audio_upload_bytes() == 500 * 1024 * 1024
 
     def test_env_override_max_image_settings(self):
-        """OMLX_MAX_IMAGE_UPLOAD_SIZE and OMLX_MAX_IMAGE_SIDE_LENGTH override defaults."""
+        """MOLTO_MAX_IMAGE_UPLOAD_SIZE and MOLTO_MAX_IMAGE_SIDE_LENGTH override defaults."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.dict(
                 os.environ,
                 {
-                    "OMLX_MAX_IMAGE_UPLOAD_SIZE": "25MB",
-                    "OMLX_MAX_IMAGE_SIDE_LENGTH": "1024",
+                    "MOLTO_MAX_IMAGE_UPLOAD_SIZE": "25MB",
+                    "MOLTO_MAX_IMAGE_SIDE_LENGTH": "1024",
                 },
                 clear=False,
             ):
@@ -1922,7 +1923,7 @@ class TestGlobalSettings:
             with patch.dict(
                 os.environ,
                 {
-                    "OMLX_MODEL_DIR": "/env/models",
+                    "MOLTO_MODEL_DIR": "/env/models",
                 },
                 clear=False,
             ):
@@ -1934,7 +1935,7 @@ class TestGlobalSettings:
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.dict(
                 os.environ,
-                {"OMLX_MAX_CONCURRENT_REQUESTS": "512"},
+                {"MOLTO_MAX_CONCURRENT_REQUESTS": "512"},
                 clear=False,
             ):
                 settings = GlobalSettings.load(base_path=tmpdir)
@@ -1945,18 +1946,18 @@ class TestGlobalSettings:
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.dict(
                 os.environ,
-                {"OMLX_EMBEDDING_BATCH_SIZE": "24"},
+                {"MOLTO_EMBEDDING_BATCH_SIZE": "24"},
                 clear=False,
             ):
                 settings = GlobalSettings.load(base_path=tmpdir)
                 assert settings.scheduler.embedding_batch_size == 24
 
     def test_env_override_scheduler_legacy_fallback(self):
-        """Test legacy OMLX_MAX_NUM_SEQS env var is accepted as fallback."""
+        """Test legacy MOLTO_MAX_NUM_SEQS env var is accepted as fallback."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.dict(
                 os.environ,
-                {"OMLX_MAX_NUM_SEQS": "256"},
+                {"MOLTO_MAX_NUM_SEQS": "256"},
                 clear=False,
             ):
                 settings = GlobalSettings.load(base_path=tmpdir)
@@ -1968,11 +1969,11 @@ class TestGlobalSettings:
             with patch.dict(
                 os.environ,
                 {
-                    "OMLX_CACHE_ENABLED": "false",
-                    "OMLX_SSD_CACHE_DIR": "/env/cache",
-                    "OMLX_SSD_CACHE_MAX_SIZE": "200GB",
-                    "OMLX_GDN_SSD_SPLIT_ENABLED": "true",
-                    "OMLX_GDN_SSD_PENDING_MAX_SIZE": "1GB",
+                    "MOLTO_CACHE_ENABLED": "false",
+                    "MOLTO_SSD_CACHE_DIR": "/env/cache",
+                    "MOLTO_SSD_CACHE_MAX_SIZE": "200GB",
+                    "MOLTO_GDN_SSD_SPLIT_ENABLED": "true",
+                    "MOLTO_GDN_SSD_PENDING_MAX_SIZE": "1GB",
                 },
                 clear=False,
             ):
@@ -1988,29 +1989,33 @@ class TestGlobalSettings:
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.dict(
                 os.environ,
-                {"OMLX_INITIAL_CACHE_BLOCKS": "16384"},
+                {"MOLTO_INITIAL_CACHE_BLOCKS": "16384"},
                 clear=False,
             ):
                 settings = GlobalSettings.load(base_path=tmpdir)
                 assert settings.cache.initial_cache_blocks == 16384
 
     def test_env_override_cache_enabled_values(self):
-        """Test various values for OMLX_CACHE_ENABLED."""
+        """Test various values for MOLTO_CACHE_ENABLED."""
         with tempfile.TemporaryDirectory() as tmpdir:
             for value in ["true", "1", "yes"]:
-                with patch.dict(os.environ, {"OMLX_CACHE_ENABLED": value}, clear=False):
+                with patch.dict(
+                    os.environ, {"MOLTO_CACHE_ENABLED": value}, clear=False
+                ):
                     settings = GlobalSettings.load(base_path=tmpdir)
                     assert settings.cache.enabled is True
 
             for value in ["false", "0", "no"]:
-                with patch.dict(os.environ, {"OMLX_CACHE_ENABLED": value}, clear=False):
+                with patch.dict(
+                    os.environ, {"MOLTO_CACHE_ENABLED": value}, clear=False
+                ):
                     settings = GlobalSettings.load(base_path=tmpdir)
                     assert settings.cache.enabled is False
 
     def test_env_override_auth(self):
         """Test environment variable override for auth settings."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            with patch.dict(os.environ, {"OMLX_API_KEY": "env-key"}, clear=False):
+            with patch.dict(os.environ, {"MOLTO_API_KEY": "env-key"}, clear=False):
                 settings = GlobalSettings.load(base_path=tmpdir)
                 assert settings.auth.api_key == "env-key"
 
@@ -2018,7 +2023,7 @@ class TestGlobalSettings:
         """Test environment variable override for MCP settings."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.dict(
-                os.environ, {"OMLX_MCP_CONFIG": "/env/mcp.json"}, clear=False
+                os.environ, {"MOLTO_MCP_CONFIG": "/env/mcp.json"}, clear=False
             ):
                 settings = GlobalSettings.load(base_path=tmpdir)
                 assert settings.mcp.config_path == "/env/mcp.json"
@@ -2028,7 +2033,7 @@ class TestGlobalSettings:
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.dict(
                 os.environ,
-                {"OMLX_HF_ENDPOINT": "https://hf-mirror.com"},
+                {"MOLTO_HF_ENDPOINT": "https://hf-mirror.com"},
                 clear=False,
             ):
                 settings = GlobalSettings.load(base_path=tmpdir)
@@ -2040,10 +2045,10 @@ class TestGlobalSettings:
             with patch.dict(
                 os.environ,
                 {
-                    "OMLX_HTTP_PROXY": "http://proxy.company.com:8080",
-                    "OMLX_HTTPS_PROXY": "http://proxy.company.com:8443",
-                    "OMLX_NO_PROXY": "localhost,127.0.0.1",
-                    "OMLX_CA_BUNDLE": "/tmp/corp-ca.pem",
+                    "MOLTO_HTTP_PROXY": "http://proxy.company.com:8080",
+                    "MOLTO_HTTPS_PROXY": "http://proxy.company.com:8443",
+                    "MOLTO_NO_PROXY": "localhost,127.0.0.1",
+                    "MOLTO_CA_BUNDLE": "/tmp/corp-ca.pem",
                 },
                 clear=False,
             ):
@@ -2054,9 +2059,9 @@ class TestGlobalSettings:
                 assert settings.network.ca_bundle == "/tmp/corp-ca.pem"
 
     def test_env_override_invalid_port_logs_warning(self):
-        """Test invalid OMLX_PORT logs warning and keeps default."""
+        """Test invalid MOLTO_PORT logs warning and keeps default."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            with patch.dict(os.environ, {"OMLX_PORT": "not-a-number"}, clear=False):
+            with patch.dict(os.environ, {"MOLTO_PORT": "not-a-number"}, clear=False):
                 settings = GlobalSettings.load(base_path=tmpdir)
                 # Should keep default due to parse error
                 assert settings.server.port == 8000
@@ -2070,7 +2075,7 @@ class TestGlobalSettings:
                 json.dumps({"version": "1.0", "server": {"port": 9000}})
             )
 
-            with patch.dict(os.environ, {"OMLX_PORT": "8888"}, clear=False):
+            with patch.dict(os.environ, {"MOLTO_PORT": "8888"}, clear=False):
                 settings = GlobalSettings.load(base_path=tmpdir)
                 # Env should override file
                 assert settings.server.port == 8888
@@ -2164,7 +2169,7 @@ class TestGlobalSettings:
             args = Namespace(port=8765, api_key="cli-key")
             with patch.dict(
                 os.environ,
-                {"OMLX_API_KEY": "env-key", "OMLX_CACHE_ENABLED": "false"},
+                {"MOLTO_API_KEY": "env-key", "MOLTO_CACHE_ENABLED": "false"},
                 clear=False,
             ):
                 runtime = GlobalSettings.load(base_path=base_path, cli_args=args)
@@ -2239,7 +2244,7 @@ class TestGlobalSettings:
             )
 
             # Set env to port 8888
-            with patch.dict(os.environ, {"OMLX_PORT": "8888"}, clear=False):
+            with patch.dict(os.environ, {"MOLTO_PORT": "8888"}, clear=False):
                 # CLI sets port to 7777
                 args = Namespace(port=7777)
                 settings = GlobalSettings.load(base_path=tmpdir, cli_args=args)
@@ -2353,9 +2358,9 @@ class TestHelperFunctions:
             raise ValueError(name)
 
         with (
-            patch("omlx_config.settings.os.sysconf", side_effect=fake_sysconf),
+            patch("molto_config.settings.os.sysconf", side_effect=fake_sysconf),
             patch(
-                "omlx_config.utils.psutil_compat.get_total_memory",
+                "molto_config.utils.psutil_compat.get_total_memory",
                 side_effect=AssertionError("compat should not be called"),
             ),
         ):
@@ -2364,10 +2369,11 @@ class TestHelperFunctions:
     def test_get_system_memory_falls_back_to_compat_when_sysconf_fails(self):
         with (
             patch(
-                "omlx_config.settings.os.sysconf", side_effect=ValueError("unsupported")
+                "molto_config.settings.os.sysconf",
+                side_effect=ValueError("unsupported"),
             ),
             patch(
-                "omlx_config.utils.psutil_compat.get_total_memory",
+                "molto_config.utils.psutil_compat.get_total_memory",
                 return_value=32 * 1024**3,
             ),
         ):
@@ -2405,20 +2411,20 @@ class TestResolveDefaultBasePath:
     """Tests for resolve_default_base_path()."""
 
     def test_falls_back_to_default_when_nothing_configured(self, monkeypatch):
-        monkeypatch.delenv("OMLX_BASE_PATH", raising=False)
+        monkeypatch.delenv("MOLTO_BASE_PATH", raising=False)
         monkeypatch.setattr(
-            "omlx_config.settings.BASE_PATH_BOOTSTRAP_FILE",
-            Path("/nonexistent/oMLX/base-path"),
+            "molto_config.settings.BASE_PATH_BOOTSTRAP_FILE",
+            Path("/nonexistent/Molto/base-path"),
         )
-        assert resolve_default_base_path() == Path.home() / ".omlx"
+        assert resolve_default_base_path() == Path.home() / ".molto"
 
     def test_uses_bootstrap_file_when_present(self, monkeypatch, tmp_path):
-        monkeypatch.delenv("OMLX_BASE_PATH", raising=False)
-        custom_base = tmp_path / "external-ssd" / "omlx-data"
+        monkeypatch.delenv("MOLTO_BASE_PATH", raising=False)
+        custom_base = tmp_path / "external-ssd" / "molto-data"
         bootstrap_file = tmp_path / "base-path"
         bootstrap_file.write_text(f"{custom_base}\n", encoding="utf-8")
         monkeypatch.setattr(
-            "omlx_config.settings.BASE_PATH_BOOTSTRAP_FILE", bootstrap_file
+            "molto_config.settings.BASE_PATH_BOOTSTRAP_FILE", bootstrap_file
         )
 
         assert resolve_default_base_path() == custom_base.resolve()
@@ -2429,28 +2435,28 @@ class TestResolveDefaultBasePath:
         bootstrap_file = tmp_path / "base-path"
         bootstrap_file.write_text(str(bootstrap_base), encoding="utf-8")
         monkeypatch.setattr(
-            "omlx_config.settings.BASE_PATH_BOOTSTRAP_FILE", bootstrap_file
+            "molto_config.settings.BASE_PATH_BOOTSTRAP_FILE", bootstrap_file
         )
-        monkeypatch.setenv("OMLX_BASE_PATH", str(env_base))
+        monkeypatch.setenv("MOLTO_BASE_PATH", str(env_base))
 
         assert resolve_default_base_path() == env_base.resolve()
 
     def test_empty_bootstrap_file_falls_back_to_default(self, monkeypatch, tmp_path):
-        monkeypatch.delenv("OMLX_BASE_PATH", raising=False)
+        monkeypatch.delenv("MOLTO_BASE_PATH", raising=False)
         bootstrap_file = tmp_path / "base-path"
         bootstrap_file.write_text("   \n", encoding="utf-8")
         monkeypatch.setattr(
-            "omlx_config.settings.BASE_PATH_BOOTSTRAP_FILE", bootstrap_file
+            "molto_config.settings.BASE_PATH_BOOTSTRAP_FILE", bootstrap_file
         )
 
-        assert resolve_default_base_path() == Path.home() / ".omlx"
+        assert resolve_default_base_path() == Path.home() / ".molto"
 
     def test_global_settings_load_uses_resolver_when_no_base_path_given(
         self, monkeypatch, tmp_path
     ):
         resolved = tmp_path / "resolved-base"
         monkeypatch.setattr(
-            "omlx_config.settings.resolve_default_base_path", lambda: resolved
+            "molto_config.settings.resolve_default_base_path", lambda: resolved
         )
 
         settings = GlobalSettings.load()
@@ -2962,7 +2968,7 @@ def test_inference_auth_default_preserves_saved_data(tmp_path, monkeypatch):
     path = tmp_path / "settings.json"
     data = {"auth": {"api_key": "saved-key"}, "custom": {"keep": True}}
     path.write_text(json.dumps(data))
-    monkeypatch.setenv("OMLX_API_KEY", "runtime-key")
+    monkeypatch.setenv("MOLTO_API_KEY", "runtime-key")
     settings = GlobalSettings.load(base_path=tmp_path)
     settings.ensure_inference_auth_setting()
     data["auth"]["allow_unauthenticated_inference"] = False

@@ -3,17 +3,17 @@
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from omlx_runtime.exceptions import SchedulerQueueFullError
+from molto_runtime.exceptions import SchedulerQueueFullError
 
 
 def _build_test_app():
     """Build a minimal FastAPI app that re-uses the same exception handler.
 
-    Importing omlx_server.server would pull in heavy server-state init. We pluck the
+    Importing molto_server.server would pull in heavy server-state init. We pluck the
     handler function out of the module and register it against a fresh app
     so the test stays fast and free of state.
     """
-    import omlx_server.server as srv
+    import molto_server.server as srv
 
     app = FastAPI()
     app.add_exception_handler(

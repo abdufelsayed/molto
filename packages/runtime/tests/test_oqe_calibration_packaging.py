@@ -2,7 +2,7 @@
 """Regression tests for shipping the oQe imatrix calibration corpus.
 
 `enhanced=True` (oQe) quantization calibrates its importance matrix on the
-built-in ``oqe_calibration_data.json`` corpus. That file lives in the ``omlx``
+built-in ``oqe_calibration_data.json`` corpus. That file lives in the ``molto``
 package but was missing from ``[tool.setuptools.package-data]``, so every wheel
 build dropped it and oQe silently fell back to a different, smaller corpus.
 These tests fail if the corpus stops being declared or stops being importable.
@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 from repo_paths import repository_root
 
-# Keys the oQe calibration path reads out of the corpus (omlx_runtime.oq).
+# Keys the oQe calibration path reads out of the corpus (molto_runtime.oq).
 _EXPECTED_KEYS = {
     "tool_calling",
     "chat",
@@ -41,7 +41,7 @@ def _pyproject_path() -> Path:
 )
 def test_oqe_corpus_declared_in_package_data():
     data = tomllib.loads(_pyproject_path().read_text(encoding="utf-8"))
-    package_data = data["tool"]["setuptools"]["package-data"]["omlx_runtime"]
+    package_data = data["tool"]["setuptools"]["package-data"]["molto_runtime"]
     assert "oqe_calibration_data.json" in package_data, (
         "oqe_calibration_data.json must be in [tool.setuptools.package-data] "
         "so it ships in the wheel; otherwise oQe silently mis-calibrates."
@@ -49,9 +49,9 @@ def test_oqe_corpus_declared_in_package_data():
 
 
 def test_oqe_corpus_shipped_and_loadable():
-    resource = files("omlx_runtime").joinpath("oqe_calibration_data.json")
+    resource = files("molto_runtime").joinpath("oqe_calibration_data.json")
     assert resource.is_file(), (
-        "oqe_calibration_data.json is not present in the installed omlx "
+        "oqe_calibration_data.json is not present in the installed molto "
         "package; enhanced quantization cannot calibrate correctly."
     )
     corpus = json.loads(resource.read_text(encoding="utf-8"))
@@ -61,14 +61,14 @@ def test_oqe_corpus_shipped_and_loadable():
 
 
 def test_oq_corpus_still_shipped():
-    resource = files("omlx_runtime").joinpath("oq_calibration_data.json")
+    resource = files("molto_runtime").joinpath("oq_calibration_data.json")
     assert resource.is_file()
 
 
 def test_missing_oqe_corpus_raises_instead_of_silent_fallback(monkeypatch):
     """When the oQe corpus is absent, calibration must fail loudly rather than
     silently fall back to a different corpus and mis-calibrate the imatrix."""
-    import omlx_runtime.oq as oq
+    import molto_runtime.oq as oq
 
     real_exists = Path.exists
 

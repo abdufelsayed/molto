@@ -1,4 +1,4 @@
-import openapi from "@omlx/contracts/openapi.json"
+import openapi from "@molto/contracts/openapi.json"
 
 const managementRoutes = Object.entries(openapi.paths)
   .filter(([path]) => path.startsWith("/management/v1/"))

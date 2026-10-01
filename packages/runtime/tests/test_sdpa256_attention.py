@@ -13,8 +13,8 @@ import pytest
 @pytest.fixture
 def _sdpa256_reset():
     """Hand out the patch module with its process-wide route state reset."""
-    from omlx_runtime import memory_monitor as mm
-    from omlx_runtime.patches import sdpa256_attention as sdpa256
+    from molto_runtime import memory_monitor as mm
+    from molto_runtime.patches import sdpa256_attention as sdpa256
 
     saved_routes = dict(mm._SDPA_TILED_PREFILL_HEAD_DIMS)
     saved_force = sdpa256._FORCE_TILED
@@ -56,7 +56,7 @@ def _max_abs(a, b):
 
 @pytest.mark.parametrize("seq_len", [256, 1024, 4096])
 def test_flash_sdpa256_square_causal_matches_reference(seq_len):
-    from omlx_runtime.patches.sdpa256_attention import _flash_sdpa256
+    from molto_runtime.patches.sdpa256_attention import _flash_sdpa256
 
     q, k, v = _qkv(seq_len, seq_len)
     out = _flash_sdpa256(q, k, v, SCALE_256, "causal")
@@ -69,7 +69,7 @@ def test_flash_sdpa256_square_causal_matches_reference(seq_len):
 def test_flash_sdpa256_chunked_prefill_offset_causal(q_len, k_len):
     """Chunked prefill: q_len queries over a longer cached context (k_len). MLX
     'causal' aligns queries to the END of the key axis — the kernel must match."""
-    from omlx_runtime.patches.sdpa256_attention import _flash_sdpa256
+    from molto_runtime.patches.sdpa256_attention import _flash_sdpa256
 
     q, _, _ = _qkv(q_len, q_len)
     _, k, v = _qkv(k_len, k_len)
@@ -84,7 +84,7 @@ def test_flash_sdpa256_memory_is_sub_quadratic():
     O(L^2) would grow ~16x; we require < 6x (O(L) is ~4x), a sharp signal."""
     if not hasattr(mx, "reset_peak_memory"):
         return  # peak-memory API unavailable on this MLX build; skip
-    from omlx_runtime.patches.sdpa256_attention import _flash_sdpa256
+    from molto_runtime.patches.sdpa256_attention import _flash_sdpa256
 
     peaks = []
     for seq_len in (8192, 32768):
@@ -99,7 +99,7 @@ def test_flash_sdpa256_memory_is_sub_quadratic():
 
 
 def test_metal_bounded_path_forces_mlx0322_fused_kernel(monkeypatch):
-    from omlx_runtime.patches import sdpa256_attention as sdpa256
+    from molto_runtime.patches import sdpa256_attention as sdpa256
 
     calls = []
 
@@ -129,7 +129,7 @@ def test_bounded_path_preserves_array_masks_and_sinks(case):
     fused array-mask support is unproven and may silently unfuse); causal/
     no-mask cases exercise the real MLX 0.32.2 fused call when available.
     All cases stay numerically pinned against the reference SDPA."""
-    from omlx_runtime.patches.sdpa256_attention import _flash_sdpa256
+    from molto_runtime.patches.sdpa256_attention import _flash_sdpa256
 
     q, k, v = _qkv(16, 32, n_q=4, n_kv=2)
     mask = None
@@ -156,7 +156,7 @@ def test_metal_array_masks_never_reach_native_fused(mask_kind, monkeypatch):
     array-tiled kernel — never to mx.fast.scaled_dot_product_attention with
     force_fused=True, whose array-mask handling could silently unfuse into
     the O(L^2) fp32 score matrix this patch exists to bound."""
-    from omlx_runtime.patches import sdpa256_attention as sdpa256
+    from molto_runtime.patches import sdpa256_attention as sdpa256
 
     calls = []
 
@@ -192,7 +192,7 @@ def test_metal_array_masks_never_reach_native_fused(mask_kind, monkeypatch):
 def test_metal_causal_and_none_keep_native_fused(mask, dtype, monkeypatch):
     """The router dtype fix must not push the proven causal/no-mask paths off
     the native fused kernel."""
-    from omlx_runtime.patches import sdpa256_attention as sdpa256
+    from molto_runtime.patches import sdpa256_attention as sdpa256
 
     calls = []
 
@@ -218,7 +218,7 @@ def test_metal_causal_and_none_keep_native_fused(mask, dtype, monkeypatch):
 @pytest.mark.parametrize("fp32_input", ["all", "keys", "values", "mixed_16"])
 @pytest.mark.parametrize("mask", ["causal", None])
 def test_fp32_bounded_prefill_matches_reference(fp32_input, mask):
-    from omlx_runtime.patches.sdpa256_attention import _flash_sdpa256
+    from molto_runtime.patches.sdpa256_attention import _flash_sdpa256
 
     q, k, v = _qkv(32, 8192, n_q=4, n_kv=2, dtype=mx.float32)
     if fp32_input != "all":
@@ -240,7 +240,7 @@ def test_fp32_bounded_prefill_matches_reference(fp32_input, mask):
 @pytest.mark.parametrize("mask_kind", ["boolean", "additive"])
 def test_portable_array_mask_matches_reference(mask_kind, monkeypatch):
     """CUDA's bounded fallback must preserve both MLX array-mask forms."""
-    from omlx_runtime.patches import sdpa256_attention as sdpa256
+    from molto_runtime.patches import sdpa256_attention as sdpa256
 
     monkeypatch.setattr(sdpa256.mx.metal, "is_available", lambda: False)
     monkeypatch.setattr(sdpa256, "_Q_TILE", 16)
@@ -260,7 +260,7 @@ def test_portable_array_mask_matches_reference(mask_kind, monkeypatch):
 
 def test_portable_sinks_and_value_dimension_match_reference(monkeypatch):
     """The portable path must cover sink models and non-square value heads."""
-    from omlx_runtime.patches import sdpa256_attention as sdpa256
+    from molto_runtime.patches import sdpa256_attention as sdpa256
 
     monkeypatch.setattr(sdpa256.mx.metal, "is_available", lambda: False)
     monkeypatch.setattr(sdpa256, "_Q_TILE", 16)
@@ -283,7 +283,7 @@ def test_portable_sinks_and_value_dimension_match_reference(monkeypatch):
 
 
 def test_should_route_gate():
-    from omlx_runtime.patches import sdpa256_attention as sdpa256
+    from molto_runtime.patches import sdpa256_attention as sdpa256
 
     q, k, _ = _qkv(2048, 16384)  # 256, prefill, long
     assert sdpa256._should_route(q, k, None, "causal", None) is True
@@ -323,7 +323,7 @@ def test_should_route_gate():
 
 
 def test_patch_routes_256_and_passes_through_others(monkeypatch):
-    import omlx_runtime.patches.sdpa256_attention as sdpa256
+    import molto_runtime.patches.sdpa256_attention as sdpa256
     from mlx_lm.models import base as mlx_base
 
     # Force a fresh install regardless of prior test state.
@@ -377,7 +377,7 @@ def test_patch_routes_256_and_passes_through_others(monkeypatch):
         assert calls["orig"] == before + 1
     finally:
         monkeypatch.setattr(mlx_base, "scaled_dot_product_attention", original)
-        from omlx_runtime import memory_monitor as mm
+        from molto_runtime import memory_monitor as mm
 
         mm._SDPA_TILED_PREFILL_HEAD_DIMS.pop(256, None)
 
@@ -386,7 +386,7 @@ def test_patch_routes_256_and_passes_through_others(monkeypatch):
 
 
 def test_estimator_switches_to_ol_when_registered():
-    from omlx_runtime import memory_monitor as mm
+    from molto_runtime import memory_monitor as mm
 
     monitor = mm.MemoryMonitor.__new__(mm.MemoryMonitor)
     monitor._head_dim = 256
@@ -416,7 +416,7 @@ def test_estimator_switches_to_ol_when_registered():
 
 def test_estimator_keeps_registered_route_thresholds_independent():
     """Two bounded kernels must not create coverage neither one provides."""
-    from omlx_runtime import memory_monitor as mm
+    from molto_runtime import memory_monitor as mm
 
     monitor = mm.MemoryMonitor.__new__(mm.MemoryMonitor)
     monitor._head_dim = 256
@@ -443,7 +443,7 @@ def test_estimator_keeps_registered_route_thresholds_independent():
 
 def test_unfused_call_bytes_shared_with_guard_estimator():
     """The guard must include the score matrix and FP32 output allocation."""
-    from omlx_runtime import memory_monitor as mm
+    from molto_runtime import memory_monitor as mm
 
     monitor = mm.MemoryMonitor.__new__(mm.MemoryMonitor)
     monitor._head_dim = 256
@@ -461,20 +461,20 @@ def test_unfused_call_bytes_shared_with_guard_estimator():
 
 
 def test_parse_force_tiled_env(monkeypatch):
-    from omlx_runtime.patches import sdpa256_attention as sdpa256
+    from molto_runtime.patches import sdpa256_attention as sdpa256
 
-    monkeypatch.delenv("OMLX_SDPA256_TILED", raising=False)
+    monkeypatch.delenv("MOLTO_SDPA256_TILED", raising=False)
     assert sdpa256._parse_force_tiled_env() is None
-    monkeypatch.setenv("OMLX_SDPA256_TILED", "1")
+    monkeypatch.setenv("MOLTO_SDPA256_TILED", "1")
     assert sdpa256._parse_force_tiled_env() is True
-    monkeypatch.setenv("OMLX_SDPA256_TILED", "0")
+    monkeypatch.setenv("MOLTO_SDPA256_TILED", "0")
     assert sdpa256._parse_force_tiled_env() is False
 
 
 def test_force_off_does_not_publish_a_bounded_memory_route(monkeypatch):
     """The O(L^2) benchmark override must keep conservative admission math."""
-    from omlx_runtime import memory_monitor as mm
-    from omlx_runtime.patches import sdpa256_attention as sdpa256
+    from molto_runtime import memory_monitor as mm
+    from molto_runtime.patches import sdpa256_attention as sdpa256
 
     mm._SDPA_TILED_PREFILL_HEAD_DIMS.pop(256, None)
     monkeypatch.setattr(sdpa256, "_FORCE_TILED", False)
@@ -502,7 +502,7 @@ def test_tiled_route_logs_forced_env(_sdpa256_reset, caplog, monkeypatch):
         assert sdpa256._should_route(q, k, None, "causal", None) is True
     records = _tiled_log_records(caplog)
     assert len(records) == 1
-    assert "OMLX_SDPA256_TILED=1" in records[0].getMessage()
+    assert "MOLTO_SDPA256_TILED=1" in records[0].getMessage()
 
 
 # --- mlx-vlm coverage (issue: VLM engine head-256 prefill unprotected) ----
@@ -595,7 +595,7 @@ def test_vlm_submodule_rebind_covers_copied_reference(_sdpa256_reset, monkeypatc
         assert calls["vlm_orig"] == 1
     finally:
         _restore_lm_sdpa(lm_snap)
-        from omlx_runtime import memory_monitor as mm
+        from molto_runtime import memory_monitor as mm
 
         mm._SDPA_TILED_PREFILL_HEAD_DIMS.pop(256, None)
 
@@ -607,7 +607,7 @@ def test_production_install_order_covers_vlm_language(_sdpa256_reset, monkeypatc
     sweep misses qwen3_5.language and the VLM engine keeps the unfused path
     (the baseline defect this suite pins)."""
     sdpa256 = _sdpa256_reset
-    import omlx_runtime.patches.qwen35_fa256_attention as fa256
+    import molto_runtime.patches.qwen35_fa256_attention as fa256
 
     base, language, original, calls = _install_fake_vlm_tree(monkeypatch)
     monkeypatch.setattr(sdpa256, "_PATCHED", False, raising=False)
@@ -615,7 +615,7 @@ def test_production_install_order_covers_vlm_language(_sdpa256_reset, monkeypatc
     monkeypatch.setattr(fa256, "_PATCHED", False, raising=False)
     monkeypatch.setattr(fa256, "is_nax_available", lambda: False)
     monkeypatch.setattr(fa256, "_auto_dispatch_budget", lambda *a, **k: 0)
-    monkeypatch.delenv("OMLX_FA256_STEEL", raising=False)
+    monkeypatch.delenv("MOLTO_FA256_STEEL", raising=False)
 
     steel_calls = {"n": 0}
 
@@ -650,6 +650,6 @@ def test_production_install_order_covers_vlm_language(_sdpa256_reset, monkeypatc
         assert calls["vlm_orig"] == 1
     finally:
         _restore_lm_sdpa(lm_snap)
-        from omlx_runtime import memory_monitor as mm
+        from molto_runtime import memory_monitor as mm
 
         mm._SDPA_TILED_PREFILL_HEAD_DIMS.pop(256, None)

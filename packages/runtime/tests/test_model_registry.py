@@ -6,7 +6,7 @@ import weakref
 from unittest.mock import MagicMock
 
 import pytest
-from omlx_runtime.model_registry import (
+from molto_runtime.model_registry import (
     ModelOwnershipError,
     get_registry,
 )

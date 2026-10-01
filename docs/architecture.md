@@ -1,6 +1,6 @@
 # Repository architecture
 
-An installed `omlx` command starts one application: a public TanStack Start/Nitro
+An installed `molto` command starts one application: a public TanStack Start/Nitro
 server and a private FastAPI inference server. A browser, inference client, and
 management CLI all connect to the same public origin. The Python and TypeScript
 workspaces organize development; the release assembler ships their required
@@ -12,17 +12,17 @@ The uv workspace has six Python members. Python projects use `src/` layouts and
 own their unit tests. The pnpm workspace includes the dashboard and generated
 TypeScript contracts.
 
-| Path                   | Python import / role                 | Responsibility                                                                                                         |
-| ---------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| `apps/cli/`            | `omlx_cli`                           | Commands, terminal output, management HTTP client, and local process supervisor                                        |
-| `apps/server/`         | `omlx_server`                        | FastAPI composition, authentication, HTTP routes, and inference protocol translation                                   |
-| `apps/dashboard/`      | TypeScript application               | Management UI, browser sessions, and public Nitro proxy                                                                |
-| `packages/config/`     | `omlx_config`                        | Persisted global/model configuration, validation, precedence, and migrations                                           |
-| `packages/contracts/`  | `omlx_contracts` / `@omlx/contracts` | Wire schemas, exported OpenAPI, and generated TypeScript types                                                         |
-| `packages/management/` | `omlx_management`                    | Model/storage operations, acquisition jobs, keys, diagnostics, and management policy                                   |
-| `packages/runtime/`    | `omlx_runtime`                       | Engine pool, scheduling, model loading, inference, resource admission, native kernels, and model compatibility patches |
-| `tests/integration/`   | Cross-package tests                  | Behavior spanning application or library boundaries                                                                    |
-| `tooling/`             | Developer tooling                    | Dependency checks, schema generation, scripts, and release assembly                                                    |
+| Path                   | Python import / role                   | Responsibility                                                                                                         |
+| ---------------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `apps/cli/`            | `molto_cli`                            | Commands, terminal output, management HTTP client, and local process supervisor                                        |
+| `apps/server/`         | `molto_server`                         | FastAPI composition, authentication, HTTP routes, and inference protocol translation                                   |
+| `apps/dashboard/`      | TypeScript application                 | Management UI, browser sessions, and public Nitro proxy                                                                |
+| `packages/config/`     | `molto_config`                         | Persisted global/model configuration, validation, precedence, and migrations                                           |
+| `packages/contracts/`  | `molto_contracts` / `@molto/contracts` | Wire schemas, exported OpenAPI, and generated TypeScript types                                                         |
+| `packages/management/` | `molto_management`                     | Model/storage operations, acquisition jobs, keys, diagnostics, and management policy                                   |
+| `packages/runtime/`    | `molto_runtime`                        | Engine pool, scheduling, model loading, inference, resource admission, native kernels, and model compatibility patches |
+| `tests/integration/`   | Cross-package tests                    | Behavior spanning application or library boundaries                                                                    |
+| `tooling/`             | Developer tooling                      | Dependency checks, schema generation, scripts, and release assembly                                                    |
 
 There is no separate Python API-client workspace member. The CLI owns its HTTP
 transport because it has one consumer; connection parsing and terminal output
@@ -78,7 +78,7 @@ flowchart LR
 ```
 
 Nitro forwards inference, health, streaming responses, and supported WebSockets
-to the private loopback listener. Browser management uses `/api/omlx` with an
+to the private loopback listener. Browser management uses `/api/molto` with an
 opaque session cookie. Native management clients use `/api/management/v1` with
 the main bearer key. Raw `/management/v1` and `/admin` paths stay private.
 Authentication and management policy remain authoritative in Python.
@@ -118,7 +118,7 @@ The root commands perform these jobs:
 For interactive development:
 
 ```sh
-uv run --all-packages --inexact omlx serve --dashboard-dev --model-dir ~/models
+uv run --all-packages --inexact molto serve --dashboard-dev --model-dir ~/models
 ```
 
 Unit tests live in `apps/<app>/tests/` or `packages/<package>/tests/`. The default
@@ -130,13 +130,13 @@ not run those scripts.
 
 ## Release boundary
 
-`tooling/release/build.py` stages the Python workspace source into one `omlx`
+`tooling/release/build.py` stages the Python workspace source into one `molto`
 distribution. `tooling/release/build_dashboard_bundle.py` builds Nitro and stages
 public assets plus the verified macOS ARM64 Node executable and license under
-`apps/cli/src/omlx_cli/_dashboard/`. That generated bundle is ignored in Git.
+`apps/cli/src/molto_cli/_dashboard/`. That generated bundle is ignored in Git.
 The native kernel build belongs to `packages/runtime/setup.py`.
 
 Release assembly requires Node/pnpm and may download the chosen Node archive.
 The installed wheel needs neither a source checkout nor pnpm. Internal package
 names support development boundaries; users install one application with one
-product version and invoke one `omlx` command.
+product version and invoke one `molto` command.

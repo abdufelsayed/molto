@@ -2,7 +2,7 @@
 """Tests for thinking/reasoning content parser."""
 
 import pytest
-from omlx_runtime.generation.thinking import ThinkingParser, extract_thinking
+from molto_runtime.generation.thinking import ThinkingParser, extract_thinking
 
 
 class TestExtractThinking:
@@ -57,7 +57,7 @@ class TestExtractThinking:
         """Model opened ``<think>`` but never closed it — non-streaming
         path treats the body as content (matching the streaming
         recovery in ThinkingParser.finish())."""
-        from omlx_runtime.generation.thinking import extract_thinking
+        from molto_runtime.generation.thinking import extract_thinking
 
         thinking, content = extract_thinking("<think>\nthe whole answer body")
         assert thinking == ""
@@ -388,25 +388,25 @@ class TestCleanSpecialTokens:
     """Tests for clean_special_tokens (preserves think tags)."""
 
     def test_preserves_think_tags(self):
-        from omlx_runtime.generation.utils import clean_special_tokens
+        from molto_runtime.generation.utils import clean_special_tokens
 
         result = clean_special_tokens("<think>reasoning</think>Answer")
         assert "<think>reasoning</think>Answer" == result
 
     def test_removes_special_tokens(self):
-        from omlx_runtime.generation.utils import clean_special_tokens
+        from molto_runtime.generation.utils import clean_special_tokens
 
         result = clean_special_tokens("<|im_end|>Hello<|endoftext|>")
         assert result == "Hello"
 
     def test_removes_minimax_m3_special_tokens(self):
-        from omlx_runtime.generation.utils import clean_special_tokens
+        from molto_runtime.generation.utils import clean_special_tokens
 
         result = clean_special_tokens("]~!b[]~b]Hello[e~[]!p~[]!d~[")
         assert result == "Hello"
 
     def test_removes_special_preserves_think(self):
-        from omlx_runtime.generation.utils import clean_special_tokens
+        from molto_runtime.generation.utils import clean_special_tokens
 
         result = clean_special_tokens(
             "<|im_start|><think>reasoning</think>Answer<|im_end|>"
@@ -418,19 +418,19 @@ class TestCleanOutputTextBackwardCompat:
     """Verify clean_output_text still strips thinking (backward compat)."""
 
     def test_still_removes_thinking(self):
-        from omlx_runtime.generation.utils import clean_output_text
+        from molto_runtime.generation.utils import clean_output_text
 
         result = clean_output_text("<think>reasoning</think>Answer")
         assert result == "Answer"
 
     def test_still_removes_partial_think(self):
-        from omlx_runtime.generation.utils import clean_output_text
+        from molto_runtime.generation.utils import clean_output_text
 
         result = clean_output_text("reasoning content</think>Answer")
         assert result == "Answer"
 
     def test_still_removes_special_tokens(self):
-        from omlx_runtime.generation.utils import clean_output_text
+        from molto_runtime.generation.utils import clean_output_text
 
         result = clean_output_text("<|im_end|>Hello<|endoftext|>")
         assert result == "Hello"

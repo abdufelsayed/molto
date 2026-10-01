@@ -13,9 +13,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import anyio
 import pytest
-from omlx_runtime.engine_pool import EngineEntry, EnginePool
-from omlx_server.engine_requests import _release_after_stream
-from omlx_server.shared import _LLMEngineLease
+from molto_runtime.engine_pool import EngineEntry, EnginePool
+from molto_server.engine_requests import _release_after_stream
+from molto_server.shared import _LLMEngineLease
 
 
 class TestDisconnectGuard:
@@ -38,7 +38,7 @@ class TestDisconnectGuard:
     @pytest.mark.asyncio
     async def test_normal_completion(self, mock_request_connected):
         """Test that normal completion returns result."""
-        from omlx_server.transport import _run_with_disconnect_guard
+        from molto_server.transport import _run_with_disconnect_guard
 
         async def fake_generate():
             return "result"
@@ -51,7 +51,7 @@ class TestDisconnectGuard:
     @pytest.mark.asyncio
     async def test_disconnect_cancels_task(self, mock_request_disconnects):
         """Test that disconnect cancels the running task."""
-        from omlx_server.transport import _run_with_disconnect_guard
+        from molto_server.transport import _run_with_disconnect_guard
 
         cancel_detected = False
 
@@ -74,7 +74,7 @@ class TestDisconnectGuard:
     @pytest.mark.asyncio
     async def test_fast_completion_no_disconnect_check(self, mock_request_connected):
         """Test that fast completions finish without disconnect check."""
-        from omlx_server.transport import _run_with_disconnect_guard
+        from molto_server.transport import _run_with_disconnect_guard
 
         async def fast_generate():
             return "fast_result"
@@ -89,7 +89,7 @@ class TestDisconnectGuard:
     @pytest.mark.asyncio
     async def test_disconnect_during_long_generation(self):
         """Test disconnect detection during a long-running generation."""
-        from omlx_server.transport import _run_with_disconnect_guard
+        from molto_server.transport import _run_with_disconnect_guard
 
         call_count = 0
 
@@ -116,7 +116,7 @@ class TestDisconnectGuard:
     @pytest.mark.asyncio
     async def test_task_exception_propagates(self, mock_request_connected):
         """Test that task exceptions propagate correctly."""
-        from omlx_server.transport import _run_with_disconnect_guard
+        from molto_server.transport import _run_with_disconnect_guard
 
         async def failing_generate():
             raise ValueError("generation failed")

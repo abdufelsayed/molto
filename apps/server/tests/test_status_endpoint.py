@@ -5,9 +5,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-from omlx_runtime.engine_pool import EnginePool
-from omlx_server.server import app
-from omlx_server.state import ServerState
+from molto_runtime.engine_pool import EnginePool
+from molto_server.server import app
+from molto_server.state import ServerState
 
 
 @pytest.fixture
@@ -22,7 +22,7 @@ class TestStatusEndpoint:
     def setup_server_state(self):
         """Set up a clean server state for each test."""
         state = ServerState()
-        with patch("omlx_server.server.app.state.controller.state", state):
+        with patch("molto_server.server.app.state.controller.state", state):
             self._state = state
             yield
 
@@ -318,11 +318,11 @@ class TestStatusCustomKernels:
     @pytest.fixture(autouse=True)
     def setup_server_state(self):
         state = ServerState()
-        with patch("omlx_server.server.app.state.controller.state", state):
+        with patch("molto_server.server.app.state.controller.state", state):
             yield
 
     def test_custom_kernels_block_lists_every_package(self, client):
-        from omlx_runtime.custom_kernels import NATIVE_KERNEL_PACKAGES
+        from molto_runtime.custom_kernels import NATIVE_KERNEL_PACKAGES
 
         resp = client.get("/api/status")
         assert resp.status_code == 200
@@ -344,7 +344,7 @@ class TestStatusCustomKernels:
                 assert report["import_error"], name
 
     def test_native_kernel_status_never_raises_on_broken_package(self):
-        from omlx_runtime import custom_kernels
+        from molto_runtime import custom_kernels
 
         real_import = custom_kernels.importlib.import_module
 

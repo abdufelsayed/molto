@@ -8,8 +8,8 @@ import mlx_vlm.utils as vu
 import pytest
 from mlx.utils import tree_flatten
 from mlx_vlm.models.diffusion_gemma import Model, ModelConfig
-from omlx_runtime.engine.vlm import _strip_vision_config_if_orphaned
-from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+from molto_runtime.engine.vlm import _strip_vision_config_if_orphaned
+from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
 _TOWER_KEYS = {
     "tower": "model.encoder.vision_tower.weight",

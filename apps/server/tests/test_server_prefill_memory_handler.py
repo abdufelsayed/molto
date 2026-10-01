@@ -6,20 +6,20 @@ guard surfaces in production, so a refactor that changes either the
 error body shape or the HTTP code will be caught here.
 """
 
-import omlx_server.transport as transport_module
+import molto_server.transport as transport_module
 
 # SPDX-License-Identifier: Apache-2.0
 import pytest
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
-from omlx_runtime.exceptions import (
+from molto_runtime.exceptions import (
     PrefillMemoryAbortedError,
     PrefillMemoryExceededError,
 )
-from omlx_server.dependencies import verify_inference_api_key
-from omlx_server.errors import _streaming_error_payload
-from omlx_server.transport import (
+from molto_server.dependencies import verify_inference_api_key
+from molto_server.errors import _streaming_error_payload
+from molto_server.transport import (
     _json_response_or_keepalive,
     _with_json_keepalive,
     _with_sse_keepalive,
@@ -28,7 +28,7 @@ from omlx_server.transport import (
 
 def _build_test_app():
     """Build a minimal FastAPI app that re-uses the production handler."""
-    import omlx_server.server as srv
+    import molto_server.server as srv
 
     app = FastAPI()
     app.add_exception_handler(
@@ -95,7 +95,7 @@ class TestPrefillMemoryHandler:
         assert "Memory Guard to aggressive" in msg
         assert "custom memory guard ceiling" in msg
         assert body["error"]["code"] == "prefill_memory_exceeded"
-        assert body["error"]["omlx_code"] == "prefill_memory_exceeded"
+        assert body["error"]["molto_code"] == "prefill_memory_exceeded"
 
     def test_api_route_body_carries_estimated_and_limit_bytes(self):
         """Clients branch on the numeric ``estimated_bytes`` /
@@ -122,7 +122,7 @@ class TestPrefillMemoryHandler:
         assert resp.status_code == 400
         body = resp.json()
         assert body["error"]["code"] == "prefill_memory_aborted"
-        assert body["error"]["omlx_code"] == "prefill_memory_aborted"
+        assert body["error"]["molto_code"] == "prefill_memory_aborted"
         assert body["error"]["limit_bytes"] == 4_100_000_000
 
     def test_abort_wording_does_not_claim_the_prompt_was_rejected(self):
@@ -142,7 +142,7 @@ class TestPrefillMemoryHandler:
         body = resp.json()
         assert "detail" in body
         assert "Prefill would require" in body["detail"]
-        assert body["omlx_code"] == "prefill_memory_exceeded"
+        assert body["molto_code"] == "prefill_memory_exceeded"
 
 
 class TestPostCommitPrefillMemorySurface:
@@ -170,7 +170,7 @@ class TestPostCommitPrefillMemorySurface:
         ]
         body = json.loads("".join(chunks))
         assert body["error"]["code"] == "prefill_memory_exceeded"
-        assert body["error"]["omlx_code"] == "prefill_memory_exceeded"
+        assert body["error"]["molto_code"] == "prefill_memory_exceeded"
         assert body["error"]["estimated_bytes"] == 123
         assert body["error"]["limit_bytes"] == 100
 
@@ -194,7 +194,7 @@ class TestPostCommitPrefillMemorySurface:
         data = chunks[0].removeprefix("data: ").strip()
         body = json.loads(data)
         assert body["error"]["code"] == "prefill_memory_exceeded"
-        assert body["error"]["omlx_code"] == "prefill_memory_exceeded"
+        assert body["error"]["molto_code"] == "prefill_memory_exceeded"
 
 
 class TestJsonResponseOrKeepaliveFastPath:
@@ -339,7 +339,7 @@ class TestResponsesEndpointReaches400:
         """
         from unittest.mock import AsyncMock, MagicMock
 
-        import omlx_server.server as srv
+        import molto_server.server as srv
 
         # Build an engine mock whose preflight_chat raises. The
         # production handler awaits this BEFORE constructing
@@ -380,7 +380,7 @@ class TestResponsesEndpointReaches400:
     def test_v1_responses_returns_400_when_preflight_rejects(self):
         from unittest.mock import MagicMock, patch
 
-        import omlx_server.server as srv
+        import molto_server.server as srv
 
         original_get_engine = srv.app.state.controller.get_engine_for_model
         original_overrides = dict(srv.app.dependency_overrides)
@@ -452,7 +452,7 @@ class TestStreamingErrorPayload:
 
         body = _streaming_error_payload(self._exceeded(), "chat streaming")
         assert body["type"] == "error"
-        assert body["error"]["omlx_code"] == "prefill_memory_exceeded"
+        assert body["error"]["molto_code"] == "prefill_memory_exceeded"
         assert body["error"]["estimated_bytes"] == 46_775_000_000
         assert body["error"]["limit_bytes"] == 42_949_672_960
         assert "prefill memory guard rejected" in body["error"]["message"]
@@ -470,7 +470,7 @@ class TestStreamingErrorPayload:
         )
         body = _streaming_error_payload(e, "chat streaming")
         assert body["type"] == "error"
-        assert body["error"]["omlx_code"] == "prefill_memory_aborted"
+        assert body["error"]["molto_code"] == "prefill_memory_aborted"
         assert "aborted this request mid-prefill" in body["error"]["message"]
 
     def test_generic_exception_stays_flat_server_error(self):

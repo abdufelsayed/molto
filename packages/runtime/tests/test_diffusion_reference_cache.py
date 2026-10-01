@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.diffusion.cache import PromptCacheBinding
+from molto_runtime.diffusion.cache import PromptCacheBinding
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,7 +29,7 @@ def setup(tmp_path, monkeypatch):
             [[[10, 0, 0], [10, 0, 1]]]
         )
 
-    monkeypatch.setattr("omlx_runtime.diffusion.cache._reference_compute", compute)
+    monkeypatch.setattr("molto_runtime.diffusion.cache._reference_compute", compute)
     return binding, first, object(), Tiling(), calls
 
 
@@ -107,7 +107,7 @@ def test_file_changes_during_compute_are_not_admitted(setup, monkeypatch):
         first.write_bytes(b"changed-during-encode")
         return mx.ones((1, 2, 2)), mx.ones((1, 2, 3))
 
-    monkeypatch.setattr("omlx_runtime.diffusion.cache._reference_compute", changing)
+    monkeypatch.setattr("molto_runtime.diffusion.cache._reference_compute", changing)
     reference(binding, first, vae, tiling)
     assert binding.stats()["reference_entries"] == 0
 
@@ -121,15 +121,15 @@ def test_failed_or_oversized_conditioning_not_admitted(setup, monkeypatch):
     def fail(**kwargs):
         raise RuntimeError("VAE failed")
 
-    monkeypatch.setattr("omlx_runtime.diffusion.cache._reference_compute", fail)
+    monkeypatch.setattr("molto_runtime.diffusion.cache._reference_compute", fail)
     with pytest.raises(RuntimeError, match="VAE"):
         reference(binding, first, vae, tiling)
     assert binding.stats()["entries"] == 0
 
 
 def test_backend_single_edit_and_batch_use_same_reference_callback(monkeypatch):
-    from omlx_runtime.diffusion.backend import MFluxBackend
-    from omlx_runtime.diffusion.registry import ImageTask, get_pipeline
+    from molto_runtime.diffusion.backend import MFluxBackend
+    from molto_runtime.diffusion.registry import ImageTask, get_pipeline
 
     calls = []
     model = SimpleNamespace(prompt_cache={})
@@ -143,7 +143,7 @@ def test_backend_single_edit_and_batch_use_same_reference_callback(monkeypatch):
         calls.append((model_arg, tasks, spec_arg, reference_conditioning))
         return [f"image-{task.seed}" for task in tasks]
 
-    monkeypatch.setattr("omlx_runtime.diffusion.batching.generate_batch", generate)
+    monkeypatch.setattr("molto_runtime.diffusion.batching.generate_batch", generate)
     task = ImageTask(prompt="edit", image_paths=("local-reference.png",), seed=1)
     assert backend.generate(model, task) == "image-1"
     assert backend.generate_batch(model, (task, replace(task, seed=2))) == [

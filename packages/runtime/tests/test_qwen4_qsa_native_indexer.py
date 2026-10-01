@@ -9,8 +9,8 @@ import math
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.custom_kernels.glm_moe_dsa import fast
-from omlx_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
+from molto_runtime.custom_kernels.glm_moe_dsa import fast
+from molto_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
 
 compat.apply_mlx_vlm_qwen4_exp_compat_patch()
 qsa_fast = importlib.import_module("mlx_vlm.models.qwen4_exp.qsa_fast")
@@ -42,7 +42,7 @@ def test_qwen4_qsa_symbol_is_part_of_the_extension_abi():
 
 
 def test_qwen4_qsa_production_geometry_routes_to_native_abi(monkeypatch):
-    monkeypatch.setenv("OMLX_QWEN4_QSA_NATIVE_SCORE_MIN_ROWS", "0")
+    monkeypatch.setenv("MOLTO_QWEN4_QSA_NATIVE_SCORE_MIN_ROWS", "0")
     q = mx.zeros((1, 7, 4, 128), dtype=mx.bfloat16)
     k = mx.zeros((1, 19, 128), dtype=mx.bfloat16)
     seen = []
@@ -76,7 +76,7 @@ def test_qwen4_qsa_production_geometry_routes_to_native_abi(monkeypatch):
 
 
 def test_qwen4_native_dispatch_rejection_latches_to_portable(monkeypatch):
-    monkeypatch.setenv("OMLX_QWEN4_QSA_NATIVE_SCORE_MIN_ROWS", "0")
+    monkeypatch.setenv("MOLTO_QWEN4_QSA_NATIVE_SCORE_MIN_ROWS", "0")
     q = mx.zeros((1, 3, 4, 128), dtype=mx.bfloat16)
     k = mx.zeros((1, 16, 128), dtype=mx.bfloat16)
     calls = 0
@@ -243,7 +243,7 @@ def fake_native_scores(monkeypatch):
     monkeypatch.setattr(fast, "qwen4_qsa_indexer_scores", scores)
     monkeypatch.setattr(qsa_fast, "_NATIVE_QSA_SCORE_DISABLED", False)
     monkeypatch.setattr(qsa_fast, "_NATIVE_QSA_SCORE_PROVEN", True)
-    monkeypatch.delenv("OMLX_QWEN4_QSA_NATIVE_SCORE_MIN_ROWS", raising=False)
+    monkeypatch.delenv("MOLTO_QWEN4_QSA_NATIVE_SCORE_MIN_ROWS", raising=False)
     qsa_fast._native_score_min_rows.cache_clear()
     yield seen
     qsa_fast._native_score_min_rows.cache_clear()
@@ -273,10 +273,10 @@ def test_native_indexer_scores_keep_native_for_prefill_rows(fake_native_scores, 
 
 
 def test_native_indexer_scores_min_rows_env_override(monkeypatch, fake_native_scores):
-    monkeypatch.setenv("OMLX_QWEN4_QSA_NATIVE_SCORE_MIN_ROWS", "0")
+    monkeypatch.setenv("MOLTO_QWEN4_QSA_NATIVE_SCORE_MIN_ROWS", "0")
     qsa_fast._native_score_min_rows.cache_clear()
     assert _score_rows(1) is not None
-    monkeypatch.setenv("OMLX_QWEN4_QSA_NATIVE_SCORE_MIN_ROWS", "4096")
+    monkeypatch.setenv("MOLTO_QWEN4_QSA_NATIVE_SCORE_MIN_ROWS", "4096")
     qsa_fast._native_score_min_rows.cache_clear()
     assert _score_rows(2048) is None
     assert fake_native_scores == [(1, 4, 1, 128)]
@@ -302,7 +302,7 @@ def fake_native_topk(monkeypatch):
     monkeypatch.setattr(fast, "qwen4_qsa_topk_indices", topk)
     monkeypatch.setattr(qsa_fast, "_NATIVE_QSA_TOPK_DISABLED", False)
     monkeypatch.setattr(qsa_fast, "_NATIVE_QSA_TOPK_PROVEN", True)
-    monkeypatch.delenv("OMLX_QWEN4_QSA_NATIVE_TOPK_MIN_ROWS", raising=False)
+    monkeypatch.delenv("MOLTO_QWEN4_QSA_NATIVE_TOPK_MIN_ROWS", raising=False)
     qsa_fast._native_topk_min_rows.cache_clear()
     yield seen
     qsa_fast._native_topk_min_rows.cache_clear()
@@ -328,7 +328,7 @@ def test_native_topk_keeps_native_from_eight_rows(fake_native_topk, rows):
 
 
 def test_native_topk_min_rows_env_override(monkeypatch, fake_native_topk):
-    monkeypatch.setenv("OMLX_QWEN4_QSA_NATIVE_TOPK_MIN_ROWS", "0")
+    monkeypatch.setenv("MOLTO_QWEN4_QSA_NATIVE_TOPK_MIN_ROWS", "0")
     qsa_fast._native_topk_min_rows.cache_clear()
     assert _topk_rows(1) is not None
     assert fake_native_topk == [(1, 1, 4096)]
@@ -347,7 +347,7 @@ def fake_native_sparse_attention(monkeypatch):
     monkeypatch.setattr(fast, "qwen4_qsa_sparse_gqa_attention", attention)
     monkeypatch.setattr(qsa_fast, "_NATIVE_QSA_MAIN_DISABLED", False)
     monkeypatch.setattr(qsa_fast, "_NATIVE_QSA_MAIN_PROVEN", True)
-    monkeypatch.delenv("OMLX_QWEN4_QSA_NATIVE_MAIN_MIN_ROWS", raising=False)
+    monkeypatch.delenv("MOLTO_QWEN4_QSA_NATIVE_MAIN_MIN_ROWS", raising=False)
     qsa_fast._native_main_min_rows.cache_clear()
     yield seen
     qsa_fast._native_main_min_rows.cache_clear()
@@ -384,7 +384,7 @@ def test_native_sparse_attention_keeps_native_for_prefill_rows(
 def test_native_sparse_attention_min_rows_env_override(
     monkeypatch, fake_native_sparse_attention
 ):
-    monkeypatch.setenv("OMLX_QWEN4_QSA_NATIVE_MAIN_MIN_ROWS", "0")
+    monkeypatch.setenv("MOLTO_QWEN4_QSA_NATIVE_MAIN_MIN_ROWS", "0")
     qsa_fast._native_main_min_rows.cache_clear()
     assert _attention_rows(4) is not None
     assert fake_native_sparse_attention == [(1, 24, 4, 256)]

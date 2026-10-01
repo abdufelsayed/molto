@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Expert offload for the GLM DSA MoE block (omlx/patches/glm_moe_dsa/moe_offload.py).
+"""Expert offload for the GLM DSA MoE block (molto/patches/glm_moe_dsa/moe_offload.py).
 
 The adapter swaps the module's projection tensors for resident slots and
 runs the module's own forward on slot indices, so every path the resident
@@ -14,9 +14,9 @@ import json
 import mlx.core as mx
 import mlx.nn as nn
 import pytest
-from omlx_runtime.patches.glm_moe_dsa import moe_offload as glm
-from omlx_runtime.patches.glm_moe_dsa.switch_layers import SwitchGLU
-from omlx_runtime.patches.moe_expert_offload import (
+from molto_runtime.patches.glm_moe_dsa import moe_offload as glm
+from molto_runtime.patches.glm_moe_dsa.switch_layers import SwitchGLU
+from molto_runtime.patches.moe_expert_offload import (
     apply_moe_expert_offload,
     estimate_offload_admission_bytes,
     materialize_offload_state,
@@ -144,7 +144,7 @@ def kernels(request, monkeypatch):
     """With the native GLM kernels, or without them as on a CI runner: the
     module then returns sorted routes unsummed and the caller applies the
     scores, and the adapter must follow the same rule."""
-    from omlx_runtime.patches.glm_moe_dsa import kernels as k
+    from molto_runtime.patches.glm_moe_dsa import kernels as k
 
     if request.param == "fallback":
         monkeypatch.setattr(k, "_native_fast", None)
@@ -266,7 +266,7 @@ def test_uncovered_checkpoint_is_skipped(tmp_path):
 
 
 def test_kill_switch(tmp_path, reference, monkeypatch):
-    monkeypatch.setenv("OMLX_MOE_EXPERT_OFFLOAD", "0")
+    monkeypatch.setenv("MOLTO_MOE_EXPERT_OFFLOAD", "0")
     model = _Model([_copy(reference)])
     assert glm.apply_glm_moe_expert_offload(model, tmp_path, 0.25) == 0
     assert apply_moe_expert_offload(model, tmp_path, 0.25) == 0
@@ -328,9 +328,9 @@ def test_wrap_and_release_return_descriptors_to_baseline(tmp_path, reference):
 
 
 def test_serial_reads_match_reference(tmp_path, reference, monkeypatch):
-    from omlx_runtime.patches.moe_expert_offload import _shutdown_io_pool
+    from molto_runtime.patches.moe_expert_offload import _shutdown_io_pool
 
-    monkeypatch.setenv("OMLX_MOE_OFFLOAD_IO_WORKERS", "1")
+    monkeypatch.setenv("MOLTO_MOE_OFFLOAD_IO_WORKERS", "1")
     _shutdown_io_pool()
     try:
         wrapped = _wrapped(tmp_path, reference, 0.25)

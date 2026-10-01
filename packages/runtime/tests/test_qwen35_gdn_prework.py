@@ -27,13 +27,13 @@ def restore_hooks(monkeypatch):
     monkeypatch.setattr(verifier, "_gated_delta", verifier._gated_delta)
 
 
-from omlx_runtime.patches import qwen35_gdn_prework as prework_mod
-from omlx_runtime.patches.qwen35_gdn_prework import (
+from molto_runtime.patches import qwen35_gdn_prework as prework_mod
+from molto_runtime.patches.qwen35_gdn_prework import (
     gdn_prework_fused,
     qwen4_decode_norm_gate_fused,
     qwen4_decode_prework_fused,
 )
-from omlx_runtime.patches.qwen35_q4_mlp import _VLMQuantizedPrefillLinear
+from molto_runtime.patches.qwen35_q4_mlp import _VLMQuantizedPrefillLinear
 
 HK, HV, DK, DV = 16, 48, 128, 128
 C = 2 * HK * DK + HV * DV
@@ -372,7 +372,7 @@ def test_qwen4_verify_prework_rows_equal_serial_decode_steps(seq):
 
 @pytest.mark.skipif(not mx.metal.is_available(), reason="requires Metal")
 def test_qwen4_decode_norm_gate_is_bit_exact():
-    from omlx_runtime.patches.mlx_vlm_qwen4_exp_compat import (
+    from molto_runtime.patches.mlx_vlm_qwen4_exp_compat import (
         apply_mlx_vlm_qwen4_exp_compat_patch,
     )
 
@@ -457,7 +457,7 @@ def test_qwen4_decode_step_kernel_equals_its_three_launches(dtype, seed):
 def test_qwen4_prefill_route_is_bit_exact_across_chunks(monkeypatch):
     from mlx.utils import tree_map
     from mlx_vlm.models.cache import ArraysCache
-    from omlx_runtime.patches.mlx_vlm_qwen4_exp_compat import (
+    from molto_runtime.patches.mlx_vlm_qwen4_exp_compat import (
         apply_mlx_vlm_qwen4_exp_compat_patch,
     )
 
@@ -466,7 +466,7 @@ def test_qwen4_prefill_route_is_bit_exact_across_chunks(monkeypatch):
 
     cls = language.Qwen3_5GatedDeltaNet
     monkeypatch.setattr(prework_mod, "_PATCHED", False)
-    monkeypatch.setattr(cls, "_omlx_gdn_prework_patched", False, raising=False)
+    monkeypatch.setattr(cls, "_molto_gdn_prework_patched", False, raising=False)
     assert prework_mod.apply_qwen35_gdn_prework_patch()
 
     mx.random.seed(37)
@@ -657,7 +657,7 @@ def test_qwen4_decode_static_gate_community_allocations_are_opt_in(
 
     assert not prework_mod._qwen4_decode_static_eligible(module)
 
-    module._omlx_qwen4_wide_projections = True
+    module._molto_qwen4_wide_projections = True
     assert prework_mod._qwen4_decode_static_eligible(module)
 
     # still fail-closed on the canonical-layout checks, not just the recipe
@@ -678,7 +678,7 @@ def test_qwen4_decode_static_gate_community_allocations_are_opt_in(
 def test_qwen4_decode_static_gate_fails_closed_on_opt_in(attribute, value):
     module = _canonical_qwen4_decode_module(((8, 64), (8, 64), (8, 64), (8, 64)))
     module.out_proj = _fake_quantized_linear(6144, 2560, 8, 64)
-    module._omlx_qwen4_wide_projections = True
+    module._molto_qwen4_wide_projections = True
     assert prework_mod._qwen4_decode_static_eligible(module)
 
     setattr(module.in_proj_a, attribute, value)
@@ -729,7 +729,7 @@ def test_qwen4_decode_wide_projections_are_bit_exact_either_way():
 
 
 def test_qwen4_decode_wide_allow_list_matches_the_quantizer():
-    from omlx_runtime import oq
+    from molto_runtime import oq
 
     assert prework_mod._ALLOWED_GROUPS == frozenset(oq._AFFINE_GROUP_SIZES)
     for bits in sorted(prework_mod._ALLOWED_BITS):
@@ -742,7 +742,7 @@ def test_qwen4_decode_wide_allow_list_matches_the_quantizer():
 def test_qwen4_decode_wide_opt_in_stays_within_the_2560_family(hidden_size):
     module = _canonical_qwen4_decode_module(((8, 64), (8, 64), (8, 64), (8, 64)))
     module.out_proj = _fake_quantized_linear(6144, 2560, 8, 64)
-    module._omlx_qwen4_wide_projections = True
+    module._molto_qwen4_wide_projections = True
     assert prework_mod._qwen4_decode_static_eligible(module)
 
     def widen(linear):
@@ -751,14 +751,14 @@ def test_qwen4_decode_wide_opt_in_stays_within_the_2560_family(hidden_size):
 
     for name in ("in_proj_qkv", "in_proj_z", "in_proj_b", "in_proj_a"):
         wider = _canonical_qwen4_decode_module(((8, 64), (8, 64), (8, 64), (8, 64)))
-        wider._omlx_qwen4_wide_projections = True
+        wider._molto_qwen4_wide_projections = True
         wider.out_proj = _fake_quantized_linear(6144, 2560, 8, 64)
         setattr(wider, name, widen(getattr(wider, name)))
         assert not prework_mod._qwen4_decode_static_eligible(wider), name
 
     # ...and a wider out_proj row count (hidden_size instead of 2560) also fails.
     wider = _canonical_qwen4_decode_module(((8, 64), (8, 64), (8, 64), (8, 64)))
-    wider._omlx_qwen4_wide_projections = True
+    wider._molto_qwen4_wide_projections = True
     wider.out_proj = _fake_quantized_linear(6144, hidden_size, 8, 64)
     assert not prework_mod._qwen4_decode_static_eligible(wider)
 
@@ -766,7 +766,7 @@ def test_qwen4_decode_wide_opt_in_stays_within_the_2560_family(hidden_size):
 def test_qwen4_decode_static_gate_fails_closed_on_noncanonical_bias():
     module = _canonical_qwen4_decode_module(((8, 64), (8, 64), (8, 64), (8, 64)))
     module.out_proj = _fake_quantized_linear(6144, 2560, 8, 64)
-    module._omlx_qwen4_wide_projections = True
+    module._molto_qwen4_wide_projections = True
     assert prework_mod._qwen4_decode_static_eligible(module)
 
     module.out_proj.biases = mx.zeros_like(module.out_proj.biases).astype(mx.float32)
@@ -797,7 +797,7 @@ def test_qwen4_decode_route_commits_both_states_and_advances_once(monkeypatch):
     monkeypatch.setattr(prework_mod, "_PATCHED", False)
     monkeypatch.setattr(prework_mod, "_QWEN4_DECODE_ENGAGED_LOGGED", False)
     monkeypatch.setattr(cls, "__call__", stock, raising=False)
-    monkeypatch.setattr(cls, "_omlx_gdn_prework_patched", False, raising=False)
+    monkeypatch.setattr(cls, "_molto_gdn_prework_patched", False, raising=False)
     monkeypatch.setattr(
         prework_mod,
         "_qwen4_decode_dynamic_eligible",
@@ -870,7 +870,7 @@ def test_qwen4_decode_route_does_not_commit_states_on_failure(monkeypatch):
 
     monkeypatch.setattr(prework_mod, "_PATCHED", False)
     monkeypatch.setattr(cls, "__call__", stock, raising=False)
-    monkeypatch.setattr(cls, "_omlx_gdn_prework_patched", False, raising=False)
+    monkeypatch.setattr(cls, "_molto_gdn_prework_patched", False, raising=False)
     monkeypatch.setattr(
         prework_mod,
         "_qwen4_decode_dynamic_eligible",
@@ -1009,7 +1009,7 @@ def test_fused_verify_replays_committed_rows_in_the_next_block(
 
     from mlx_vlm.models.cache import ArraysCache
     from mlx_vlm.models.qwen3_5 import language as q35
-    from omlx_runtime.patches import qwen35_gdn_verify_fused as fused_mod
+    from molto_runtime.patches import qwen35_gdn_verify_fused as fused_mod
 
     args = SimpleNamespace(
         hidden_size=64,
@@ -1071,13 +1071,13 @@ def test_fused_verify_replays_committed_rows_in_the_next_block(
 
 
 def test_qwen4_decode_setting_is_captured_per_model(monkeypatch):
-    from omlx_runtime.scheduler import SchedulerConfig
+    from molto_runtime.scheduler import SchedulerConfig
 
     module = _canonical_qwen4_decode_module(((8, 64),) * 4)
     module.out_proj = _fake_quantized_linear(6144, 2560, 8, 64)
     model = SimpleNamespace(modules=lambda: [module])
     config = SchedulerConfig(qwen4_gdn_decode_wide_proj=True)
-    monkeypatch.setenv("OMLX_QWEN4_GDN_DECODE_WIDE_PROJ", "1")
+    monkeypatch.setenv("MOLTO_QWEN4_GDN_DECODE_WIDE_PROJ", "1")
     assert not prework_mod._qwen4_decode_static_eligible(module)
 
     prework_mod.configure_qwen4_decode(
@@ -1112,7 +1112,7 @@ def _random_projection(input_dims, output_dims, bits, group_size):
 
 
 def _real_qwen4_decode_module(signatures, seed):
-    from omlx_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
+    from molto_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
 
     compat.apply_mlx_vlm_qwen4_exp_compat_patch()
     from mlx_vlm.models.qwen4_exp.language import (
@@ -1201,7 +1201,7 @@ def patched_decode(monkeypatch):
 def test_qwen4_planned_decode_is_bit_identical_to_per_call_path(
     monkeypatch, patched_decode, signatures, seed, step_fused, qmv
 ):
-    from omlx_runtime.patches.row_exact_qmv import OneRowQmv
+    from molto_runtime.patches.row_exact_qmv import OneRowQmv
 
     monkeypatch.setattr(prework_mod, "_QWEN4_DECODE_STEP_FUSED", step_fused)
     monkeypatch.setattr(prework_mod, "_QWEN4_DECODE_QMV", qmv)
@@ -1298,7 +1298,7 @@ P = C + HV * DV + 2 * HV  # stacked in-projection row [qkv | z | b | a]
 def qwen4_verify(monkeypatch):
     """Patched decode and verify entries, the row-exact projection routing, and
     a count of fused verify launches."""
-    from omlx_runtime.patches import qwen35_verify_qmm
+    from molto_runtime.patches import qwen35_verify_qmm
 
     monkeypatch.setattr(prework_mod, "_PATCHED", False)
     assert prework_mod.apply_qwen35_gdn_prework_patch()
@@ -1318,7 +1318,7 @@ def qwen4_verify(monkeypatch):
 def _verify_block(module, inputs, conv_state, recurrent_state, *, row_exact=True):
     from mlx_vlm.models.cache import ArraysCache
     from mlx_vlm.models.qwen4_exp import language as q4
-    from omlx_runtime.patches import qwen35_verify_qmm
+    from molto_runtime.patches import qwen35_verify_qmm
 
     cache = ArraysCache(size=2)
     cache[0], cache[1] = conv_state, recurrent_state

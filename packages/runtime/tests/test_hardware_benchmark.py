@@ -3,7 +3,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from omlx_runtime.utils.hardware import (
+from molto_runtime.utils.hardware import (
     _OWNER_HASH_ALPHABET,
     compute_owner_hash,
     get_chip_name,
@@ -53,19 +53,19 @@ class TestSystemToolsUseAbsolutePath:
         return mock_run.call_args[0][0]
 
     def test_get_chip_name_absolute_path(self):
-        with patch("omlx_runtime.utils.hardware.subprocess.run") as mock_run:
+        with patch("molto_runtime.utils.hardware.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(stdout="Apple M4 Pro\n")
             assert get_chip_name() == "Apple M4 Pro"
             assert self._cmd_of(mock_run)[0] == "/usr/sbin/sysctl"
 
     def test_get_total_memory_absolute_path(self):
-        with patch("omlx_runtime.utils.hardware.subprocess.run") as mock_run:
+        with patch("molto_runtime.utils.hardware.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(stdout="68719476736\n")
             assert get_total_memory_bytes() == 68719476736
             assert self._cmd_of(mock_run)[0] == "/usr/sbin/sysctl"
 
     def test_get_gpu_core_count_absolute_path(self):
-        with patch("omlx_runtime.utils.hardware.subprocess.run") as mock_run:
+        with patch("molto_runtime.utils.hardware.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
                 stdout="      Total Number of Cores: 40\n"
             )
@@ -73,7 +73,7 @@ class TestSystemToolsUseAbsolutePath:
             assert self._cmd_of(mock_run)[0] == "/usr/sbin/system_profiler"
 
     def test_get_io_platform_uuid_absolute_path(self):
-        with patch("omlx_runtime.utils.hardware.subprocess.run") as mock_run:
+        with patch("molto_runtime.utils.hardware.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
                 stdout='    "IOPlatformUUID" = "ABC-123"\n'
             )
@@ -84,7 +84,7 @@ class TestSystemToolsUseAbsolutePath:
         # Simulates /usr/sbin not on PATH (FileNotFoundError) -> M1 fallback,
         # which is exactly the #1322 symptom the absolute path prevents.
         with patch(
-            "omlx_runtime.utils.hardware.subprocess.run", side_effect=FileNotFoundError
+            "molto_runtime.utils.hardware.subprocess.run", side_effect=FileNotFoundError
         ):
             assert get_chip_name() == "Apple Silicon"
             assert parse_chip_info(get_chip_name()) == ("M1", "")

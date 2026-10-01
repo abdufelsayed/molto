@@ -7,15 +7,15 @@ import struct
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.patches.deepseek_v41.oq import quantize_engram, source_budget
-from omlx_runtime.patches.deepseek_v41.storage import (
+from molto_runtime.patches.deepseek_v41.oq import quantize_engram, source_budget
+from molto_runtime.patches.deepseek_v41.storage import (
     DiskEngramEmbedding,
     EngramPrefetch,
 )
 
 
 def test_shards_pack_small_groups_without_splitting_quantized_projection(tmp_path):
-    from omlx_runtime.patches.deepseek_v41.sharding import ShardWriter
+    from molto_runtime.patches.deepseek_v41.sharding import ShardWriter
 
     writer = ShardWriter(tmp_path, max_shard_bytes=160)
     groups = [
@@ -46,7 +46,7 @@ def test_shards_pack_small_groups_without_splitting_quantized_projection(tmp_pat
 
 
 def test_shard_writer_keeps_oversized_projection_intact(tmp_path):
-    from omlx_runtime.patches.deepseek_v41.sharding import ShardWriter
+    from molto_runtime.patches.deepseek_v41.sharding import ShardWriter
 
     writer = ShardWriter(tmp_path, max_shard_bytes=16)
     writer.add({"big.weight": mx.ones((16,)), "big.scales": mx.ones((2,))})
@@ -63,7 +63,7 @@ def _declared_format(path):
 
 
 def test_exported_shards_declare_mlx_format(tmp_path):
-    from omlx_runtime.patches.deepseek_v41.sharding import ShardWriter
+    from molto_runtime.patches.deepseek_v41.sharding import ShardWriter
 
     writer = ShardWriter(tmp_path, max_shard_bytes=16)
     writer.add({"a.weight": mx.ones((16,), mx.bfloat16)})
@@ -109,7 +109,7 @@ def test_exported_shards_declare_mlx_format(tmp_path):
 
 @pytest.mark.parametrize("switched", [False, True])
 def test_affine_projection_respects_bias_and_group_size(switched):
-    from omlx_runtime.patches.deepseek_v41.quantization import (
+    from molto_runtime.patches.deepseek_v41.quantization import (
         QuantizedProjection,
         quantize_activation,
     )
@@ -207,7 +207,7 @@ def test_chunked_engram_affine_matches_mlx_with_prefetch(tmp_path, resident, bit
 
 
 def test_engram_does_not_hide_remaining_budget_failure(tmp_path):
-    from omlx_runtime.patches.deepseek_v41.oq import quantize
+    from molto_runtime.patches.deepseek_v41.oq import quantize
 
     source = tmp_path / "source"
     source.mkdir()
@@ -228,8 +228,8 @@ def test_engram_does_not_hide_remaining_budget_failure(tmp_path):
 
 def test_oq_entrypoint_preserves_dspark_and_separate_report(tmp_path):
     from mlx.utils import tree_flatten
-    from omlx_runtime.oq import quantize_oq_streaming
-    from omlx_runtime.patches.deepseek_v41.loading import load
+    from molto_runtime.oq import quantize_oq_streaming
+    from molto_runtime.patches.deepseek_v41.loading import load
     from test_deepseek_v41 import write_checkpoint
 
     source, original = write_checkpoint(
@@ -270,9 +270,9 @@ def test_oq_entrypoint_preserves_dspark_and_separate_report(tmp_path):
 
 
 def test_unified_index_engram_and_mixed_shard_offload(tmp_path, monkeypatch):
-    from omlx_runtime.patches.deepseek_v41.loading import load
-    from omlx_runtime.patches.deepseek_v41.oq import quantize
-    from omlx_runtime.patches.deepseek_v41.residency import (
+    from molto_runtime.patches.deepseek_v41.loading import load
+    from molto_runtime.patches.deepseek_v41.oq import quantize
+    from molto_runtime.patches.deepseek_v41.residency import (
         deepseek_v41_residency_estimate,
     )
     from test_deepseek_v41 import write_checkpoint
@@ -294,7 +294,7 @@ def test_unified_index_engram_and_mixed_shard_offload(tmp_path, monkeypatch):
     config = json.loads((output / "config.json").read_text())
     index = json.loads((output / "model.safetensors.index.json").read_text())
     mapping = index["weight_map"]
-    tables = config["omlx_deepseek_v41"]["engram_tables"]
+    tables = config["molto_deepseek_v41"]["engram_tables"]
     table_keys = {
         table[key]
         for table in tables.values()
@@ -303,7 +303,7 @@ def test_unified_index_engram_and_mixed_shard_offload(tmp_path, monkeypatch):
     assert table_keys <= set(mapping)
     assert all("/" not in name for name in mapping.values())
     before = deepseek_v41_residency_estimate(output)
-    report = config["omlx_deepseek_v41"]["quantization_report"]
+    report = config["molto_deepseek_v41"]["quantization_report"]
     assert before.engram_bytes == report["engram"]["tensor_bytes"]
     assert (
         before.mmap_bytes
@@ -350,8 +350,8 @@ def test_unified_index_engram_and_mixed_shard_offload(tmp_path, monkeypatch):
 @pytest.mark.parametrize("bits", [2, 3, 4, 6, 8])
 @pytest.mark.parametrize("rank", [2, 3])
 def test_requantize_projection_uses_weighted_oq_arithmetic(bits, rank):
-    from omlx_runtime.oq import _quantize_chunked
-    from omlx_runtime.patches.deepseek_v41.oq import requantize_projection
+    from molto_runtime.oq import _quantize_chunked
+    from molto_runtime.patches.deepseek_v41.oq import requantize_projection
 
     with mx.stream(mx.cpu):
         shape = (16, 64) if rank == 2 else (2, 16, 64)
@@ -377,7 +377,7 @@ def test_requantize_projection_uses_weighted_oq_arithmetic(bits, rank):
 def test_requantize_packed_source_preserves_activation_policy(
     source_bits, mode, quantize_input
 ):
-    from omlx_runtime.patches.deepseek_v41.oq import requantize_projection
+    from molto_runtime.patches.deepseek_v41.oq import requantize_projection
 
     with mx.stream(mx.cpu):
         dense = mx.cos(mx.arange(2048).reshape(2, 16, 64)).astype(mx.bfloat16)
@@ -398,9 +398,9 @@ def test_requantize_packed_source_preserves_activation_policy(
 def test_official_oq3_streams_affine_weights_and_unified_engram(
     tmp_path, monkeypatch, enhanced
 ):
-    from omlx_runtime import oq
-    from omlx_runtime.patches.deepseek_v41 import oq as converter
-    from omlx_runtime.patches.deepseek_v41.loading import load
+    from molto_runtime import oq
+    from molto_runtime.patches.deepseek_v41 import oq as converter
+    from molto_runtime.patches.deepseek_v41.loading import load
     from test_deepseek_v41 import write_checkpoint
 
     with mx.stream(mx.cpu):
@@ -471,7 +471,7 @@ def test_official_oq3_streams_affine_weights_and_unified_engram(
         assert received["imatrix_cache_path"] == "selected-cache"
         assert received["sensitivity_model_path"] == "selected-proxy"
         config = json.loads((output / "config.json").read_text())
-        spec = config["omlx_deepseek_v41"]
+        spec = config["molto_deepseek_v41"]
         assert spec["quantized_modules"][name]["bits"] == 3
         assert spec["quantized_modules"][name]["quantize_input"] is False
         assert all(table["bits"] == 3 for table in spec["engram_tables"].values())
@@ -490,7 +490,7 @@ def test_official_oq3_streams_affine_weights_and_unified_engram(
 
 
 def test_ui_source_filter_excludes_converted_v41():
-    from omlx_runtime.oq import validate_quantizable
+    from molto_runtime.oq import validate_quantizable
 
     source = {
         "model_type": "deepseek_v41",
@@ -498,13 +498,13 @@ def test_ui_source_filter_excludes_converted_v41():
     }
     assert validate_quantizable(source)
     assert not validate_quantizable(
-        {"model_type": "deepseek_v41", "omlx_deepseek_v41": {"version": 1}}
+        {"model_type": "deepseek_v41", "molto_deepseek_v41": {"version": 1}}
     )
 
 
 @pytest.mark.parametrize("level", [3, 4])
 def test_v41_estimate_uses_independent_engram_budget(tmp_path, level):
-    from omlx_runtime.oq import estimate_bpw_and_size
+    from molto_runtime.oq import estimate_bpw_and_size
 
     source = tmp_path / "source"
     source.mkdir()
@@ -534,8 +534,8 @@ def test_v41_estimate_uses_independent_engram_budget(tmp_path, level):
 def test_official_oq3_reuses_signed_imatrix_and_applies_real_plan(
     tmp_path, monkeypatch
 ):
-    from omlx_runtime import oq
-    from omlx_runtime.patches.deepseek_v41 import loading
+    from molto_runtime import oq
+    from molto_runtime.patches.deepseek_v41 import loading
     from test_deepseek_v41 import write_checkpoint
 
     with mx.stream(mx.cpu):
@@ -588,12 +588,12 @@ def test_official_oq3_reuses_signed_imatrix_and_applies_real_plan(
             report["remaining_weights"]["tensor_bytes"]
             == report["calibration"]["tensor_bytes"]
         )
-        saved = json.loads((output / "config.json").read_text())["omlx_deepseek_v41"]
+        saved = json.loads((output / "config.json").read_text())["molto_deepseek_v41"]
         assert saved["quantized_modules"][name]["bits"] in (3, 4, 6, 8)
 
 
 def test_expert_requantization_cancellation_does_not_process_remaining_experts():
-    from omlx_runtime.patches.deepseek_v41.oq import requantize_projection
+    from molto_runtime.patches.deepseek_v41.oq import requantize_projection
 
     with mx.stream(mx.cpu):
         weight = mx.ones((3, 16, 64), mx.bfloat16)
@@ -612,8 +612,8 @@ def test_expert_requantization_cancellation_does_not_process_remaining_experts()
 
 
 def test_unobserved_expert_uses_affine_three_bits_without_importance():
-    from omlx_runtime import oq
-    from omlx_runtime.patches.deepseek_v41.oq import requantize_projection
+    from molto_runtime import oq
+    from molto_runtime.patches.deepseek_v41.oq import requantize_projection
 
     with mx.stream(mx.cpu):
         weight = mx.sin(mx.arange(2048).reshape(2, 16, 64)).astype(mx.bfloat16)

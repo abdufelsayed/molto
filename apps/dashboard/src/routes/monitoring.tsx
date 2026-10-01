@@ -55,7 +55,7 @@ function MonitoringPage() {
       }),
     onSuccess: () => {
       setConfirmReset(false)
-      void client.invalidateQueries({ queryKey: ["omlx"] })
+      void client.invalidateQueries({ queryKey: ["molto"] })
     },
   })
   const modelIds = [

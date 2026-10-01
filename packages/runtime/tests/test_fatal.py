@@ -5,13 +5,15 @@ import subprocess
 import sys
 from unittest.mock import patch
 
-from omlx_runtime.utils.fatal import FATAL_EXIT_CODE, fatal_exit
+from molto_runtime.utils.fatal import FATAL_EXIT_CODE, fatal_exit
 
 
 def test_fatal_exit_dumps_traceback_and_exits():
     with (
-        patch("omlx_runtime.utils.fatal.faulthandler.dump_traceback") as dump_traceback,
-        patch("omlx_runtime.utils.fatal.os._exit") as exit_process,
+        patch(
+            "molto_runtime.utils.fatal.faulthandler.dump_traceback"
+        ) as dump_traceback,
+        patch("molto_runtime.utils.fatal.os._exit") as exit_process,
     ):
         fatal_exit("fatal test")
 
@@ -24,7 +26,7 @@ def test_gpu_submissions_ignored_exits_process():
         [
             sys.executable,
             "-c",
-            "from omlx_runtime.utils.fatal import exit_if_gpu_submissions_ignored; "
+            "from molto_runtime.utils.fatal import exit_if_gpu_submissions_ignored; "
             "exit_if_gpu_submissions_ignored(RuntimeError("
             "'kIOGPUCommandBufferCallbackErrorSubmissionsIgnored'))",
         ],

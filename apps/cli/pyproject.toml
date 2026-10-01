@@ -3,13 +3,13 @@ requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "omlx-cli"
-version = "0.7.0rc1"
+name = "molto-cli"
+version = "0.1.0.dev0"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-  "omlx-config",
-  "omlx-server",
-  "omlx-runtime",
+  "molto-config",
+  "molto-server",
+  "molto-runtime",
   "requests>=2.28",
   "rich>=13",
   "httpx>=0.27,<1",
@@ -18,11 +18,11 @@ dependencies = [
 ]
 
 [project.scripts]
-omlx = "omlx_cli.cli:main"
+molto = "molto_cli.cli:main"
 
 [tool.setuptools.package-data]
 "*" = ["*.json", "*.jsonl", "*.txt", "*.md", "LICENSE"]
-omlx_cli = ["_dashboard/**/*"]
+molto_cli = ["_dashboard/**/*"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

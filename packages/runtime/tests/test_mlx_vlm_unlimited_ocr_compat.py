@@ -5,7 +5,7 @@ from __future__ import annotations
 
 
 def test_unlimited_ocr_compat_installs_vendor_module():
-    from omlx_runtime.patches.mlx_vlm_unlimited_ocr_compat import (
+    from molto_runtime.patches.mlx_vlm_unlimited_ocr_compat import (
         apply_mlx_vlm_unlimited_ocr_compat_patch,
     )
 
@@ -19,7 +19,7 @@ def test_unlimited_ocr_compat_installs_vendor_module():
 
 
 def test_unlimited_ocr_model_remapping_resolves_module():
-    from omlx_runtime.patches.mlx_vlm_unlimited_ocr_compat import (
+    from molto_runtime.patches.mlx_vlm_unlimited_ocr_compat import (
         apply_mlx_vlm_unlimited_ocr_compat_patch,
     )
 
@@ -46,7 +46,7 @@ def test_unlimited_ocr_model_remapping_resolves_module():
 
 
 def test_unlimited_ocr_prompt_uses_single_image_token():
-    from omlx_runtime.patches.mlx_vlm_unlimited_ocr_compat import (
+    from molto_runtime.patches.mlx_vlm_unlimited_ocr_compat import (
         apply_mlx_vlm_unlimited_ocr_compat_patch,
     )
 
@@ -68,7 +68,7 @@ def test_unlimited_ocr_prompt_uses_single_image_token():
 
 
 def test_unlimited_ocr_prompt_leaves_other_models_untouched():
-    from omlx_runtime.patches.mlx_vlm_unlimited_ocr_compat import (
+    from molto_runtime.patches.mlx_vlm_unlimited_ocr_compat import (
         apply_mlx_vlm_unlimited_ocr_compat_patch,
     )
 

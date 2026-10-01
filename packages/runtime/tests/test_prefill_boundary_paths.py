@@ -7,9 +7,9 @@ from unittest.mock import MagicMock, patch
 import mlx.core as mx
 import pytest
 from mlx_lm.models.cache import KVCache
-from omlx_runtime.prefill_progress import get_prefill_tracker
-from omlx_runtime.request import Request, SamplingParams
-from omlx_runtime.scheduler import Scheduler, SchedulerConfig, _PrefillState
+from molto_runtime.prefill_progress import get_prefill_tracker
+from molto_runtime.request import Request, SamplingParams
+from molto_runtime.scheduler import Scheduler, SchedulerConfig, _PrefillState
 
 
 @pytest.fixture
@@ -17,7 +17,7 @@ def boundary_scheduler():
     model = MagicMock()
     model.layers = []
     # Use the normal forward instead of an auto-created prefill mock.
-    del model._omlx_prefill
+    del model._molto_prefill
     tokenizer = MagicMock()
     tokenizer.eos_token_id = 2
     scheduler = Scheduler(
@@ -64,25 +64,25 @@ def boundary_scheduler():
     model.side_effect = forward
     get_prefill_tracker().clear()
     with ExitStack() as patches:
-        patches.enter_context(patch("omlx_runtime.scheduler._sync_and_clear_cache"))
+        patches.enter_context(patch("molto_runtime.scheduler._sync_and_clear_cache"))
         patches.enter_context(
-            patch("omlx_runtime.scheduler.get_phys_footprint", return_value=0)
+            patch("molto_runtime.scheduler.get_phys_footprint", return_value=0)
         )
         patches.enter_context(
             patch(
-                "omlx_runtime.scheduler._prompt_cache_needs_snapshots",
+                "molto_runtime.scheduler._prompt_cache_needs_snapshots",
                 return_value=True,
             )
         )
         patches.enter_context(
             patch(
-                "omlx_runtime.scheduler._cache_base_sizes",
+                "molto_runtime.scheduler._cache_base_sizes",
                 side_effect=lambda cache: cache[0].offset,
             )
         )
         patches.enter_context(
             patch(
-                "omlx_runtime.scheduler.mx.eval",
+                "molto_runtime.scheduler.mx.eval",
                 side_effect=lambda *args: events.append(("eval",)),
             )
         )

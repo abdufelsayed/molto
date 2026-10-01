@@ -3,7 +3,7 @@
 
 import json
 
-from omlx_contracts.api.openai_models import (
+from molto_contracts.api.openai_models import (
     ChatCompletionChunk,
     ChatCompletionRequest,
     CompletionRequest,

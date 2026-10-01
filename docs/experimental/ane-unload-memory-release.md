@@ -37,7 +37,7 @@ prove that:
 2. fused/GDN state is released through the shared helper; and
 3. a release-helper failure does not prevent the normal engine cleanup.
 
-The test suite is mock-only and does not start oMLX, load a model, alter model
-locations, or change live oMLX configuration. Hardware validation remains a
+The test suite is mock-only and does not start Molto, load a model, alter model
+locations, or change live Molto configuration. Hardware validation remains a
 separate follow-up using repeated ANE-enabled load/unload cycles and process
 memory evidence.

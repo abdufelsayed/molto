@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Unit tests for MTP prompt priming (omlx/patches/mlx_lm_mtp/prompt_priming.py).
+"""Unit tests for MTP prompt priming (molto/patches/mlx_lm_mtp/prompt_priming.py).
 
 Uses a tiny random-weight qwen3_5 TextModel (mlx-lm path) so the capture hook
 in the patched ``TextModel.__call__`` and the activation handoff in
@@ -16,7 +16,7 @@ import pytest
 
 mx = pytest.importorskip("mlx.core")
 
-from omlx_runtime.patches.mlx_lm_mtp import prompt_priming
+from molto_runtime.patches.mlx_lm_mtp import prompt_priming
 
 TINY_CONFIG = {
     "model_type": "qwen3_5",
@@ -132,7 +132,7 @@ class _MemoryMtpPrefixCache:
 @pytest.mark.parametrize("boundary", [8, 3, 7])
 def test_block_prefix_cache_mtp_sidecar_uses_live_chain_hash_and_evicts(boundary):
     """The production sidecar is only visible while its backbone tip lives."""
-    from omlx_runtime.cache.prefix_cache import BlockAwarePrefixCache
+    from molto_runtime.cache.prefix_cache import BlockAwarePrefixCache
 
     class _HashMap:
         def __init__(self):
@@ -156,7 +156,7 @@ def test_block_prefix_cache_mtp_sidecar_uses_live_chain_hash_and_evicts(boundary
     snapshot = object()
     assert cache.store_mtp_prefix_snapshot(tokens, boundary, snapshot)
     tip = cache._mtp_prefix_chain_tip(tokens, boundary)
-    from omlx_runtime.cache.paged_cache import compute_block_hash
+    from molto_runtime.cache.paged_cache import compute_block_hash
 
     expected = None
     for start in range(0, boundary, 4):
@@ -182,7 +182,7 @@ def test_block_prefix_cache_mtp_sidecar_uses_live_chain_hash_and_evicts(boundary
 
 def test_block_prefix_cache_mtp_sidecar_lru_four_and_clear_lifecycle():
     """MTP sidecars remain bounded and follow wholesale cache clears."""
-    from omlx_runtime.cache.prefix_cache import BlockAwarePrefixCache
+    from molto_runtime.cache.prefix_cache import BlockAwarePrefixCache
 
     class _HashMap:
         def __init__(self):
@@ -230,13 +230,13 @@ def test_block_prefix_cache_mtp_sidecar_lru_four_and_clear_lifecycle():
 @pytest.fixture(autouse=True)
 def _apply_patch():
     try:
-        from omlx_runtime.patches.mlx_lm_mtp import qwen35_model, set_mtp_active
+        from molto_runtime.patches.mlx_lm_mtp import qwen35_model, set_mtp_active
     except ImportError:
-        pytest.skip("omlx_runtime.patches.mlx_lm_mtp not importable")
+        pytest.skip("molto_runtime.patches.mlx_lm_mtp not importable")
     if not qwen35_model.apply():
         pytest.skip("qwen35_model patch refused to apply")
     prev = None
-    from omlx_runtime.patches.mlx_lm_mtp import is_mtp_active
+    from molto_runtime.patches.mlx_lm_mtp import is_mtp_active
 
     prev = is_mtp_active()
     set_mtp_active(True)
@@ -424,7 +424,7 @@ class TestCaptureFold:
 
 class TestCaptureSkips:
     def test_env_off_disables_capture(self, model, monkeypatch):
-        monkeypatch.setenv("OMLX_MTP_PROMPT_PRIMING", "0")
+        monkeypatch.setenv("MOLTO_MTP_PROMPT_PRIMING", "0")
         cache = _make_cache(model)
         _chunked_prefill(model, cache, _tokens(6), [6])
         assert prompt_priming.prime_ctx_stats(model) is None
@@ -485,7 +485,7 @@ class TestCaptureSkips:
         assert prompt_priming.prime_ctx_stats(model) == 3
 
     def test_window_cap_disables_long_prompts(self, model, monkeypatch):
-        monkeypatch.setenv("OMLX_MTP_PRIME_WINDOW", "4")
+        monkeypatch.setenv("MOLTO_MTP_PRIME_WINDOW", "4")
         cache = _make_cache(model)
         _chunked_prefill(model, cache, _tokens(10, seed=5), [5, 5])
         assert prompt_priming.prime_ctx_stats(model) is None
@@ -496,7 +496,7 @@ class TestCaptureSkips:
         not the absolute prompt offset — otherwise every long-context
         warm-cache request runs unprimed even when the remainder is tiny
         (#2909)."""
-        monkeypatch.setenv("OMLX_MTP_PRIME_WINDOW", "6")
+        monkeypatch.setenv("MOLTO_MTP_PRIME_WINDOW", "6")
         tokens = _tokens(12, seed=8)
         cache = _make_cache(model)
         with prompt_priming.suppress_capture():
@@ -512,7 +512,7 @@ class TestCaptureSkips:
     ):
         """An oversized multi-chunk remainder must not restart priming after
         the first context is dropped."""
-        monkeypatch.setenv("OMLX_MTP_PRIME_WINDOW", "4")
+        monkeypatch.setenv("MOLTO_MTP_PRIME_WINDOW", "4")
         tokens = _tokens(17, seed=9)
         cache = _make_cache(model)
         with prompt_priming.suppress_capture():
@@ -538,8 +538,8 @@ class TestCaptureSkips:
         first real-server smokes: primed=0 with turboquant_kv / DeepSeek)."""
         cache = _make_cache(model)
         _chunked_prefill(model, cache, _tokens(6, seed=20), [6])
-        assert getattr(model, "_omlx_mtp_prime_ctx", None) is not None
-        assert all(getattr(c, "_omlx_mtp_prime_ctx", None) is None for c in cache)
+        assert getattr(model, "_molto_mtp_prime_ctx", None) is not None
+        assert all(getattr(c, "_molto_mtp_prime_ctx", None) is None for c in cache)
 
     def test_interleaved_request_restarts_slot(self, model):
         """A second request's prefill on the same model can never continue
@@ -720,7 +720,7 @@ class TestActivationHandoff:
         )
 
     def test_post_init_uses_primed_cache(self, model):
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator as bg
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator as bg
 
         n = 10
         tokens = _tokens(n, seed=10)
@@ -738,7 +738,7 @@ class TestActivationHandoff:
         gen_batch._next_logprobs = [lp]
 
         bg._post_init_mtp(gen_batch)
-        state = getattr(gen_batch, "_omlx_mtp_state", None)
+        state = getattr(gen_batch, "_molto_mtp_state", None)
         assert state is not None
         # n prompt-pair folds via capture+seam, +1 from _chain_next_drafts.
         assert state.hist_offset == n + 1
@@ -746,7 +746,7 @@ class TestActivationHandoff:
         assert prompt_priming._find_ctx(model) is None
 
     def test_post_init_without_ctx_is_unprimed(self, model):
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator as bg
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator as bg
 
         n = 10
         tokens = _tokens(n, seed=11)
@@ -762,7 +762,7 @@ class TestActivationHandoff:
         gen_batch._next_logprobs = [lp]
 
         bg._post_init_mtp(gen_batch)
-        state = getattr(gen_batch, "_omlx_mtp_state", None)
+        state = getattr(gen_batch, "_molto_mtp_state", None)
         assert state is not None
         assert state.hist_offset == 1
 
@@ -807,8 +807,8 @@ def test_owned_batch_calibration_history_matches_full_prompt_fold(strict_model):
 
 
 class RecordingHead:
-    _omlx_mtp_decode_enabled = True
-    _omlx_mtp_chain = True
+    _molto_mtp_decode_enabled = True
+    _molto_mtp_chain = True
     mtp = object()
 
     def mtp_forward(self, hidden, tokens, cache, logits_keep=1):
@@ -1000,7 +1000,7 @@ def test_retention_requires_an_observed_priming_context():
 
 @pytest.mark.parametrize("frontier", ["queued", "legacy", "missing_main"])
 def test_non_drained_handoff_does_not_start_history_retention(frontier, monkeypatch):
-    from omlx_runtime.patches.mlx_lm_mtp import batch_generator as bg
+    from molto_runtime.patches.mlx_lm_mtp import batch_generator as bg
 
     batch, owner = parked_batch()
     if frontier == "queued":
@@ -1018,9 +1018,9 @@ def test_non_drained_handoff_does_not_start_history_retention(frontier, monkeypa
 
 
 class HeadHost:
-    _omlx_mtp_decode_enabled = True
-    _omlx_mtp_chain = True
-    _omlx_mtp_multi_request = True
+    _molto_mtp_decode_enabled = True
+    _molto_mtp_chain = True
+    _molto_mtp_multi_request = True
     mtp = object()
 
     def make_mtp_cache(self):
@@ -1087,7 +1087,7 @@ def test_prefill_scope_restores_after_exception_and_skips_empty_batches():
 
 def test_single_stream_model_does_not_start_batched_head_prefill():
     host = HeadHost()
-    host._omlx_mtp_multi_request = False
+    host._molto_mtp_multi_request = False
     with prompt_priming.prefill_scope(
         host, [11, 12], [[1, 2], [3, 4]], [SimpleNamespace(offset=mx.array([0, 0]))]
     ):
@@ -1103,7 +1103,7 @@ def test_generator_remove_and_close_release_prefill_uids_only():
     from collections import deque
 
     from mlx_lm.generate import BatchGenerator
-    from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+    from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
     batch_generator.apply()
     host = HeadHost()
@@ -1270,7 +1270,7 @@ def test_decode_scope_restores_after_exception_and_models_do_not_share_state():
 
 def test_dspark_context_is_owned_by_custom_hook():
     host = HeadHost()
-    host._omlx_dspark_decode_enabled = True
+    host._molto_dspark_decode_enabled = True
     custom = object()
     setattr(host, prompt_priming._CTX_ATTR, custom)
     prepare(host, "a", [1, 2])
@@ -1284,11 +1284,11 @@ def test_dspark_context_is_owned_by_custom_hook():
 def test_scheduler_teardown_releases_owned_histories(
     mock_model, mock_tokenizer, operation
 ):
-    from omlx_runtime.scheduler import Scheduler
+    from molto_runtime.scheduler import Scheduler
 
     scheduler = Scheduler(model=mock_model, tokenizer=mock_tokenizer)
-    mock_model._omlx_mtp_decode_enabled = True
-    mock_model._omlx_mtp_chain = True
+    mock_model._molto_mtp_decode_enabled = True
+    mock_model._molto_mtp_chain = True
     mock_model.mtp = object()
     prepare(mock_model, "waiting", [1, 2])
     prepare(mock_model, "inserted", [3, 4])
@@ -1300,12 +1300,12 @@ def test_scheduler_teardown_releases_owned_histories(
 
 
 def test_scheduler_abort_releases_only_cancelled_request(mock_model, mock_tokenizer):
-    from omlx_runtime.request import Request, SamplingParams
-    from omlx_runtime.scheduler import Scheduler
+    from molto_runtime.request import Request, SamplingParams
+    from molto_runtime.scheduler import Scheduler
 
     scheduler = Scheduler(model=mock_model, tokenizer=mock_tokenizer)
-    mock_model._omlx_mtp_decode_enabled = True
-    mock_model._omlx_mtp_chain = True
+    mock_model._molto_mtp_decode_enabled = True
+    mock_model._molto_mtp_chain = True
     mock_model.mtp = object()
     scheduler.add_request(
         Request(request_id="waiting", prompt="Hello", sampling_params=SamplingParams())
@@ -1321,11 +1321,11 @@ def test_scheduler_abort_releases_only_cancelled_request(mock_model, mock_tokeni
 
 
 def test_scheduler_completion_releases_unused_priming(mock_model, mock_tokenizer):
-    from omlx_runtime.scheduler import Scheduler
+    from molto_runtime.scheduler import Scheduler
 
     scheduler = Scheduler(model=mock_model, tokenizer=mock_tokenizer)
-    mock_model._omlx_mtp_decode_enabled = True
-    mock_model._omlx_mtp_chain = True
+    mock_model._molto_mtp_decode_enabled = True
+    mock_model._molto_mtp_chain = True
     mock_model.mtp = object()
     prepare(mock_model, "finished", [1, 2])
     prompt_priming.bind_uid(mock_model, "finished", 11)
@@ -1338,11 +1338,11 @@ def test_generation_scope_uses_uids_after_realignment(monkeypatch):
     from contextlib import contextmanager
 
     from mlx_lm.generate import GenerationBatch
-    from omlx_runtime.patches.mlx_lm_mtp import batch_generator as bg
+    from molto_runtime.patches.mlx_lm_mtp import batch_generator as bg
 
     bg.apply()
     batch = SimpleNamespace(model=HeadHost(), uids=[11, 12])
-    batch._omlx_realign_rows = lambda: setattr(batch, "uids", [12, 11])
+    batch._molto_realign_rows = lambda: setattr(batch, "uids", [12, 11])
 
     class ScopeReachedError(Exception):
         pass

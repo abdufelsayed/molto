@@ -8,12 +8,12 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
-from omlx_runtime.decode_activity import get_decode_activity
-from omlx_runtime.engine.forward_fairness import (
+from molto_runtime.decode_activity import get_decode_activity
+from molto_runtime.engine.forward_fairness import (
     _FALLBACK_CONTENDED_ITEMS,
     ForwardFairnessGate,
 )
-from omlx_runtime.scheduler import (
+from molto_runtime.scheduler import (
     _DECODE_FAIR_SHARE,
     _DECODE_STALL_TARGET_MS,
     SchedulerConfig,
@@ -24,7 +24,7 @@ from omlx_runtime.scheduler import (
 def _quiet_decode_activity():
     get_decode_activity().clear()
     with patch(
-        "omlx_runtime.engine.forward_fairness.get_phys_footprint", return_value=0
+        "molto_runtime.engine.forward_fairness.get_phys_footprint", return_value=0
     ):
         yield
     get_decode_activity().clear()
@@ -166,9 +166,9 @@ class TestClearCacheDecision:
         gate = ForwardFairnessGate("embed:test", config)
         gate.set_memory_soft_limit(10 * 1024**3)
         with (
-            patch("omlx_runtime.engine.forward_fairness.mx") as fake_mx,
+            patch("molto_runtime.engine.forward_fairness.mx") as fake_mx,
             patch(
-                "omlx_runtime.engine.forward_fairness.get_phys_footprint",
+                "molto_runtime.engine.forward_fairness.get_phys_footprint",
                 return_value=footprint * 1024**3,
             ),
         ):
@@ -184,7 +184,7 @@ class TestClearCacheDecision:
         _publish_other_decode()
         gate = ForwardFairnessGate("embed:test")
         gate.set_memory_soft_limit(10 * 1024**3)
-        with patch("omlx_runtime.engine.forward_fairness.mx") as fake_mx:
+        with patch("molto_runtime.engine.forward_fairness.mx") as fake_mx:
             fake_mx.get_active_memory.return_value = 1 * 1024**3
             fake_mx.get_cache_memory.return_value = 1 * 1024**3
             assert gate.should_clear_cache() is False
@@ -200,10 +200,10 @@ class TestClearCacheDecision:
         _publish_other_decode()
         gate = ForwardFairnessGate("embed:test")
         gate.set_memory_soft_limit(2 * 1024**3)
-        with patch("omlx_runtime.engine.forward_fairness.mx") as fake_mx:
+        with patch("molto_runtime.engine.forward_fairness.mx") as fake_mx:
             fake_mx.get_active_memory.return_value = 1 * 1024**3
             with patch(
-                "omlx_runtime.engine.forward_fairness.get_phys_footprint",
+                "molto_runtime.engine.forward_fairness.get_phys_footprint",
                 return_value=2 * 1024**3,
             ):
                 assert gate.should_clear_cache() is True
@@ -231,8 +231,8 @@ class EmbeddingEngineCacheClearTests(unittest.TestCase):
     """
 
     def _engine(self):
-        from omlx_runtime.engine.embedding import EmbeddingEngine
-        from omlx_runtime.models.embedding import EmbeddingOutput
+        from molto_runtime.engine.embedding import EmbeddingEngine
+        from molto_runtime.models.embedding import EmbeddingOutput
 
         engine = EmbeddingEngine("fake-embedding-model", batch_size=4)
 
@@ -254,7 +254,7 @@ class EmbeddingEngineCacheClearTests(unittest.TestCase):
     def test_uncontended_forward_clears_cache(self):
         get_decode_activity().clear()
         engine = self._engine()
-        with patch("omlx_runtime.engine.embedding.mx") as engine_mx:
+        with patch("molto_runtime.engine.embedding.mx") as engine_mx:
             self._run_embed(engine)
             engine_mx.synchronize.assert_called()
             engine_mx.clear_cache.assert_called()
@@ -264,8 +264,8 @@ class EmbeddingEngineCacheClearTests(unittest.TestCase):
         engine = self._engine()
         engine.set_memory_soft_limit(10 * 1024**3)
         with (
-            patch("omlx_runtime.engine.embedding.mx") as engine_mx,
-            patch("omlx_runtime.engine.forward_fairness.mx") as fair_mx,
+            patch("molto_runtime.engine.embedding.mx") as engine_mx,
+            patch("molto_runtime.engine.forward_fairness.mx") as fair_mx,
         ):
             fair_mx.get_active_memory.return_value = 1024
             fair_mx.get_cache_memory.return_value = 1024
@@ -278,12 +278,12 @@ class EmbeddingEngineCacheClearTests(unittest.TestCase):
         engine = self._engine()
         engine.set_memory_soft_limit(2 * 1024**3)
         with (
-            patch("omlx_runtime.engine.embedding.mx") as engine_mx,
-            patch("omlx_runtime.engine.forward_fairness.mx") as fair_mx,
+            patch("molto_runtime.engine.embedding.mx") as engine_mx,
+            patch("molto_runtime.engine.forward_fairness.mx") as fair_mx,
         ):
             fair_mx.get_active_memory.return_value = 1 * 1024**3
             with patch(
-                "omlx_runtime.engine.forward_fairness.get_phys_footprint",
+                "molto_runtime.engine.forward_fairness.get_phys_footprint",
                 return_value=3 * 1024**3,
             ):
                 self._run_embed(engine)
@@ -292,6 +292,6 @@ class EmbeddingEngineCacheClearTests(unittest.TestCase):
     def test_contended_forward_clears_without_watermark(self):
         _publish_other_decode()
         engine = self._engine()
-        with patch("omlx_runtime.engine.embedding.mx") as engine_mx:
+        with patch("molto_runtime.engine.embedding.mx") as engine_mx:
             self._run_embed(engine)
             engine_mx.clear_cache.assert_called()

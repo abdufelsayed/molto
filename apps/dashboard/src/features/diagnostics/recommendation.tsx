@@ -100,7 +100,7 @@ export function ApplyRecommendation({
         { method: "PATCH", body: patch }
       ),
     onSuccess: () => {
-      void client.invalidateQueries({ queryKey: ["omlx"] })
+      void client.invalidateQueries({ queryKey: ["molto"] })
     },
   })
   if (!model || !Object.keys(patch).length) {

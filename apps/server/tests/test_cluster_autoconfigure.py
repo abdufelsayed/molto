@@ -9,14 +9,14 @@ from types import SimpleNamespace
 import httpx
 import pytest
 from cluster_app import cluster_app
-from omlx_runtime.cluster.autoconfigure import (
+from molto_runtime.cluster.autoconfigure import (
     candidate_tensor_parallel_sizes,
     choose_backend,
     choose_parallelism,
     describe_transports,
     transports_are_fast_enough,
 )
-from omlx_runtime.cluster.planner import ModelLayout, NodeBudget, PlanningError
+from molto_runtime.cluster.planner import ModelLayout, NodeBudget, PlanningError
 
 
 def _model(layers=32, layer_gib=2, fixed_gib=1, heads=48, shardable=True):
@@ -163,7 +163,7 @@ def test_mixed_fabric_is_not_treated_as_fast():
 
 
 def _app():
-    from omlx_server.cluster import routes
+    from molto_server.cluster import routes
 
     app = cluster_app()
     app.include_router(routes.router)
@@ -262,7 +262,7 @@ def test_autoconfigure_never_marks_incomplete_staging_ready(monkeypatch):
     """Missing shard files are a launch blocker, not merely a warning."""
 
     from fastapi.testclient import TestClient
-    from omlx_server.cluster import routes
+    from molto_server.cluster import routes
 
     monkeypatch.setattr(
         routes,
@@ -286,7 +286,7 @@ def test_autoconfigure_never_marks_incomplete_staging_ready(monkeypatch):
 
 def test_autoconfigure_never_marks_an_unverified_fabric_ready(monkeypatch):
     from fastapi.testclient import TestClient
-    from omlx_server.cluster import routes
+    from molto_server.cluster import routes
 
     monkeypatch.setattr(
         routes,
@@ -356,7 +356,7 @@ def test_performance_is_measured_and_applied_before_staging(tmp_path, monkeypatc
     """The first copied shard map must already be the measured fast one."""
 
     from fastapi.testclient import TestClient
-    from omlx_server.cluster import routes
+    from molto_server.cluster import routes
 
     events = []
     model = ModelLayout(
@@ -453,7 +453,7 @@ def test_rejected_performance_split_is_not_replayed_during_activation(
     """Fallback nodes must not retain profiles from a plan that was rejected."""
 
     from fastapi.testclient import TestClient
-    from omlx_server.cluster import routes
+    from molto_server.cluster import routes
 
     model = ModelLayout(
         source="test",
@@ -530,7 +530,7 @@ def test_rejected_performance_split_is_not_replayed_during_activation(
 async def test_autoconfigure_keeps_event_loop_responsive_during_staging(
     monkeypatch,
 ):
-    from omlx_server.cluster import routes
+    from molto_server.cluster import routes
 
     started = threading.Event()
     release = threading.Event()
@@ -573,7 +573,7 @@ async def test_autoconfigure_keeps_event_loop_responsive_during_staging(
 
 
 def test_staging_timeout_is_a_fail_soft_result(tmp_path, monkeypatch):
-    from omlx_server.cluster import routes
+    from molto_server.cluster import routes
 
     request = routes.ClusterAutoconfigureRequest(
         model_path=str(tmp_path),
@@ -608,7 +608,7 @@ def test_head_count_is_read_from_the_model_config(tmp_path):
     import json
     import struct
 
-    from omlx_runtime.cluster.planner import inspect_safetensors_layout
+    from molto_runtime.cluster.planner import inspect_safetensors_layout
 
     (tmp_path / "config.json").write_text(
         json.dumps(
@@ -652,7 +652,7 @@ def test_a_model_without_a_config_gets_no_tensor_parallelism(tmp_path):
     import json
     import struct
 
-    from omlx_runtime.cluster.planner import inspect_safetensors_layout
+    from molto_runtime.cluster.planner import inspect_safetensors_layout
 
     header = {
         "model.layers.0.self_attn.q_proj.weight": {
@@ -780,7 +780,7 @@ def _pair(source, peer, kind="thunderbolt"):
 def test_fast_linked_pairs_are_grouped_not_split():
     """A,B on TB5 and C,D on TB5, with A-C slow: groups must be {A,B},{C,D}."""
 
-    from omlx_runtime.cluster.autoconfigure import order_hosts_for_topology
+    from molto_runtime.cluster.autoconfigure import order_hosts_for_topology
 
     hosts = ["A", "C", "B", "D"]  # deliberately interleaved input order
     fabric = [
@@ -806,9 +806,9 @@ def test_autoconfigure_reorders_nodes_and_hosts_as_one_rank_map(monkeypatch):
     """Topology placement must not make the server reject its own proposal."""
 
     from fastapi.testclient import TestClient
-    from omlx_runtime.cluster.autoconfigure import ParallelismChoice
-    from omlx_runtime.cluster.planner import ModelLayout, plan_hybrid
-    from omlx_server.cluster import routes
+    from molto_runtime.cluster.autoconfigure import ParallelismChoice
+    from molto_runtime.cluster.planner import ModelLayout, plan_hybrid
+    from molto_server.cluster import routes
 
     hosts = ["A", "C", "B", "D"]
     fabric = [
@@ -881,7 +881,7 @@ def test_autoconfigure_reorders_nodes_and_hosts_as_one_rank_map(monkeypatch):
 def test_placement_falls_back_loudly_when_the_fabric_will_not_split():
     """Better to say so than to silently put an all-reduce on Ethernet."""
 
-    from omlx_runtime.cluster.autoconfigure import order_hosts_for_topology
+    from molto_runtime.cluster.autoconfigure import order_hosts_for_topology
 
     hosts = ["A", "B", "C", "D"]
     fabric = [_pair("A", "B"), _pair("B", "A")]  # C and D linked to nothing
@@ -894,7 +894,7 @@ def test_placement_falls_back_loudly_when_the_fabric_will_not_split():
 
 
 def test_no_transport_data_leaves_order_alone_with_a_warning():
-    from omlx_runtime.cluster.autoconfigure import order_hosts_for_topology
+    from molto_runtime.cluster.autoconfigure import order_hosts_for_topology
 
     placement = order_hosts_for_topology(["A", "B", "C", "D"], [], 2)
     assert placement.hosts == ("A", "B", "C", "D")
@@ -902,7 +902,7 @@ def test_no_transport_data_leaves_order_alone_with_a_warning():
 
 
 def test_tp1_needs_no_placement():
-    from omlx_runtime.cluster.autoconfigure import order_hosts_for_topology
+    from molto_runtime.cluster.autoconfigure import order_hosts_for_topology
 
     placement = order_hosts_for_topology(["A", "B"], [], 1)
     assert placement.hosts == ("A", "B")
@@ -910,7 +910,7 @@ def test_tp1_needs_no_placement():
 
 
 def test_slow_spanning_groups_are_reported():
-    from omlx_runtime.cluster.autoconfigure import tp_groups_spanning_slow_links
+    from molto_runtime.cluster.autoconfigure import tp_groups_spanning_slow_links
 
     fabric = [_pair("A", "B"), _pair("B", "A")]
     # A+B is fast; C+D has no fast link between them.
@@ -929,7 +929,7 @@ def test_slow_spanning_groups_are_reported():
 
 
 def test_preflight_flags_an_unreachable_peer():
-    from omlx_runtime.cluster.autoconfigure import describe_preflight, preflight_issues
+    from molto_runtime.cluster.autoconfigure import describe_preflight, preflight_issues
 
     issues = preflight_issues({"mac-1": None}, model_path="/models/llama")
     assert [i.kind for i in issues] == ["unreachable"]
@@ -937,7 +937,7 @@ def test_preflight_flags_an_unreachable_peer():
 
 
 def test_preflight_flags_a_missing_model_and_a_version_skew():
-    from omlx_runtime.cluster.autoconfigure import preflight_issues
+    from molto_runtime.cluster.autoconfigure import preflight_issues
 
     statuses = {
         "mac-1": {
@@ -955,7 +955,7 @@ def test_preflight_flags_a_missing_model_and_a_version_skew():
 
 
 def test_preflight_is_quiet_when_everything_matches():
-    from omlx_runtime.cluster.autoconfigure import describe_preflight, preflight_issues
+    from molto_runtime.cluster.autoconfigure import describe_preflight, preflight_issues
 
     statuses = {
         "mac-1": {
@@ -975,14 +975,14 @@ def test_preflight_is_quiet_when_everything_matches():
 def test_preflight_does_not_invent_problems_from_missing_data():
     """A peer that does not report its models must not be called broken."""
 
-    from omlx_runtime.cluster.autoconfigure import preflight_issues
+    from molto_runtime.cluster.autoconfigure import preflight_issues
 
     statuses = {"mac-1": {"runtime": {}}}
     assert preflight_issues(statuses, model_path="/models/llama") == ()
 
 
 def test_preflight_unwraps_the_live_peer_probe_response():
-    from omlx_runtime.cluster.autoconfigure import preflight_issues
+    from molto_runtime.cluster.autoconfigure import preflight_issues
 
     issues = preflight_issues(
         {
@@ -1005,7 +1005,7 @@ def test_preflight_unwraps_the_live_peer_probe_response():
 
 
 def test_preflight_refuses_discrete_cuda_without_a_live_vram_guard():
-    from omlx_runtime.cluster.autoconfigure import preflight_issues
+    from molto_runtime.cluster.autoconfigure import preflight_issues
 
     issues = preflight_issues(
         {
@@ -1033,7 +1033,7 @@ def test_rdma_detection_does_not_ssh_to_itself(monkeypatch):
 
     import subprocess as sp
 
-    from omlx_runtime.cluster import transport
+    from molto_runtime.cluster import transport
 
     calls = []
 
@@ -1055,7 +1055,7 @@ def test_rdma_detection_does_not_ssh_to_itself(monkeypatch):
 
 
 def test_rdma_requires_every_host_to_have_a_device(monkeypatch):
-    from omlx_runtime.cluster import transport
+    from molto_runtime.cluster import transport
 
     monkeypatch.setattr(
         transport,
@@ -1195,7 +1195,7 @@ def test_auto_does_not_compare_one_measured_strategy_with_one_unknown():
 
 
 def test_every_strategy_is_described_for_the_ui():
-    from omlx_runtime.cluster.autoconfigure import STRATEGIES
+    from molto_runtime.cluster.autoconfigure import STRATEGIES
 
     assert set(STRATEGIES) == {"auto", "tensor", "pipeline"}
     for key, meta in STRATEGIES.items():
@@ -1225,7 +1225,7 @@ def _profile(node_id, gb_per_s, rank=0):
 def test_the_faster_of_two_thunderbolt_links_wins_the_group():
     """Two links, same kind, 4x apart — placement must prefer the fast one."""
 
-    from omlx_runtime.cluster.autoconfigure import order_hosts_for_topology
+    from molto_runtime.cluster.autoconfigure import order_hosts_for_topology
 
     hosts = ["A", "B", "C", "D"]
     fabric = [
@@ -1255,7 +1255,7 @@ def test_the_faster_of_two_thunderbolt_links_wins_the_group():
 def test_a_measured_slow_link_is_not_used_for_tensor_parallelism():
     """A Thunderbolt cable that only delivers 0.5 GB/s is not a fast link."""
 
-    from omlx_runtime.cluster.autoconfigure import order_hosts_for_topology
+    from molto_runtime.cluster.autoconfigure import order_hosts_for_topology
 
     hosts = ["A", "B", "C", "D"]
     fabric = [_pair("A", "B"), _pair("C", "D"), _pair("A", "C")]
@@ -1271,7 +1271,7 @@ def test_a_measured_slow_link_is_not_used_for_tensor_parallelism():
 def test_the_reported_group_speed_is_its_slowest_link():
     """An all-reduce runs at the weakest member, not the average."""
 
-    from omlx_runtime.cluster.autoconfigure import order_hosts_for_topology
+    from molto_runtime.cluster.autoconfigure import order_hosts_for_topology
 
     hosts = ["A", "B"]
     fabric = [_pair("A", "B")]
@@ -1283,7 +1283,7 @@ def test_the_reported_group_speed_is_its_slowest_link():
 
 
 def test_a_slow_group_is_reported_by_measured_bandwidth():
-    from omlx_runtime.cluster.autoconfigure import tp_groups_spanning_slow_links
+    from molto_runtime.cluster.autoconfigure import tp_groups_spanning_slow_links
 
     hosts = ["A", "B"]
     fabric = [_pair("A", "B")]
@@ -1309,7 +1309,7 @@ GIB = 1024**3
 
 
 def _interfaces(name, addresses, *, rdma=(), thunderbolt=None):
-    from omlx_runtime.cluster.transport import HostInterfaces, InterfaceAddress
+    from molto_runtime.cluster.transport import HostInterfaces, InterfaceAddress
 
     interfaces = tuple(InterfaceAddress(*entry) for entry in addresses)
     return HostInterfaces(
@@ -1328,7 +1328,7 @@ def _rdma_pair():
 
 
 def test_the_matrix_names_the_device_each_rank_uses_for_each_peer():
-    from omlx_runtime.cluster.autoconfigure import build_rdma_matrix
+    from molto_runtime.cluster.autoconfigure import build_rdma_matrix
 
     matrix = build_rdma_matrix(_rdma_pair())
 
@@ -1339,9 +1339,9 @@ def test_the_matrix_names_the_device_each_rank_uses_for_each_peer():
 def test_a_jaccl_deployment_built_from_the_matrix_is_accepted():
     """The failure this closes: backend and hosts agreed for the first time."""
 
-    from omlx_runtime.cluster.autoconfigure import build_rdma_matrix
-    from omlx_runtime.cluster.deployment import ClusterDeployment, ClusterHost
-    from omlx_runtime.cluster.planner import PipelineAssignment
+    from molto_runtime.cluster.autoconfigure import build_rdma_matrix
+    from molto_runtime.cluster.deployment import ClusterDeployment, ClusterHost
+    from molto_runtime.cluster.planner import PipelineAssignment
 
     matrix = build_rdma_matrix(_rdma_pair())
     assignments = tuple(
@@ -1374,7 +1374,7 @@ def test_a_jaccl_deployment_built_from_the_matrix_is_accepted():
 
 
 def test_a_mesh_gives_each_pair_its_own_port_not_one_per_host():
-    from omlx_runtime.cluster.autoconfigure import build_rdma_matrix
+    from molto_runtime.cluster.autoconfigure import build_rdma_matrix
 
     mesh = [
         _interfaces(
@@ -1404,7 +1404,7 @@ def test_a_mesh_gives_each_pair_its_own_port_not_one_per_host():
 
 
 def test_a_mac_without_rdma_is_named_so_the_fallback_to_ring_is_explainable():
-    from omlx_runtime.cluster.autoconfigure import build_rdma_matrix
+    from molto_runtime.cluster.autoconfigure import build_rdma_matrix
 
     interfaces = _rdma_pair()
     interfaces[1] = _interfaces("studio.local", [("en5", "10.0.1.2", 24)])
@@ -1420,7 +1420,7 @@ def test_a_mac_without_rdma_is_named_so_the_fallback_to_ring_is_explainable():
 def test_hosts_that_only_share_the_lan_do_not_get_a_silent_rdma_matrix():
     """Both Macs have RDMA devices, but the only routable pair is the office."""
 
-    from omlx_runtime.cluster.autoconfigure import build_rdma_matrix
+    from molto_runtime.cluster.autoconfigure import build_rdma_matrix
 
     matrix = build_rdma_matrix(
         [
@@ -1435,7 +1435,7 @@ def test_hosts_that_only_share_the_lan_do_not_get_a_silent_rdma_matrix():
 
 
 def test_hosts_that_share_no_subnet_report_that_rather_than_a_partial_matrix():
-    from omlx_runtime.cluster.autoconfigure import build_rdma_matrix
+    from molto_runtime.cluster.autoconfigure import build_rdma_matrix
 
     matrix = build_rdma_matrix(
         [
@@ -1449,7 +1449,7 @@ def test_hosts_that_share_no_subnet_report_that_rather_than_a_partial_matrix():
 
 
 def test_a_single_host_is_not_a_cluster():
-    from omlx_runtime.cluster.autoconfigure import build_rdma_matrix
+    from molto_runtime.cluster.autoconfigure import build_rdma_matrix
 
     matrix = build_rdma_matrix(_rdma_pair()[:1])
 
@@ -1460,7 +1460,7 @@ def test_a_single_host_is_not_a_cluster():
 def test_the_backend_choice_and_the_matrix_disagree_visibly_not_silently():
     """choose_backend saying jaccl is a claim the matrix must be able to confirm."""
 
-    from omlx_runtime.cluster.autoconfigure import build_rdma_matrix, choose_backend
+    from molto_runtime.cluster.autoconfigure import build_rdma_matrix, choose_backend
 
     backend, _ = choose_backend([_link("rdma")])
     matrix = build_rdma_matrix(
@@ -1480,7 +1480,7 @@ def test_the_backend_choice_and_the_matrix_disagree_visibly_not_silently():
 #
 # Rank 1 died mid-load with "No module named 'mlx_vlm'" because the Studio's
 # worker venv lacked it and nothing had asked. Which imports a rank needs is a
-# property of the model, so it is read off the model's config and oMLX's own
+# property of the model, so it is read off the model's config and Molto's own
 # patch dispatch rather than listed here.
 # ---------------------------------------------------------------------------
 
@@ -1497,7 +1497,7 @@ def _model_dir(directory, **config):
 def derivation_tree(tmp_path, monkeypatch):
     """Point the import derivation at a throwaway dispatcher and patch tree."""
 
-    from omlx_runtime.cluster import autoconfigure
+    from molto_runtime.cluster import autoconfigure
 
     def install(dispatcher_source, patches):
         for name, source in patches.items():
@@ -1506,7 +1506,7 @@ def derivation_tree(tmp_path, monkeypatch):
             (package / "__init__.py").write_text(source)
         dispatcher = tmp_path / "model_loading.py"
         dispatcher.write_text(dispatcher_source)
-        monkeypatch.setattr(autoconfigure, "_OMLX_ROOT", tmp_path)
+        monkeypatch.setattr(autoconfigure, "_MOLTO_ROOT", tmp_path)
         monkeypatch.setattr(autoconfigure, "_DISPATCHER", dispatcher)
         autoconfigure._dispatch_rules.cache_clear()
         autoconfigure._third_party_imports.cache_clear()
@@ -1545,12 +1545,12 @@ def _peer(found=(), missing=(), *, pip=None, uv=None, python="/peer/.venv/bin/py
 def test_a_minimax_rank_needs_mlx_vlm_even_though_a_rank_is_an_mlx_lm_server(tmp_path):
     """The exact shape of the failure: a text-path rank with a hidden mlx-vlm dep.
 
-    ``omlx_runtime.patches.minimax_m3_mlx_lm`` exists precisely because a rank is an
+    ``molto_runtime.patches.minimax_m3_mlx_lm`` exists precisely because a rank is an
     ``mlx_lm.server``, and it registers a model built on vendored mlx-vlm — so
     "this is not a VLM load" is not a reason to skip asking for mlx-vlm.
     """
 
-    from omlx_runtime.cluster.autoconfigure import required_imports
+    from molto_runtime.cluster.autoconfigure import required_imports
 
     modules = {
         requirement.module
@@ -1565,7 +1565,7 @@ def test_a_minimax_rank_needs_mlx_vlm_even_though_a_rank_is_an_mlx_lm_server(tmp
 def test_a_plain_llama_is_not_asked_to_bring_mlx_vlm(tmp_path):
     """Over-asking blocks a cluster that would have worked."""
 
-    from omlx_runtime.cluster.autoconfigure import required_imports
+    from molto_runtime.cluster.autoconfigure import required_imports
 
     modules = {
         requirement.module
@@ -1620,7 +1620,7 @@ def test_a_model_the_dispatcher_has_no_branch_for_is_not_charged_for_one(
 def test_a_patch_that_tolerates_a_missing_import_is_not_demanded_of_a_peer(
     tmp_path, derivation_tree
 ):
-    """oMLX logs and carries on, so the peer does not have to have it."""
+    """Molto logs and carries on, so the peer does not have to have it."""
 
     autoconfigure = derivation_tree(
         _ONE_BRANCH_DISPATCHER,
@@ -1668,7 +1668,7 @@ def test_an_import_a_patch_defers_into_a_function_is_still_required(
 def test_a_vlm_load_and_a_rank_of_the_same_model_need_different_things(tmp_path):
     """A rank takes the mlx-lm branches; only an mlx-vlm load takes the others."""
 
-    from omlx_runtime.cluster.autoconfigure import required_imports
+    from molto_runtime.cluster.autoconfigure import required_imports
 
     model = _model_dir(tmp_path, model_type="qwen3_5_moe", vision_config={})
 
@@ -1682,7 +1682,7 @@ def test_a_vlm_load_and_a_rank_of_the_same_model_need_different_things(tmp_path)
 def test_a_model_directory_that_cannot_be_read_still_reports_the_common_imports():
     """An unreadable config is not a reason to claim a rank needs nothing."""
 
-    from omlx_runtime.cluster.autoconfigure import required_imports
+    from molto_runtime.cluster.autoconfigure import required_imports
 
     modules = {
         requirement.module
@@ -1693,28 +1693,28 @@ def test_a_model_directory_that_cannot_be_read_still_reports_the_common_imports(
 
 
 def test_a_missing_import_names_the_module_and_what_asked_for_it(tmp_path):
-    from omlx_runtime.cluster.autoconfigure import peer_import_issues
+    from molto_runtime.cluster.autoconfigure import peer_import_issues
 
     issues = peer_import_issues(
         {"studio": "studio"},
         model_path=_model_dir(tmp_path, model_type="minimax_m3_vl"),
-        runner=_peer(missing=["mlx_vlm"], uv="/Users/omlx/.local/bin/uv"),
+        runner=_peer(missing=["mlx_vlm"], uv="/Users/molto/.local/bin/uv"),
     )
 
     assert [issue.kind for issue in issues] == ["import_missing"]
     assert "mlx_vlm" in issues[0].detail
-    assert "omlx_runtime.patches.minimax_m3_mlx_lm" in issues[0].detail
+    assert "molto_runtime.patches.minimax_m3_mlx_lm" in issues[0].detail
 
 
 def test_a_missing_import_carries_a_command_that_installs_it(tmp_path):
     """A preflight that says "install mlx-vlm" sends the user to a search engine."""
 
-    from omlx_runtime.cluster.autoconfigure import peer_import_issues
+    from molto_runtime.cluster.autoconfigure import peer_import_issues
 
     issues = peer_import_issues(
         {"studio": "studio"},
         model_path=_model_dir(tmp_path, model_type="minimax_m3_vl"),
-        runner=_peer(missing=["mlx_vlm"], uv="/Users/omlx/.local/bin/uv"),
+        runner=_peer(missing=["mlx_vlm"], uv="/Users/molto/.local/bin/uv"),
     )
 
     command = issues[0].remediation
@@ -1725,21 +1725,21 @@ def test_a_missing_import_carries_a_command_that_installs_it(tmp_path):
 def test_a_worker_venv_without_pip_is_told_to_use_the_installer_it_has(tmp_path):
     """uv builds venvs with no pip, so `python -m pip install` cannot work there."""
 
-    from omlx_runtime.cluster.autoconfigure import peer_import_issues
+    from molto_runtime.cluster.autoconfigure import peer_import_issues
 
     issues = peer_import_issues(
         {"studio": "studio"},
         model_path=_model_dir(tmp_path, model_type="minimax_m3_vl"),
-        runner=_peer(missing=["mlx_vlm"], pip=None, uv="/Users/omlx/.local/bin/uv"),
+        runner=_peer(missing=["mlx_vlm"], pip=None, uv="/Users/molto/.local/bin/uv"),
     )
 
     command = issues[0].remediation
-    assert "/Users/omlx/.local/bin/uv pip install" in command
+    assert "/Users/molto/.local/bin/uv pip install" in command
     assert "-m pip install" not in command
 
 
 def test_a_peer_with_pip_is_told_to_use_pip(tmp_path):
-    from omlx_runtime.cluster.autoconfigure import peer_import_issues
+    from molto_runtime.cluster.autoconfigure import peer_import_issues
 
     issues = peer_import_issues(
         {"studio": "studio"},
@@ -1751,7 +1751,7 @@ def test_a_peer_with_pip_is_told_to_use_pip(tmp_path):
 
 
 def test_a_peer_with_neither_installer_gets_a_command_that_still_works(tmp_path):
-    from omlx_runtime.cluster.autoconfigure import peer_import_issues
+    from molto_runtime.cluster.autoconfigure import peer_import_issues
 
     issues = peer_import_issues(
         {"studio": "studio"},
@@ -1762,22 +1762,22 @@ def test_a_peer_with_neither_installer_gets_a_command_that_still_works(tmp_path)
     assert "-m ensurepip" in issues[0].remediation
 
 
-def test_the_command_installs_the_version_omlx_pins(tmp_path):
+def test_the_command_installs_the_version_molto_pins(tmp_path):
     """A peer on a different mlx-vlm fails differently, not less."""
 
-    from omlx_runtime.cluster.autoconfigure import (
+    from molto_runtime.cluster.autoconfigure import (
         _declared_requirements,
         peer_import_issues,
     )
 
     pinned = _declared_requirements().get("mlx-vlm", "")
     if "git+" not in pinned:
-        pytest.skip("oMLX metadata is unavailable in this environment")
+        pytest.skip("Molto metadata is unavailable in this environment")
 
     issues = peer_import_issues(
         {"studio": "studio"},
         model_path=_model_dir(tmp_path, model_type="minimax_m3_vl"),
-        runner=_peer(missing=["mlx_vlm"], uv="/Users/omlx/.local/bin/uv"),
+        runner=_peer(missing=["mlx_vlm"], uv="/Users/molto/.local/bin/uv"),
     )
 
     assert pinned in issues[0].remediation
@@ -1786,7 +1786,7 @@ def test_the_command_installs_the_version_omlx_pins(tmp_path):
 def test_the_command_names_the_interpreter_the_peer_actually_ran(tmp_path):
     """The launcher's own path is a guess about someone else's Mac."""
 
-    from omlx_runtime.cluster.autoconfigure import peer_import_issues
+    from molto_runtime.cluster.autoconfigure import peer_import_issues
 
     issues = peer_import_issues(
         {"studio": "studio"},
@@ -1794,7 +1794,7 @@ def test_the_command_names_the_interpreter_the_peer_actually_ran(tmp_path):
         python_executable="/here/.venv/bin/python",
         runner=_peer(
             missing=["mlx_vlm"],
-            uv="/Users/omlx/.local/bin/uv",
+            uv="/Users/molto/.local/bin/uv",
             python="/over/there/.venv/bin/python",
         ),
     )
@@ -1804,7 +1804,7 @@ def test_the_command_names_the_interpreter_the_peer_actually_ran(tmp_path):
 
 
 def test_a_peer_that_can_import_everything_raises_nothing(tmp_path):
-    from omlx_runtime.cluster.autoconfigure import peer_import_issues
+    from molto_runtime.cluster.autoconfigure import peer_import_issues
 
     assert (
         peer_import_issues(
@@ -1819,7 +1819,7 @@ def test_a_peer_that_can_import_everything_raises_nothing(tmp_path):
 def test_the_local_rank_is_not_asked_over_ssh(tmp_path):
     """Rank zero is the process asking the question."""
 
-    from omlx_runtime.cluster.autoconfigure import peer_import_issues
+    from molto_runtime.cluster.autoconfigure import peer_import_issues
 
     def runner(argv, **kwargs):
         raise AssertionError("the local rank must not be probed over SSH")
@@ -1835,7 +1835,7 @@ def test_the_local_rank_is_not_asked_over_ssh(tmp_path):
 
 
 def test_a_peer_that_cannot_be_reached_is_reported_rather_than_launched_into(tmp_path):
-    from omlx_runtime.cluster.autoconfigure import peer_import_issues
+    from molto_runtime.cluster.autoconfigure import peer_import_issues
 
     def runner(argv, **kwargs):
         raise OSError("ssh: connect to host studio port 22: Host is down")
@@ -1853,7 +1853,7 @@ def test_a_peer_that_cannot_be_reached_is_reported_rather_than_launched_into(tmp
 def test_a_peer_that_answers_with_junk_is_not_taken_as_a_pass(tmp_path):
     """Silence and noise both have to fail closed, or the check is decoration."""
 
-    from omlx_runtime.cluster.autoconfigure import peer_import_issues
+    from molto_runtime.cluster.autoconfigure import peer_import_issues
 
     def runner(argv, **kwargs):
         return subprocess.CompletedProcess(argv, 0, "Last login: Mon\n", "")
@@ -1870,7 +1870,7 @@ def test_a_peer_that_answers_with_junk_is_not_taken_as_a_pass(tmp_path):
 def test_a_login_banner_ahead_of_the_report_does_not_hide_a_missing_import(tmp_path):
     """Plenty of Macs print an MOTD on every non-interactive login."""
 
-    from omlx_runtime.cluster.autoconfigure import peer_import_issues
+    from molto_runtime.cluster.autoconfigure import peer_import_issues
 
     def runner(argv, **kwargs):
         report = {"python": "/peer/.venv/bin/python", "missing": ["mlx_vlm"]}
@@ -1890,7 +1890,7 @@ def test_a_login_banner_ahead_of_the_report_does_not_hide_a_missing_import(tmp_p
 def test_a_peer_missing_the_interpreter_says_so_rather_than_reporting_no_imports(
     tmp_path,
 ):
-    from omlx_runtime.cluster.autoconfigure import peer_import_issues
+    from molto_runtime.cluster.autoconfigure import peer_import_issues
 
     def runner(argv, **kwargs):
         return subprocess.CompletedProcess(
@@ -1911,7 +1911,7 @@ def test_a_peer_missing_the_interpreter_says_so_rather_than_reporting_no_imports
 def test_the_peer_uses_the_same_prompt_free_ssh_as_the_launch(tmp_path):
     """Preflight and launch must share one changed-key refusal policy."""
 
-    from omlx_runtime.cluster.autoconfigure import peer_import_issues
+    from molto_runtime.cluster.autoconfigure import peer_import_issues
 
     seen = {}
 
@@ -1931,7 +1931,7 @@ def test_the_peer_uses_the_same_prompt_free_ssh_as_the_launch(tmp_path):
 
 
 def test_the_summary_shows_the_fix_and_not_only_the_failure(tmp_path):
-    from omlx_runtime.cluster.autoconfigure import (
+    from molto_runtime.cluster.autoconfigure import (
         describe_preflight,
         peer_import_issues,
     )
@@ -1939,7 +1939,7 @@ def test_the_summary_shows_the_fix_and_not_only_the_failure(tmp_path):
     issues = peer_import_issues(
         {"studio": "studio"},
         model_path=_model_dir(tmp_path, model_type="minimax_m3_vl"),
-        runner=_peer(missing=["mlx_vlm"], uv="/Users/omlx/.local/bin/uv"),
+        runner=_peer(missing=["mlx_vlm"], uv="/Users/molto/.local/bin/uv"),
     )
 
     summary = describe_preflight(issues)
@@ -1953,7 +1953,7 @@ def test_the_probe_runs_standalone_under_a_bare_interpreter():
 
     import sys
 
-    from omlx_runtime.cluster.autoconfigure import _IMPORT_PROBE
+    from molto_runtime.cluster.autoconfigure import _IMPORT_PROBE
 
     completed = subprocess.run(
         [sys.executable, "-c", _IMPORT_PROBE, "json,module_that_does_not_exist"],

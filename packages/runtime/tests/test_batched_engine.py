@@ -18,7 +18,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from omlx_runtime.engine.base import (
+from molto_runtime.engine.base import (
     BaseEngine,
     BaseNonStreamingEngine,
     GenerationOutput,
@@ -244,7 +244,7 @@ class TestBatchedEngineInitialization:
 
     def test_init_stores_parameters(self):
         """Test BatchedEngine stores initialization parameters."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(
             model_name="test-model",
@@ -264,7 +264,7 @@ class TestBatchedEngineInitialization:
 
     def test_init_default_values(self):
         """Test BatchedEngine default values."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
 
@@ -276,7 +276,7 @@ class TestBatchedEngineInitialization:
 
     def test_model_name_property(self):
         """Test model_name property."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="my-model")
 
@@ -284,7 +284,7 @@ class TestBatchedEngineInitialization:
 
     def test_tokenizer_property_before_load(self):
         """Test tokenizer property returns None before loading."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
 
@@ -292,7 +292,7 @@ class TestBatchedEngineInitialization:
 
     def test_model_type_property_before_load(self):
         """Test model_type property returns None before loading."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
 
@@ -301,7 +301,7 @@ class TestBatchedEngineInitialization:
     @pytest.mark.asyncio
     async def test_stop_clears_wrapper_teardown_references(self):
         """stop() releases wrapper-side native helper references."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
         inner_engine = MagicMock()
@@ -327,7 +327,7 @@ class TestBatchedEngineInitialization:
     @pytest.mark.asyncio
     async def test_stop_releases_ane_state_before_dropping_model(self):
         """stop() releases ANE banks while the model is still reachable."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
         model = object()
@@ -342,7 +342,7 @@ class TestBatchedEngineInitialization:
             return 2, 4
 
         with patch(
-            "omlx_runtime.patches.qwen35_ane_prefill.release_qwen35_ane_prefill",
+            "molto_runtime.patches.qwen35_ane_prefill.release_qwen35_ane_prefill",
             side_effect=release_ane_state,
         ):
             await engine.stop()
@@ -353,7 +353,7 @@ class TestBatchedEngineInitialization:
     @pytest.mark.asyncio
     async def test_stop_continues_when_ane_state_release_fails(self):
         """An optional ANE release failure does not block wrapper teardown."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
         engine._model = object()
@@ -361,7 +361,7 @@ class TestBatchedEngineInitialization:
         engine._engine.stop = AsyncMock()
 
         with patch(
-            "omlx_runtime.patches.qwen35_ane_prefill.release_qwen35_ane_prefill",
+            "molto_runtime.patches.qwen35_ane_prefill.release_qwen35_ane_prefill",
             side_effect=RuntimeError("native release unavailable"),
         ):
             await engine.stop()
@@ -376,7 +376,7 @@ class TestBatchedEngineStreamingCleanup:
     @pytest.mark.asyncio
     async def test_stream_abort_uses_captured_engine_if_engine_cleared(self):
         """Generator finalization aborts on the original engine reference."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         fake_engine = FakeStreamingCore()
         engine = BatchedEngine(model_name="test-model")
@@ -394,7 +394,7 @@ class TestBatchedEngineStreamingCleanup:
 
     @pytest.mark.asyncio
     async def test_stream_generate_forwards_tools_to_request(self):
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         tools = [{"type": "function", "function": {"name": "weather"}}]
         fake_engine = FakeStreamingCore()
@@ -414,7 +414,7 @@ class TestBatchedEngineApplyChatTemplate:
 
     def test_apply_chat_template_with_tokenizer(self):
         """Test _apply_chat_template when tokenizer has apply_chat_template."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
 
@@ -435,7 +435,7 @@ class TestBatchedEngineApplyChatTemplate:
 
     def test_apply_chat_template_with_tools(self):
         """Test _apply_chat_template passes tools to tokenizer."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
 
@@ -455,7 +455,7 @@ class TestBatchedEngineApplyChatTemplate:
 
     def test_apply_chat_template_with_enable_thinking(self):
         """Test _apply_chat_template passes enable_thinking."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model", enable_thinking=True)
 
@@ -472,7 +472,7 @@ class TestBatchedEngineApplyChatTemplate:
 
     def test_apply_chat_template_fallback(self):
         """Test _apply_chat_template fallback when tokenizer lacks method."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
 
@@ -494,7 +494,7 @@ class TestBatchedEngineApplyChatTemplate:
 
     def test_apply_chat_template_handles_type_error(self):
         """Test _apply_chat_template handles TypeError from tokenizer."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model", enable_thinking=True)
 
@@ -525,7 +525,7 @@ class TestBatchedEnginePreprocessMessages:
 
     def test_preprocess_messages_non_harmony(self):
         """Test _preprocess_messages returns unchanged for non-Harmony models."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
         engine._model = MagicMock()
@@ -540,7 +540,7 @@ class TestBatchedEnginePreprocessMessages:
 
     def test_preprocess_messages_model_type_none(self):
         """Test _preprocess_messages when model_type is None."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
         # No model loaded
@@ -557,7 +557,7 @@ class TestBatchedEngineStats:
 
     def test_get_stats_before_load(self):
         """Test get_stats() before model is loaded."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model", stream_interval=3)
 
@@ -570,7 +570,7 @@ class TestBatchedEngineStats:
 
     def test_get_stats_includes_engine_stats(self):
         """Test get_stats() includes engine stats when loaded."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
 
@@ -591,7 +591,7 @@ class TestBatchedEngineStats:
 
     def test_get_cache_stats_before_load(self):
         """Test get_cache_stats() before model is loaded."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
 
@@ -601,7 +601,7 @@ class TestBatchedEngineStats:
 
     def test_get_cache_stats_after_load(self):
         """Test get_cache_stats() when engine is loaded."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
 
@@ -619,7 +619,7 @@ class TestBatchedEngineModelType:
 
     def test_model_type_none_before_init(self):
         """Partially constructed engines have no model type yet."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine.__new__(BatchedEngine)
 
@@ -627,7 +627,7 @@ class TestBatchedEngineModelType:
 
     def test_model_type_from_config(self):
         """Test model_type from model.config."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
 
@@ -640,7 +640,7 @@ class TestBatchedEngineModelType:
 
     def test_model_type_from_config_dict(self):
         """Test model_type from dict-style config."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
 
@@ -656,7 +656,7 @@ class TestBatchedEngineModelType:
 
     def test_model_type_from_args(self):
         """Test model_type from model.args."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
 
@@ -669,7 +669,7 @@ class TestBatchedEngineModelType:
 
     def test_model_type_none_when_not_available(self):
         """Test model_type returns None when not available."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
 
@@ -684,7 +684,7 @@ class TestApplyChatTemplatePartialMode:
 
     def test_partial_mode_sets_continue_final_message(self):
         """Final assistant message with partial=True sets continue_final_message."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
 
@@ -705,7 +705,7 @@ class TestApplyChatTemplatePartialMode:
 
     def test_partial_non_assistant_ignored(self):
         """partial=True on a non-assistant message does not trigger partial mode."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
 
@@ -725,7 +725,7 @@ class TestApplyChatTemplatePartialMode:
 
     def test_partial_field_stripped_before_template(self):
         """partial field is removed from messages before calling apply_chat_template."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
 
@@ -759,7 +759,7 @@ class TestApplyChatTemplatePartialMode:
         model-template-specific — many templates silently ignore it, so
         assertions on template output would be fragile and model-dependent.
         """
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
 
@@ -800,7 +800,7 @@ class TestApplyChatTemplatePartialMode:
         not the generation path.  This test confirms the kwargs are set
         correctly when the messages would be used in a streaming context.
         """
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
 
@@ -831,8 +831,8 @@ class TestApplyChatTemplatePartialMode:
         via an explicit is_partial parameter, and assert both phases pass
         the same partial-mode flags to apply_chat_template.
         """
-        from omlx_runtime.engine.batched import BatchedEngine
-        from omlx_runtime.generation.utils import detect_and_strip_partial
+        from molto_runtime.engine.batched import BatchedEngine
+        from molto_runtime.generation.utils import detect_and_strip_partial
 
         engine = BatchedEngine(model_name="test-model")
 
@@ -902,7 +902,7 @@ class TestBatchedEngineSpecPrefillForwarding:
         )
 
     def test_pop_specprefill_kwargs_extracts_and_pops(self):
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         kwargs = {
             "specprefill_keep_pct": 0.25,
@@ -923,14 +923,14 @@ class TestBatchedEngineSpecPrefillForwarding:
         assert kwargs == {"temperature": 0.7}
 
     def test_pop_specprefill_kwargs_ignores_none_values(self):
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         kwargs = {"specprefill_keep_pct": None, "specprefill": None}
         assert BatchedEngine._pop_specprefill_kwargs(kwargs) == {}
 
     @pytest.mark.asyncio
     async def test_generate_forwards_specprefill_kwargs(self):
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
         engine._loaded = True
@@ -951,7 +951,7 @@ class TestBatchedEngineSpecPrefillForwarding:
     @pytest.mark.asyncio
     async def test_generate_forwards_preserve_reasoning(self):
         """The non-streaming path must carry the flag the streaming path already does."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
         engine._loaded = True
@@ -965,7 +965,7 @@ class TestBatchedEngineSpecPrefillForwarding:
 
     @pytest.mark.asyncio
     async def test_generate_forwards_tools(self):
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         tools = [{"type": "function", "function": {"name": "weather"}}]
         engine = BatchedEngine(model_name="test-model")
@@ -980,7 +980,7 @@ class TestBatchedEngineSpecPrefillForwarding:
 
     @pytest.mark.asyncio
     async def test_generate_omits_specprefill_when_absent(self):
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
         engine._loaded = True
@@ -996,7 +996,7 @@ class TestBatchedEngineSpecPrefillForwarding:
 
     @pytest.mark.asyncio
     async def test_chat_injects_specprefill_system_end(self):
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
         engine._loaded = True
@@ -1029,7 +1029,7 @@ class TestBatchedEngineSpecPrefillForwarding:
 
     @pytest.mark.asyncio
     async def test_chat_skips_system_end_when_specprefill_disabled(self):
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
         engine._loaded = True
@@ -1054,7 +1054,7 @@ class TestBatchedEngineSpecPrefillForwarding:
     @pytest.mark.asyncio
     async def test_chat_injects_generation_prompt_text(self):
         """The suffix past the no-generation-prompt rendering reaches the engine."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine(model_name="test-model")
         engine._loaded = True
@@ -1103,8 +1103,8 @@ class TestBatchedEngineMoeOffloadWiring:
         ("mtp_enabled", "expected"), [(True, True), (False, False)]
     )
     async def test_offload_call_forwards_mtp_residency(self, mtp_enabled, expected):
-        from omlx_config.model_settings import ModelSettings
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_config.model_settings import ModelSettings
+        from molto_runtime.engine.batched import BatchedEngine
 
         seen: dict = {}
 
@@ -1123,21 +1123,21 @@ class TestBatchedEngineMoeOffloadWiring:
             ),
         )
         with (
-            patch("omlx_runtime.engine.batched.get_tokenizer_config", return_value={}),
-            patch("omlx_runtime.utils.model_loading.maybe_apply_pre_load_patches"),
+            patch("molto_runtime.engine.batched.get_tokenizer_config", return_value={}),
+            patch("molto_runtime.utils.model_loading.maybe_apply_pre_load_patches"),
             patch(
-                "omlx_runtime.utils.model_loading.maybe_load_custom_quantization",
+                "molto_runtime.utils.model_loading.maybe_load_custom_quantization",
                 return_value=(object(), object()),
             ),
             patch(
-                "omlx_runtime.utils.model_loading.apply_post_load_transforms",
+                "molto_runtime.utils.model_loading.apply_post_load_transforms",
                 side_effect=lambda model, settings: model,
             ),
             patch(
-                "omlx_runtime.patches.moe_expert_offload.apply_moe_expert_offload",
+                "molto_runtime.patches.moe_expert_offload.apply_moe_expert_offload",
                 _recorder,
             ),
-            patch("omlx_runtime.engine_core.get_mlx_executor", return_value=None),
+            patch("molto_runtime.engine_core.get_mlx_executor", return_value=None),
         ):
             with pytest.raises(_Abort):
                 await engine.start()

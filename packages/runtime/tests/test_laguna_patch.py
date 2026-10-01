@@ -63,13 +63,13 @@ def _minimal_laguna_config(**overrides):
 
 def test_apply_registers_laguna_module():
     """``apply_laguna_patch()`` makes ``mlx_lm.models.laguna`` importable."""
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
 
     assert "mlx_lm.models.laguna" in sys.modules
     mod = importlib.import_module("mlx_lm.models.laguna")
-    assert mod.__package__ == "omlx_runtime.patches.laguna"
+    assert mod.__package__ == "molto_runtime.patches.laguna"
 
     import mlx_lm.models as models_pkg
 
@@ -78,7 +78,7 @@ def test_apply_registers_laguna_module():
 
 def test_apply_is_idempotent():
     """Calling ``apply_laguna_patch()`` twice is a no-op after the first."""
-    from omlx_runtime.patches.laguna import apply_laguna_patch, is_applied
+    from molto_runtime.patches.laguna import apply_laguna_patch, is_applied
 
     first = apply_laguna_patch()
     second = apply_laguna_patch()
@@ -90,7 +90,7 @@ def test_apply_is_idempotent():
 
 def test_get_classes_resolves_laguna():
     """After patching, ``_get_classes()`` resolves a Laguna config."""
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
 
@@ -104,7 +104,7 @@ def test_get_classes_resolves_laguna():
 
 def test_laguna_model_instantiates_with_flat_args():
     """``Model`` holds ``args``, ``model_type``, and ``model`` (native)."""
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
 
@@ -122,7 +122,7 @@ def test_laguna_model_instantiates_with_flat_args():
 def test_laguna_uses_bounded_cache_for_sliding_attention():
     """Mixed attention uses full KV only where the model can attend globally."""
     from mlx_lm.models.cache import KVCache, RotatingKVCache
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
 
@@ -198,7 +198,7 @@ def test_laguna_s21_shaped_model_forward():
 
     from mlx_lm.models.cache import KVCache, RotatingKVCache
     from mlx_lm.models.rope_utils import YarnRoPE
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
 
@@ -242,7 +242,7 @@ def test_laguna_s21_shaped_model_forward():
 
 def test_mlp_layer_types_overrides_legacy_cadence():
     """An explicit mlp_layer_types list wins over mlp_only_layers cadence."""
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
 
@@ -267,7 +267,7 @@ def test_mlp_layer_types_overrides_legacy_cadence():
 
 def test_gating_types_normalized_per_layer():
     """gating_types entries are normalized and applied per layer."""
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
 
@@ -291,7 +291,7 @@ def test_gating_types_normalized_per_layer():
 
 def test_per_layer_list_length_mismatch_raises():
     """Per-layer lists that disagree with num_hidden_layers are rejected."""
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
 
@@ -305,7 +305,7 @@ def test_per_layer_list_length_mismatch_raises():
 
 def test_laguna_sanitize_remaps_gate_and_stacks_experts():
     """``Model.sanitize`` remaps ``mlp.gate.weight`` and stacks expert proj weights."""
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
 
@@ -368,7 +368,7 @@ def test_sanitize_remaps_quant_router_sidecars():
     ``gate.scales`` and ``gate.biases`` orphaned, triggering
     ``ValueError: Received N parameters not in model``.
     """
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
 
@@ -424,7 +424,7 @@ def test_sanitize_remaps_bare_score_correction_bias():
     router correction bias at ``mlp.e_score_correction_bias`` (without the
     ``experts.`` prefix the legacy sanitizer branch checked for).
     """
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
 
@@ -462,7 +462,7 @@ def test_sanitize_remaps_bare_score_correction_bias():
 
 def test_sanitize_remaps_experts_prefixed_score_correction_bias():
     """Legacy ``experts.e_score_correction_bias`` still maps correctly."""
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
 
@@ -500,7 +500,7 @@ def test_sanitize_remaps_experts_prefixed_score_correction_bias():
 
 def test_sanitize_dequantizes_fp8_block_weights():
     """FP8 e4m3 weight + f32 block scales convert to 8-bit affine triples."""
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
 
@@ -553,7 +553,7 @@ def test_sanitize_dequantizes_fp8_block_weights():
 
 def test_sanitize_stacks_and_dequantizes_fp8_experts():
     """Per-expert FP8 tensors stack first, then convert as one batched tensor."""
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
 
@@ -604,7 +604,7 @@ def test_sanitize_stacks_and_dequantizes_fp8_experts():
 
 def test_sanitize_unpacks_int4_stacked_experts():
     """Pack-quantized int4 expert tensors unpack after stacking."""
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
 
@@ -646,7 +646,7 @@ def test_sanitize_strips_language_model_prefix():
     mlx-vlm route, so every key is nested under language_model. including
     already-sanitized names like gate.proj and stacked switch_mlp triples.
     """
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
 
@@ -693,7 +693,7 @@ def test_sanitize_strips_language_model_prefix():
 def test_sanitize_repacks_compressed_nvfp4_experts():
     """nvfp4-pack tensors reinterpret bit-exactly into mlx nvfp4 layout with
     the per-tensor global scale folded into the e4m3 group scales."""
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
 
@@ -743,7 +743,7 @@ def test_sanitize_repacks_compressed_nvfp4_experts():
 
 def test_normalize_laguna_compressed_quant_formats():
     """Each compressed-tensors format maps to its mlx quantization target."""
-    from omlx_runtime.utils.model_loading import normalize_laguna_compressed_quant
+    from molto_runtime.utils.model_loading import normalize_laguna_compressed_quant
 
     def cfg(fmt, weights):
         return {
@@ -783,7 +783,7 @@ def test_normalize_laguna_compressed_quant_formats():
 
 def test_pre_load_dispatch_applies_laguna_patch(tmp_path):
     """``maybe_apply_pre_load_patches`` dispatches for ``model_type: laguna``."""
-    from omlx_runtime.patches import laguna
+    from molto_runtime.patches import laguna
 
     laguna._APPLIED = False
     sys.modules.pop("mlx_lm.models.laguna", None)
@@ -794,7 +794,7 @@ def test_pre_load_dispatch_applies_laguna_patch(tmp_path):
 
     (tmp_path / "config.json").write_text(json.dumps({"model_type": "laguna"}))
 
-    from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+    from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
     maybe_apply_pre_load_patches(str(tmp_path))
 
@@ -806,8 +806,8 @@ def test_pre_load_dispatch_skips_laguna_patch_for_other_model_types(
     tmp_path, monkeypatch
 ):
     """A non-Laguna config must leave the compatibility patch untouched."""
-    from omlx_runtime.patches import laguna
-    from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+    from molto_runtime.patches import laguna
+    from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
     patch_invocations: list[None] = []
     monkeypatch.setattr(
@@ -824,7 +824,7 @@ def test_pre_load_dispatch_skips_laguna_patch_for_other_model_types(
 
 def _laguna_tool_parser():
     """Return the parser registered by the Laguna compatibility patch."""
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
     return importlib.import_module("mlx_lm.tool_parsers.laguna")
@@ -901,7 +901,7 @@ def test_laguna_attention_resolves_sdpa_through_module():
     covers mlx_lm/mlx_vlm model modules, so an import-time binding here would
     never see TurboQuant at all.
     """
-    from omlx_runtime.patches.laguna import laguna_model
+    from molto_runtime.patches.laguna import laguna_model
 
     assert not hasattr(laguna_model, "scaled_dot_product_attention")
     code = laguna_model.Attention.__call__.__code__
@@ -929,7 +929,7 @@ def _nvfp4_sparse_config(**overrides):
 
 def _registered_laguna_module():
     """The exec'd model module the loader registers (patch must precede it)."""
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
     import mlx_lm.models.laguna as lm
@@ -939,7 +939,7 @@ def _registered_laguna_module():
 
 def _quantized_sparse_model():
     """Small 2-layer sparse model with NVFP4 group-16 4-bit switch banks."""
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
     from mlx_lm.models import laguna
@@ -1130,7 +1130,7 @@ def test_normalize_then_combine_equals_folded():
     to the Swift's folded lagunaCompiledNormalizedExpertCombine.
 
     The submission folds top-k renormalization into the expert combine
-    (deferred). oMLX keeps the normalize in the router (8adb56be) and the
+    (deferred). Molto keeps the normalize in the router (8adb56be) and the
     combine separate (9a37e4dc); this pins that the two compositions are
     bit-identical, so the folded variant adds nothing and is not re-ported.
     """
@@ -1139,7 +1139,7 @@ def test_normalize_then_combine_equals_folded():
     weights = mx.random.uniform(shape=(1, 1, 2), dtype=mx.float32)
     shared = mx.random.normal((1, 1, 64), dtype=mx.float32)
 
-    # oMLX path: normalize in the router, then the compiled combine.
+    # Molto path: normalize in the router, then the compiled combine.
     normalized = weights / mx.sum(weights, axis=-1, keepdims=True)
     typed = normalized.astype(outputs.dtype)
     routed = mx.sum(outputs * typed[..., None], axis=-2)

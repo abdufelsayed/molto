@@ -3,9 +3,9 @@
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.patches.deepseek_v41.cache import DeepseekV41Cache
-from omlx_runtime.patches.deepseek_v41.language import Attention
-from omlx_runtime.patches.deepseek_v41.quantization import QuantizedProjection
+from molto_runtime.patches.deepseek_v41.cache import DeepseekV41Cache
+from molto_runtime.patches.deepseek_v41.language import Attention
+from molto_runtime.patches.deepseek_v41.quantization import QuantizedProjection
 from test_deepseek_v41 import tiny
 
 

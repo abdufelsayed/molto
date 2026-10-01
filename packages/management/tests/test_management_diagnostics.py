@@ -5,15 +5,15 @@ from types import SimpleNamespace
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from omlx_management.management import ManagementError
-from omlx_management.management_diagnostics import (
+from molto_management.management import ManagementError
+from molto_management.management_diagnostics import (
     RUNNERS,
     DiagnosticRequest,
     DiagnosticsService,
 )
-from omlx_runtime.diagnostics.benchmark import BenchmarkRequest, BenchmarkRun
-from omlx_server.api.management_diagnostics_routes import router, service
-from omlx_server.auth import AuthContext, require_management_key
+from molto_runtime.diagnostics.benchmark import BenchmarkRequest, BenchmarkRun
+from molto_server.api.management_diagnostics_routes import router, service
+from molto_server.auth import AuthContext, require_management_key
 
 
 def runtime(tmp_path):
@@ -43,7 +43,7 @@ def request(**options):
 @pytest.mark.asyncio
 async def test_success_progress_history_and_recovery(tmp_path):
     rt = runtime(tmp_path)
-    from omlx_management.model_control import ModelControl
+    from molto_management.model_control import ModelControl
 
     rt.control = ModelControl(tmp_path)
 
@@ -197,12 +197,12 @@ def test_real_runners_have_no_admin_or_upload_imports():
         source = inspect.getsource(module)
         assert "from .accuracy_upload" not in source
         assert "from ..server" not in source
-        assert "await _upload_to_omlx_ai" not in source
+        assert "await _upload_to_molto_ai" not in source
 
 
 @pytest.mark.asyncio
 async def test_shared_operation_history_and_unstarted_cancel(tmp_path):
-    from omlx_management.model_control import ModelControl
+    from molto_management.model_control import ModelControl
 
     rt = runtime(tmp_path)
     rt.control = ModelControl(tmp_path)
@@ -273,7 +273,7 @@ async def test_pool_admission_spans_runner_and_cleanup(tmp_path):
 
 
 def test_context_default_does_not_apply_settings():
-    from omlx_runtime.diagnostics.context_benchmark import ContextBenchmarkRequest
+    from molto_runtime.diagnostics.context_benchmark import ContextBenchmarkRequest
 
     assert ContextBenchmarkRequest(model_id="model").apply_result is False
 
@@ -368,7 +368,7 @@ def test_nested_unknown_and_coerced_options_return_422(tmp_path):
 
 @pytest.mark.asyncio
 async def test_real_batch_helper_failure_aborts_and_drains_siblings(monkeypatch):
-    from omlx_runtime.diagnostics import benchmark
+    from molto_runtime.diagnostics import benchmark
 
     monkeypatch.setattr(benchmark, "HAS_MLX", False)
     started, cleanup, finish = asyncio.Event(), asyncio.Event(), asyncio.Event()
@@ -410,7 +410,7 @@ async def test_real_batch_helper_failure_aborts_and_drains_siblings(monkeypatch)
 
 @pytest.mark.asyncio
 async def test_real_external_batch_helper_drains_failed_siblings():
-    from omlx_runtime.diagnostics import benchmark
+    from molto_runtime.diagnostics import benchmark
 
     started, cleanup, finish = asyncio.Event(), asyncio.Event(), asyncio.Event()
 
@@ -438,7 +438,7 @@ async def test_real_external_batch_helper_drains_failed_siblings():
 
 @pytest.mark.parametrize("backend", ["qwen", "k2"])
 def test_real_tuning_snapshot_exports_tested_prerequisites(backend):
-    from omlx_runtime.diagnostics import ane_tuning
+    from molto_runtime.diagnostics import ane_tuning
 
     run = ane_tuning.ANETuningRun(
         "run", ane_tuning.ANETuningRequest(model_id="model", backend=backend)
@@ -457,7 +457,7 @@ async def test_real_native_abort_drain_survives_repeated_cancel():
     import threading
     from concurrent.futures import ThreadPoolExecutor
 
-    from omlx_runtime.diagnostics import benchmark
+    from molto_runtime.diagnostics import benchmark
 
     native_started, native_finish = threading.Event(), threading.Event()
     scheduler = SimpleNamespace(
@@ -500,8 +500,8 @@ async def test_actual_idle_scheduler_removed_request_abort_never_orphans_pending
     from collections import deque
     from concurrent.futures import ThreadPoolExecutor
 
-    from omlx_runtime.diagnostics import benchmark
-    from omlx_runtime.scheduler import Scheduler
+    from molto_runtime.diagnostics import benchmark
+    from molto_runtime.scheduler import Scheduler
 
     scheduler = Scheduler.__new__(Scheduler)
     scheduler.requests = {}

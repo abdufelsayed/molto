@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from cluster_app import cluster_app
-from omlx_runtime.cluster import model_inventory
-from omlx_runtime.cluster.model_inventory import (
+from molto_runtime.cluster import model_inventory
+from molto_runtime.cluster.model_inventory import (
     engine_pool_model_inventory,
     merge_model_inventories,
     remote_model_inventory,
 )
-from omlx_runtime.cluster.planner import ModelLayout
+from molto_runtime.cluster.planner import ModelLayout
 
 
 def _model(
@@ -30,8 +30,8 @@ def _model(
 
 
 def test_a_shared_model_is_listed_once_with_every_location():
-    local = _model(size=62, path="/Users/omlx/.omlx/models/MiniMax-M3-4bit")
-    studio = _model(size=236, path="/Users/omlx/.omlx/models/MiniMax-M3-4bit")
+    local = _model(size=62, path="/Users/molto/.molto/models/MiniMax-M3-4bit")
+    studio = _model(size=236, path="/Users/molto/.molto/models/MiniMax-M3-4bit")
 
     [merged] = merge_model_inventories(
         [
@@ -124,7 +124,7 @@ def test_local_pool_inventory_keeps_vlms_for_cluster_compatibility():
 
 def _client():
     from fastapi.testclient import TestClient
-    from omlx_server.cluster.routes import router
+    from molto_server.cluster.routes import router
 
     app = cluster_app()
     app.include_router(router)
@@ -132,7 +132,7 @@ def _client():
 
 
 def test_cluster_inventory_endpoint_unions_local_and_peer_models(monkeypatch):
-    from omlx_server.cluster import routes
+    from molto_server.cluster import routes
 
     class Pool:
         def get_status(self):
@@ -153,7 +153,7 @@ def test_cluster_inventory_endpoint_unions_local_and_peer_models(monkeypatch):
                 {
                     "node_id": "Mac Studio",
                     "ssh": "studio",
-                    "python_executable": "/opt/omlx/bin/python",
+                    "python_executable": "/opt/molto/bin/python",
                 },
             ]
         },
@@ -162,12 +162,12 @@ def test_cluster_inventory_endpoint_unions_local_and_peer_models(monkeypatch):
     assert response.status_code == 200
     [model] = response.json()["models"]
     assert model["model_source"] == "studio"
-    assert model["python_executable"] == "/opt/omlx/bin/python"
+    assert model["python_executable"] == "/opt/molto/bin/python"
     assert model["location_count"] == 2
 
 
 def test_catalogue_measures_a_peer_owned_model_on_the_peer(monkeypatch):
-    from omlx_server.cluster import routes
+    from molto_server.cluster import routes
 
     asked = {}
 
@@ -202,7 +202,7 @@ def test_catalogue_measures_a_peer_owned_model_on_the_peer(monkeypatch):
                     "id": "m3",
                     "model_path": "/models/m3",
                     "model_source": "studio",
-                    "model_source_python": "/opt/omlx/bin/python",
+                    "model_source_python": "/opt/molto/bin/python",
                     "source_node_id": "Studio",
                     "model_context_length": 262144,
                 }
@@ -214,14 +214,14 @@ def test_catalogue_measures_a_peer_owned_model_on_the_peer(monkeypatch):
     assert asked == {
         "host": "studio",
         "path": "/models/m3",
-        "python": "/opt/omlx/bin/python",
+        "python": "/opt/molto/bin/python",
     }
     assert response.json()["models"][0]["model_source"] == "studio"
     assert response.json()["models"][0]["fits"] is True
 
 
 def test_plan_carries_the_selected_model_holder_to_remote_measurement(monkeypatch):
-    from omlx_server.cluster import routes
+    from molto_server.cluster import routes
 
     asked = {}
 
@@ -240,7 +240,7 @@ def test_plan_carries_the_selected_model_holder_to_remote_measurement(monkeypatc
         json={
             "model_path": "/models/m3",
             "model_source": "studio",
-            "model_source_python": "/opt/omlx/bin/python",
+            "model_source_python": "/opt/molto/bin/python",
             "nodes": [
                 {"node_id": "MacBook", "capacity_bytes": 1 << 30},
                 {"node_id": "Studio", "capacity_bytes": 1 << 30},
@@ -252,5 +252,5 @@ def test_plan_carries_the_selected_model_holder_to_remote_measurement(monkeypatc
     assert asked == {
         "host": "studio",
         "path": "/models/m3",
-        "python": "/opt/omlx/bin/python",
+        "python": "/opt/molto/bin/python",
     }

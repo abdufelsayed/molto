@@ -7,8 +7,8 @@ import mlx.core as mx
 import mlx.nn as nn
 import pytest
 from mlx_lm.models.cache import make_prompt_cache
-from omlx_runtime.patches.k2_horizon import apply_k2_horizon_patch
-from omlx_runtime.patches.k2_horizon.k2_horizon_model import (
+from molto_runtime.patches.k2_horizon import apply_k2_horizon_patch
+from molto_runtime.patches.k2_horizon.k2_horizon_model import (
     GroupedRMSNorm,
     Model,
     ModelArgs,
@@ -128,7 +128,7 @@ def test_indexed_checkpoint_roundtrip(tmp_path, quantized):
 
 
 def test_mova_router_preserves_source_partition_rounding():
-    from omlx_runtime.patches.k2_horizon.k2_horizon_model import router_logits
+    from molto_runtime.patches.k2_horizon.k2_horizon_model import router_logits
 
     x = mx.ones((1, 4), mx.bfloat16)
     weights = mx.array([[1, 1 / 256, -1, 0], [0, 0, 1 / 512, 0]], mx.bfloat16)
@@ -141,7 +141,7 @@ def test_mova_router_preserves_source_partition_rounding():
 
 
 def test_yarn_rotation_uses_each_batch_offset():
-    from omlx_runtime.patches.k2_horizon.k2_horizon_model import YarnRoPE
+    from molto_runtime.patches.k2_horizon.k2_horizon_model import YarnRoPE
 
     rope = YarnRoPE(
         SimpleNamespace(
@@ -170,7 +170,7 @@ def test_yarn_rotation_uses_each_batch_offset():
 
 
 def test_router_bias_only_changes_selection():
-    from omlx_runtime.patches.k2_horizon.k2_horizon_model import route
+    from molto_runtime.patches.k2_horizon.k2_horizon_model import route
 
     x = mx.ones((2, 1, 4), mx.bfloat16)
     weight = mx.zeros((3, 4), mx.bfloat16)

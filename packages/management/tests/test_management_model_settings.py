@@ -7,17 +7,17 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from omlx_config.model_settings import ModelSettings, ModelSettingsManager
-from omlx_config.settings import SamplingSettings, SchedulerSettings
-from omlx_contracts.management import GlobalSettingsPatch, ModelSettingsPatch
-from omlx_management.management import (
+from molto_config.model_settings import ModelSettings, ModelSettingsManager
+from molto_config.settings import SamplingSettings, SchedulerSettings
+from molto_contracts.management import GlobalSettingsPatch, ModelSettingsPatch
+from molto_management.management import (
     ManagementContext,
     ManagementError,
     ManagementService,
 )
-from omlx_runtime.engine_pool import EngineEntry, EnginePool
-from omlx_server.api.management_routes import get_management_service, router
-from omlx_server.auth import require_management_key
+from molto_runtime.engine_pool import EngineEntry, EnginePool
+from molto_server.api.management_routes import get_management_service, router
+from molto_server.auth import require_management_key
 from pydantic import ValidationError
 
 

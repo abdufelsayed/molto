@@ -17,14 +17,14 @@ from unittest.mock import MagicMock
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.memory_monitor import (
+from molto_runtime.memory_monitor import (
     _SDPA_FALLBACK_SCORE_DTYPE_SIZE,
     MemoryMonitor,
     collect_kv_layer_specs,
     estimate_mla_kv_bytes_per_token,
     estimate_qwen4_exp_kv_bytes_per_token,
 )
-from omlx_runtime.scheduler import Scheduler, SchedulerConfig
+from molto_runtime.scheduler import Scheduler, SchedulerConfig
 
 
 def _make_scheduler() -> Scheduler:
@@ -133,7 +133,7 @@ def test_qwen4_qsa_memory_includes_indexer_and_mrope_state():
 
 
 def test_qwen4_prefill_profile_gathered_core_caps_score_matrix():
-    from omlx_runtime.memory_monitor import MemoryMonitor, make_prefill_memory_profile
+    from molto_runtime.memory_monitor import MemoryMonitor, make_prefill_memory_profile
 
     config = SimpleNamespace(
         model_type="qwen4_exp",
@@ -314,7 +314,7 @@ class TestMlaKvMemoryEstimate:
         assert actual < standard / 20
 
     def test_nope_mla_accepts_zero_rope_and_prices_pooling_ratio(self):
-        from omlx_runtime.patches.deepseek_v4 import apply_pooling_cache_support
+        from molto_runtime.patches.deepseek_v4 import apply_pooling_cache_support
 
         apply_pooling_cache_support()
         from mlx_lm.models.cache import CacheList, KVCache, PoolingCache

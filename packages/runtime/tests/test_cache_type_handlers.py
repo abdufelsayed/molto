@@ -11,7 +11,7 @@ import types
 from unittest.mock import MagicMock
 
 import pytest
-from omlx_runtime.cache.type_handlers import (
+from molto_runtime.cache.type_handlers import (
     ArraysCacheHandler,
     CacheListHandler,
     CacheStateInfo,
@@ -23,7 +23,7 @@ from omlx_runtime.cache.type_handlers import (
     RotatingKVCacheHandler,
     SizedArraysCache,
 )
-from omlx_runtime.cache.type_registry import CacheTypeRegistry
+from molto_runtime.cache.type_registry import CacheTypeRegistry
 
 
 class TestCacheTypeEnum:
@@ -575,7 +575,7 @@ class TestRotatingKVCacheHandlerWithMLX:
         The new handler keeps the buffer as-is, relying on
         PrefillReadyRotatingKVCache.size() to clamp the merge slice.
         """
-        from omlx_runtime.cache._rotating_subclass import PrefillReadyRotatingKVCache
+        from molto_runtime.cache._rotating_subclass import PrefillReadyRotatingKVCache
 
         # Simulate an undersized restored buffer: 100 real tokens with an
         # original offset of 500 (rotation has wrapped at least once).
@@ -646,7 +646,7 @@ class TestRotatingKVCacheHandlerWithMLX:
         max_size tokens (with the head-keep portion preserved) and lands
         the result in case 1 of _temporal_order.
         """
-        from omlx_runtime.cache._rotating_subclass import PrefillReadyRotatingKVCache
+        from molto_runtime.cache._rotating_subclass import PrefillReadyRotatingKVCache
 
         max_size = 128
         oversize = max_size + 32  # = 160
@@ -1092,7 +1092,7 @@ class TestCacheListHandler:
 
     def test_extract_state_normalizes_sized_arrays_cache(self, handler):
         """Test that SizedArraysCache class name is normalized to ArraysCache."""
-        from omlx_runtime.cache.type_handlers import SizedArraysCache
+        from molto_runtime.cache.type_handlers import SizedArraysCache
 
         inner_mock = MagicMock(spec=[])
         inner_mock.state = [MagicMock(), MagicMock()]
@@ -1280,7 +1280,7 @@ class TestCacheListHandlerWithMLX:
 
     def test_reconstruct_cache_rotating_sub_cache_uses_handler(self, handler, mx):
         """Nested RotatingKVCache restores as trimmed PrefillReadyRotatingKVCache."""
-        from omlx_runtime.cache._rotating_subclass import PrefillReadyRotatingKVCache
+        from molto_runtime.cache._rotating_subclass import PrefillReadyRotatingKVCache
 
         keys = mx.arange(255).reshape(1, 1, 255, 1)
         values = mx.arange(1000, 1255).reshape(1, 1, 255, 1)

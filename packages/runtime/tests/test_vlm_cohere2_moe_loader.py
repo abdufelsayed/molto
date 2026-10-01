@@ -9,12 +9,12 @@ import pytest
 
 pytest.importorskip("mlx.core")
 
-from omlx_runtime.engine import vlm as vlm_module
-from omlx_runtime.engine.vlm import (
+from molto_runtime.engine import vlm as vlm_module
+from molto_runtime.engine.vlm import (
     VLMBatchedEngine,
     _load_cohere2_moe_text_model,
 )
-from omlx_runtime.exceptions import InvalidRequestError
+from molto_runtime.exceptions import InvalidRequestError
 
 
 class _FakeTokenizer:

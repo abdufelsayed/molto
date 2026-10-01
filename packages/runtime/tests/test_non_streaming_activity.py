@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 import pytest
-from omlx_runtime.engine.base import BaseNonStreamingEngine
+from molto_runtime.engine.base import BaseNonStreamingEngine
 
 
 class DummyNonStreamingEngine(BaseNonStreamingEngine):
@@ -58,7 +58,7 @@ async def test_finish_activity_clears_mlx_cache_unconditionally():
     """
     engine = DummyNonStreamingEngine()
 
-    with patch("omlx_runtime.engine.base.mx") as mock_mx:
+    with patch("molto_runtime.engine.base.mx") as mock_mx:
         # Two overlapping activities — neither drains active_count to 0
         # before the other finishes, but both must still clear.
         a = engine._begin_activity("embedding")

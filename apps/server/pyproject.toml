@@ -3,14 +3,14 @@ requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "omlx-server"
-version = "0.7.0rc1"
+name = "molto-server"
+version = "0.1.0.dev0"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-  "omlx-config",
-  "omlx-contracts",
-  "omlx-management",
-  "omlx-runtime",
+  "molto-config",
+  "molto-contracts",
+  "molto-management",
+  "molto-runtime",
   "fastapi>=0.108",
   "uvicorn>=0.23",
   "python-multipart>=0.0.5",

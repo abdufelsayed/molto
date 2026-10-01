@@ -21,7 +21,7 @@ import gc
 from types import SimpleNamespace
 
 import mlx.core as mx
-from omlx_runtime.scheduler import Scheduler
+from molto_runtime.scheduler import Scheduler
 
 
 class _Cache:

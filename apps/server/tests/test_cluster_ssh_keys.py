@@ -4,11 +4,11 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from omlx_runtime.cluster import ssh_keys
+from molto_runtime.cluster import ssh_keys
 
 
 def test_key_rotation_generates_a_complete_pair_before_replacing(monkeypatch, tmp_path):
-    key_path = tmp_path / "omlx_cluster"
+    key_path = tmp_path / "molto_cluster"
     public_key_path = Path(str(key_path) + ".pub")
     key_path.write_text("old private key")
     public_key_path.write_text("ssh-ed25519 AAAA old")
@@ -35,7 +35,7 @@ def test_key_rotation_generates_a_complete_pair_before_replacing(monkeypatch, tm
 
 
 def test_failed_key_rotation_keeps_the_live_pair(monkeypatch, tmp_path):
-    key_path = tmp_path / "omlx_cluster"
+    key_path = tmp_path / "molto_cluster"
     public_key_path = Path(str(key_path) + ".pub")
     key_path.write_text("old private key")
     public_key_path.write_text("ssh-ed25519 AAAA old")
@@ -60,11 +60,11 @@ def test_failed_key_rotation_keeps_the_live_pair(monkeypatch, tmp_path):
 
     assert key_path.read_text() == "old private key"
     assert public_key_path.read_text() == "ssh-ed25519 AAAA old"
-    assert list(tmp_path.glob(".omlx_cluster-*")) == []
+    assert list(tmp_path.glob(".molto_cluster-*")) == []
 
 
 def test_failed_private_key_replace_restores_the_live_public_key(monkeypatch, tmp_path):
-    key_path = tmp_path / "omlx_cluster"
+    key_path = tmp_path / "molto_cluster"
     public_key_path = Path(str(key_path) + ".pub")
     key_path.write_text("old private key")
     public_key_path.write_text("ssh-ed25519 AAAA old")
@@ -97,4 +97,4 @@ def test_failed_private_key_replace_restores_the_live_public_key(monkeypatch, tm
 
     assert key_path.read_text() == "old private key"
     assert public_key_path.read_text() == "ssh-ed25519 AAAA old"
-    assert list(tmp_path.glob(".omlx_cluster-*")) == []
+    assert list(tmp_path.glob(".molto_cluster-*")) == []

@@ -26,7 +26,7 @@ If applicable, add screenshots to help explain your problem.
 **Desktop (please complete the following information):**
 
 - macOS Version: [e.g. 26.4.1]
-- oMLX Version [e.g. 0.3.7]
+- Molto Version [e.g. 0.3.7]
 
 **Additional context**
 Add any other context about the problem here.

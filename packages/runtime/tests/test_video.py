@@ -1,6 +1,6 @@
-from omlx_contracts.api.openai_models import ContentPart
-from omlx_runtime.utils.image import extract_images_from_messages
-from omlx_runtime.utils.video import _sample_indices, expand_video_parts
+from molto_contracts.api.openai_models import ContentPart
+from molto_runtime.utils.image import extract_images_from_messages
+from molto_runtime.utils.video import _sample_indices, expand_video_parts
 from PIL import Image
 
 
@@ -24,7 +24,7 @@ def test_video_parts_expand_to_images_in_original_order(monkeypatch):
     first = Image.new("RGB", (2, 2), "red")
     second = Image.new("RGB", (2, 2), "blue")
     monkeypatch.setattr(
-        "omlx_runtime.utils.video._decode_video_frames",
+        "molto_runtime.utils.video._decode_video_frames",
         lambda _url, _max_frames: [first, second],
     )
     messages = [

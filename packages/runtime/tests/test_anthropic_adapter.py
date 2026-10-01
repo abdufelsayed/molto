@@ -3,17 +3,17 @@
 Tests for Anthropic API adapter.
 
 Tests the AnthropicAdapter class for converting between Anthropic Messages API
-format and internal oMLX format.
+format and internal Molto format.
 """
 
 import pytest
-from omlx_contracts.api.anthropic_models import (
+from molto_contracts.api.anthropic_models import (
     AnthropicMessage,
     AnthropicTool,
     MessagesRequest,
 )
-from omlx_server.api.adapters.anthropic import AnthropicAdapter
-from omlx_server.api.adapters.base import (
+from molto_server.api.adapters.anthropic import AnthropicAdapter
+from molto_server.api.adapters.base import (
     BaseAdapter,
     InternalRequest,
     InternalResponse,
@@ -306,7 +306,7 @@ class TestAnthropicAdapter:
 
     def test_format_response_basic(self, adapter):
         """Test formatting a basic response."""
-        from omlx_contracts.api.anthropic_models import MessagesResponse
+        from molto_contracts.api.anthropic_models import MessagesResponse
 
         request = MessagesRequest(
             model="claude-3-sonnet",
@@ -335,7 +335,7 @@ class TestAnthropicAdapter:
 
     def test_format_response_with_tool_calls(self, adapter):
         """Test formatting response with tool calls."""
-        from omlx_contracts.api.openai_models import FunctionCall, ToolCall
+        from molto_contracts.api.openai_models import FunctionCall, ToolCall
 
         request = MessagesRequest(
             model="claude-3-sonnet",
@@ -630,11 +630,11 @@ class TestAnthropicToolUseConversion:
 
     def test_tool_use_block_converted_to_calling_tool_format(self):
         """tool_use blocks should be converted to [Calling tool: ...] format, not [Tool call: ...]."""
-        from omlx_contracts.api.anthropic_models import (
+        from molto_contracts.api.anthropic_models import (
             AnthropicMessage,
             MessagesRequest,
         )
-        from omlx_runtime.generation.anthropic_utils import (
+        from molto_runtime.generation.anthropic_utils import (
             convert_anthropic_to_internal,
         )
 
@@ -687,11 +687,11 @@ class TestAnthropicAudioConversion:
         """input_audio blocks should be passed through when preserve_images=True."""
         import base64
 
-        from omlx_contracts.api.anthropic_models import (
+        from molto_contracts.api.anthropic_models import (
             AnthropicMessage,
             MessagesRequest,
         )
-        from omlx_runtime.generation.anthropic_utils import (
+        from molto_runtime.generation.anthropic_utils import (
             convert_anthropic_to_internal,
         )
 
@@ -736,11 +736,11 @@ class TestAnthropicAudioConversion:
         """input_audio blocks should be dropped when preserve_images=False."""
         import base64
 
-        from omlx_contracts.api.anthropic_models import (
+        from molto_contracts.api.anthropic_models import (
             AnthropicMessage,
             MessagesRequest,
         )
-        from omlx_runtime.generation.anthropic_utils import (
+        from molto_runtime.generation.anthropic_utils import (
             convert_anthropic_to_internal,
         )
 
@@ -777,11 +777,11 @@ class TestAnthropicAudioConversion:
         """A message with only audio blocks should still produce valid output."""
         import base64
 
-        from omlx_contracts.api.anthropic_models import (
+        from molto_contracts.api.anthropic_models import (
             AnthropicMessage,
             MessagesRequest,
         )
-        from omlx_runtime.generation.anthropic_utils import (
+        from molto_runtime.generation.anthropic_utils import (
             convert_anthropic_to_internal,
         )
 
@@ -826,7 +826,7 @@ class TestClientBudgetMarkerStripping:
     """
 
     def test_strip_from_system_string(self):
-        from omlx_runtime.generation.anthropic_utils import (
+        from molto_runtime.generation.anthropic_utils import (
             convert_anthropic_to_internal,
         )
 
@@ -847,7 +847,7 @@ class TestClientBudgetMarkerStripping:
         assert messages[0]["content"] == "You are a helpful assistant."
 
     def test_strip_from_system_blocks(self):
-        from omlx_runtime.generation.anthropic_utils import _extract_system_text
+        from molto_runtime.generation.anthropic_utils import _extract_system_text
 
         text = _extract_system_text(
             [
@@ -862,14 +862,14 @@ class TestClientBudgetMarkerStripping:
         assert text == "Identity line.\nBody."
 
     def test_system_without_marker_is_untouched(self):
-        from omlx_runtime.generation.anthropic_utils import _extract_system_text
+        from molto_runtime.generation.anthropic_utils import _extract_system_text
 
         text = "Plain system prompt.\nNo markers here."
 
         assert _extract_system_text(text) == text
 
     def test_strip_from_inline_system_message(self):
-        from omlx_runtime.generation.anthropic_utils import (
+        from molto_runtime.generation.anthropic_utils import (
             convert_anthropic_to_internal,
         )
 
@@ -896,7 +896,7 @@ class TestClientBudgetMarkerStripping:
         assert all("<total_tokens>" not in c for c in system_contents)
 
     def test_marker_in_user_content_is_preserved(self):
-        from omlx_runtime.generation.anthropic_utils import (
+        from molto_runtime.generation.anthropic_utils import (
             convert_anthropic_to_internal,
         )
 

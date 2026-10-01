@@ -17,13 +17,13 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from omlx_runtime.patches.mlx_vlm_glm5_next_compat import (
+from molto_runtime.patches.mlx_vlm_glm5_next_compat import (
     apply_mlx_vlm_glm5_next_compat_patch,
 )
 
 try:
     import mlx.core as mx
-    from omlx_runtime.engine import vlm as vlm_module
+    from molto_runtime.engine import vlm as vlm_module
 
     HAS_MLX = True
 except ImportError:
@@ -68,7 +68,7 @@ class MockVLMTokenizer:
 
 def _make_engine(**overrides):
     """Create a VLMBatchedEngine instance without loading a model."""
-    from omlx_runtime.engine.vlm import VLMBatchedEngine
+    from molto_runtime.engine.vlm import VLMBatchedEngine
 
     engine = VLMBatchedEngine(
         model_name=overrides.pop("model_name", "test-vlm"),
@@ -79,7 +79,7 @@ def _make_engine(**overrides):
 
 @pytest.mark.asyncio
 async def test_start_rejects_unsupported_mtp_offload_before_loading(tmp_path):
-    from omlx_config.model_settings import ModelSettings
+    from molto_config.model_settings import ModelSettings
 
     (tmp_path / "config.json").write_text('{"model_type": "qwen3_5_moe"}')
     engine = _make_engine(
@@ -87,7 +87,7 @@ async def test_start_rejects_unsupported_mtp_offload_before_loading(tmp_path):
         model_settings=ModelSettings(moe_expert_offload_enabled=True, mtp_enabled=True),
     )
     with patch(
-        "omlx_runtime.utils.model_loading.maybe_load_custom_quantization",
+        "molto_runtime.utils.model_loading.maybe_load_custom_quantization",
         side_effect=AssertionError("Unsupported settings reached the model loader"),
     ) as load:
         with pytest.raises(ValueError, match="MoE expert offload cannot"):
@@ -359,7 +359,7 @@ class TestVLMDiffusionLane:
         not HAS_MLX, reason="mlx is required to import VLMBatchedEngine"
     )
     async def test_stream_chat_uses_diffusion_lane(self, monkeypatch):
-        from omlx_runtime.engine.base import GenerationOutput
+        from molto_runtime.engine.base import GenerationOutput
 
         engine = _make_loaded_engine(model_type="diffusion_gemma")
         engine._diffusion_family = "block"
@@ -410,7 +410,7 @@ class TestVLMDiffusionLane:
         not HAS_MLX, reason="mlx is required to import VLMBatchedEngine"
     )
     async def test_diffusion_chat_collects_streamed_blocks(self, monkeypatch):
-        from omlx_runtime.engine.base import GenerationOutput
+        from molto_runtime.engine.base import GenerationOutput
 
         engine = _make_loaded_engine(model_type="diffusion_gemma")
         engine._diffusion_family = "block"
@@ -456,7 +456,7 @@ class TestVLMDiffusionLane:
     )
     async def test_diffusion_preflight_rejects_tools(self):
         """Tools rejected when no tool parser matched the chat template."""
-        from omlx_runtime.exceptions import InvalidRequestError
+        from molto_runtime.exceptions import InvalidRequestError
 
         engine = _make_loaded_engine(model_type="diffusion_gemma")
         engine._diffusion_family = "block"
@@ -504,7 +504,7 @@ class TestVLMDiffusionLane:
         not HAS_MLX, reason="mlx is required to import VLMBatchedEngine"
     )
     def test_diffusion_validation_rejects_audio(self):
-        from omlx_runtime.exceptions import InvalidRequestError
+        from molto_runtime.exceptions import InvalidRequestError
 
         engine = _make_loaded_engine(model_type="diffusion_gemma")
         engine._diffusion_family = "block"
@@ -517,7 +517,7 @@ class TestVLMDiffusionLane:
         not HAS_MLX, reason="mlx is required to import VLMBatchedEngine"
     )
     async def test_diffusion_stream_generate_rejects_precomputed_vlm_inputs(self):
-        from omlx_runtime.exceptions import InvalidRequestError
+        from molto_runtime.exceptions import InvalidRequestError
 
         engine = _make_loaded_engine(model_type="diffusion_gemma")
         engine._diffusion_family = "block"
@@ -1186,7 +1186,7 @@ class TestApplyOcrPrompt:
 class TestProcessChatMessages:
     """Tests for VLMBatchedEngine._process_chat_messages()."""
 
-    @patch("omlx_runtime.engine.vlm.extract_images_from_messages")
+    @patch("molto_runtime.engine.vlm.extract_images_from_messages")
     def test_mimo_audio_stays_in_its_original_turn(self, mock_extract):
         engine = _make_loaded_engine(model_type="mimo_v2")
         audio_part = {
@@ -1228,7 +1228,7 @@ class TestProcessChatMessages:
         assert formatted[4]["content"].count("<|audio_pad|>") == 1
         assert formatted[4]["content"].endswith("Second recording")
 
-    @patch("omlx_runtime.engine.vlm.extract_images_from_messages")
+    @patch("molto_runtime.engine.vlm.extract_images_from_messages")
     def test_text_only_uses_vlm_prepare_path(self, mock_extract):
         """Text-only turns on a VLM model still use _prepare_vision_inputs()."""
         text_msgs = [{"role": "user", "content": "Hello"}]
@@ -1265,7 +1265,7 @@ class TestProcessChatMessages:
             is_partial=None,
         )
 
-    @patch("omlx_runtime.engine.vlm.extract_images_from_messages")
+    @patch("molto_runtime.engine.vlm.extract_images_from_messages")
     def test_text_only_passes_tools_to_prepare_vision(self, mock_extract):
         """Text-only + tools still convert and pass tools through VLM path."""
         text_msgs = [{"role": "user", "content": "Hello"}]
@@ -1280,7 +1280,7 @@ class TestProcessChatMessages:
         messages = [{"role": "user", "content": "Hello"}]
 
         with patch(
-            "omlx_runtime.engine.vlm.convert_tools_for_template"
+            "molto_runtime.engine.vlm.convert_tools_for_template"
         ) as mock_convert:
             mock_convert.return_value = [{"converted": True}]
             engine._process_chat_messages(messages, tools=tools, kwargs={})
@@ -1289,8 +1289,8 @@ class TestProcessChatMessages:
         call_kwargs = engine._prepare_vision_inputs.call_args[1]
         assert call_kwargs["tools"] == [{"converted": True}]
 
-    @patch("omlx_runtime.engine.vlm.extract_images_from_messages")
-    @patch("omlx_runtime.engine.vlm.expand_video_parts")
+    @patch("molto_runtime.engine.vlm.extract_images_from_messages")
+    @patch("molto_runtime.engine.vlm.expand_video_parts")
     def test_mimo_video_uses_on_disk_model_type_when_loaded_config_omits_it(
         self, mock_expand_video, mock_extract, tmp_path
     ):
@@ -1314,8 +1314,8 @@ class TestProcessChatMessages:
         mock_extract.assert_called_once_with(expanded)
 
     @pytest.mark.asyncio
-    @patch("omlx_runtime.engine.vlm.extract_images_from_messages")
-    @patch("omlx_runtime.engine.vlm.expand_video_parts")
+    @patch("molto_runtime.engine.vlm.extract_images_from_messages")
+    @patch("molto_runtime.engine.vlm.expand_video_parts")
     async def test_mimo_video_preflight_expands_frames_before_validation(
         self, mock_expand_video, mock_extract
     ):
@@ -1345,7 +1345,7 @@ class TestProcessChatMessages:
         mock_expand_video.assert_called_once_with(messages)
         mock_extract.assert_called_once_with(expanded)
 
-    @patch("omlx_runtime.engine.vlm.extract_images_from_messages")
+    @patch("molto_runtime.engine.vlm.extract_images_from_messages")
     def test_image_path_calls_prepare_vision(self, mock_extract):
         """Messages with images → _prepare_vision_inputs() called."""
         from PIL import Image
@@ -1389,7 +1389,7 @@ class TestProcessChatMessages:
         assert image_cache_key_start == 12
         assert image_cache_key_ranges == [(12, "hash123")]
 
-    @patch("omlx_runtime.engine.vlm.extract_images_from_messages")
+    @patch("molto_runtime.engine.vlm.extract_images_from_messages")
     def test_image_path_passes_tools(self, mock_extract):
         """Image + tools → tools converted and passed to _prepare_vision_inputs()."""
         from PIL import Image
@@ -1410,7 +1410,7 @@ class TestProcessChatMessages:
         messages = [{"role": "user", "content": "Describe"}]
 
         with patch(
-            "omlx_runtime.engine.vlm.convert_tools_for_template"
+            "molto_runtime.engine.vlm.convert_tools_for_template"
         ) as mock_convert:
             mock_convert.return_value = [{"converted": True}]
             engine._process_chat_messages(messages, tools=tools, kwargs={})
@@ -1420,7 +1420,7 @@ class TestProcessChatMessages:
         call_kwargs = engine._prepare_vision_inputs.call_args[1]
         assert call_kwargs["tools"] == [{"converted": True}]
 
-    @patch("omlx_runtime.engine.vlm.extract_images_from_messages")
+    @patch("molto_runtime.engine.vlm.extract_images_from_messages")
     def test_image_path_without_tools(self, mock_extract):
         """Image + tools=None → _prepare_vision_inputs(tools=None)."""
         from PIL import Image
@@ -1711,7 +1711,7 @@ class TestPrepareVisionInputs:
     def _vision_cache_engine(self, images, entries_by_index):
         """Engine whose vision cache already holds the given per-image
         features, keyed by each image's real per-image hash."""
-        from omlx_runtime.utils.image import compute_per_image_hashes
+        from molto_runtime.utils.image import compute_per_image_hashes
 
         engine = self._setup_engine_for_vision(model_type="gemma4")
         hashes = compute_per_image_hashes(images)
@@ -1794,7 +1794,7 @@ class TestPrepareVisionInputs:
         assert used is recomputed
         # ...and consulted the whole-request entry on the way, which is only
         # fetched when the per-image path is unusable.
-        from omlx_runtime.utils.image import compute_image_hash
+        from molto_runtime.utils.image import compute_image_hash
 
         assert any(
             call.args and call.args[0] == compute_image_hash(images)
@@ -2557,7 +2557,7 @@ class TestPartialModeVLM:
         their own template (phi3_v) each spell the error differently; all of
         them must fall back, and real render errors must not.
         """
-        from omlx_runtime.engine.vlm import _is_missing_chat_template_error
+        from molto_runtime.engine.vlm import _is_missing_chat_template_error
 
         missing = [
             "Cannot use chat template functions because "
@@ -2804,7 +2804,7 @@ class TestStopSafety:
     @pytest.mark.asyncio
     @pytest.mark.parametrize("release_fails", [False, True])
     async def test_stop_releases_ane_through_adapter_close(self, release_fails):
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         engine = _make_loaded_engine()
         model = engine._vlm_model
@@ -2831,7 +2831,7 @@ class TestStopSafety:
             return 3, 6
 
         with patch(
-            "omlx_runtime.patches.qwen35_ane_prefill.release_qwen35_ane_prefill",
+            "molto_runtime.patches.qwen35_ane_prefill.release_qwen35_ane_prefill",
             side_effect=release,
         ):
             await engine.stop()
@@ -2908,7 +2908,7 @@ class TestSmartResizeTokens:
         ],
     )
     def test_matches_known_grid(self, w, h, expected):
-        from omlx_runtime.engine.vlm import _smart_resize_tokens
+        from molto_runtime.engine.vlm import _smart_resize_tokens
 
         got = _smart_resize_tokens(
             h,
@@ -2921,7 +2921,7 @@ class TestSmartResizeTokens:
         assert got == expected
 
     def test_zero_dims_return_zero(self):
-        from omlx_runtime.engine.vlm import _smart_resize_tokens
+        from molto_runtime.engine.vlm import _smart_resize_tokens
 
         assert _smart_resize_tokens(0, 512, 16, 2, 65536, 16777216) == 0
 
@@ -2930,18 +2930,18 @@ class TestReadImageDims:
     """`_read_image_dims` reads dimensions decode-free, or returns None safely."""
 
     def test_reads_data_uri(self):
-        from omlx_runtime.engine.vlm import _read_image_dims
+        from molto_runtime.engine.vlm import _read_image_dims
 
         assert _read_image_dims(_image_part(640, 480)) == (640, 480)
 
     def test_http_url_returns_none(self):
-        from omlx_runtime.engine.vlm import _read_image_dims
+        from molto_runtime.engine.vlm import _read_image_dims
 
         part = {"type": "image_url", "image_url": {"url": "https://example.com/x.jpg"}}
         assert _read_image_dims(part) is None
 
     def test_local_path_returns_none_without_opening(self):
-        from omlx_runtime.engine.vlm import _read_image_dims
+        from molto_runtime.engine.vlm import _read_image_dims
 
         part = {"type": "image_url", "image_url": {"url": "/tmp/private.png"}}
         with patch("PIL.Image.open") as image_open:
@@ -2949,7 +2949,7 @@ class TestReadImageDims:
         image_open.assert_not_called()
 
     def test_garbage_returns_none(self):
-        from omlx_runtime.engine.vlm import _read_image_dims
+        from molto_runtime.engine.vlm import _read_image_dims
 
         part = {
             "type": "image_url",
@@ -2962,7 +2962,7 @@ class TestCountImageTokensReal:
     """`_count_image_tokens_real` charges actual size, not the max_pixels ceiling."""
 
     def test_counts_real_size_not_upper_bound(self):
-        from omlx_runtime.engine.vlm import _count_image_tokens_real
+        from molto_runtime.engine.vlm import _count_image_tokens_real
 
         # 20 down-sized 512x512 frames (livestream client shape).
         content = [_image_part(512, 512) for _ in range(20)]
@@ -2973,7 +2973,7 @@ class TestCountImageTokensReal:
         assert total == 20 * 256  # 5120, not 20 * 16384 = 327680
 
     def test_counts_thin_image_without_undercounting(self):
-        from omlx_runtime.engine.vlm import _count_image_tokens_real
+        from molto_runtime.engine.vlm import _count_image_tokens_real
 
         messages = [{"role": "user", "content": [_image_part(2791, 16)]}]
 
@@ -2981,7 +2981,7 @@ class TestCountImageTokensReal:
         assert total == 106  # Qwen grid_thw=[1, 2, 212]
 
     def test_falls_back_to_upper_bound_for_unreadable(self):
-        from omlx_runtime.engine.vlm import _count_image_tokens_real
+        from molto_runtime.engine.vlm import _count_image_tokens_real
 
         messages = [
             {
@@ -2999,7 +2999,7 @@ class TestCountImageTokensReal:
         assert total == 16384
 
     def test_falls_back_when_processor_not_qwen_style(self):
-        from omlx_runtime.engine.vlm import _count_image_tokens_real
+        from molto_runtime.engine.vlm import _count_image_tokens_real
 
         # Processor missing patch/merge/min/max -> never under-count.
         messages = [{"role": "user", "content": [_image_part(512, 512)]}]
@@ -3007,7 +3007,7 @@ class TestCountImageTokensReal:
         assert total == 16384
 
     def test_no_images_returns_zero(self):
-        from omlx_runtime.engine.vlm import _count_image_tokens_real
+        from molto_runtime.engine.vlm import _count_image_tokens_real
 
         messages = [{"role": "user", "content": "just text"}]
         assert _count_image_tokens_real(messages, _QWEN_PROC) == 0
@@ -3209,7 +3209,7 @@ class TestCaptureVLMPositionState:
     "vision_config, with_image", [(None, True), (None, False), ({}, True)]
 )
 async def test_preflight_gemma4_image_support(model_type, vision_config, with_image):
-    from omlx_runtime.exceptions import InvalidRequestError
+    from molto_runtime.exceptions import InvalidRequestError
 
     engine = _make_loaded_engine(model_type=model_type)
     engine._vlm_model.config.vision_config = vision_config
@@ -3236,7 +3236,7 @@ async def test_preflight_gemma4_image_support(model_type, vision_config, with_im
 async def test_preflight_uses_processed_image_dimensions(
     monkeypatch, side_limit, expected_tokens
 ):
-    from omlx_runtime.utils import image as image_module
+    from molto_runtime.utils import image as image_module
 
     monkeypatch.setattr(image_module, "get_max_image_side_length", lambda: side_limit)
     image_module.clear_image_decode_cache()

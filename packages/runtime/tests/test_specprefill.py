@@ -19,7 +19,7 @@ class TestSelectChunks:
     """Tests for select_chunks() — top-K% selection with a mandatory tail."""
 
     def test_basic_selection(self):
-        from omlx_runtime.patches.specprefill import select_chunks
+        from molto_runtime.patches.specprefill import select_chunks
 
         # 4096 tokens (128 chunks), importance peaks in the first chunk.
         importance = mx.zeros(4096)
@@ -32,14 +32,14 @@ class TestSelectChunks:
         assert set(range(32)) <= indices
 
     def test_keep_100_percent(self):
-        from omlx_runtime.patches.specprefill import select_chunks
+        from molto_runtime.patches.specprefill import select_chunks
 
         importance = mx.ones(64)
         selected = select_chunks(importance, keep_pct=1.0, chunk_size=32)
         assert selected.shape[0] == 64
 
     def test_sorted_output(self):
-        from omlx_runtime.patches.specprefill import select_chunks
+        from molto_runtime.patches.specprefill import select_chunks
 
         # Make two early chunks important; 4096 tokens total.
         importance = mx.zeros(4096)
@@ -52,7 +52,7 @@ class TestSelectChunks:
         assert 96 in indices
 
     def test_single_chunk(self):
-        from omlx_runtime.patches.specprefill import select_chunks
+        from molto_runtime.patches.specprefill import select_chunks
 
         importance = mx.ones(16)
         selected = select_chunks(importance, keep_pct=0.5, chunk_size=32)
@@ -60,7 +60,7 @@ class TestSelectChunks:
         assert selected.shape[0] == 16
 
     def test_non_divisible_chunks(self):
-        from omlx_runtime.patches.specprefill import select_chunks
+        from molto_runtime.patches.specprefill import select_chunks
 
         # 4100 tokens with chunk_size=32 → 129 chunks (last has 4 tokens).
         # keep_n = 65 chunks; 64 full chunks + the 4-token final chunk.
@@ -69,7 +69,7 @@ class TestSelectChunks:
         assert selected.shape[0] == 64 * 32 + 4
 
     def test_tail_floor_kept_when_unimportant(self):
-        from omlx_runtime.patches.specprefill import select_chunks
+        from molto_runtime.patches.specprefill import select_chunks
 
         # Importance mass entirely in the front half; the tail scores zero.
         # Without the mandatory tail window the final chunks (chat-template
@@ -81,7 +81,7 @@ class TestSelectChunks:
         assert set(range(8192 - 512, 8192)) <= indices
 
     def test_tail_floor_within_budget_at_scale(self):
-        from omlx_runtime.patches.specprefill import select_chunks
+        from molto_runtime.patches.specprefill import select_chunks
 
         # When the keep budget covers the tail, the tail comes out of the
         # budget and the selected-token count matches the plain top-K
@@ -91,7 +91,7 @@ class TestSelectChunks:
         assert selected.shape[0] == 1664
 
     def test_tail_floor_dominates_small_input(self):
-        from omlx_runtime.patches.specprefill import select_chunks
+        from molto_runtime.patches.specprefill import select_chunks
 
         # Just above the admission threshold with a small keep budget the
         # floor wins over keep_pct: exactly the 16 tail chunks (512 tokens,
@@ -102,7 +102,7 @@ class TestSelectChunks:
         assert indices == set(range(1056 - 512, 1056))
 
     def test_tail_floor_non_aligned_input(self):
-        from omlx_runtime.patches.specprefill import select_chunks
+        from molto_runtime.patches.specprefill import select_chunks
 
         # Non-chunk-aligned M: the tail window is chunk-aligned, so it
         # covers the final partial chunk plus the 15 full chunks before it
@@ -114,7 +114,7 @@ class TestSelectChunks:
         assert set(range(241 * 32, 8193)) <= indices
 
     def test_tail_floor_disabled(self):
-        from omlx_runtime.patches.specprefill import select_chunks
+        from molto_runtime.patches.specprefill import select_chunks
 
         # tail_tokens=0 restores pure top-K: an unimportant tail is dropped
         # and the budget is exactly keep_n chunks (32 of 128 → 1024 tokens).
@@ -132,7 +132,7 @@ class TestManualRoPE:
     """Tests for manual_rope() at arbitrary positions."""
 
     def test_contiguous_matches_standard(self):
-        from omlx_runtime.patches.specprefill import manual_rope
+        from molto_runtime.patches.specprefill import manual_rope
 
         # Contiguous positions should produce same result as standard RoPE
         B, n_heads, L, head_dim = 1, 4, 8, 64
@@ -142,7 +142,7 @@ class TestManualRoPE:
         assert result.shape == x.shape
 
     def test_non_contiguous_positions(self):
-        from omlx_runtime.patches.specprefill import manual_rope
+        from molto_runtime.patches.specprefill import manual_rope
 
         B, n_heads, L, head_dim = 1, 4, 3, 64
         x = mx.random.normal((B, n_heads, L, head_dim))
@@ -154,7 +154,7 @@ class TestManualRoPE:
         assert not mx.allclose(result, contiguous)
 
     def test_partial_rotation(self):
-        from omlx_runtime.patches.specprefill import manual_rope
+        from molto_runtime.patches.specprefill import manual_rope
 
         B, n_heads, L, head_dim = 1, 2, 4, 128
         dims = 64  # Only rotate first 64 dims
@@ -200,7 +200,7 @@ class TestManualRopeWithFreqs:
         # 2*len(freqs) contiguous pairing diverged by ~5.9 abs and wrote
         # misrotated KV on every Gemma-4 global layer.
         import numpy as np
-        from omlx_runtime.patches.specprefill import manual_rope_with_freqs
+        from molto_runtime.patches.specprefill import manual_rope_with_freqs
 
         B, n_heads, L, head_dim = 1, 2, 8, 256
         n_freqs = 64  # rotary sub-dim 128 < head_dim 256 (Gemma-4 style)
@@ -220,7 +220,7 @@ class TestManualRopeWithFreqs:
         # Exactly the lanes the real rope touches change, and no others: for
         # head_dim 256 (half 128, n_freqs 64), dims [0:64] and [128:192] rotate;
         # [64:128] and [192:256] pass through (the zero-angle, unrotated pairs).
-        from omlx_runtime.patches.specprefill import manual_rope_with_freqs
+        from molto_runtime.patches.specprefill import manual_rope_with_freqs
 
         B, n_heads, L, head_dim = 1, 2, 8, 256
         n_freqs, half = 64, 128
@@ -243,7 +243,7 @@ class TestManualRopeWithFreqs:
         # rotates, and it still matches the independent oracle exactly -- proving
         # the fix is a no-op for full-rotary custom-_freqs models.
         import numpy as np
-        from omlx_runtime.patches.specprefill import manual_rope_with_freqs
+        from molto_runtime.patches.specprefill import manual_rope_with_freqs
 
         B, n_heads, L, head_dim = 1, 2, 4, 64
         n_freqs = head_dim // 2
@@ -264,14 +264,14 @@ class TestAvgPool1d:
     """Tests for _avg_pool1d helper."""
 
     def test_identity_kernel_1(self):
-        from omlx_runtime.patches.specprefill import _avg_pool1d
+        from molto_runtime.patches.specprefill import _avg_pool1d
 
         x = mx.array([1.0, 2.0, 3.0, 4.0, 5.0])
         result = _avg_pool1d(x, 1)
         assert mx.allclose(result, x)
 
     def test_smoothing(self):
-        from omlx_runtime.patches.specprefill import _avg_pool1d
+        from molto_runtime.patches.specprefill import _avg_pool1d
 
         x = mx.array([0.0, 0.0, 1.0, 0.0, 0.0])
         result = _avg_pool1d(x, 3)
@@ -285,7 +285,7 @@ class TestKeepRatePresets:
     """Tests for keep rate preset constants."""
 
     def test_presets_exist(self):
-        from omlx_runtime.patches.specprefill import (
+        from molto_runtime.patches.specprefill import (
             DEFAULT_KEEP_RATE,
             DEFAULT_THRESHOLD,
             KEEP_RATE_PRESETS,
@@ -305,7 +305,7 @@ class TestModelTopologyHelpers:
     def test_find_attention_layers_empty(self):
         from unittest.mock import MagicMock
 
-        from omlx_runtime.patches.specprefill import _find_attention_layers
+        from molto_runtime.patches.specprefill import _find_attention_layers
 
         model = MagicMock(spec=[])
         model.layers = []
@@ -314,7 +314,7 @@ class TestModelTopologyHelpers:
     def test_get_attn_module_self_attn(self):
         from unittest.mock import MagicMock
 
-        from omlx_runtime.patches.specprefill import _get_attn_module
+        from molto_runtime.patches.specprefill import _get_attn_module
 
         layer = MagicMock()
         layer.self_attn = "attn_module"
@@ -323,7 +323,7 @@ class TestModelTopologyHelpers:
     def test_detect_query_extractor_qwen35(self):
         from types import SimpleNamespace
 
-        from omlx_runtime.patches.specprefill import (
+        from molto_runtime.patches.specprefill import (
             _detect_query_extractor,
             _qwen35_extract_queries,
         )
@@ -341,7 +341,7 @@ class TestModelTopologyHelpers:
     def test_detect_query_extractor_llama(self):
         from unittest.mock import MagicMock
 
-        from omlx_runtime.patches.specprefill import (
+        from molto_runtime.patches.specprefill import (
             _detect_query_extractor,
             _llama_extract_queries,
         )
@@ -350,7 +350,7 @@ class TestModelTopologyHelpers:
         assert _detect_query_extractor(attn) is _llama_extract_queries
 
     def test_detect_query_extractor_gemma_with_q_norm(self):
-        from omlx_runtime.patches.specprefill import (
+        from molto_runtime.patches.specprefill import (
             _detect_query_extractor,
             _gemma4_extract_queries,
         )
@@ -371,7 +371,7 @@ class TestModelTopologyHelpers:
     def test_detect_query_extractor_non_gated_q_norm_model(self):
         from types import SimpleNamespace
 
-        from omlx_runtime.patches.specprefill import (
+        from molto_runtime.patches.specprefill import (
             _detect_query_extractor,
             _llama_extract_queries,
         )
@@ -390,7 +390,7 @@ class TestModelTopologyHelpers:
         """Qwen3.6 MoE: non-gated q_proj + per-head q_norm routes to qwen36."""
         from types import SimpleNamespace
 
-        from omlx_runtime.patches.specprefill import (
+        from molto_runtime.patches.specprefill import (
             _detect_query_extractor,
             _qwen36_extract_queries,
         )
@@ -407,7 +407,7 @@ class TestModelTopologyHelpers:
         """Olmo-style: q_norm on flat n_heads*head_dim must not match qwen36."""
         from types import SimpleNamespace
 
-        from omlx_runtime.patches.specprefill import (
+        from molto_runtime.patches.specprefill import (
             _detect_query_extractor,
             _llama_extract_queries,
         )
@@ -425,7 +425,7 @@ class TestModelTopologyHelpers:
     def test_attention_capture_forwards_extra_kwargs(self):
         from unittest.mock import MagicMock
 
-        from omlx_runtime.patches.specprefill import _AttentionCapture
+        from molto_runtime.patches.specprefill import _AttentionCapture
 
         captured = []
         extractor_calls = []
@@ -449,7 +449,7 @@ class TestModelTopologyHelpers:
     def test_attention_capture_supports_legacy_extractor_signature(self):
         from unittest.mock import MagicMock
 
-        from omlx_runtime.patches.specprefill import _AttentionCapture
+        from molto_runtime.patches.specprefill import _AttentionCapture
 
         captured = []
 
@@ -469,7 +469,7 @@ class TestModelTopologyHelpers:
 
     def test_gemma4_extract_queries_applies_q_norm(self):
         """Gemma4: q_norm runs on per-head queries before RoPE."""
-        from omlx_runtime.patches.specprefill import _gemma4_extract_queries
+        from molto_runtime.patches.specprefill import _gemma4_extract_queries
 
         call_log = []
 
@@ -500,7 +500,7 @@ class TestModelTopologyHelpers:
 
     def test_qwen36_extract_queries_applies_q_norm(self):
         """Qwen3.6: q_norm runs on per-head queries before RoPE, no gate split."""
-        from omlx_runtime.patches.specprefill import _qwen36_extract_queries
+        from molto_runtime.patches.specprefill import _qwen36_extract_queries
 
         call_log = []
 
@@ -531,7 +531,7 @@ class TestModelTopologyHelpers:
 
     def test_llama_extract_queries_without_q_norm(self):
         """Plain Llama/Mistral: no q_norm attr, fall through unchanged."""
-        from omlx_runtime.patches.specprefill import _llama_extract_queries
+        from molto_runtime.patches.specprefill import _llama_extract_queries
 
         class FakeAttn:
             n_heads = 4
@@ -550,7 +550,7 @@ class TestModelTopologyHelpers:
         """VLM Gemma4: previous_kvs lives at .language_model.model."""
         from types import SimpleNamespace
 
-        from omlx_runtime.patches.specprefill import _build_layer_to_cache_map
+        from molto_runtime.patches.specprefill import _build_layer_to_cache_map
 
         previous_kvs = [0, 1, 2, 2, 3]
         model = SimpleNamespace(
@@ -572,7 +572,7 @@ class TestModelTopologyHelpers:
         """Text-only Gemma4: previous_kvs lives at .model (Gemma4TextModel)."""
         from types import SimpleNamespace
 
-        from omlx_runtime.patches.specprefill import _build_layer_to_cache_map
+        from molto_runtime.patches.specprefill import _build_layer_to_cache_map
 
         previous_kvs = [0, 1, 2, 2, 3]
         model = SimpleNamespace(
@@ -594,7 +594,7 @@ class TestRoPEWrappers:
 
     def test_position_mapped_rope_accepts_mx_array_offset(self):
         """Gemma4 wraps cache.offset in mx.array before calling RoPE."""
-        from omlx_runtime.patches.specprefill import _PositionMappedRoPE
+        from molto_runtime.patches.specprefill import _PositionMappedRoPE
 
         class FakeRoPE:
             dims = 64
@@ -611,7 +611,7 @@ class TestRoPEWrappers:
         assert result.shape == x.shape
 
     def test_offset_adjusted_rope_adds_offset(self):
-        from omlx_runtime.patches.specprefill import _OffsetAdjustedRoPE
+        from molto_runtime.patches.specprefill import _OffsetAdjustedRoPE
 
         call_log = []
 
@@ -629,7 +629,7 @@ class TestRoPEWrappers:
     def test_cleanup_rope_restores_original(self):
         from unittest.mock import MagicMock
 
-        from omlx_runtime.patches.specprefill import (
+        from molto_runtime.patches.specprefill import (
             _OffsetAdjustedRoPE,
             cleanup_rope,
         )
@@ -649,7 +649,7 @@ class TestRoPEWrappers:
     def test_cleanup_rope_unwraps_nested(self):
         from unittest.mock import MagicMock
 
-        from omlx_runtime.patches.specprefill import (
+        from molto_runtime.patches.specprefill import (
             _OffsetAdjustedRoPE,
             cleanup_rope,
         )
@@ -673,7 +673,7 @@ class TestModelSettings:
     """Tests for SpecPrefill fields in ModelSettings."""
 
     def test_specprefill_defaults(self):
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         s = ModelSettings()
         assert s.specprefill_enabled is False
@@ -682,7 +682,7 @@ class TestModelSettings:
         assert s.specprefill_threshold is None
 
     def test_specprefill_roundtrip(self):
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         s = ModelSettings(
             specprefill_enabled=True,
@@ -704,7 +704,7 @@ class TestRequestFields:
     """Tests for SpecPrefill fields in Request."""
 
     def test_specprefill_defaults(self):
-        from omlx_runtime.request import Request, SamplingParams
+        from molto_runtime.request import Request, SamplingParams
 
         r = Request(
             request_id="test",
@@ -723,7 +723,7 @@ class TestEngineCorePropagation:
         """Create a minimal EngineCore for testing add_request propagation."""
         from unittest.mock import MagicMock
 
-        from omlx_runtime.engine_core import EngineCore
+        from molto_runtime.engine_core import EngineCore
 
         core = object.__new__(EngineCore)
         core._output_collectors = {}
@@ -748,7 +748,7 @@ class TestEngineCorePropagation:
     @pytest.mark.asyncio
     async def test_threshold_propagated_to_request(self):
         """specprefill_threshold should be set on request._specprefill_threshold."""
-        from omlx_runtime.request import SamplingParams
+        from molto_runtime.request import SamplingParams
 
         core = self._make_engine_core(draft_model="/some/draft")
 
@@ -768,7 +768,7 @@ class TestEngineCorePropagation:
     @pytest.mark.asyncio
     async def test_threshold_not_set_when_none(self):
         """When specprefill_threshold is None, _specprefill_threshold should not exist."""
-        from omlx_runtime.request import SamplingParams
+        from molto_runtime.request import SamplingParams
 
         core = self._make_engine_core(draft_model=None)
 
@@ -801,7 +801,7 @@ class TestRoPEReWrap:
             return x
 
     def test_offset_adjusted_delegates_attrs(self):
-        from omlx_runtime.patches.specprefill import _OffsetAdjustedRoPE
+        from molto_runtime.patches.specprefill import _OffsetAdjustedRoPE
 
         wrapped = _OffsetAdjustedRoPE(self._GenuineRoPE(), adjustment=5)
         # unknown attrs delegate to the wrapped rope
@@ -809,7 +809,7 @@ class TestRoPEReWrap:
         assert wrapped.base == 10000.0
 
     def test_unwrap_peels_to_genuine(self):
-        from omlx_runtime.patches.specprefill import (
+        from molto_runtime.patches.specprefill import (
             _OffsetAdjustedRoPE,
             _PositionMappedRoPE,
             _unwrap_rope,
@@ -823,7 +823,7 @@ class TestRoPEReWrap:
         assert _unwrap_rope(nested) is genuine
 
     def test_rewrap_leftover_does_not_crash(self):
-        from omlx_runtime.patches.specprefill import (
+        from molto_runtime.patches.specprefill import (
             _OffsetAdjustedRoPE,
             _PositionMappedRoPE,
         )
@@ -846,9 +846,9 @@ class TestTargetPrefillLeftoverCleanup:
     def test_leftover_unwrapped_before_prefill(self, monkeypatch):
         from unittest.mock import MagicMock
 
-        import omlx_runtime.patches.specprefill as patches
-        import omlx_runtime.specprefill.target as target_mod
-        from omlx_runtime.specprefill.planning import SpecPrefillTargetPlan
+        import molto_runtime.patches.specprefill as patches
+        import molto_runtime.specprefill.target as target_mod
+        from molto_runtime.specprefill.planning import SpecPrefillTargetPlan
 
         class FakeRoPE:
             dims = 64
@@ -927,7 +927,7 @@ class TestLogicalCacheOffset:
     @pytest.mark.parametrize("populated", [False, True])
     def test_hybrid_and_composite_caches(self, populated):
         from mlx_lm.models.cache import ArraysCache, CacheList, KVCache
-        from omlx_runtime.patches.specprefill import _logical_cache_offset
+        from molto_runtime.patches.specprefill import _logical_cache_offset
 
         recurrent, kv = ArraysCache(1), KVCache()
         if populated:
@@ -944,20 +944,20 @@ class TestLogicalCacheOffset:
     @pytest.mark.parametrize("offsets", [(40, 40), (40, 64)])
     def test_unbounded_offset_disagreement_is_logged(self, offsets, caplog):
         from mlx_lm.models.cache import KVCache
-        from omlx_runtime.patches.specprefill import _logical_cache_offset
+        from molto_runtime.patches.specprefill import _logical_cache_offset
 
         caches = [KVCache(), KVCache()]
         for cache, offset in zip(caches, offsets):
             cache.offset = offset
         with caplog.at_level(
-            logging.WARNING, logger="omlx_runtime.patches.specprefill"
+            logging.WARNING, logger="molto_runtime.patches.specprefill"
         ):
             assert _logical_cache_offset(self._model("aa"), caches) == 40
         assert bool(caplog.records) == (offsets[0] != offsets[1])
 
     def test_bounded_offsets_are_used_only_without_unbounded_layers(self):
         from mlx_lm.models.cache import KVCache, RotatingKVCache
-        from omlx_runtime.patches.specprefill import _logical_cache_offset
+        from molto_runtime.patches.specprefill import _logical_cache_offset
 
         kv = KVCache()
         kv.offset = 40
@@ -971,7 +971,7 @@ class TestLogicalCacheOffset:
         from types import SimpleNamespace
         from unittest.mock import Mock
 
-        from omlx_runtime.patches.specprefill import (
+        from molto_runtime.patches.specprefill import (
             IndeterminateCacheOffsetError,
             _logical_cache_offset,
         )
@@ -996,7 +996,7 @@ class TestUndoLookahead:
     @staticmethod
     def _snapshot(leaf):
         from mlx.utils import tree_flatten
-        from omlx_runtime.patches.specprefill import _is_sliceable_kv
+        from molto_runtime.patches.specprefill import _is_sliceable_kv
 
         if _is_sliceable_kv(leaf):
             arrays = [
@@ -1016,8 +1016,8 @@ class TestUndoLookahead:
             KVCache,
             RotatingKVCache,
         )
-        from omlx_runtime.cache.type_handlers import SizedArraysCache
-        from omlx_runtime.patches.specprefill import (
+        from molto_runtime.cache.type_handlers import SizedArraysCache
+        from molto_runtime.patches.specprefill import (
             _cache_leaves,
             _hold_leaf_state,
             _is_sliceable_kv,

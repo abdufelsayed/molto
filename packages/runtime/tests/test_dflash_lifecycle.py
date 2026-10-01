@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx_runtime.patches.dflash_lifecycle (issue #1388)."""
+"""Tests for molto_runtime.patches.dflash_lifecycle (issue #1388)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import pytest
 @pytest.fixture
 def _clear_backup_state():
     """Reset the backup table before / after each test."""
-    from omlx_runtime.patches import dflash_lifecycle as life
+    from molto_runtime.patches import dflash_lifecycle as life
 
     life._DFLASH_BACKUP.clear()
     yield
@@ -63,7 +63,7 @@ def _make_fake_dflash_module():
 class TestWrapInstaller:
     def test_wrap_records_pre_dflash_call(self, _clear_backup_state):
         """Wrapped installer must snapshot cls.__call__ before dflash overwrites."""
-        from omlx_runtime.patches.dflash_lifecycle import (
+        from molto_runtime.patches.dflash_lifecycle import (
             _DFLASH_BACKUP,
             _wrap_installer,
         )
@@ -92,7 +92,7 @@ class TestWrapInstaller:
         assert _DFLASH_BACKUP[FakeLinearAttn]["call"] is original_call
 
     def test_wrap_is_idempotent(self, _clear_backup_state):
-        from omlx_runtime.patches.dflash_lifecycle import _wrap_installer
+        from molto_runtime.patches.dflash_lifecycle import _wrap_installer
 
         mod = _make_fake_dflash_module()
         installed_once = _wrap_installer(
@@ -114,7 +114,7 @@ class TestWrapInstaller:
 class TestRestore:
     def test_restore_reverts_call_and_clears_flag(self, _clear_backup_state):
         """After restore: cls.__call__ back to original, dflash flag gone."""
-        from omlx_runtime.patches.dflash_lifecycle import (
+        from molto_runtime.patches.dflash_lifecycle import (
             _wrap_installer,
             restore_dflash_class_patches,
         )
@@ -143,7 +143,7 @@ class TestRestore:
 
     def test_restore_empty_table_is_noop(self, _clear_backup_state):
         """Restore with no backup recorded must not raise."""
-        from omlx_runtime.patches.dflash_lifecycle import restore_dflash_class_patches
+        from molto_runtime.patches.dflash_lifecycle import restore_dflash_class_patches
 
         restore_dflash_class_patches()  # no-op
 
@@ -155,7 +155,7 @@ class TestRoundTrip:
         leave the class in the expected state with the right idempotency
         flag on / off.
         """
-        from omlx_runtime.patches.dflash_lifecycle import (
+        from molto_runtime.patches.dflash_lifecycle import (
             _wrap_installer,
             restore_dflash_class_patches,
         )
@@ -208,7 +208,7 @@ class TestQwenGqaHook:
     """
 
     def test_gqa_hook_round_trips(self, _clear_backup_state):
-        from omlx_runtime.patches.dflash_lifecycle import (
+        from molto_runtime.patches.dflash_lifecycle import (
             _DFLASH_BACKUP,
             _wrap_installer,
             restore_dflash_class_patches,
@@ -253,7 +253,7 @@ class TestBatchCacheGuard:
 
     @staticmethod
     def _arm(mod, attn_cls):
-        from omlx_runtime.patches.dflash_lifecycle import _wrap_installer
+        from molto_runtime.patches.dflash_lifecycle import _wrap_installer
 
         _wrap_installer(
             mod,
@@ -272,7 +272,7 @@ class TestBatchCacheGuard:
                 return "stock-attn"
 
         self._arm(mod, FakeAttention)
-        assert getattr(FakeAttention.__call__, "_omlx_dflash_batch_guard", False)
+        assert getattr(FakeAttention.__call__, "_molto_dflash_batch_guard", False)
 
         class FakeBatchCache:
             offset = mx.array([3, 7])
@@ -313,7 +313,7 @@ class TestBatchCacheGuard:
         assert FakeAttention.__call__ is guarded
 
     def test_restore_drops_guard_and_hook(self, _clear_backup_state):
-        from omlx_runtime.patches.dflash_lifecycle import restore_dflash_class_patches
+        from molto_runtime.patches.dflash_lifecycle import restore_dflash_class_patches
 
         mod = _make_fake_dflash_module()
 
@@ -331,7 +331,7 @@ class TestBatchCacheGuard:
 
     def test_swapped_base_routes_batch_and_mtp_calls(self, _clear_backup_state):
         import mlx.core as mx
-        from omlx_runtime.patches.dflash_lifecycle import (
+        from molto_runtime.patches.dflash_lifecycle import (
             get_dflash_guard_base,
             restore_dflash_class_patches,
             set_dflash_guard_base,
@@ -350,7 +350,7 @@ class TestBatchCacheGuard:
         def mtp_call(self, x, mask=None, cache=None, n_confirmed=0):
             return ("mtp", n_confirmed)
 
-        mtp_call._omlx_mtp_call_marker = True
+        mtp_call._molto_mtp_call_marker = True
         set_dflash_guard_base(FakeAttention, mtp_call)
 
         class ScalarCache:
@@ -371,12 +371,12 @@ class TestDFlashMTPComposition:
     def test_mtp_self_heal_keeps_active_dflash_guard(self, _clear_backup_state):
         from types import SimpleNamespace
 
-        from omlx_runtime.patches.dflash_lifecycle import (
+        from molto_runtime.patches.dflash_lifecycle import (
             _wrap_installer,
             get_dflash_guard_base,
             restore_dflash_class_patches,
         )
-        from omlx_runtime.patches.mlx_lm_mtp import qwen35_model
+        from molto_runtime.patches.mlx_lm_mtp import qwen35_model
 
         mod = _make_fake_dflash_module()
 
@@ -397,7 +397,7 @@ class TestDFlashMTPComposition:
 
         assert FakeGatedDeltaNet.__call__ is guard
         mtp_base = get_dflash_guard_base(FakeGatedDeltaNet)
-        assert getattr(mtp_base, "_omlx_mtp_call_marker", False)
+        assert getattr(mtp_base, "_molto_mtp_call_marker", False)
 
         qwen35_model._patch_gated_delta_net(q35)
         assert get_dflash_guard_base(FakeGatedDeltaNet) is mtp_base
@@ -406,7 +406,7 @@ class TestDFlashMTPComposition:
         assert FakeGatedDeltaNet.__call__ is mtp_base
 
     def test_stale_mtp_replacement_rearms_dflash(self, _clear_backup_state):
-        from omlx_runtime.patches.dflash_lifecycle import (
+        from molto_runtime.patches.dflash_lifecycle import (
             _wrap_installer,
             get_dflash_guard_base,
             restore_dflash_class_patches,
@@ -429,13 +429,13 @@ class TestDFlashMTPComposition:
         def mtp_call(self, x, mask=None, cache=None, n_confirmed=0):
             return ("mtp", n_confirmed)
 
-        mtp_call._omlx_mtp_call_marker = True
+        mtp_call._molto_mtp_call_marker = True
         FakeGatedDeltaNet.__call__ = mtp_call
         assert FakeGatedDeltaNet._dflash_speculative_call_installed is True
 
         mod._install_speculative_linear_cache_hook(target)
 
-        assert getattr(FakeGatedDeltaNet.__call__, "_omlx_dflash_batch_guard", False)
+        assert getattr(FakeGatedDeltaNet.__call__, "_molto_dflash_batch_guard", False)
         assert get_dflash_guard_base(FakeGatedDeltaNet) is mtp_call
         assert target("x") == "x"
 
@@ -443,7 +443,7 @@ class TestDFlashMTPComposition:
         assert FakeGatedDeltaNet.__call__ is mtp_call
 
     def test_guard_without_backup_fails_loudly(self, _clear_backup_state):
-        from omlx_runtime.patches.dflash_lifecycle import (
+        from molto_runtime.patches.dflash_lifecycle import (
             get_dflash_guard_base,
             set_dflash_guard_base,
         )
@@ -452,7 +452,7 @@ class TestDFlashMTPComposition:
             def __call__(self, x, mask=None, cache=None):
                 return x
 
-        FakeAttention.__call__._omlx_dflash_batch_guard = True
+        FakeAttention.__call__._molto_dflash_batch_guard = True
 
         with pytest.raises(RuntimeError, match="no fallback base"):
             get_dflash_guard_base(FakeAttention)
@@ -464,7 +464,7 @@ class TestRealDflashIntegration:
     """Integration tests against the real dflash-mlx module if installed."""
 
     def test_install_wrap_against_real_dflash(self, _clear_backup_state):
-        from omlx_runtime.patches.dflash_lifecycle import install_dflash_lifecycle_wrap
+        from molto_runtime.patches.dflash_lifecycle import install_dflash_lifecycle_wrap
 
         try:
             from dflash_mlx.engine import target_qwen_gdn
@@ -481,7 +481,7 @@ class TestRealDflashIntegration:
             assert (
                 getattr(
                     target_qwen_gdn,
-                    "_omlx_wrapped__install_full_attention_gqa_hook",
+                    "_molto_wrapped__install_full_attention_gqa_hook",
                     False,
                 )
                 is True
@@ -492,7 +492,7 @@ def test_snapshot_serializes_valid_kv_without_capacity_tail():
     import mlx.core as mx
     from dflash_mlx.cache import codecs
     from mlx_lm.models.cache import KVCache
-    from omlx_runtime.patches.dflash_lifecycle import _install_cache_serializer
+    from molto_runtime.patches.dflash_lifecycle import _install_cache_serializer
 
     cache = KVCache()
     keys = mx.ones((1, 2, 7, 16))

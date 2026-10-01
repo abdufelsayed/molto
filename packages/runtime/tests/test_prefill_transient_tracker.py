@@ -2,7 +2,7 @@
 """Tests for PrefillTransientTracker — per-scheduler EWMA used by the
 adaptive prefill throttle (#1040 follow-up)."""
 
-from omlx_runtime.prefill_transient_tracker import PrefillTransientTracker
+from molto_runtime.prefill_transient_tracker import PrefillTransientTracker
 
 
 class TestUpdate:
@@ -56,7 +56,7 @@ class TestEwmaOutlierGuard:
     def test_incident_outlier_rejected_from_ewma(self):
         t = PrefillTransientTracker("m")
         # Baseline regime: per-token readings observed in
-        # ~/.omlx/logs/server.log 16:08:48-16:09:39 (KB/token), replayed as
+        # ~/.molto/logs/server.log 16:08:48-16:09:39 (KB/token), replayed as
         # (n_tokens=2048, transient_bytes) pairs.
         baseline_kb_per_token = [
             1058.0,

@@ -20,7 +20,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from omlx_runtime.cache.paged_ssd_cache import (
+from molto_runtime.cache.paged_ssd_cache import (
     PagedSSDBlockMetadata,
     PagedSSDCacheIndex,
     PagedSSDCacheManager,
@@ -768,7 +768,7 @@ class TestPagedSSDCacheManagerWithMLX:
         import hashlib
         import time as time_mod
 
-        from omlx_runtime.cache.paged_ssd_cache import PagedSSDBlockMetadata
+        from molto_runtime.cache.paged_ssd_cache import PagedSSDBlockMetadata
 
         mx = mock_mlx
         manager = PagedSSDCacheManager(
@@ -947,7 +947,7 @@ class TestPagedSSDCacheManagerWithMLX:
         """Saved blocks tag the file with the current format version."""
         import time as time_mod
 
-        from omlx_runtime.cache.paged_ssd_cache import _CACHE_FORMAT_VERSION
+        from molto_runtime.cache.paged_ssd_cache import _CACHE_FORMAT_VERSION
 
         mx = mock_mlx
 
@@ -969,7 +969,7 @@ class TestPagedSSDCacheManagerWithMLX:
         assert file_path.exists(), "background writer never produced the file"
 
         _, file_metadata = mx.load(str(file_path), return_metadata=True)
-        assert file_metadata.get("omlx_cache_format_version") == _CACHE_FORMAT_VERSION
+        assert file_metadata.get("molto_cache_format_version") == _CACHE_FORMAT_VERSION
 
     def test_unversioned_block_is_rejected_at_index_scan(
         self, tmp_path: Path, mock_mlx
@@ -1002,7 +1002,7 @@ class TestPagedSSDCacheManagerWithMLX:
                 "layer_0_values": mx.zeros((1, 8, 32, 64)),
             },
             metadata={
-                # Intentionally missing omlx_cache_format_version.
+                # Intentionally missing molto_cache_format_version.
                 "block_hash": block_hash_hex,
                 "token_count": "32",
                 "num_layers": "1",
@@ -1032,7 +1032,7 @@ class TestPagedSSDCacheManagerWithMLX:
     ) -> Path:
         """Drop a minimally-valid versioned block on disk so we can exercise
         the startup scan without relying on the background writer."""
-        from omlx_runtime.cache.paged_ssd_cache import _CACHE_FORMAT_VERSION
+        from molto_runtime.cache.paged_ssd_cache import _CACHE_FORMAT_VERSION
 
         cache_dir.mkdir(parents=True, exist_ok=True)
         block_hash_hex = block_hash.hex()
@@ -1052,7 +1052,7 @@ class TestPagedSSDCacheManagerWithMLX:
             str(file_path),
             tensors,
             metadata={
-                "omlx_cache_format_version": _CACHE_FORMAT_VERSION,
+                "molto_cache_format_version": _CACHE_FORMAT_VERSION,
                 "block_hash": block_hash_hex,
                 "token_count": "32",
                 "num_layers": str(num_layers),
@@ -1069,6 +1069,27 @@ class TestPagedSSDCacheManagerWithMLX:
             },
         )
         return file_path
+
+    def test_migrated_legacy_brand_block_is_indexed_and_loaded(
+        self, tmp_path, mock_mlx
+    ):
+        cache_dir = tmp_path / "ssd_cache"
+        block_hash = b"\x20" + b"\x00" * 31
+        path = self._write_versioned_fixture_block(
+            cache_dir, mock_mlx, block_hash, num_layers=1, model_name="migration-model"
+        )
+        arrays, metadata = mock_mlx.load(str(path), return_metadata=True)
+        mock_mlx.eval(*arrays.values())
+        metadata["omlx_cache_format_version"] = metadata.pop(
+            "molto_cache_format_version"
+        )
+        mock_mlx.save_safetensors(str(path), arrays, metadata=metadata)
+        manager = PagedSSDCacheManager(cache_dir=cache_dir, max_size_bytes=1024**3)
+        try:
+            assert manager.has_block(block_hash)
+            assert manager.load_block(block_hash) is not None
+        finally:
+            manager.close()
 
     def test_scan_skips_layer_count_mismatch_without_unlinking(
         self, tmp_path: Path, mock_mlx
@@ -1209,7 +1230,7 @@ class TestPagedSSDCacheManagerWithMLX:
         corrupt_field: str,
     ) -> Path:
         """Drop a versioned block whose type metadata JSON is corrupt."""
-        from omlx_runtime.cache.paged_ssd_cache import _CACHE_FORMAT_VERSION
+        from molto_runtime.cache.paged_ssd_cache import _CACHE_FORMAT_VERSION
 
         cache_dir.mkdir(parents=True, exist_ok=True)
         block_hash_hex = block_hash.hex()
@@ -1218,7 +1239,7 @@ class TestPagedSSDCacheManagerWithMLX:
         file_path = sub_dir / f"{block_hash_hex}.safetensors"
 
         metadata = {
-            "omlx_cache_format_version": _CACHE_FORMAT_VERSION,
+            "molto_cache_format_version": _CACHE_FORMAT_VERSION,
             "block_hash": block_hash_hex,
             "token_count": "32",
             "num_layers": "1",
@@ -1310,7 +1331,9 @@ class TestPagedSSDCacheManagerWithMLX:
                 model_name="old",
             )
 
-        with caplog.at_level(logging.INFO, logger="omlx_runtime.cache.paged_ssd_cache"):
+        with caplog.at_level(
+            logging.INFO, logger="molto_runtime.cache.paged_ssd_cache"
+        ):
             PagedSSDCacheManager(
                 cache_dir=cache_dir,
                 max_size_bytes=1024**3,
@@ -1930,7 +1953,7 @@ class TestAsyncWriteAndTimeoutLoad:
         import time as time_mod
 
         with patch(
-            "omlx_runtime.cache.paged_ssd_cache._write_safetensors_no_mx",
+            "molto_runtime.cache.paged_ssd_cache._write_safetensors_no_mx",
             side_effect=OSError("Disk full"),
         ):
             result = ssd_cache.save_block(
@@ -1966,7 +1989,7 @@ class TestAsyncWriteAndTimeoutLoad:
 
         with (
             patch(
-                "omlx_runtime.cache.paged_ssd_cache._write_safetensors_no_mx",
+                "molto_runtime.cache.paged_ssd_cache._write_safetensors_no_mx",
                 side_effect=enospc,
             ),
             caplog.at_level(logging.WARNING),
@@ -2202,7 +2225,7 @@ class TestAsyncBackgroundWrite:
         into place -- otherwise a crash between close() and the rename can
         leave the renamed file pointing at data that was only ever in the
         OS page cache, reading back as truncated/zero-filled garbage."""
-        import omlx_runtime.cache.paged_ssd_cache as ssd_mod
+        import molto_runtime.cache.paged_ssd_cache as ssd_mod
 
         t1 = mx.ones((4,), dtype=mx.float32)
         mx.eval(t1)
@@ -2225,13 +2248,13 @@ class TestAsyncBackgroundWrite:
         """F1: renaming a file into place doesn't guarantee the directory
         entry itself survives a crash until the containing directory is
         fsynced too."""
-        from omlx_runtime.cache.paged_ssd_cache import _fsync_parent_dir
+        from molto_runtime.cache.paged_ssd_cache import _fsync_parent_dir
 
         target = tmp_path / "sub" / "file.txt"
         target.parent.mkdir()
         target.write_text("data")
 
-        import omlx_runtime.cache.paged_ssd_cache as ssd_mod
+        import molto_runtime.cache.paged_ssd_cache as ssd_mod
 
         calls = []
         real_fsync = ssd_mod.os.fsync
@@ -2248,7 +2271,7 @@ class TestAsyncBackgroundWrite:
     def test_fsync_parent_dir_tolerates_missing_directory(self, tmp_path):
         """Must not raise if the directory vanished (e.g. concurrent
         eviction) -- this is best-effort durability, not correctness."""
-        from omlx_runtime.cache.paged_ssd_cache import _fsync_parent_dir
+        from molto_runtime.cache.paged_ssd_cache import _fsync_parent_dir
 
         _fsync_parent_dir(str(tmp_path / "does-not-exist" / "file.txt"))
 
@@ -2721,7 +2744,7 @@ class TestPreloadMatchedBlocks:
         one at a time."""
         import threading
 
-        from omlx_runtime.cache import paged_ssd_cache as ssd_mod
+        from molto_runtime.cache import paged_ssd_cache as ssd_mod
 
         manager = PagedSSDCacheManager(
             cache_dir=tmp_path / "ssd_cache",
@@ -3160,7 +3183,7 @@ class TestPreloadBlocks:
         """preload_blocks extracts hashes from BlockTable and calls SSD preload."""
         from unittest.mock import MagicMock
 
-        from omlx_runtime.cache.paged_cache import PagedCacheManager
+        from molto_runtime.cache.paged_cache import PagedCacheManager
 
         # Set up real SSD manager with blocks
         ssd_manager = PagedSSDCacheManager(
@@ -3194,7 +3217,7 @@ class TestPreloadBlocks:
             block_ids.append(block.block_id)
 
         # Create BlockAwarePrefixCache
-        from omlx_runtime.cache.prefix_cache import BlockAwarePrefixCache, BlockTable
+        from molto_runtime.cache.prefix_cache import BlockAwarePrefixCache, BlockTable
 
         model = MagicMock()
         prefix_cache = BlockAwarePrefixCache(model, paged_cache, ssd_manager2)
@@ -3230,7 +3253,7 @@ class TestComputeMaxPendingWrites:
     def test_soft_floor_applies_when_hard_budget_allows(self):
         """The soft floor gives large-block workloads burst headroom
         when the byte hard cap still has room."""
-        from omlx_runtime.cache.paged_ssd_cache import _compute_max_pending_writes
+        from molto_runtime.cache.paged_ssd_cache import _compute_max_pending_writes
 
         def fake_sysconf(name):
             if name == "SC_PAGE_SIZE":
@@ -3240,7 +3263,7 @@ class TestComputeMaxPendingWrites:
             raise ValueError(name)
 
         with patch(
-            "omlx_runtime.cache.paged_ssd_cache.os.sysconf", side_effect=fake_sysconf
+            "molto_runtime.cache.paged_ssd_cache.os.sysconf", side_effect=fake_sysconf
         ):
             cap = _compute_max_pending_writes(
                 block_size_tokens=2048,
@@ -3251,7 +3274,7 @@ class TestComputeMaxPendingWrites:
     def test_hard_budget_bounds_soft_floor(self):
         """The soft floor must not force the pending pool above 30%
         of host RAM for very expensive blocks."""
-        from omlx_runtime.cache.paged_ssd_cache import _compute_max_pending_writes
+        from molto_runtime.cache.paged_ssd_cache import _compute_max_pending_writes
 
         def fake_sysconf(name):
             if name == "SC_PAGE_SIZE":
@@ -3261,7 +3284,7 @@ class TestComputeMaxPendingWrites:
             raise ValueError(name)
 
         with patch(
-            "omlx_runtime.cache.paged_ssd_cache.os.sysconf", side_effect=fake_sysconf
+            "molto_runtime.cache.paged_ssd_cache.os.sysconf", side_effect=fake_sysconf
         ):
             cap = _compute_max_pending_writes(
                 block_size_tokens=2048,
@@ -3272,7 +3295,7 @@ class TestComputeMaxPendingWrites:
     def test_ceiling_clamps_high_end(self):
         """A 512 GB host with tiny blocks still tops out at 256
         rather than pinning thousands of in-flight writes."""
-        from omlx_runtime.cache.paged_ssd_cache import _compute_max_pending_writes
+        from molto_runtime.cache.paged_ssd_cache import _compute_max_pending_writes
 
         # Tiny per-slot cost → math would produce a huge number;
         # the ceiling must hold at 256.
@@ -3285,7 +3308,7 @@ class TestComputeMaxPendingWrites:
     def test_larger_block_shrinks_cap(self):
         """Doubling block_size_tokens halves the cap target (until
         floor/ceiling clamp)."""
-        from omlx_runtime.cache.paged_ssd_cache import _compute_max_pending_writes
+        from molto_runtime.cache.paged_ssd_cache import _compute_max_pending_writes
 
         cap_256 = _compute_max_pending_writes(block_size_tokens=256)
         cap_1024 = _compute_max_pending_writes(block_size_tokens=1024)
@@ -3302,7 +3325,7 @@ class TestComputeMaxPendingWrites:
     def test_larger_kv_bytes_shrinks_cap(self):
         """Heavier per-token KV (bigger model) shrinks the cap so
         the byte budget is preserved across model sizes."""
-        from omlx_runtime.cache.paged_ssd_cache import _compute_max_pending_writes
+        from molto_runtime.cache.paged_ssd_cache import _compute_max_pending_writes
 
         cap_small = _compute_max_pending_writes(kv_bytes_per_token=50_000)
         cap_large = _compute_max_pending_writes(kv_bytes_per_token=400_000)
@@ -3312,14 +3335,14 @@ class TestComputeMaxPendingWrites:
     def test_default_args_produce_sensible_cap(self):
         """The default-args path used by static callers must produce
         a cap inside the bounded range."""
-        from omlx_runtime.cache.paged_ssd_cache import _compute_max_pending_writes
+        from molto_runtime.cache.paged_ssd_cache import _compute_max_pending_writes
 
         cap = _compute_max_pending_writes()
         assert 1 <= cap <= 256
 
     def test_non_positive_kv_estimate_uses_conservative_default(self):
         """A zero per-token estimate must not make blocks look one byte wide."""
-        from omlx_runtime.cache.paged_ssd_cache import _compute_max_pending_writes
+        from molto_runtime.cache.paged_ssd_cache import _compute_max_pending_writes
 
         assert _compute_max_pending_writes(kv_bytes_per_token=0) == (
             _compute_max_pending_writes(kv_bytes_per_token=200_000)
@@ -3330,7 +3353,7 @@ class TestComputeMaxPendingWrites:
         constructor args, not just inherit the module-level constant.
         Otherwise a non-default block size silently uses a cap sized
         for the default block size."""
-        from omlx_runtime.cache.paged_ssd_cache import (
+        from molto_runtime.cache.paged_ssd_cache import (
             PagedSSDCacheManager,
             _compute_max_pending_writes,
         )
@@ -3369,7 +3392,7 @@ class TestComputeMaxPendingWrites:
 
     def test_manager_normalizes_non_positive_kv_estimate(self, tmp_path):
         """The manager must enforce the same safe fallback as the formula."""
-        from omlx_runtime.cache.paged_ssd_cache import (
+        from molto_runtime.cache.paged_ssd_cache import (
             PagedSSDCacheManager,
             _compute_max_pending_writes,
         )
@@ -3419,7 +3442,7 @@ class TestSchedulerPlumbsBlockSizeToSSDCache:
         state, as selected by ``rotating_cache_layers``."""
         from unittest.mock import MagicMock
 
-        from omlx_runtime.scheduler import Scheduler, SchedulerConfig
+        from molto_runtime.scheduler import Scheduler, SchedulerConfig
 
         # Real numbers so MemoryMonitor.set_model_info accepts them.
         class _Config:
@@ -3538,7 +3561,7 @@ class TestSchedulerPlumbsBlockSizeToSSDCache:
         # And the cap computed from those plumbed inputs must drive the
         # write queue's maxsize — the cap is only useful if the queue
         # actually enforces it.
-        from omlx_runtime.cache.paged_ssd_cache import _compute_max_pending_writes
+        from molto_runtime.cache.paged_ssd_cache import _compute_max_pending_writes
 
         expected_cap = _compute_max_pending_writes(
             block_size_tokens=mgr._expected_block_size_tokens,
@@ -3585,7 +3608,7 @@ class TestSchedulerPlumbsBlockSizeToSSDCache:
         assert sched.memory_monitor.estimate_block_memory(1) == 0
         assert mgr._expected_kv_bytes_per_token == 200_000
 
-        from omlx_runtime.cache.paged_ssd_cache import _compute_max_pending_writes
+        from molto_runtime.cache.paged_ssd_cache import _compute_max_pending_writes
 
         expected_cap = _compute_max_pending_writes(
             block_size_tokens=mgr._expected_block_size_tokens,
@@ -3626,7 +3649,7 @@ class TestSchedulerPlumbsBlockSizeToSSDCache:
         also pass ``config.block_size`` through — otherwise direct
         callers silently get the 256-token default regardless of what
         they configured."""
-        from omlx_runtime.cache.factory import CacheConfig, CacheFactory
+        from molto_runtime.cache.factory import CacheConfig, CacheFactory
 
         cfg = CacheConfig(
             block_size=1024,
@@ -3636,7 +3659,7 @@ class TestSchedulerPlumbsBlockSizeToSSDCache:
         mgr = CacheFactory.create_paged_ssd_cache(cfg, model_name="m")
         assert mgr is not None
 
-        from omlx_runtime.cache.paged_ssd_cache import _compute_max_pending_writes
+        from molto_runtime.cache.paged_ssd_cache import _compute_max_pending_writes
 
         # Factory has no memory monitor, so it leaves
         # ``kv_bytes_per_token`` at the 200 KB default — that's the
@@ -3790,7 +3813,7 @@ class TestInlineLRUUnlinks:
         """A large forced eviction is bounded by
         ``_MAX_INLINE_UNLINKS_PER_SAVE``; deferred entries reinsert into
         the index so subsequent saves drain the remainder."""
-        from omlx_runtime.cache.paged_ssd_cache import _MAX_INLINE_UNLINKS_PER_SAVE
+        from molto_runtime.cache.paged_ssd_cache import _MAX_INLINE_UNLINKS_PER_SAVE
 
         # Use a large cap initially, then shrink to force a mass-eviction.
         entry_size = self._entry_size()
@@ -3837,7 +3860,7 @@ class TestInlineLRUUnlinks:
 
     def test_deferred_eviction_preserves_lru_order(self, tmp_path, monkeypatch):
         """Deferred eviction entries remain older than survivor entries."""
-        from omlx_runtime.cache import paged_ssd_cache as ssd_cache_module
+        from molto_runtime.cache import paged_ssd_cache as ssd_cache_module
 
         monkeypatch.setattr(ssd_cache_module, "_MAX_INLINE_UNLINKS_PER_SAVE", 2)
 

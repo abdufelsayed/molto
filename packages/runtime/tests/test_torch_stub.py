@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx_runtime._torch_stub.
+"""Tests for molto_runtime._torch_stub.
 
 The stub satisfies xgrammar / tvm_ffi's import-time torch references
 without the real torch wheel. Direct tests catch a future version that
@@ -55,10 +55,10 @@ def _restore_sys_modules():
 def stub_module():
     """Import a fresh copy of the stub module so its module-level state
     doesn't leak between tests."""
-    if "omlx_runtime._torch_stub" in sys.modules:
-        importlib.reload(sys.modules["omlx_runtime._torch_stub"])
-        return sys.modules["omlx_runtime._torch_stub"]
-    import omlx_runtime._torch_stub as m
+    if "molto_runtime._torch_stub" in sys.modules:
+        importlib.reload(sys.modules["molto_runtime._torch_stub"])
+        return sys.modules["molto_runtime._torch_stub"]
+    import molto_runtime._torch_stub as m
 
     return m
 
@@ -73,7 +73,7 @@ def test_install_returns_true_and_populates_sys_modules(stub_module):
     for k in _TOUCHED:
         assert k in sys.modules, f"{k} not installed in sys.modules"
     torch = sys.modules["torch"]
-    assert torch.__version__.endswith("+omlx-stub")
+    assert torch.__version__.endswith("+molto-stub")
     # The dtype set xgrammar/tvm_ffi look up at import time.
     for dt in (
         "int8",
@@ -307,7 +307,7 @@ def test_missing_top_level_attribute_raises_attributeerror_and_logs(
     with mock.patch("importlib.util.find_spec", side_effect=lambda name: None):
         stub_module.install()
     torch = sys.modules["torch"]
-    with caplog.at_level("WARNING", logger="omlx_runtime._torch_stub"):
+    with caplog.at_level("WARNING", logger="molto_runtime._torch_stub"):
         with pytest.raises(AttributeError, match="torch.compile"):
             torch.compile  # noqa: B018
     assert any(
@@ -337,7 +337,7 @@ def test_known_probe_names_log_at_debug_not_warning(stub_module, caplog):
     # Probe one known dtype + one genuinely-missing attribute. Capture at
     # DEBUG so both log calls land in caplog.records and we can compare
     # their levels.
-    with caplog.at_level("DEBUG", logger="omlx_runtime._torch_stub"):
+    with caplog.at_level("DEBUG", logger="molto_runtime._torch_stub"):
         with pytest.raises(AttributeError):
             torch.float8_e4m3fn  # noqa: B018
         with pytest.raises(AttributeError):
@@ -441,7 +441,7 @@ def test_install_is_thread_safe(stub_module):
     assert all(r is True for r in results)
     # All threads see the same single torch module instance.
     torch = sys.modules["torch"]
-    assert torch.__version__.endswith("+omlx-stub")
+    assert torch.__version__.endswith("+molto-stub")
 
 
 @pytest.mark.skipif(
@@ -450,7 +450,7 @@ def test_install_is_thread_safe(stub_module):
 )
 def test_xgrammar_imports_against_stub_only(stub_module, tmp_path):
     """Realistic regression: spawn a subprocess that blocks real torch and
-    asserts ``import xgrammar`` and the modules oMLX touches still load
+    asserts ``import xgrammar`` and the modules Molto touches still load
     against the stub. This is the test that gates xgrammar / tvm-ffi
     version bumps — if a new release reaches for a torch attribute the
     stub doesn't cover, this fails loudly at the import step.
@@ -492,7 +492,7 @@ def test_xgrammar_imports_against_stub_only(stub_module, tmp_path):
             return _orig_find_spec(name, *args, **kwargs)
         importlib.util.find_spec = _no_torch
 
-        from omlx_runtime._torch_stub import install
+        from molto_runtime._torch_stub import install
         assert install() is True, (
             "stub install returned False — real torch was reachable "
             "despite meta-path / find_spec blocking"
@@ -533,7 +533,7 @@ def test_warn_fires_on_version_drift(stub_module, caplog):
     fake = _fake_metadata_version("9.9.9", "8.8.8")
     with (
         mock.patch("importlib.metadata.version", side_effect=fake),
-        caplog.at_level("WARNING", logger="omlx_runtime._torch_stub"),
+        caplog.at_level("WARNING", logger="molto_runtime._torch_stub"),
     ):
         stub_module.warn_if_unexpected_versions()
     messages = [rec.getMessage() for rec in caplog.records]
@@ -548,7 +548,7 @@ def test_warn_silent_when_versions_match_targets(stub_module, caplog):
     )
     with (
         mock.patch("importlib.metadata.version", side_effect=fake),
-        caplog.at_level("WARNING", logger="omlx_runtime._torch_stub"),
+        caplog.at_level("WARNING", logger="molto_runtime._torch_stub"),
     ):
         stub_module.warn_if_unexpected_versions()
     assert not caplog.records, [rec.getMessage() for rec in caplog.records]
@@ -558,7 +558,7 @@ def test_warn_silent_when_distributions_missing(stub_module, caplog):
     fake = _fake_metadata_version(None, None)
     with (
         mock.patch("importlib.metadata.version", side_effect=fake),
-        caplog.at_level("WARNING", logger="omlx_runtime._torch_stub"),
+        caplog.at_level("WARNING", logger="molto_runtime._torch_stub"),
     ):
         stub_module.warn_if_unexpected_versions()
     assert not caplog.records, [rec.getMessage() for rec in caplog.records]
@@ -605,7 +605,7 @@ def test_pyproject_dev_pins_match_stub_targets(stub_module):
         )
         assert pins == {targets[0]}, (
             f"{package}: pyproject dev pin {sorted(pins)} != stub target "
-            f"{targets[0]} — update _TARGET_*_VERSIONS in omlx/_torch_stub.py"
+            f"{targets[0]} — update _TARGET_*_VERSIONS in molto/_torch_stub.py"
         )
 
 
@@ -614,7 +614,7 @@ def test_pyproject_grammar_pins_match_stub_targets(stub_module):
 
     xgrammar links dynamically against apache-tvm-ffi, so allowing either
     package to resolve independently can produce an import-time segfault even
-    when the oMLX source and formula have not changed (issue #2428).
+    when the Molto source and formula have not changed (issue #2428).
     """
     for package, targets in (
         ("xgrammar", stub_module._TARGET_XGRAMMAR_VERSIONS),

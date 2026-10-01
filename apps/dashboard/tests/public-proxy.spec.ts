@@ -21,7 +21,7 @@ test("built public listener forwards client inference auth without a dashboard s
     cookie: null,
     query: "fixture=client",
   })
-  expect((await request.get("/api/omlx/state")).status()).toBe(401)
+  expect((await request.get("/api/molto/state")).status()).toBe(401)
   expect(
     (
       await request.get("/management/v1/state", {

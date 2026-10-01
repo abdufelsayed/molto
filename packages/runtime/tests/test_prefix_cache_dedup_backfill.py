@@ -15,14 +15,14 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from omlx_runtime.cache.paged_cache import BlockTable, PagedCacheManager
-from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
-from omlx_runtime.cache.pooling_delta import (
+from molto_runtime.cache.paged_cache import BlockTable, PagedCacheManager
+from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+from molto_runtime.cache.pooling_delta import (
     POOLING_CACHE_DELTA_CLASS,
     compact_pooling_cache_snapshot,
 )
-from omlx_runtime.cache.prefix_cache import BlockAwarePrefixCache
-from omlx_runtime.cache.type_registry import CacheTypeRegistry
+from molto_runtime.cache.prefix_cache import BlockAwarePrefixCache
+from molto_runtime.cache.type_registry import CacheTypeRegistry
 
 try:
     import mlx.core as mx
@@ -169,7 +169,7 @@ def _delta_pooling_layer(token_count: int) -> list[dict]:
 
 
 def _make_v4_cache(tmp_path):
-    from omlx_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
+    from molto_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
 
     apply_deepseek_v4_patch()
     paged = PagedCacheManager(

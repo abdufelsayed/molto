@@ -9,8 +9,8 @@ text processing, content extraction, and format conversion.
 import logging
 
 import pytest
-from omlx_config.model_settings import ModelSettings
-from omlx_contracts.api.anthropic_models import (
+from molto_config.model_settings import ModelSettings
+from molto_contracts.api.anthropic_models import (
     AnthropicMessage,
     AnthropicTool,
     ContentBlockDocument,
@@ -21,13 +21,13 @@ from omlx_contracts.api.anthropic_models import (
     MessagesRequest,
     SystemContent,
 )
-from omlx_contracts.api.openai_models import (
+from molto_contracts.api.openai_models import (
     ContentPart,
     FunctionCall,
     Message,
     ToolCall,
 )
-from omlx_runtime.generation.anthropic_utils import (
+from molto_runtime.generation.anthropic_utils import (
     convert_anthropic_to_internal,
     convert_anthropic_tools_to_internal,
     convert_internal_to_anthropic_response,
@@ -44,7 +44,7 @@ from omlx_runtime.generation.anthropic_utils import (
     map_finish_reason_to_stop_reason,
     request_has_cache_control,
 )
-from omlx_runtime.generation.utils import (
+from molto_runtime.generation.utils import (
     SPECIAL_TOKENS_PATTERN,
     _chat_template_supports_tool_role,
     _consolidate_system_messages,
@@ -1117,7 +1117,7 @@ class TestConvertAnthropicToInternal:
         assert len(result) == 1
         content = result[0]["content"]
         assert "manual.pdf" in content
-        assert "oMLX does not provide PDF parsing" in content
+        assert "Molto does not provide PDF parsing" in content
 
     def test_thinking_block_reconstructed_as_think_tag(self):
         """Single Anthropic thinking block should be reassembled into a <think> wrapper."""
@@ -1498,7 +1498,7 @@ class TestConvertAnthropicToolsToInternal:
         ]
 
         with caplog.at_level(
-            logging.INFO, logger="omlx_runtime.generation.anthropic_utils"
+            logging.INFO, logger="molto_runtime.generation.anthropic_utils"
         ):
             convert_anthropic_tools_to_internal(tools)
 
@@ -2244,7 +2244,7 @@ class TestPrepareSystemMessagesForTemplate:
                 return "\n".join(
                     f"{msg['role']}:{msg.get('content', '')}" for msg in messages
                 )
-            return "user:__OMLX_MID_SYSTEM_PROBE_USER__"
+            return "user:__MOLTO_MID_SYSTEM_PROBE_USER__"
 
     class ToolHistoryTokenizer(PreserveTokenizer):
         chat_template = "tool-history-mid-system"
@@ -2277,11 +2277,11 @@ class TestPrepareSystemMessagesForTemplate:
             return super().apply_chat_template(messages, **kwargs)
 
     class ExplicitlyUnsupportedTokenizer(PreserveTokenizer):
-        _omlx_supports_mid_system_messages = False
+        _molto_supports_mid_system_messages = False
 
     class RelocatingTokenizer(ExplicitlyUnsupportedTokenizer):
         @staticmethod
-        def _omlx_relocate_mid_system_messages(messages):
+        def _molto_relocate_mid_system_messages(messages):
             return [
                 {"role": "latest_reminder", "content": messages[1]["content"]},
                 messages[0],
@@ -3653,7 +3653,7 @@ class TestCacheReasoningOutput:
         )
 
     def test_follows_history_retention_by_default(self):
-        from omlx_runtime.generation.utils import cache_reasoning_output
+        from molto_runtime.generation.utils import cache_reasoning_output
 
         assert (
             cache_reasoning_output(
@@ -3677,7 +3677,7 @@ class TestCacheReasoningOutput:
     def test_model_setting_overrides_detection(self):
         from types import SimpleNamespace
 
-        from omlx_runtime.generation.utils import cache_reasoning_output
+        from molto_runtime.generation.utils import cache_reasoning_output
 
         forced_on = SimpleNamespace(cache_reasoning_output=True)
         forced_off = SimpleNamespace(cache_reasoning_output=False)

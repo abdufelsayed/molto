@@ -11,13 +11,13 @@ import types
 import warnings
 from dataclasses import dataclass
 
-import omlx_server.inventory as server_module
-import omlx_server.transport as transport_module
+import molto_server.inventory as server_module
+import molto_server.transport as transport_module
 import pytest
 from fastapi.testclient import TestClient
-from omlx_config.settings import GlobalSettings
-from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
-from omlx_runtime.documents.markitdown import (
+from molto_config.settings import GlobalSettings
+from molto_contracts.api.openai_models import ChatCompletionRequest, Message
+from molto_runtime.documents.markitdown import (
     MARKITDOWN_EMPTY_PDF_MESSAGE,
     MARKITDOWN_MODEL_ID,
     MarkItDownFile,
@@ -30,14 +30,14 @@ from omlx_runtime.documents.markitdown import (
     quiet_pdf_parser_loggers,
     stream_attachment_to_markdown_async,
 )
-from omlx_runtime.documents.markitdown_pdf_fallback import (
+from molto_runtime.documents.markitdown_pdf_fallback import (
     convert_pdf_with_ocr_engine,
     resolve_pdf_ocr_model,
     stream_pdf_with_ocr_engine,
 )
-from omlx_runtime.engine_pool import EngineEntry, EnginePool
-from omlx_server.server import create_app
-from omlx_server.state import ServerState
+from molto_runtime.engine_pool import EngineEntry, EnginePool
+from molto_server.server import create_app
+from molto_server.state import ServerState
 from starlette.responses import StreamingResponse
 
 
@@ -142,7 +142,7 @@ def test_markitdown_chat_completion_converts_file(monkeypatch):
         return "# Converted"
 
     monkeypatch.setattr(
-        "omlx_runtime.documents.markitdown.convert_file_to_markdown", fake_convert
+        "molto_runtime.documents.markitdown.convert_file_to_markdown", fake_convert
     )
 
     client = TestClient(create_app(state), raise_server_exceptions=False)
@@ -169,7 +169,7 @@ def test_markitdown_chat_completion_uses_latest_user_turn(monkeypatch):
         return f"# Converted {file.filename}"
 
     monkeypatch.setattr(
-        "omlx_runtime.documents.markitdown.convert_file_to_markdown", fake_convert
+        "molto_runtime.documents.markitdown.convert_file_to_markdown", fake_convert
     )
 
     client = TestClient(create_app(state), raise_server_exceptions=False)
@@ -286,7 +286,7 @@ def test_markitdown_fast_conversion_returns_plain_response(monkeypatch):
     """A conversion that resolves within the keepalive grace period skips
     the StreamingResponse/leading-space dance entirely and returns a plain
     response with a real status code -- see
-    ``omlx_server.server._json_response_or_keepalive``.
+    ``molto_server.server._json_response_or_keepalive``.
     """
     state = ServerState()
     state.engine_pool = _EmptyPool()
@@ -374,7 +374,7 @@ def test_preprocess_file_parts_for_llm(monkeypatch):
         return "Converted text"
 
     monkeypatch.setattr(
-        "omlx_runtime.documents.markitdown.convert_file_to_markdown", fake_convert
+        "molto_runtime.documents.markitdown.convert_file_to_markdown", fake_convert
     )
     messages = [
         Message(
@@ -404,7 +404,7 @@ def test_preprocess_file_parts_works_when_model_not_exposed(monkeypatch):
         return "Converted text"
 
     monkeypatch.setattr(
-        "omlx_runtime.documents.markitdown.convert_file_to_markdown", fake_convert
+        "molto_runtime.documents.markitdown.convert_file_to_markdown", fake_convert
     )
     settings = GlobalSettings()
     settings.integrations.markitdown_expose_model = False
@@ -429,7 +429,7 @@ def test_text_and_markdown_file_parts_are_inlined_without_converter(monkeypatch)
         raise AssertionError("plain text attachments should not use MarkItDown")
 
     monkeypatch.setattr(
-        "omlx_runtime.documents.markitdown.convert_file_to_markdown", fake_convert
+        "molto_runtime.documents.markitdown.convert_file_to_markdown", fake_convert
     )
 
     processed = preprocess_markitdown_file_parts(
@@ -468,7 +468,7 @@ def test_preprocess_file_parts_does_not_create_mixed_content_warning(monkeypatch
         return "Converted text"
 
     monkeypatch.setattr(
-        "omlx_runtime.documents.markitdown.convert_file_to_markdown", fake_convert
+        "molto_runtime.documents.markitdown.convert_file_to_markdown", fake_convert
     )
     messages = [
         Message(
@@ -501,7 +501,7 @@ def test_preprocess_allows_missing_historical_file_parts(monkeypatch):
         raise AssertionError("missing historical files should not be converted")
 
     monkeypatch.setattr(
-        "omlx_runtime.documents.markitdown.convert_file_to_markdown", fake_convert
+        "molto_runtime.documents.markitdown.convert_file_to_markdown", fake_convert
     )
 
     processed = preprocess_markitdown_file_parts(
@@ -563,7 +563,7 @@ def test_async_preprocess_allows_missing_historical_file_parts(monkeypatch):
         raise AssertionError("missing historical files should not be converted")
 
     monkeypatch.setattr(
-        "omlx_runtime.documents.markitdown.convert_file_to_markdown", fake_convert
+        "molto_runtime.documents.markitdown.convert_file_to_markdown", fake_convert
     )
 
     async def exercise():
@@ -602,7 +602,7 @@ def test_server_llm_preprocess_allows_stored_document_placeholders(monkeypatch):
         raise AssertionError("stored document placeholders should not be converted")
 
     monkeypatch.setattr(
-        "omlx_runtime.documents.markitdown.convert_file_to_markdown", fake_convert
+        "molto_runtime.documents.markitdown.convert_file_to_markdown", fake_convert
     )
 
     state = ServerState()
@@ -713,7 +713,9 @@ def test_empty_pdf_conversion_logs_warning(monkeypatch, caplog):
     fake_markitdown = types.ModuleType("markitdown")
     fake_markitdown.StreamInfo = FakeStreamInfo
     monkeypatch.setitem(sys.modules, "markitdown", fake_markitdown)
-    monkeypatch.setattr("omlx_runtime.documents.markitdown._converter", FakeConverter())
+    monkeypatch.setattr(
+        "molto_runtime.documents.markitdown._converter", FakeConverter()
+    )
 
     caplog.set_level("WARNING")
     with pytest.raises(MarkItDownRequestError) as exc_info:
@@ -799,7 +801,7 @@ def test_ocr_pdf_engine_converts_pages_in_order_limits_concurrency_and_unloads(
     pool = FakePool()
 
     monkeypatch.setattr(
-        "omlx_runtime.documents.markitdown_pdf_fallback.render_pdf_pages_to_image_data_uris",
+        "molto_runtime.documents.markitdown_pdf_fallback.render_pdf_pages_to_image_data_uris",
         lambda file: ["page1", "page2", "page3"],
     )
 
@@ -875,7 +877,7 @@ def test_ocr_pdf_engine_streams_ready_prefix_in_page_order(monkeypatch):
     settings = GlobalSettings()
     settings.scheduler.max_concurrent_requests = 3
     monkeypatch.setattr(
-        "omlx_runtime.documents.markitdown_pdf_fallback.render_pdf_pages_to_image_data_uris",
+        "molto_runtime.documents.markitdown_pdf_fallback.render_pdf_pages_to_image_data_uris",
         lambda file: ["page1", "page2", "page3"],
     )
 
@@ -933,7 +935,7 @@ def test_missing_ocr_model_falls_back_to_markitdown(monkeypatch, stream, empty):
         return "" if empty else "Extracted PDF text"
 
     monkeypatch.setattr(
-        "omlx_runtime.documents.markitdown._convert_file_with_markitdown", fake_convert
+        "molto_runtime.documents.markitdown._convert_file_with_markitdown", fake_convert
     )
     settings = GlobalSettings()
     settings.integrations.markitdown_pdf_processing_engine = "GLM-OCR-bf16"
@@ -977,11 +979,11 @@ def test_ocr_runtime_error_does_not_fall_back(monkeypatch, stream):
         pytest.fail("An available OCR model must not fall back to MarkItDown")
 
     monkeypatch.setattr(
-        "omlx_runtime.documents.markitdown._convert_file_with_markitdown",
+        "molto_runtime.documents.markitdown._convert_file_with_markitdown",
         unexpected_fallback,
     )
     monkeypatch.setattr(
-        "omlx_runtime.documents.markitdown_pdf_fallback.render_pdf_pages_to_image_data_uris",
+        "molto_runtime.documents.markitdown_pdf_fallback.render_pdf_pages_to_image_data_uris",
         lambda file: ["data:image/png;base64,test"],
     )
     settings = GlobalSettings()
@@ -1076,7 +1078,7 @@ def test_async_preprocess_uses_ocr_pdf_processing_engine(monkeypatch):
     settings = GlobalSettings()
     settings.integrations.markitdown_pdf_processing_engine = "OCR-Model"
     monkeypatch.setattr(
-        "omlx_runtime.documents.markitdown_pdf_fallback.convert_pdf_with_ocr_engine",
+        "molto_runtime.documents.markitdown_pdf_fallback.convert_pdf_with_ocr_engine",
         fake_convert,
     )
 

@@ -31,11 +31,11 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-from omlx_runtime.cache.observability import BoundarySnapshotDiagnostics
-from omlx_runtime.cache.paged_cache import BlockTable, PagedCacheManager
-from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
-from omlx_runtime.cache.prefix_cache import BlockAwarePrefixCache
-from omlx_runtime.cache.type_registry import CacheTypeRegistry
+from molto_runtime.cache.observability import BoundarySnapshotDiagnostics
+from molto_runtime.cache.paged_cache import BlockTable, PagedCacheManager
+from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+from molto_runtime.cache.prefix_cache import BlockAwarePrefixCache
+from molto_runtime.cache.type_registry import CacheTypeRegistry
 
 try:
     import mlx.core as mx
@@ -234,7 +234,7 @@ def test_block_signature_stamps_sub_composition(tmp_path):
     ArraysCache slot count) into the compatibility signature."""
     import json
 
-    from omlx_runtime.cache.paged_ssd_cache import _signature_cachelist_subtypes
+    from molto_runtime.cache.paged_ssd_cache import _signature_cachelist_subtypes
 
     cache, ssd = _make_cache(tmp_path)
     table = _store_blocks(cache, num_blocks=1, request_id="req-sig")
@@ -255,7 +255,7 @@ def test_block_signature_stamps_sub_composition(tmp_path):
 def test_live_subtypes_descriptor_matches_block_stamp():
     """cachelist_subtypes_from_cache_list (expectation side) must produce
     the same descriptor the save path stamps from block payloads."""
-    from omlx_runtime.cache.paged_ssd_cache import cachelist_subtypes_from_cache_list
+    from molto_runtime.cache.paged_ssd_cache import cachelist_subtypes_from_cache_list
 
     live = [_build_mixed_cachelist(seq_len=4)]
     assert cachelist_subtypes_from_cache_list(live) == {
@@ -304,7 +304,7 @@ def test_prefill_snapshot_decoupled_from_live_cache():
     the prefill's final state (KVCache mutates its buffer in place)."""
     from types import SimpleNamespace
 
-    from omlx_runtime.scheduler import Scheduler
+    from molto_runtime.scheduler import Scheduler
 
     live = _build_mixed_cachelist(seq_len=BLOCK_SIZE)
 
@@ -366,7 +366,7 @@ def test_prefill_snapshot_decoupled_from_live_cache():
 def test_boundary_store_mixed_cachelist_roundtrip(tmp_path):
     """BoundarySnapshotSSDStore round-trips a mixed CacheList layer:
     nested shape, None conv slots, and fp32 dtype all preserved."""
-    from omlx_runtime.cache.boundary_snapshot_store import BoundarySnapshotSSDStore
+    from molto_runtime.cache.boundary_snapshot_store import BoundarySnapshotSSDStore
 
     store = BoundarySnapshotSSDStore(base_dir=tmp_path)
 
@@ -432,7 +432,7 @@ def test_glm_pooling_cachelist_blanks_kv_member():
     _refill_blanked_cachelist_members) restores the KV from the live cache.
     """
     from mlx_vlm.models.cache import PoolingCache
-    from omlx_runtime.scheduler import Scheduler
+    from molto_runtime.scheduler import Scheduler
 
     kv = KVCache()
     keys, values = _position_kv(BLOCK_SIZE)
@@ -483,9 +483,9 @@ def test_glm_pooling_cachelist_blanked_kv_roundtrips(tmp_path):
     in block order (last-blocking would restore one block's rows instead of
     the chain)."""
     from mlx_vlm.models.cache import PoolingCache
-    from omlx_runtime.cache.pooling_delta import compact_pooling_cache_snapshot
-    from omlx_runtime.patches.deepseek_v4 import apply_pooling_cache_support
-    from omlx_runtime.scheduler import Scheduler
+    from molto_runtime.cache.pooling_delta import compact_pooling_cache_snapshot
+    from molto_runtime.patches.deepseek_v4 import apply_pooling_cache_support
+    from molto_runtime.scheduler import Scheduler
 
     apply_pooling_cache_support()
     cache, ssd = _make_cache(tmp_path)
@@ -588,7 +588,7 @@ def test_arrays_cache_extract_none_guard(cache_module):
     """Extract a batch row while preserving untouched recurrent slots."""
     from importlib import import_module
 
-    from omlx_runtime.patches.arrays_cache_extract import (
+    from molto_runtime.patches.arrays_cache_extract import (
         apply_arrays_cache_extract_guard,
     )
 
@@ -654,9 +654,9 @@ def test_kv_batch_pooling_cachelist_pm_roundtrip(tmp_path):
     the scheduler's non-pm fallback blanked the KV member of this layer
     while the legacy restore last-blocked the refilled per-block slices —
     silently truncating the KV sequence to one block."""
-    from omlx_runtime.patches.deepseek_v4 import apply_pooling_cache_support
-    from omlx_runtime.patches.deepseek_v4.cache_extras import BatchPoolingCache
-    from omlx_runtime.scheduler import Scheduler
+    from molto_runtime.patches.deepseek_v4 import apply_pooling_cache_support
+    from molto_runtime.patches.deepseek_v4.cache_extras import BatchPoolingCache
+    from molto_runtime.scheduler import Scheduler
 
     apply_pooling_cache_support()
     cache, ssd = _make_cache(tmp_path)
@@ -731,8 +731,8 @@ def _advance_glm_pooling_boundaries(stub, kv, pool, num_blocks, compact_from=0):
     """Advance kv/pool block by block, extracting scheduler-shaped boundary
     snapshots; compact PoolingCache from block ``compact_from`` (earlier
     blocks keep their cumulative pooled — the plain-snapshot shape)."""
-    from omlx_runtime.cache.pooling_delta import compact_pooling_cache_snapshot
-    from omlx_runtime.scheduler import Scheduler
+    from molto_runtime.cache.pooling_delta import compact_pooling_cache_snapshot
+    from molto_runtime.scheduler import Scheduler
 
     boundaries = {}
     for i in range(num_blocks):
@@ -755,8 +755,8 @@ def _advance_glm_pooling_boundaries(stub, kv, pool, num_blocks, compact_from=0):
 
 def _glm_pooling_fixture(tmp_path):
     from mlx_vlm.models.cache import PoolingCache
-    from omlx_runtime.patches.deepseek_v4 import apply_pooling_cache_support
-    from omlx_runtime.scheduler import Scheduler
+    from molto_runtime.patches.deepseek_v4 import apply_pooling_cache_support
+    from molto_runtime.scheduler import Scheduler
 
     apply_pooling_cache_support()
     cache, ssd = _make_cache(tmp_path)
@@ -780,7 +780,7 @@ def test_glm_pm_promoted_boundary_preserves_pooling_history(
     member. Both normal completion and parser-stop storage must retain that
     delta's range instead of treating the last block as the entire pool.
     """
-    from omlx_runtime.scheduler import Scheduler
+    from molto_runtime.scheduler import Scheduler
 
     cache, ssd, stub, kv, pool = _glm_pooling_fixture(tmp_path)
     boundaries = _advance_glm_pooling_boundaries(stub, kv, pool, num_blocks)
@@ -827,7 +827,7 @@ def test_glm_pm_partial_match_restores_truncated_pooling_chain(tmp_path):
     """A partial prefix match (first 2 of 3 blocks) must rebuild the pooled
     chain truncated at the match point — 2 rows in block order — and the KV
     at 8 tokens (maintainer review #3290 edge case)."""
-    from omlx_runtime.cache.paged_cache import BlockTable
+    from molto_runtime.cache.paged_cache import BlockTable
 
     cache, _ssd, stub, kv, pool = _glm_pooling_fixture(tmp_path)
     num_blocks = 3
@@ -858,7 +858,7 @@ def test_glm_pm_pooled_delta_chain_gap_rejects(tmp_path):
     """A block chain with a skipped middle block cannot rebuild the pooled
     delta chain (absolute ranges stop being contiguous): the cache must be
     REJECTED (safe miss -> re-prefill), never silently shortened."""
-    from omlx_runtime.cache.paged_cache import BlockTable
+    from molto_runtime.cache.paged_cache import BlockTable
 
     cache, _ssd, stub, kv, pool = _glm_pooling_fixture(tmp_path)
     num_blocks = 3
@@ -885,7 +885,7 @@ def test_glm_pm_uncompacted_and_mixed_pooling_chains(tmp_path):
     before the deltas becomes the base; a plain snapshot AFTER the deltas
     resets the base to its own cumulative pool (the authoritative state at
     that boundary)."""
-    from omlx_runtime.scheduler import Scheduler
+    from molto_runtime.scheduler import Scheduler
 
     cache, ssd, stub, kv, pool = _glm_pooling_fixture(tmp_path)
     num_blocks = 3
@@ -953,7 +953,7 @@ def test_compact_pooling_cache_snapshot_tail_starts_at_previous_boundary():
 
     A tail snapshot ends mid-block; its delta must start at the previous
     block boundary, not block_size tokens behind the end."""
-    from omlx_runtime.cache.pooling_delta import compact_pooling_cache_snapshot
+    from molto_runtime.cache.pooling_delta import compact_pooling_cache_snapshot
 
     ratio = 2
 

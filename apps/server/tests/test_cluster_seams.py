@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for the seams *between* units, where every real bug has lived so far.
 
-Each unit in ``omlx/cluster`` has had good unit coverage throughout, and the
+Each unit in ``molto/cluster`` has had good unit coverage throughout, and the
 suite has been green through a pairing token whose verifier could never succeed,
 a planner nothing called, and a `shard_linear` import that resolved to nothing.
 These failures are invisible to a test that exercises one unit at a time.
@@ -23,11 +23,11 @@ from cluster_app import cluster_app
 from repo_paths import repository_root
 
 _REPO = repository_root(__file__)
-_CLUSTER = _REPO / "packages/runtime/src/omlx_runtime/cluster"
+_CLUSTER = _REPO / "packages/runtime/src/molto_runtime/cluster"
 
 
 def test_pairing_token_round_trips():
-    from omlx_runtime.cluster.discovery import (
+    from molto_runtime.cluster.discovery import (
         generate_pairing_token,
         verify_pairing_token,
     )
@@ -46,7 +46,7 @@ def test_pairing_token_rejects_a_tampered_payload():
     import base64
     import json
 
-    from omlx_runtime.cluster.discovery import (
+    from molto_runtime.cluster.discovery import (
         generate_pairing_token,
         verify_pairing_token,
     )
@@ -63,9 +63,9 @@ def test_pairing_token_rejects_a_tampered_payload():
 def test_worker_contract_round_trips_with_tensor_parallelism():
     """Encode/decode must preserve TP, and the hash must notice a change."""
 
-    from omlx_runtime.cluster.deployment import decode_worker_contract
+    from molto_runtime.cluster.deployment import decode_worker_contract
 
-    planner = pytest.importorskip("omlx_runtime.cluster.planner")
+    planner = pytest.importorskip("molto_runtime.cluster.planner")
     model = planner.ModelLayout(
         source="test",
         fixed_weight_bytes=1 * 1024**3,
@@ -83,7 +83,7 @@ def test_worker_contract_round_trips_with_tensor_parallelism():
     ]
     plan = planner.plan_hybrid(model, nodes, tensor_parallel_size=2)
 
-    from omlx_runtime.cluster.deployment import ClusterDeployment, ClusterHost
+    from molto_runtime.cluster.deployment import ClusterDeployment, ClusterHost
 
     deployment = ClusterDeployment(
         deployment_id="seam-test",
@@ -255,7 +255,7 @@ def test_every_get_route_answers_without_a_server_error(cluster_home):
     """
 
     from fastapi.testclient import TestClient
-    from omlx_server.cluster import routes
+    from molto_server.cluster import routes
 
     app = cluster_app()
     from types import SimpleNamespace
@@ -282,7 +282,7 @@ def test_every_get_route_answers_without_a_server_error(cluster_home):
                 f"GET {route.path} returned {response.status_code}: {response.text[:200]}"
             )
             if route.path == "/admin/api/cluster/ssh-key":
-                key_path = cluster_home / ".ssh/omlx_cluster"
+                key_path = cluster_home / ".ssh/molto_cluster"
                 assert response.json()["private_key_path"] == str(key_path)
                 assert key_path.is_file()
                 assert key_path.with_suffix(".pub").is_file()
@@ -294,7 +294,7 @@ def test_post_routes_reject_a_bad_body_rather_than_crashing():
     """A 422 means the contract is wired; a 500 means the handler is broken."""
 
     from fastapi.testclient import TestClient
-    from omlx_server.cluster import routes
+    from molto_server.cluster import routes
 
     app = cluster_app()
     from types import SimpleNamespace
@@ -353,11 +353,11 @@ def test_key_exchange_token_round_trips():
 
     import base64
 
-    from omlx_runtime.cluster import ssh_keys
+    from molto_runtime.cluster import ssh_keys
 
     # The fingerprint helper base64-decodes the key blob, so it must be valid.
     blob = base64.b64encode(b"\x00" * 32).decode()
-    public_key = f"ssh-ed25519 {blob} omlx"
+    public_key = f"ssh-ed25519 {blob} molto"
     token = ssh_keys.create_key_exchange_token(
         public_key=public_key,
         node_id="peer-mac",
@@ -378,11 +378,11 @@ def test_key_exchange_rejects_a_tampered_token():
     import base64
     import json
 
-    from omlx_runtime.cluster import ssh_keys
+    from molto_runtime.cluster import ssh_keys
 
     blob = base64.b64encode(b"\x00" * 32).decode()
     token = ssh_keys.create_key_exchange_token(
-        public_key=f"ssh-ed25519 {blob} omlx",
+        public_key=f"ssh-ed25519 {blob} molto",
         node_id="peer-mac",
         shared_secret="correct-horse-battery-staple",
     )
@@ -402,11 +402,11 @@ def test_key_exchange_rejects_a_tampered_token():
 def test_key_exchange_rejects_the_wrong_shared_secret():
     import base64
 
-    from omlx_runtime.cluster import ssh_keys
+    from molto_runtime.cluster import ssh_keys
 
     blob = base64.b64encode(b"\x00" * 32).decode()
     token = ssh_keys.create_key_exchange_token(
-        public_key=f"ssh-ed25519 {blob} omlx",
+        public_key=f"ssh-ed25519 {blob} molto",
         node_id="peer-mac",
         shared_secret="correct-horse-battery-staple",
     )
@@ -426,12 +426,12 @@ def test_key_exchange_rejects_an_authenticated_ssh_option_target():
     import hmac
     import json
 
-    from omlx_runtime.cluster import ssh_keys
+    from molto_runtime.cluster import ssh_keys
 
     secret = "correct-horse-battery-staple"
     blob = base64.b64encode(b"\x00" * 32).decode()
     token = ssh_keys.create_key_exchange_token(
-        public_key=f"ssh-ed25519 {blob} omlx",
+        public_key=f"ssh-ed25519 {blob} molto",
         node_id="peer-mac",
         shared_secret=secret,
     )

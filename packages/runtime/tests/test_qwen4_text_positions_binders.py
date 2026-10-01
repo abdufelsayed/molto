@@ -6,8 +6,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import mlx.core as mx
-import omlx_runtime.scheduler as scheduler
-from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+import molto_runtime.scheduler as scheduler
+from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
 
 class _Adapter:
@@ -87,7 +87,7 @@ def test_mtp_singleton_binder_passes_the_uid():
 
 def test_mtp_proxy_exposes_uid_aware_seams_for_class_level_lookup():
     """The binders look the seams up on the class, so the MTP proxy must define them, not just delegate."""
-    from omlx_runtime.speculative.vlm_mtp import _VLMAdapterMTPProxy
+    from molto_runtime.speculative.vlm_mtp import _VLMAdapterMTPProxy
 
     adapter = _Adapter()
     proxy = _VLMAdapterMTPProxy(adapter, language_model=object())
@@ -104,7 +104,7 @@ def test_mtp_proxy_exposes_uid_aware_seams_for_class_level_lookup():
 
 
 def test_mtp_proxy_without_adapter_seams_falls_back_to_generic_binder():
-    from omlx_runtime.speculative.vlm_mtp import _VLMAdapterMTPProxy
+    from molto_runtime.speculative.vlm_mtp import _VLMAdapterMTPProxy
 
     legacy = _LegacyAdapter()
     proxy = _VLMAdapterMTPProxy(legacy, language_model=object())

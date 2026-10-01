@@ -7,15 +7,15 @@ import socket
 import threading
 
 import pytest
-from omlx_runtime.cluster import system_socket_proxy as proxy_module
-from omlx_runtime.cluster.system_socket_proxy import (
+from molto_runtime.cluster import system_socket_proxy as proxy_module
+from molto_runtime.cluster.system_socket_proxy import (
     open_system_tcp_proxy,
     should_proxy_control_socket,
 )
 
 
 def test_system_proxy_bridges_a_loopback_stream(monkeypatch, tmp_path):
-    # oMLX.app exports PYTHONHOME for its bundled interpreter.
+    # Molto.app exports PYTHONHOME for its bundled interpreter.
     monkeypatch.setenv("PYTHONHOME", str(tmp_path))
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -49,13 +49,13 @@ def test_system_proxy_bridges_a_loopback_stream(monkeypatch, tmp_path):
 
 
 def test_control_proxy_auto_skips_loopback(monkeypatch):
-    monkeypatch.delenv("OMLX_CLUSTER_CONTROL_TRANSPORT", raising=False)
+    monkeypatch.delenv("MOLTO_CLUSTER_CONTROL_TRANSPORT", raising=False)
     assert should_proxy_control_socket("127.0.0.1") is False
     assert should_proxy_control_socket("localhost") is False
 
 
 def test_control_proxy_direct_override(monkeypatch):
-    monkeypatch.setenv("OMLX_CLUSTER_CONTROL_TRANSPORT", "direct")
+    monkeypatch.setenv("MOLTO_CLUSTER_CONTROL_TRANSPORT", "direct")
     assert should_proxy_control_socket("10.0.0.1") is False
 
 
@@ -95,9 +95,9 @@ def test_proxy_python_preserves_system_default_and_explicit_override(
     monkeypatch, override
 ):
     if override is None:
-        monkeypatch.delenv("OMLX_CLUSTER_CONTROL_PROXY_PYTHON", raising=False)
+        monkeypatch.delenv("MOLTO_CLUSTER_CONTROL_PROXY_PYTHON", raising=False)
     else:
-        monkeypatch.setenv("OMLX_CLUSTER_CONTROL_PROXY_PYTHON", override)
+        monkeypatch.setenv("MOLTO_CLUSTER_CONTROL_PROXY_PYTHON", override)
     monkeypatch.setattr(
         proxy_module.Path, "is_file", lambda path: str(path) != "/missing/python"
     )

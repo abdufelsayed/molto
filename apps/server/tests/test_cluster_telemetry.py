@@ -8,9 +8,9 @@ import time
 from types import SimpleNamespace
 
 import pytest
-from omlx_runtime.cluster.performance import execution_profile
-from omlx_runtime.cluster.planner import PipelineAssignment
-from omlx_runtime.cluster.telemetry import (
+from molto_runtime.cluster.performance import execution_profile
+from molto_runtime.cluster.planner import PipelineAssignment
+from molto_runtime.cluster.telemetry import (
     RuntimeTelemetry,
     _python_token_id,
     _TelemetryQueue,
@@ -519,7 +519,7 @@ def test_stopping_the_heartbeat_ends_the_thread():
         for thread in threading.enumerate()
         if thread not in before
         and thread.is_alive()
-        and thread.name == "omlx-cluster-telemetry-heartbeat"
+        and thread.name == "molto-cluster-telemetry-heartbeat"
     }
     assert not leaked
 
@@ -531,8 +531,8 @@ def test_the_heartbeat_advances_the_timestamp_a_peer_watchdog_reads(tmp_path):
     some other field would look identical in a mock and change nothing.
     """
 
-    from omlx_runtime.cluster.inference_worker import RuntimeMarker
-    from omlx_runtime.cluster.liveness import marker_age_seconds, read_marker
+    from molto_runtime.cluster.inference_worker import RuntimeMarker
+    from molto_runtime.cluster.liveness import marker_age_seconds, read_marker
 
     marker = RuntimeMarker(
         state_dir=str(tmp_path),
@@ -953,8 +953,8 @@ def test_rank_hot_clear_reaches_live_prompt_cache_instances(monkeypatch):
             self.entries = 0
 
     class Handler:
-        path = "/omlx/internal/cache/hot/clear"
-        headers = {"X-oMLX-Plan-Hash": "p" * 64}
+        path = "/molto/internal/cache/hot/clear"
+        headers = {"X-Molto-Plan-Hash": "p" * 64}
 
         def __init__(self):
             self.wfile = BytesIO()

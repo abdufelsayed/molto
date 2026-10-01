@@ -8,13 +8,13 @@ import socket
 import tempfile
 import threading
 
-from omlx_runtime.cluster.rdma.daemon import (
+from molto_runtime.cluster.rdma.daemon import (
     DaemonStatus,
     PeerStatus,
     parse_status,
     read_status,
 )
-from omlx_runtime.cluster.rdma.links import NodeAddress, discover_links
+from molto_runtime.cluster.rdma.links import NodeAddress, discover_links
 
 _V1 = [
     "VERSION mcdma-rpcd 1 0.1.19",
@@ -79,7 +79,7 @@ def test_a_daemon_speaking_another_protocol_is_not_used():
     assert not status.reachable
     assert (
         status.reason
-        == "mcdma-rpcd at /tmp/x.sock speaks protocol 2; oMLX needs protocol 1"
+        == "mcdma-rpcd at /tmp/x.sock speaks protocol 2; Molto needs protocol 1"
     )
 
 

@@ -7,7 +7,7 @@ import pytest
 mx = pytest.importorskip("mlx.core")
 nh = pytest.importorskip("mlx_lm.models.nemotron_h")
 
-from omlx_runtime.patches.mlx_lm_mtp import (  # noqa: E402
+from molto_runtime.patches.mlx_lm_mtp import (  # noqa: E402
     nemotron_h_chain,
     nemotron_h_model,
     set_mtp_active,
@@ -60,7 +60,7 @@ class TestLoaderGate:
     def test_nemotron_h_is_mtp_compatible(self):
         # The stock loader must route nemotron_h through the MTP patch;
         # without this gate the whole feature is inert on a stock server.
-        from omlx_runtime.utils.model_loading import _is_mtp_compatible
+        from molto_runtime.utils.model_loading import _is_mtp_compatible
 
         assert _is_mtp_compatible({"num_nextn_predict_layers": 1}, "nemotron_h")
         assert not _is_mtp_compatible({}, "nemotron_h")
@@ -74,8 +74,8 @@ class TestApply:
         assert nh.NemotronHMamba2Mixer.__call__ is mixer_call
 
     def test_markers(self):
-        assert getattr(nh.NemotronHMamba2Mixer.__call__, "_omlx_nh_chain", False)
-        assert getattr(nh.Model.mtp_forward, "_omlx_nh_chain", False)
+        assert getattr(nh.NemotronHMamba2Mixer.__call__, "_molto_nh_chain", False)
+        assert getattr(nh.Model.mtp_forward, "_molto_nh_chain", False)
         assert callable(getattr(nh.Model, "mtp_partial_rollback", None))
 
     def test_reapply_rewraps_a_reinstalled_surface(self):
@@ -87,15 +87,15 @@ class TestApply:
         def foreign(self, *args, **kwargs):
             raise AssertionError("unwrapped mtp_forward must not be called")
 
-        foreign._omlx_nh_mtp = True  # base-shaped, not chain-wrapped
+        foreign._molto_nh_mtp = True  # base-shaped, not chain-wrapped
         nh.Model.mtp_forward = foreign
 
         assert nemotron_h_chain.apply()
-        assert getattr(nh.Model.mtp_forward, "_omlx_nh_chain", False)
+        assert getattr(nh.Model.mtp_forward, "_molto_nh_chain", False)
 
     def test_repeat_apply_is_silent(self, caplog):
         with caplog.at_level(
-            logging.INFO, logger="omlx_runtime.patches.mlx_lm_mtp.nemotron_h_chain"
+            logging.INFO, logger="molto_runtime.patches.mlx_lm_mtp.nemotron_h_chain"
         ):
             assert nemotron_h_chain.apply()
         assert not [
@@ -110,15 +110,15 @@ class TestModelStamps:
         set_mtp_active(True)
         model = nh.Model(nh.ModelArgs.from_dict(TINY_CONFIG))
         assert hasattr(model, "mtp")
-        assert model._omlx_mtp_decode_enabled
-        assert model._omlx_mtp_chain
-        assert model._omlx_mtp_head_hidden_normed
+        assert model._molto_mtp_decode_enabled
+        assert model._molto_mtp_chain
+        assert model._molto_mtp_head_hidden_normed
 
     def test_no_mtp_when_inactive(self):
         set_mtp_active(False)
         model = nh.Model(nh.ModelArgs.from_dict(TINY_CONFIG))
         assert not hasattr(model, "mtp")
-        assert not model._omlx_mtp_decode_enabled
+        assert not model._molto_mtp_decode_enabled
 
     def test_mtp_forward_return_hidden(self):
         set_mtp_active(True)

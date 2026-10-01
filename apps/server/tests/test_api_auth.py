@@ -21,7 +21,7 @@ class TestVerifyApiKey:
 
     def test_verify_api_key_no_auth_required(self):
         """Test that no auth is required when api_key is None."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         controller = create_app().state.controller
         state = controller.state
@@ -42,7 +42,7 @@ class TestVerifyApiKey:
 
     def test_verify_api_key_missing_credentials(self):
         """Test that missing credentials raises 401 when api_key is set."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         controller = create_app().state.controller
         state = controller.state
@@ -64,7 +64,7 @@ class TestVerifyApiKey:
 
     def test_verify_api_key_invalid_key(self):
         """Test that invalid key raises 401."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         controller = create_app().state.controller
         state = controller.state
@@ -92,7 +92,7 @@ class TestVerifyApiKey:
 
     def test_verify_api_key_valid_key(self):
         """Test that valid key passes."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         controller = create_app().state.controller
         state = controller.state
@@ -121,7 +121,7 @@ class TestXApiKeyHeader:
 
     def test_x_api_key_header_accepted(self):
         """Test that x-api-key header is accepted when no Bearer token."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         controller = create_app().state.controller
         state = controller.state
@@ -140,7 +140,7 @@ class TestXApiKeyHeader:
 
     def test_x_api_key_header_invalid(self):
         """Test that invalid x-api-key raises 401."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         controller = create_app().state.controller
         state = controller.state
@@ -163,7 +163,7 @@ class TestXApiKeyHeader:
 
     def test_bearer_takes_priority_over_x_api_key(self):
         """Test that Bearer token takes priority when both are present."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         controller = create_app().state.controller
         state = controller.state
@@ -190,14 +190,14 @@ class TestXApiKeyHeader:
 
     def test_x_api_key_with_sub_keys(self):
         """Test that x-api-key works with sub keys."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         controller = create_app().state.controller
         state = controller.state
         verify_api_key = controller.verify_api_key
         import asyncio
 
-        from omlx_config.settings import SubKeyEntry
+        from molto_config.settings import SubKeyEntry
 
         original_key = state.api_key
         original_gs = state.global_settings
@@ -225,7 +225,7 @@ class TestSubKeyVerification:
 
     def test_sub_key_accepted_for_api(self):
         """Test that a sub key is accepted for API authentication."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         controller = create_app().state.controller
         state = controller.state
@@ -233,7 +233,7 @@ class TestSubKeyVerification:
         import asyncio
 
         from fastapi.security import HTTPAuthorizationCredentials
-        from omlx_config.settings import SubKeyEntry
+        from molto_config.settings import SubKeyEntry
 
         original_key = state.api_key
         original_gs = state.global_settings
@@ -262,7 +262,7 @@ class TestSubKeyVerification:
 
     def test_invalid_sub_key_rejected(self):
         """Test that an invalid sub key is rejected."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         controller = create_app().state.controller
         state = controller.state
@@ -271,7 +271,7 @@ class TestSubKeyVerification:
 
         from fastapi import HTTPException
         from fastapi.security import HTTPAuthorizationCredentials
-        from omlx_config.settings import SubKeyEntry
+        from molto_config.settings import SubKeyEntry
 
         original_key = state.api_key
         original_gs = state.global_settings
@@ -300,7 +300,7 @@ class TestSubKeyVerification:
 
     def test_main_key_still_works_for_api(self):
         """Test that the main key still works for API authentication."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         controller = create_app().state.controller
         state = controller.state
@@ -308,7 +308,7 @@ class TestSubKeyVerification:
         import asyncio
 
         from fastapi.security import HTTPAuthorizationCredentials
-        from omlx_config.settings import SubKeyEntry
+        from molto_config.settings import SubKeyEntry
 
         original_key = state.api_key
         original_gs = state.global_settings
@@ -340,7 +340,7 @@ class TestSkipApiKeyVerification:
 
     def _make_global_settings(self, host="127.0.0.1", skip=True):
 
-        from omlx_config.settings import AuthSettings, GlobalSettings, ServerSettings
+        from molto_config.settings import AuthSettings, GlobalSettings, ServerSettings
 
         gs = GlobalSettings.__new__(GlobalSettings)
         gs.server = ServerSettings(host=host)
@@ -349,7 +349,7 @@ class TestSkipApiKeyVerification:
 
     def test_skip_verification_when_localhost(self):
         """Skip API key verification when enabled."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         controller = create_app().state.controller
         state = controller.state
@@ -378,7 +378,7 @@ class TestSkipApiKeyVerification:
         import asyncio
 
         from fastapi import HTTPException
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         controller = create_app().state.controller
         state = controller.state
@@ -405,7 +405,7 @@ class TestSkipApiKeyVerification:
         import asyncio
 
         from fastapi import HTTPException
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         controller = create_app().state.controller
         state = controller.state
@@ -432,7 +432,7 @@ class TestSkipApiKeyVerification:
         import asyncio
 
         from fastapi import HTTPException
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         controller = create_app().state.controller
         state = controller.state
@@ -457,7 +457,7 @@ class TestSkipApiKeyVerification:
 
     def test_skip_verification_disabled_by_default(self):
         """Default skip_api_key_verification is False."""
-        from omlx_config.settings import AuthSettings
+        from molto_config.settings import AuthSettings
 
         auth = AuthSettings()
         assert auth.skip_api_key_verification is False
@@ -469,7 +469,7 @@ class TestKeyComparison:
     def test_verify_api_key_constant_time(self):
         """Test that API key comparison uses constant time."""
 
-        from omlx_server.auth import verify_api_key
+        from molto_server.auth import verify_api_key
 
         server_key = "test-api-key-12345"
 
@@ -493,19 +493,19 @@ class TestNonAsciiApiKeys:
 
     def test_compare_keys_non_ascii_mismatch(self):
         """Non-ASCII client key against ASCII server key returns False."""
-        from omlx_server.auth import compare_keys
+        from molto_server.auth import compare_keys
 
         assert compare_keys("café-key", "secret123") is False
 
     def test_compare_keys_non_ascii_match(self):
         """Matching non-ASCII keys compare equal."""
-        from omlx_server.auth import compare_keys
+        from molto_server.auth import compare_keys
 
         assert compare_keys("clé-secrète-héhé", "clé-secrète-héhé") is True
 
     def test_verify_api_key_non_ascii_client_key(self):
         """verify_api_key must not raise on a non-ASCII client key."""
-        from omlx_server.auth import verify_api_key
+        from molto_server.auth import verify_api_key
 
         assert verify_api_key("café", "secret123") is False
 
@@ -516,7 +516,7 @@ class TestNonAsciiApiKeys:
         latin-1, so a client sending UTF-8 non-ASCII bytes will not match a
         configured non-ASCII key anyway. The point here is no TypeError.
         """
-        from omlx_server.auth import verify_api_key
+        from molto_server.auth import verify_api_key
 
         assert verify_api_key("pässwörd", "pässwörd") is True
         assert verify_api_key("password", "pässwörd") is False
@@ -530,7 +530,7 @@ class TestNonAsciiApiKeys:
         """
         import json
 
-        from omlx_server.auth import compare_keys
+        from molto_server.auth import compare_keys
 
         surrogate_key = json.loads('"\\ud800abcd"')
         assert compare_keys(surrogate_key, "secret123") is False
@@ -541,7 +541,7 @@ class TestNonAsciiApiKeys:
         """verify_any_api_key must not raise when sub keys are checked."""
         from unittest.mock import MagicMock
 
-        from omlx_server.auth import verify_any_api_key
+        from molto_server.auth import verify_any_api_key
 
         sub_key = MagicMock()
         sub_key.key = "sub-key-1"
@@ -552,7 +552,7 @@ class TestNonAsciiApiKeys:
 
     def test_server_dependency_non_ascii_bearer_returns_401(self):
         """The server auth dependency turns a non-ASCII bearer into 401, not 500."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         controller = create_app().state.controller
         state = controller.state
@@ -587,7 +587,7 @@ class TestRejectedKeyFingerprint:
 
     def test_fingerprint_key_short_hex(self):
         """fingerprint_key returns 8 lowercase hex characters."""
-        from omlx_server.auth import fingerprint_key
+        from molto_server.auth import fingerprint_key
 
         fp = fingerprint_key("super-secret-key")
         assert len(fp) == 8
@@ -595,13 +595,13 @@ class TestRejectedKeyFingerprint:
 
     def test_fingerprint_key_deterministic(self):
         """The same key always fingerprints to the same value."""
-        from omlx_server.auth import fingerprint_key
+        from molto_server.auth import fingerprint_key
 
         assert fingerprint_key("abc123") == fingerprint_key("abc123")
 
     def test_fingerprint_key_does_not_contain_secret(self):
         """The fingerprint never leaks the raw key material."""
-        from omlx_server.auth import fingerprint_key
+        from molto_server.auth import fingerprint_key
 
         secret = "sk-live-0123456789abcdef"
         fp = fingerprint_key(secret)
@@ -610,7 +610,7 @@ class TestRejectedKeyFingerprint:
 
     def test_fingerprint_key_distinguishes_keys(self):
         """Different keys produce different fingerprints."""
-        from omlx_server.auth import fingerprint_key
+        from molto_server.auth import fingerprint_key
 
         assert fingerprint_key("key-a") != fingerprint_key("key-b")
 
@@ -622,7 +622,7 @@ class TestRejectedKeyFingerprint:
         """
         import json
 
-        from omlx_server.auth import fingerprint_key
+        from molto_server.auth import fingerprint_key
 
         assert len(fingerprint_key("clé-secrète-héhé")) == 8
         assert len(fingerprint_key("")) == 8
@@ -636,8 +636,8 @@ class TestRejectedKeyFingerprint:
 
         from fastapi import HTTPException
         from fastapi.security import HTTPAuthorizationCredentials
-        from omlx_server.auth import fingerprint_key
-        from omlx_server.server import create_app
+        from molto_server.auth import fingerprint_key
+        from molto_server.server import create_app
 
         controller = create_app().state.controller
         state = controller.state
@@ -652,7 +652,7 @@ class TestRejectedKeyFingerprint:
                 scheme="Bearer", credentials=bad_key
             )
             with (
-                caplog.at_level(logging.WARNING, logger="omlx_server.composition"),
+                caplog.at_level(logging.WARNING, logger="molto_server.composition"),
                 pytest.raises(HTTPException) as exc_info,
             ):
                 asyncio.run(
@@ -677,11 +677,11 @@ class TestUnauthenticatedInference:
     def configured_server(self, monkeypatch, tmp_path):
         from types import SimpleNamespace
 
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         app = create_app()
         server = SimpleNamespace(app=app, state=app.state.server_state)
-        from omlx_config.settings import GlobalSettings
+        from molto_config.settings import GlobalSettings
 
         settings = GlobalSettings(base_path=tmp_path)
         settings.server.host = "0.0.0.0"
@@ -741,7 +741,7 @@ class TestUnauthenticatedInference:
         from types import SimpleNamespace
         from unittest.mock import AsyncMock
 
-        from omlx_server.api import websearch_routes
+        from molto_server.api import websearch_routes
 
         server, _ = configured_server
         result = SimpleNamespace(
@@ -764,7 +764,7 @@ class TestUnauthenticatedInference:
     def test_stored_responses_can_be_read_and_deleted(
         self, configured_server, monkeypatch
     ):
-        from omlx_server.api.responses_utils import ResponseStore
+        from molto_server.api.responses_utils import ResponseStore
 
         server, _ = configured_server
         store = ResponseStore()
@@ -778,7 +778,7 @@ class TestUnauthenticatedInference:
     def test_realtime_audio_uses_manual_opt_in(self, configured_server):
         from types import SimpleNamespace
 
-        from omlx_server.api.audio_routes import _verify_ws_api_key
+        from molto_server.api.audio_routes import _verify_ws_api_key
 
         server, settings = configured_server
         assert _verify_ws_api_key(None, SimpleNamespace(app=server.app)) is True

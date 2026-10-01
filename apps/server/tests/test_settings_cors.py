@@ -3,7 +3,7 @@
 import tempfile
 from pathlib import Path
 
-from omlx_config.settings import GlobalSettings
+from molto_config.settings import GlobalSettings
 
 
 class TestCORSMiddleware:
@@ -12,7 +12,7 @@ class TestCORSMiddleware:
     def test_cors_preflight(self):
         """Test that CORS preflight requests get proper response headers."""
         from fastapi.testclient import TestClient
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         app = create_app()
 

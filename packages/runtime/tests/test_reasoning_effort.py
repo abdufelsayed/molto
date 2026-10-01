@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-from omlx_runtime.reasoning_effort import (
+from molto_runtime.reasoning_effort import (
     apply_chat_template_with_reasoning_effort_fallback,
 )
 

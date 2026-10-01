@@ -31,7 +31,7 @@ import weakref
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.oq import (
+from molto_runtime.oq import (
     _block_dequant_fp8,
     _build_model_sanitizer,
     _discover_sanitize_plan,

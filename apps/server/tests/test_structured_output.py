@@ -6,7 +6,7 @@ These tests cover the _inject_json_instruction function from server.py
 which is used for injecting JSON schema instructions into messages.
 """
 
-from omlx_server.structured_output import _inject_json_instruction
+from molto_server.structured_output import _inject_json_instruction
 
 
 class TestInjectJsonInstruction:

@@ -10,7 +10,7 @@ import ipaddress
 import subprocess
 
 import pytest
-from omlx_runtime.cluster.transport import (
+from molto_runtime.cluster.transport import (
     HostInterfaces,
     InterfaceAddress,
     LinkStatus,
@@ -130,7 +130,7 @@ def test_failed_peer_probe_is_not_mislabeled_as_rdma_disabled(monkeypatch):
     def rejected(_host):
         raise RuntimeError("SSH permission denied")
 
-    monkeypatch.setattr("omlx_runtime.cluster.transport._rdma_devices", rejected)
+    monkeypatch.setattr("molto_runtime.cluster.transport._rdma_devices", rejected)
 
     status = assess_link(HOSTS)
 
@@ -145,11 +145,11 @@ def test_routable_rdma_fabric_overrides_stale_port_down_state(monkeypatch):
     """The address path is stronger evidence than stale ibv PORT_DOWN."""
 
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._rdma_devices",
+        "molto_runtime.cluster.transport._rdma_devices",
         lambda host: ["rdma_en6"] if host == HOSTS[0] else ["rdma_en5"],
     )
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._active_rdma_port",
+        "molto_runtime.cluster.transport._active_rdma_port",
         lambda _host: None,
     )
     interfaces = {
@@ -178,15 +178,15 @@ def test_routable_rdma_fabric_overrides_stale_port_down_state(monkeypatch):
 
 def test_link_status_does_not_call_unreachable_rdma_addresses_ready(monkeypatch):
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._rdma_devices",
+        "molto_runtime.cluster.transport._rdma_devices",
         lambda host: ["rdma_en6"] if host == HOSTS[0] else ["rdma_en5"],
     )
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._active_rdma_port",
+        "molto_runtime.cluster.transport._active_rdma_port",
         lambda host: "en6" if host == HOSTS[0] else "en5",
     )
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._interface_ip",
+        "molto_runtime.cluster.transport._interface_ip",
         lambda host, _interface: "10.0.1.1" if host == HOSTS[0] else "10.0.1.2",
     )
     interfaces = {
@@ -210,15 +210,15 @@ def test_link_status_reports_verified_ethernet_when_rdma_does_not_answer(
     monkeypatch,
 ):
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._rdma_devices",
+        "molto_runtime.cluster.transport._rdma_devices",
         lambda host: ["rdma_en6"] if host == HOSTS[0] else ["rdma_en5"],
     )
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._active_rdma_port",
+        "molto_runtime.cluster.transport._active_rdma_port",
         lambda host: "en6" if host == HOSTS[0] else "en5",
     )
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._interface_ip",
+        "molto_runtime.cluster.transport._interface_ip",
         lambda host, _interface: "10.0.1.1" if host == HOSTS[0] else "10.0.1.2",
     )
     interfaces = {
@@ -249,10 +249,10 @@ def test_link_status_reports_verified_ethernet_when_rdma_does_not_answer(
 
 def test_link_status_does_not_call_an_unverified_network_route_ready(monkeypatch):
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._rdma_devices", lambda _host: []
+        "molto_runtime.cluster.transport._rdma_devices", lambda _host: []
     )
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._active_rdma_port", lambda _host: None
+        "molto_runtime.cluster.transport._active_rdma_port", lambda _host: None
     )
     interfaces = {
         HOSTS[0]: _host(HOSTS[0], [("en0", "192.168.4.21", 24)]),
@@ -294,19 +294,19 @@ def test_gui_setup_addresses_only_the_missing_endpoint(monkeypatch):
         ]
     )
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport.assess_link", lambda hosts: next(states)
+        "molto_runtime.cluster.transport.assess_link", lambda hosts: next(states)
     )
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._active_rdma_port",
+        "molto_runtime.cluster.transport._active_rdma_port",
         lambda host: "en6" if host == "127.0.0.1" else "en5",
     )
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._interface_ip",
+        "molto_runtime.cluster.transport._interface_ip",
         lambda host, interface: None if host == "127.0.0.1" else "10.0.1.2",
     )
     configured = []
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._authorized_ifconfig",
+        "molto_runtime.cluster.transport._authorized_ifconfig",
         lambda host, interface, address: configured.append((host, interface, address)),
     )
 
@@ -337,18 +337,18 @@ def test_gui_setup_uses_native_authorization_on_both_macs(monkeypatch):
         ]
     )
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport.assess_link", lambda hosts: next(states)
+        "molto_runtime.cluster.transport.assess_link", lambda hosts: next(states)
     )
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._active_rdma_port",
+        "molto_runtime.cluster.transport._active_rdma_port",
         lambda host: "en6" if host == "127.0.0.1" else "en5",
     )
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._interface_ip", lambda host, interface: None
+        "molto_runtime.cluster.transport._interface_ip", lambda host, interface: None
     )
     configured = []
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._authorized_ifconfig",
+        "molto_runtime.cluster.transport._authorized_ifconfig",
         lambda host, interface, address: configured.append((host, interface, address)),
     )
 
@@ -382,19 +382,19 @@ def test_gui_setup_can_configure_a_worker_to_worker_pair(monkeypatch):
         ]
     )
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport.assess_link", lambda pair: next(states)
+        "molto_runtime.cluster.transport.assess_link", lambda pair: next(states)
     )
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._active_rdma_port",
+        "molto_runtime.cluster.transport._active_rdma_port",
         lambda host: "en5",
     )
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._interface_ip",
+        "molto_runtime.cluster.transport._interface_ip",
         lambda host, interface: None,
     )
     configured = []
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._authorized_ifconfig",
+        "molto_runtime.cluster.transport._authorized_ifconfig",
         lambda host, interface, address: configured.append((host, address)),
     )
 
@@ -408,7 +408,7 @@ def test_gui_setup_can_configure_a_worker_to_worker_pair(monkeypatch):
 def test_remote_authorization_is_launched_in_the_peers_gui_session(monkeypatch):
     """SSH's audit session cannot host SecurityAgent; LaunchServices can."""
 
-    from omlx_runtime.cluster import transport
+    from molto_runtime.cluster import transport
 
     calls = []
 
@@ -441,7 +441,7 @@ def test_remote_authorization_is_launched_in_the_peers_gui_session(monkeypatch):
 
 
 def test_remote_authorization_cancel_is_distinct_from_bad_credentials(monkeypatch):
-    from omlx_runtime.cluster import transport
+    from molto_runtime.cluster import transport
 
     def run(command, **kwargs):
         remote_command = command[-1]
@@ -476,15 +476,15 @@ def test_rdma_detection_does_not_invent_a_three_mac_full_mesh(monkeypatch):
             ]
 
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._import_mlx_config",
+        "molto_runtime.cluster.transport._import_mlx_config",
         lambda: FakeConfig,
     )
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._extract_tb_link_speed",
+        "molto_runtime.cluster.transport._extract_tb_link_speed",
         lambda host: 120,
     )
     monkeypatch.setattr(
-        "omlx_runtime.cluster.transport._rdma_available",
+        "molto_runtime.cluster.transport._rdma_available",
         lambda hosts, ssh_prefix="": True,
     )
 

@@ -6,7 +6,7 @@ from importlib.resources import files
 
 import pytest
 
-CORPORA = files("omlx_runtime.diagnostics").joinpath("bench_corpora")
+CORPORA = files("molto_runtime.diagnostics").joinpath("bench_corpora")
 MANIFEST = json.loads(CORPORA.joinpath("manifest.json").read_text())
 
 

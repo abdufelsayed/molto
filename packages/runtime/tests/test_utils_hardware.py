@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx_runtime.utils.hardware module."""
+"""Tests for molto_runtime.utils.hardware module."""
 
 import platform
 import sys
 from unittest.mock import MagicMock, patch
 
-from omlx_runtime.utils.hardware import (
+from molto_runtime.utils.hardware import (
     DEFAULT_MEMORY_BYTES,
     HardwareInfo,
     format_bytes,
@@ -108,7 +108,7 @@ class TestGetTotalMemoryBytes:
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = Exception("sysctl failed")
             # Mock HAS_MLX to False so MLX fallback is skipped
-            with patch("omlx_runtime.utils.hardware.HAS_MLX", False):
+            with patch("molto_runtime.utils.hardware.HAS_MLX", False):
                 result = get_total_memory_bytes()
                 assert result == DEFAULT_MEMORY_BYTES
 
@@ -119,7 +119,7 @@ class TestGetTotalMemoryGb:
     def test_get_total_memory_gb_conversion(self):
         """Test that get_total_memory_gb correctly converts bytes to GB."""
         with patch(
-            "omlx_runtime.utils.hardware.get_total_memory_bytes",
+            "molto_runtime.utils.hardware.get_total_memory_bytes",
             return_value=16 * 1024**3,
         ):
             result = get_total_memory_gb()
@@ -128,7 +128,7 @@ class TestGetTotalMemoryGb:
     def test_get_total_memory_gb_fractional(self):
         """Test get_total_memory_gb with fractional values."""
         with patch(
-            "omlx_runtime.utils.hardware.get_total_memory_bytes",
+            "molto_runtime.utils.hardware.get_total_memory_bytes",
             return_value=int(18.5 * 1024**3),
         ):
             result = get_total_memory_gb()
@@ -140,8 +140,8 @@ class TestGetMaxWorkingSetBytes:
 
     def test_uses_mlx_max_working_set_when_available(self):
         with (
-            patch("omlx_runtime.utils.hardware.HAS_MLX", True),
-            patch("omlx_runtime.utils.hardware.mx") as mock_mx,
+            patch("molto_runtime.utils.hardware.HAS_MLX", True),
+            patch("molto_runtime.utils.hardware.mx") as mock_mx,
         ):
             mock_mx.metal.is_available.return_value = True
             mock_mx.device_info.return_value = {
@@ -152,9 +152,9 @@ class TestGetMaxWorkingSetBytes:
 
     def test_falls_back_to_total_memory_without_psutil(self):
         with (
-            patch("omlx_runtime.utils.hardware.HAS_MLX", False),
+            patch("molto_runtime.utils.hardware.HAS_MLX", False),
             patch(
-                "omlx_runtime.utils.hardware.get_total_memory_bytes",
+                "molto_runtime.utils.hardware.get_total_memory_bytes",
                 return_value=64 * 1024**3,
             ),
         ):
@@ -187,12 +187,12 @@ class TestIsMlxAvailable:
 
     def test_is_mlx_available_not_apple_silicon(self):
         """Test is_mlx_available returns False on non-Apple Silicon."""
-        with patch("omlx_runtime.utils.hardware.is_apple_silicon", return_value=False):
+        with patch("molto_runtime.utils.hardware.is_apple_silicon", return_value=False):
             assert is_mlx_available() is False
 
     def test_is_mlx_available_import_error(self):
         """Test is_mlx_available handles import errors."""
-        with patch("omlx_runtime.utils.hardware.is_apple_silicon", return_value=True):
+        with patch("molto_runtime.utils.hardware.is_apple_silicon", return_value=True):
             with patch.dict("sys.modules", {"mlx.core": None}):
                 # Force import to fail
                 import builtins

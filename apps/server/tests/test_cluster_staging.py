@@ -11,7 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 from cluster_app import cluster_app
-from omlx_runtime.cluster.staging import (
+from molto_runtime.cluster.staging import (
     _REMOTE_FILE_SIZES_SNIPPET,
     _REMOTE_INSTALL_SNIPPET,
     ShardInfo,
@@ -158,7 +158,7 @@ def test_local_push_publishes_a_hidden_partial_file_atomically(tmp_path, monkeyp
     )
 
     scp_command = next(command for command in commands if command[0] == "scp")
-    assert ".omlx-stage-" in scp_command[-1]
+    assert ".molto-stage-" in scp_command[-1]
     assert scp_command[-1].rstrip("'").endswith(".part")
     install_command = commands[-1][-1]
     assert "os.replace" in install_command
@@ -175,7 +175,7 @@ def test_remote_pull_does_not_expose_the_final_name_until_scp_finishes(
         seen.append(command)
         if command[0] == "scp":
             target = Path(command[-1])
-            assert target.name.startswith(".omlx-stage-")
+            assert target.name.startswith(".molto-stage-")
             assert target.suffix == ".part"
             assert not (destination / "weights.safetensors").exists()
             target.write_bytes(b"complete")
@@ -192,13 +192,13 @@ def test_remote_pull_does_not_expose_the_final_name_until_scp_finishes(
     )
 
     assert (destination / "weights.safetensors").read_bytes() == b"complete"
-    assert not list(destination.glob(".omlx-stage-*.part"))
+    assert not list(destination.glob(".molto-stage-*.part"))
 
 
 def test_remote_install_refuses_a_wrong_sized_partial_without_replacing_final(
     tmp_path,
 ):
-    temporary = tmp_path / ".omlx-stage-test.part"
+    temporary = tmp_path / ".molto-stage-test.part"
     final = tmp_path / "weights.safetensors"
     temporary.write_bytes(b"short")
     final.write_bytes(b"known-good")
@@ -223,7 +223,7 @@ def test_remote_install_refuses_a_wrong_sized_partial_without_replacing_final(
 
 
 def test_remote_install_atomically_replaces_final_after_size_validation(tmp_path):
-    temporary = tmp_path / ".omlx-stage-test.part"
+    temporary = tmp_path / ".molto-stage-test.part"
     final = tmp_path / "weights.safetensors"
     temporary.write_bytes(b"complete")
     final.write_bytes(b"old")
@@ -286,7 +286,7 @@ def test_cluster_plan_covers_every_layer_across_nodes(tmp_path):
 
 
 def test_manifest_reads_the_exact_model_path_on_local_and_remote(tmp_path, monkeypatch):
-    """Configured model directories must not be rewritten to ~/.omlx/models."""
+    """Configured model directories must not be rewritten to ~/.molto/models."""
 
     root = _model(tmp_path / "models with spaces" / "qwen", layers=4, per_file=2)
 
@@ -307,9 +307,9 @@ def test_manifest_reads_the_exact_model_path_on_local_and_remote(tmp_path, monke
             if path.is_file() and not path.name.endswith(".safetensors")
         }
 
-    monkeypatch.setattr("omlx_runtime.cluster.staging.remote_file_sizes", fake_remote)
+    monkeypatch.setattr("molto_runtime.cluster.staging.remote_file_sizes", fake_remote)
     monkeypatch.setattr(
-        "omlx_runtime.cluster.staging.remote_model_dir", lambda _host, path: path
+        "molto_runtime.cluster.staging.remote_model_dir", lambda _host, path: path
     )
     manifest = stage_manifest(
         root,
@@ -332,11 +332,11 @@ def test_manifest_is_not_ready_when_a_remote_sidecar_is_missing(tmp_path, monkey
 
     weights = {shard.name: shard.size_bytes for shard in index_shards(root)}
     monkeypatch.setattr(
-        "omlx_runtime.cluster.staging.remote_file_sizes",
+        "molto_runtime.cluster.staging.remote_file_sizes",
         lambda host, directory: weights,
     )
     monkeypatch.setattr(
-        "omlx_runtime.cluster.staging.remote_model_dir", lambda _host, path: path
+        "molto_runtime.cluster.staging.remote_model_dir", lambda _host, path: path
     )
 
     manifest = stage_manifest(root, [A()], {"studio": "studio.local"})
@@ -369,7 +369,7 @@ def test_remote_staging_pushes_weights_and_sidecars_to_the_named_node(
     tmp_path,
     monkeypatch,
 ):
-    from omlx_runtime.cluster.staging import stage_remote_files
+    from molto_runtime.cluster.staging import stage_remote_files
 
     root = _model(tmp_path / "source", layers=4, per_file=2)
     shards = index_shards(root)
@@ -396,7 +396,7 @@ def test_remote_staging_pushes_weights_and_sidecars_to_the_named_node(
         landed[filename] = (root / filename).stat().st_size
 
     monkeypatch.setattr(
-        "omlx_runtime.cluster.staging.check_disk_for_staging",
+        "molto_runtime.cluster.staging.check_disk_for_staging",
         lambda *args, **kwargs: 100 * 1024**3,
     )
     result = stage_remote_files(
@@ -423,7 +423,7 @@ def test_remote_staging_resumes_without_recopying_verified_files(
     tmp_path,
     monkeypatch,
 ):
-    from omlx_runtime.cluster.staging import stage_remote_files
+    from molto_runtime.cluster.staging import stage_remote_files
 
     root = _model(tmp_path / "source", layers=2, per_file=2)
     plan = plan_staging(root, node_id="studio", start_layer=0, end_layer=2)
@@ -432,7 +432,7 @@ def test_remote_staging_resumes_without_recopying_verified_files(
         for name in (*plan.required, *sidecar_files(root))
     }
     monkeypatch.setattr(
-        "omlx_runtime.cluster.staging.check_disk_for_staging",
+        "molto_runtime.cluster.staging.check_disk_for_staging",
         lambda *args, **kwargs: 100 * 1024**3,
     )
 
@@ -457,10 +457,10 @@ def test_remote_staging_probes_the_peer_destination_dir_not_the_source(
     # the peer holds its copy under a different $HOME. The present-file probe
     # and scp destination must use the peer path, otherwise the probe reads an
     # empty directory and re-copies the whole model.
-    from omlx_runtime.cluster.staging import stage_remote_files
+    from molto_runtime.cluster.staging import stage_remote_files
 
     root = _model(tmp_path / "source", layers=2, per_file=2)
-    peer_dir = "/Users/peer/.omlx/models/m"
+    peer_dir = "/Users/peer/.molto/models/m"
     plan = plan_staging(root, node_id="studio", start_layer=0, end_layer=2)
     landed = {
         name: (root / name).stat().st_size
@@ -468,7 +468,7 @@ def test_remote_staging_probes_the_peer_destination_dir_not_the_source(
     }
     seen_paths = []
     monkeypatch.setattr(
-        "omlx_runtime.cluster.staging.check_disk_for_staging",
+        "molto_runtime.cluster.staging.check_disk_for_staging",
         lambda *args, **kwargs: 100 * 1024**3,
     )
 
@@ -494,8 +494,8 @@ def test_remote_staging_probes_the_peer_destination_dir_not_the_source(
 
 
 def test_peer_owned_model_stages_from_the_holder_not_the_coordinator(monkeypatch):
-    from omlx_runtime.cluster import staging
-    from omlx_runtime.cluster.staging import StagingPlan, stage_files_from_source
+    from molto_runtime.cluster import staging
+    from molto_runtime.cluster.staging import StagingPlan, stage_files_from_source
 
     plan = StagingPlan(
         node_id="MacBook",
@@ -551,7 +551,7 @@ def test_peer_owned_model_stages_from_the_holder_not_the_coordinator(monkeypatch
 
 
 def test_manifest_can_be_built_from_a_peer_shard_index(tmp_path, monkeypatch):
-    from omlx_runtime.cluster import staging
+    from molto_runtime.cluster import staging
 
     local = tmp_path / "model"
     local.mkdir()
@@ -609,9 +609,9 @@ def test_stage_route_runs_a_model_by_node_job_with_live_progress(
     monkeypatch,
 ):
     from fastapi.testclient import TestClient
-    from omlx_runtime.cluster.planner import ModelLayout
-    from omlx_runtime.cluster.staging import StagingResult
-    from omlx_server.cluster import routes
+    from molto_runtime.cluster.planner import ModelLayout
+    from molto_runtime.cluster.staging import StagingResult
+    from molto_server.cluster import routes
 
     root = _model(tmp_path / "source", layers=4, per_file=2)
     app = cluster_app()
@@ -708,7 +708,7 @@ def test_stage_route_runs_a_model_by_node_job_with_live_progress(
 
 
 def _plan_with_missing(files):
-    from omlx_runtime.cluster.staging import StagingPlan
+    from molto_runtime.cluster.staging import StagingPlan
 
     missing_bytes = sum(files.values())
     names = tuple(files)
@@ -725,7 +725,7 @@ def _plan_with_missing(files):
 
 
 def test_a_transfer_that_would_not_fit_is_refused_before_copying(tmp_path):
-    from omlx_runtime.cluster.staging import (
+    from molto_runtime.cluster.staging import (
         InsufficientDiskError,
         check_disk_for_staging,
     )
@@ -744,7 +744,7 @@ def test_a_transfer_that_would_not_fit_is_refused_before_copying(tmp_path):
 def test_system_headroom_is_kept_free(tmp_path):
     """Filling a volume to the brim destabilises macOS, not just the copy."""
 
-    from omlx_runtime.cluster.staging import (
+    from molto_runtime.cluster.staging import (
         InsufficientDiskError,
         check_disk_for_staging,
     )
@@ -763,7 +763,7 @@ def test_system_headroom_is_kept_free(tmp_path):
 
 
 def test_a_fitting_transfer_is_allowed(tmp_path):
-    from omlx_runtime.cluster.staging import check_disk_for_staging
+    from molto_runtime.cluster.staging import check_disk_for_staging
 
     plan = _plan_with_missing({"a.safetensors": 1})
     object.__setattr__(plan, "missing_bytes", 10 * 1024**3)
@@ -773,7 +773,7 @@ def test_a_fitting_transfer_is_allowed(tmp_path):
 def test_an_unmeasurable_filesystem_does_not_block(tmp_path):
     """Matches the memory guard: never block on a number we could not read."""
 
-    from omlx_runtime.cluster.staging import check_disk_for_staging
+    from molto_runtime.cluster.staging import check_disk_for_staging
 
     plan = _plan_with_missing({"a.safetensors": 1})
     object.__setattr__(plan, "missing_bytes", 500 * 1024**3)
@@ -783,6 +783,6 @@ def test_an_unmeasurable_filesystem_does_not_block(tmp_path):
 def test_free_space_is_readable_for_a_path_that_does_not_exist_yet(tmp_path):
     """The destination directory is created by staging, so it may not exist."""
 
-    from omlx_runtime.cluster.staging import free_disk_bytes
+    from molto_runtime.cluster.staging import free_disk_bytes
 
     assert free_disk_bytes(tmp_path / "not" / "created" / "yet") > 0

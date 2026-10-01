@@ -47,7 +47,7 @@ function Overview() {
     <>
       <PageTitle
         title="Overview"
-        description="Current model residency and serving statistics from oMLX."
+        description="Current model residency and serving statistics from Molto."
       />
       <QueryState query={state}>
         {current && (
@@ -56,7 +56,7 @@ function Overview() {
               <Alert>
                 <AlertTitle>Preparation is active</AlertTitle>
                 <AlertDescription>
-                  oMLX has reserved engine admission for a local preparation
+                  Molto has reserved engine admission for a local preparation
                   job. Loading and rescanning may be unavailable until it
                   finishes.
                 </AlertDescription>
@@ -130,7 +130,7 @@ function Overview() {
                 />
               </CardContent>
               <CardFooter className="text-xs text-muted-foreground">
-                This reports oMLX model residency. It does not measure total
+                This reports Molto model residency. It does not measure total
                 process memory or transient execution peaks.
               </CardFooter>
             </Card>
@@ -143,8 +143,8 @@ function Overview() {
             title="Serving statistics"
             description={
               scope === "session"
-                ? "Counters for the current oMLX server session."
-                : "Persisted totals collected by oMLX."
+                ? "Counters for the current Molto server session."
+                : "Persisted totals collected by Molto."
             }
           >
             <Select

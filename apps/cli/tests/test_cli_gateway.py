@@ -43,11 +43,11 @@ def gateway(tmp_path):
     output = ROOT / "apps/dashboard/.output/server/index.mjs"
     if not node or not output.exists():
         pytest.skip(
-            "Run pnpm --filter @omlx/dashboard build and install Node for public CLI proof"
+            "Run pnpm --filter @molto/dashboard build and install Node for public CLI proof"
         )
     backend_port, public_port = free_port(), free_port()
     env = {
-        key: value for key, value in os.environ.items() if not key.startswith("OMLX_")
+        key: value for key, value in os.environ.items() if not key.startswith("MOLTO_")
     }
     env.update(HOME=str(tmp_path), PYTHONPATH=str(ROOT), NO_COLOR="1")
     url = f"http://127.0.0.1:{public_port}"
@@ -73,7 +73,7 @@ def gateway(tmp_path):
             ready(f"http://127.0.0.1:{backend_port}/health", backend)
             public_env = {
                 **env,
-                "OMLX_API_URL": f"http://127.0.0.1:{backend_port}",
+                "MOLTO_API_URL": f"http://127.0.0.1:{backend_port}",
                 "HOST": "127.0.0.1",
                 "PORT": str(public_port),
             }
@@ -89,11 +89,11 @@ def gateway(tmp_path):
             ready(url + "/health", public)
 
             def command(*args, key="dashboard-test-key", json_output=True, expected=0):
-                command_env = {**env, "OMLX_API_KEY": key}
+                command_env = {**env, "MOLTO_API_KEY": key}
                 argv = [
                     sys.executable,
                     "-m",
-                    "omlx_cli.cli",
+                    "molto_cli.cli",
                     "--url",
                     url,
                     "--base-path",

@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx_runtime.utils.sampling.
+"""Tests for molto_runtime.utils.sampling.
 
 The mlx-lm samplers wrap categorical_sampling and apply_* with
 @partial(mx.compile, inputs=mx.random.state, outputs=mx.random.state). In the
-omlx server environment that decorator stops advancing the global RNG state
+molto server environment that decorator stops advancing the global RNG state
 after the first call, so identical prompts produce identical output. This
 module re-implements the samplers without the decorator. These tests guard
 against regression — RNG state must advance on every call and identical
@@ -15,7 +15,7 @@ from __future__ import annotations
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.utils.sampling import (
+from molto_runtime.utils.sampling import (
     apply_min_p,
     apply_top_k,
     apply_top_p,
@@ -187,7 +187,7 @@ def test_make_sampler_runs_with_various_top_p(top_p):
     ],
 )
 def test_shared_draft_filter_preserves_draw_density_and_rng(dtype, params):
-    from omlx_runtime.patches.mlx_lm_mtp.batch_generator import (
+    from molto_runtime.patches.mlx_lm_mtp.batch_generator import (
         _accept_lp_for,
         _sample_draft_with_logprobs,
     )
@@ -212,7 +212,7 @@ def test_shared_draft_filter_preserves_draw_density_and_rng(dtype, params):
 
 
 def test_shared_draft_filter_keeps_custom_and_greedy_sampler_contract():
-    from omlx_runtime.patches.mlx_lm_mtp.batch_generator import (
+    from molto_runtime.patches.mlx_lm_mtp.batch_generator import (
         _sample_draft_with_logprobs,
     )
 
@@ -240,7 +240,7 @@ def test_shared_draft_filter_keeps_custom_and_greedy_sampler_contract():
 @pytest.mark.parametrize("depth", [1, 2, 4])
 @pytest.mark.parametrize("temp", [0.6, 1.0])
 def test_shared_verify_filter_preserves_packet_and_rng(dtype, depth, temp):
-    from omlx_runtime.patches.mlx_lm_mtp.batch_generator import (
+    from molto_runtime.patches.mlx_lm_mtp.batch_generator import (
         _accept_lp_for,
         _stochastic_verify_tokens,
     )
@@ -273,7 +273,7 @@ def test_shared_verify_filter_preserves_packet_and_rng(dtype, depth, temp):
 @pytest.mark.parametrize("scale", [1.0, 3.0, 8.0])
 @pytest.mark.parametrize("top_p, top_k", [(0.9, 20), (0.5, 50), (0.99, 5)])
 def test_top_p_top_k_matches_sequential_filters(scale, top_p, top_k):
-    from omlx_runtime.utils.sampling import apply_top_p_top_k
+    from molto_runtime.utils.sampling import apply_top_p_top_k
 
     mx.random.seed(11)
     logits = mx.random.normal((6, 512)) * scale
@@ -287,7 +287,7 @@ def test_top_p_top_k_matches_sequential_filters(scale, top_p, top_k):
 
 @pytest.mark.parametrize("vocab, top_k", [(16384, 20), (16384, 64), (1000, 20)])
 def test_top_k_indices_matches_full_sort(vocab, top_k):
-    from omlx_runtime.utils.sampling import top_k_indices
+    from molto_runtime.utils.sampling import top_k_indices
 
     mx.random.seed(5)
     values = mx.random.normal((3, vocab)) * 4

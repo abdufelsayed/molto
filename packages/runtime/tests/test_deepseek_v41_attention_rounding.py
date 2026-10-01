@@ -3,9 +3,9 @@
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.custom_kernels.glm_moe_dsa import fast
-from omlx_runtime.patches.deepseek_v41.kernels import packed_sparse_attention
-from omlx_runtime.patches.deepseek_v41.quantization import (
+from molto_runtime.custom_kernels.glm_moe_dsa import fast
+from molto_runtime.patches.deepseek_v41.kernels import packed_sparse_attention
+from molto_runtime.patches.deepseek_v41.quantization import (
     pack_activation,
     unpack_activation,
 )

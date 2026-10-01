@@ -164,7 +164,7 @@ function ModelPage() {
                       <CardHeader>
                         <CardTitle>Model configuration</CardTitle>
                         <CardDescription>
-                          Model overrides are saved by oMLX. Engine changes may
+                          Model overrides are saved by Molto. Engine changes may
                           wait for active requests to finish.
                         </CardDescription>
                       </CardHeader>

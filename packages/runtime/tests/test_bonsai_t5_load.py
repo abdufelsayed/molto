@@ -16,13 +16,13 @@ import json
 
 import mlx.core as mx
 import mlx.nn as nn
+import molto_runtime.patches.bonsai_t5_load as bonsai_t5_load
 import numpy as np
-import omlx_runtime.patches.bonsai_t5_load as bonsai_t5_load
 import pytest
 from mlx.utils import tree_flatten
-from omlx_runtime.custom_kernels.bonsai.fast import _dequant_1bit
-from omlx_runtime.patches import bonsai_qmv
-from omlx_runtime.patches.bonsai_t5_load import (
+from molto_runtime.custom_kernels.bonsai.fast import _dequant_1bit
+from molto_runtime.patches import bonsai_qmv
+from molto_runtime.patches.bonsai_t5_load import (
     _is_t5_weight_replacement,
     _patched_load_weights,
     _t5_quantized_matmul,
@@ -567,7 +567,7 @@ def test_installed_matmul_preserves_mlx_call_contract(mode, positional):
 def test_preload_dispatch_uses_weight_format(
     tmp_path, monkeypatch, packing, group_size
 ):
-    from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+    from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
     monkeypatch.setattr(bonsai_qmv, "apply_bonsai_qmv_patch", lambda: False)
     (tmp_path / "config.json").write_text(
@@ -612,7 +612,7 @@ def test_preload_dispatch_uses_weight_format(
 
 
 def test_one_bit_preload_still_installs_load_patch(tmp_path, monkeypatch):
-    from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+    from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
     monkeypatch.setattr(bonsai_qmv, "apply_bonsai_qmv_patch", lambda: False)
     monkeypatch.setattr(bonsai_qmv, "apply_bonsai_construct_patch", lambda: False)

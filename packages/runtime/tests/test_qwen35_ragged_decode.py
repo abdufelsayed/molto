@@ -35,7 +35,7 @@ def _make_q35_module():
 
 
 def test_signature_valid_shape():
-    from omlx_runtime.patches.qwen35_ragged_decode import _signature
+    from molto_runtime.patches.qwen35_ragged_decode import _signature
 
     q35 = _make_q35_module()
     q, k, v = _make_arrays()
@@ -47,7 +47,7 @@ def test_signature_valid_shape():
 
 
 def test_signature_wrong_ndim():
-    from omlx_runtime.patches.qwen35_ragged_decode import _signature
+    from molto_runtime.patches.qwen35_ragged_decode import _signature
 
     q35 = _make_q35_module()
     q = mx.zeros((2, 16, D_SIZE)).astype(DTYPE)
@@ -57,7 +57,7 @@ def test_signature_wrong_ndim():
 
 
 def test_signature_non_decode_seq():
-    from omlx_runtime.patches.qwen35_ragged_decode import _signature
+    from molto_runtime.patches.qwen35_ragged_decode import _signature
 
     q35 = _make_q35_module()
     q = mx.zeros((2, 16, 4, D_SIZE)).astype(DTYPE)
@@ -67,7 +67,7 @@ def test_signature_non_decode_seq():
 
 
 def test_signature_diverging_plans():
-    from omlx_runtime.patches.qwen35_ragged_decode import _signature
+    from molto_runtime.patches.qwen35_ragged_decode import _signature
 
     q35 = _make_q35_module()
     q, k, v = _make_arrays(batch=2, k_size=2048)
@@ -75,7 +75,7 @@ def test_signature_diverging_plans():
 
 
 def test_fallback_on_threadgroup_error(monkeypatch):
-    from omlx_runtime.patches import qwen35_ragged_decode as mod
+    from molto_runtime.patches import qwen35_ragged_decode as mod
 
     monkeypatch.setattr(mod, "_PROBE_CACHE", {})
     call_count = {"n": 0}
@@ -101,7 +101,7 @@ def test_fallback_on_threadgroup_error(monkeypatch):
 
 
 def test_passthrough_when_supported(monkeypatch):
-    from omlx_runtime.patches import qwen35_ragged_decode as mod
+    from molto_runtime.patches import qwen35_ragged_decode as mod
 
     monkeypatch.setattr(mod, "_PROBE_CACHE", {})
     sentinel = mx.zeros((2, 16, 1, D_SIZE)).astype(DTYPE)
@@ -125,7 +125,7 @@ def test_passthrough_when_supported(monkeypatch):
 
 
 def test_non_threadgroup_error_propagates(monkeypatch):
-    from omlx_runtime.patches import qwen35_ragged_decode as mod
+    from molto_runtime.patches import qwen35_ragged_decode as mod
 
     monkeypatch.setattr(mod, "_PROBE_CACHE", {})
 
@@ -143,7 +143,7 @@ def test_non_threadgroup_error_propagates(monkeypatch):
 
 def test_patch_install_and_idempotent(monkeypatch):
     q35 = pytest.importorskip("mlx_vlm.models.qwen3_5.language")
-    from omlx_runtime.patches import qwen35_ragged_decode as mod
+    from molto_runtime.patches import qwen35_ragged_decode as mod
 
     monkeypatch.setattr(mod, "_PATCHED", False)
     monkeypatch.setattr(mod, "_PROBE_CACHE", {})
@@ -166,7 +166,7 @@ def test_patch_install_and_idempotent(monkeypatch):
 
 
 def test_patch_returns_false_on_import_error(monkeypatch):
-    from omlx_runtime.patches import qwen35_ragged_decode as mod
+    from molto_runtime.patches import qwen35_ragged_decode as mod
 
     monkeypatch.setattr(mod, "_PATCHED", False)
     monkeypatch.delitem(sys.modules, "mlx_vlm.models.qwen3_5.language", raising=False)

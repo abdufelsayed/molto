@@ -5,7 +5,7 @@ and verification for the non-chat dashboard migration.
 
 ## Accepted scope
 
-The dashboard belongs in `apps/dashboard/` in the oMLX repository. One `omlx serve`
+The dashboard belongs in `apps/dashboard/` in the Molto repository. One `molto serve`
 command runs the public TanStack Start/Nitro web application and a separate
 private FastAPI inference process. Inference clients and the dashboard use the
 same public host and port. The user selected a command distribution.
@@ -14,7 +14,7 @@ Keep shadcn/ui preset `b43fOHkIM`, Oxfmt, type-aware Oxlint, and the native
 TypeScript compiler. Transfer useful old admin functionality with clearer
 workflows, explicit effects, preserved drafts, and truthful failure states.
 Browser chat is outside this scope. The reference checkout remains at
-`/tmp/omlx-old-admin-0b07cdd`.
+`/tmp/molto-old-admin-0b07cdd`.
 
 ## Delivered architecture
 
@@ -90,7 +90,7 @@ an actual release updates the URL/checksum.
 
 ## Milestones
 
-- `3489e45` — dashboard moved into oMLX; management features, model moves and
+- `3489e45` — dashboard moved into Molto; management features, model moves and
   native public inference proxy restored and verified.
 - Bundled startup, local setup and final integration — verified. The delivery
   commit includes the launcher, distribution build, guarded setup, development

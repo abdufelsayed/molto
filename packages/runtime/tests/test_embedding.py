@@ -14,18 +14,18 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-from omlx_contracts.api.embedding_models import (
+from molto_contracts.api.embedding_models import (
     EmbeddingData,
     EmbeddingInputItem,
     EmbeddingRequest,
     EmbeddingResponse,
     EmbeddingUsage,
 )
-from omlx_runtime.engine.embedding import EmbeddingEngine
-from omlx_runtime.exceptions import InvalidRequestError
-from omlx_runtime.model_discovery import detect_model_type
-from omlx_runtime.models.embedding import EmbeddingOutput
-from omlx_server.api.embedding_utils import (
+from molto_runtime.engine.embedding import EmbeddingEngine
+from molto_runtime.exceptions import InvalidRequestError
+from molto_runtime.model_discovery import detect_model_type
+from molto_runtime.models.embedding import EmbeddingOutput
+from molto_server.api.embedding_utils import (
     count_tokens,
     encode_embedding_base64,
     normalize_embedding_items,
@@ -322,7 +322,7 @@ class TestExtractEmbeddingsArray:
     def test_extract_text_embeds(self):
         """Test extraction from text_embeds field."""
         import mlx.core as mx
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel("test-model")
         outputs = MagicMock(spec=[])
@@ -336,7 +336,7 @@ class TestExtractEmbeddingsArray:
     def test_extract_pooler_output(self):
         """Test extraction from pooler_output when text_embeds is absent."""
         import mlx.core as mx
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel("test-model")
         outputs = MagicMock(spec=[])
@@ -349,7 +349,7 @@ class TestExtractEmbeddingsArray:
     def test_extract_last_hidden_state_mean_pool(self):
         """Test mean pooling fallback from last_hidden_state."""
         import mlx.core as mx
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel("test-model")
         outputs = MagicMock(spec=[])
@@ -361,7 +361,7 @@ class TestExtractEmbeddingsArray:
 
     def test_extract_raises_when_no_fields(self):
         """Test ValueError when no embedding fields are present."""
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel("test-model")
         outputs = MagicMock(spec=[])
@@ -372,7 +372,7 @@ class TestExtractEmbeddingsArray:
     def test_extract_text_embeds_3d_mean_pool(self):
         """Per-token text_embeds (e.g. ModernBERT MaskedLM) should be mean pooled."""
         import mlx.core as mx
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel("test-model")
         outputs = MagicMock(spec=[])
@@ -389,7 +389,7 @@ class TestExtractEmbeddingsArray:
     def test_extract_pooler_output_3d_mean_pool(self):
         """Per-token pooler_output should also be mean pooled to 2D."""
         import mlx.core as mx
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel("test-model")
         outputs = MagicMock(spec=[])
@@ -407,7 +407,7 @@ class TestEmbeddingCompileFallback:
     def test_compiled_path_fallback_on_failure(self):
         """Test that embed() falls back to eager when compiled path raises."""
         import mlx.core as mx
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         class StandardTokenizer:
             def encode(self, text, add_special_tokens=True):
@@ -441,7 +441,7 @@ class TestEmbeddingCompileFallback:
     def test_is_compiled_false_uses_eager_path(self):
         """Test that embed() uses eager path when _is_compiled is False."""
         import mlx.core as mx
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel("test-model")
         model._loaded = True
@@ -463,7 +463,7 @@ class TestEmbeddingCompileFallback:
     def test_default_max_length_uses_model_config(self):
         """Omitted max_length should use model context metadata, not 512."""
         import mlx.core as mx
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel("test-model")
         model._loaded = True
@@ -487,7 +487,7 @@ class TestEmbeddingCompileFallback:
     def test_default_max_length_uses_tokenizer_config_fallback(self):
         """Tokenizer model_max_length is used when model config lacks a limit."""
         import mlx.core as mx
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel("test-model")
         model._loaded = True
@@ -509,7 +509,7 @@ class TestEmbeddingCompileFallback:
     def test_unknown_default_max_length_falls_back_to_512(self):
         """Keep a conservative final fallback when no metadata exists."""
         import mlx.core as mx
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel("test-model")
         model._loaded = True
@@ -531,7 +531,7 @@ class TestEmbeddingCompileFallback:
     def test_explicit_max_length_is_respected(self):
         """Explicit max_length should override metadata."""
         import mlx.core as mx
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel("test-model")
         model._loaded = True
@@ -555,7 +555,7 @@ class TestEmbeddingCompileFallback:
     def test_custom_processor_compiled_path_uses_prepare_embedding_inputs(self):
         """Custom embedding processors should use their own prepare API."""
         import mlx.core as mx
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel("test-model")
         model._loaded = True
@@ -584,7 +584,7 @@ class TestEmbeddingCompileFallback:
     def test_custom_processor_eager_path_bypasses_generate(self):
         """Custom embedding processors should bypass mlx_embeddings.generate()."""
         import mlx.core as mx
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel("test-model")
         model._loaded = True
@@ -619,7 +619,7 @@ class TestEmbeddingCompileFallback:
     def test_custom_processor_eager_path_remaps_input_ids_for_inputs_signature(self):
         """Models that accept `inputs` instead of `input_ids` should still work."""
         import mlx.core as mx
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         class InputsOnlyModel:
             def __call__(self, inputs, attention_mask=None):
@@ -657,7 +657,7 @@ class TestEmbeddingCompileFallback:
     def test_custom_processor_receives_valid_image_items_unchanged(self):
         """Custom processors should receive validated data URI strings unchanged."""
         import mlx.core as mx
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel("test-model")
         model._loaded = True
@@ -696,7 +696,7 @@ class TestEmbeddingCompileFallback:
 
     def test_custom_processor_rejects_remote_image_url(self):
         """Image embedding refs reject remote URLs before processor handling."""
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel("test-model")
         model._loaded = True
@@ -711,7 +711,7 @@ class TestEmbeddingCompileFallback:
     def test_custom_processor_counts_image_only_tokens_from_prepared_inputs(self):
         """Image-only custom processor inputs should contribute to usage stats."""
         import mlx.core as mx
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel("test-model")
         model._loaded = True
@@ -739,7 +739,7 @@ class TestEmbeddingCompileFallback:
 
     def test_standard_processor_rejects_image_inputs(self):
         """Standard text embedding processors should reject image items."""
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel("test-model")
         model._loaded = True
@@ -752,14 +752,14 @@ class TestEmbeddingCompileFallback:
             model.embed([{"image": IMAGE_DATA_URI}])
 
     def test_try_compile_respects_disable_env(self, monkeypatch):
-        """OMLX_EMBEDDING_COMPILE=0 should skip mx.compile for root-cause probes."""
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        """MOLTO_EMBEDDING_COMPILE=0 should skip mx.compile for root-cause probes."""
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
-        monkeypatch.setenv("OMLX_EMBEDDING_COMPILE", "0")
+        monkeypatch.setenv("MOLTO_EMBEDDING_COMPILE", "0")
         model = MLXEmbeddingModel("test-model")
         model.model = MagicMock()
 
-        with patch("omlx_runtime.models.embedding.mx") as mock_mx:
+        with patch("molto_runtime.models.embedding.mx") as mock_mx:
             result = model._try_compile()
 
         assert result is False
@@ -768,7 +768,7 @@ class TestEmbeddingCompileFallback:
 
     def test_close_releases_compiled_model_and_processor_resources(self):
         """close() should drop wrapper references before clearing MLX caches."""
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel("test-model")
         model.model = MagicMock()
@@ -781,8 +781,8 @@ class TestEmbeddingCompileFallback:
         model._remap_input_ids_to_inputs = True
 
         with (
-            patch("omlx_runtime.models.embedding.gc.collect") as collect,
-            patch("omlx_runtime.models.embedding.mx") as mock_mx,
+            patch("molto_runtime.models.embedding.gc.collect") as collect,
+            patch("molto_runtime.models.embedding.mx") as mock_mx,
         ):
             model.close()
 
@@ -806,12 +806,12 @@ class TestEmbeddingEngine:
         """Test engine start and stop lifecycle."""
         import asyncio
 
-        from omlx_runtime.engine.embedding import EmbeddingEngine
+        from molto_runtime.engine.embedding import EmbeddingEngine
 
         engine = EmbeddingEngine("test-model")
 
         # Mock the MLXEmbeddingModel
-        with patch("omlx_runtime.engine.embedding.MLXEmbeddingModel") as MockModel:
+        with patch("molto_runtime.engine.embedding.MLXEmbeddingModel") as MockModel:
             mock_model = MagicMock()
             mock_model.hidden_size = 384
             MockModel.return_value = mock_model
@@ -829,12 +829,12 @@ class TestEmbeddingEngine:
         """Test embedding generation through engine."""
         import asyncio
 
-        from omlx_runtime.engine.embedding import EmbeddingEngine
-        from omlx_runtime.models.embedding import EmbeddingOutput
+        from molto_runtime.engine.embedding import EmbeddingEngine
+        from molto_runtime.models.embedding import EmbeddingOutput
 
         engine = EmbeddingEngine("test-model")
 
-        with patch("omlx_runtime.engine.embedding.MLXEmbeddingModel") as MockModel:
+        with patch("molto_runtime.engine.embedding.MLXEmbeddingModel") as MockModel:
             mock_model = MagicMock()
             mock_model.embed.return_value = EmbeddingOutput(
                 embeddings=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]],
@@ -854,7 +854,7 @@ class TestEmbeddingEngine:
         """Test that embed raises error if engine not started."""
         import asyncio
 
-        from omlx_runtime.engine.embedding import EmbeddingEngine
+        from molto_runtime.engine.embedding import EmbeddingEngine
 
         engine = EmbeddingEngine("test-model")
 
@@ -870,8 +870,8 @@ class TestEmbeddingEngine:
         """
         import asyncio
 
-        from omlx_runtime.engine.embedding import EmbeddingEngine
-        from omlx_runtime.models.embedding import EmbeddingOutput
+        from molto_runtime.engine.embedding import EmbeddingEngine
+        from molto_runtime.models.embedding import EmbeddingOutput
 
         texts = ["cccc", "a", "eeeeeeee", "bb", "dddddd", "a", "", "fffffffffff"]
         seen_batches = []
@@ -901,7 +901,7 @@ class TestEmbeddingEngine:
 
     def test_engine_get_stats(self):
         """Test engine statistics."""
-        from omlx_runtime.engine.embedding import EmbeddingEngine
+        from molto_runtime.engine.embedding import EmbeddingEngine
 
         engine = EmbeddingEngine("test-model")
 
@@ -911,8 +911,8 @@ class TestEmbeddingEngine:
 
     def test_engine_uses_scheduler_embedding_batch_size(self):
         """Embedding chunk size should follow shared scheduler config."""
-        from omlx_runtime.engine.embedding import EmbeddingEngine
-        from omlx_runtime.scheduler import SchedulerConfig
+        from molto_runtime.engine.embedding import EmbeddingEngine
+        from molto_runtime.scheduler import SchedulerConfig
 
         engine = EmbeddingEngine(
             "test-model",
@@ -926,8 +926,8 @@ class TestEmbeddingEngine:
 
     def test_engine_ignores_scheduler_completion_batch_size(self):
         """Completion batching should not affect embedding forward chunks."""
-        from omlx_runtime.engine.embedding import EmbeddingEngine
-        from omlx_runtime.scheduler import SchedulerConfig
+        from molto_runtime.engine.embedding import EmbeddingEngine
+        from molto_runtime.scheduler import SchedulerConfig
 
         engine = EmbeddingEngine(
             "test-model",
@@ -938,7 +938,7 @@ class TestEmbeddingEngine:
 
     def test_engine_preserves_positional_batch_size_argument(self):
         """Keep EmbeddingEngine(model, trust_remote_code, batch_size) working."""
-        from omlx_runtime.engine.embedding import EmbeddingEngine
+        from molto_runtime.engine.embedding import EmbeddingEngine
 
         engine = EmbeddingEngine("test-model", False, 3)
 
@@ -946,7 +946,7 @@ class TestEmbeddingEngine:
 
     def test_engine_get_model_info_not_loaded(self):
         """Test get_model_info when model is not loaded."""
-        from omlx_runtime.engine.embedding import EmbeddingEngine
+        from molto_runtime.engine.embedding import EmbeddingEngine
 
         engine = EmbeddingEngine("test-model")
 
@@ -956,7 +956,7 @@ class TestEmbeddingEngine:
 
     def test_engine_repr(self):
         """Test engine string representation."""
-        from omlx_runtime.engine.embedding import EmbeddingEngine
+        from molto_runtime.engine.embedding import EmbeddingEngine
 
         engine = EmbeddingEngine("test-model")
 
@@ -968,7 +968,7 @@ class TestEmbeddingEngine:
         """Test engine property accessors."""
         import asyncio
 
-        from omlx_runtime.engine.embedding import EmbeddingEngine
+        from molto_runtime.engine.embedding import EmbeddingEngine
 
         engine = EmbeddingEngine("test-model")
 
@@ -977,7 +977,7 @@ class TestEmbeddingEngine:
         assert engine.hidden_size is None
 
         # After loading
-        with patch("omlx_runtime.engine.embedding.MLXEmbeddingModel") as MockModel:
+        with patch("molto_runtime.engine.embedding.MLXEmbeddingModel") as MockModel:
             mock_model = MagicMock()
             mock_model.processor = MagicMock()
             mock_model.hidden_size = 384
@@ -993,8 +993,8 @@ class TestEmbeddingEngine:
         engine = EmbeddingEngine("test-model")
 
         with (
-            patch("omlx_runtime.engine.embedding.MLXEmbeddingModel") as MockModel,
-            patch("omlx_runtime.engine.embedding.mx") as mock_mx,
+            patch("molto_runtime.engine.embedding.MLXEmbeddingModel") as MockModel,
+            patch("molto_runtime.engine.embedding.mx") as mock_mx,
         ):
             mock_model = MagicMock()
             mock_model.embed.return_value = EmbeddingOutput(
@@ -1021,8 +1021,8 @@ class TestEmbeddingEngine:
         concurrency = 4
 
         with (
-            patch("omlx_runtime.engine.embedding.MLXEmbeddingModel") as MockModel,
-            patch("omlx_runtime.engine.embedding.mx") as mock_mx,
+            patch("molto_runtime.engine.embedding.MLXEmbeddingModel") as MockModel,
+            patch("molto_runtime.engine.embedding.mx") as mock_mx,
         ):
             mock_model = MagicMock()
             mock_model.embed.return_value = EmbeddingOutput(
@@ -1055,8 +1055,8 @@ class TestEmbeddingEngine:
             )
 
         with (
-            patch("omlx_runtime.engine.embedding.MLXEmbeddingModel") as MockModel,
-            patch("omlx_runtime.engine.embedding.mx") as mock_mx,
+            patch("molto_runtime.engine.embedding.MLXEmbeddingModel") as MockModel,
+            patch("molto_runtime.engine.embedding.mx") as mock_mx,
         ):
             mock_model = MagicMock()
             mock_model.embed.side_effect = embed_side_effect
@@ -1094,8 +1094,8 @@ class TestEmbeddingEngine:
             )
 
         with (
-            patch("omlx_runtime.engine.embedding.MLXEmbeddingModel") as MockModel,
-            patch("omlx_runtime.engine.embedding.mx"),
+            patch("molto_runtime.engine.embedding.MLXEmbeddingModel") as MockModel,
+            patch("molto_runtime.engine.embedding.mx"),
         ):
             mock_model = MagicMock()
             mock_model.embed.side_effect = embed_side_effect
@@ -1128,8 +1128,8 @@ class TestEmbeddingEngine:
             )
 
         with (
-            patch("omlx_runtime.engine.embedding.MLXEmbeddingModel") as MockModel,
-            patch("omlx_runtime.engine.embedding.mx"),
+            patch("molto_runtime.engine.embedding.MLXEmbeddingModel") as MockModel,
+            patch("molto_runtime.engine.embedding.mx"),
         ):
             mock_model = MagicMock()
             mock_model.embed.side_effect = embed_side_effect
@@ -1218,7 +1218,7 @@ class TestEmbeddingIntegration:
 
         pytest.importorskip("mlx_embeddings")
 
-        from omlx_runtime.engine.embedding import EmbeddingEngine
+        from molto_runtime.engine.embedding import EmbeddingEngine
 
         # Use a small model for testing
         # This model should be available or downloaded from HuggingFace
@@ -1289,7 +1289,7 @@ class TestNativeEmbeddingLoading:
     def _write_full_native_checkpoint(self, tmp_path, config):
         """Write a complete native checkpoint for a small embedding model."""
         from mlx.utils import tree_flatten
-        from omlx_runtime.models.xlm_roberta import Model, ModelArgs
+        from molto_runtime.models.xlm_roberta import Model, ModelArgs
         from safetensors.numpy import save_file
 
         model_config = ModelArgs(**config)
@@ -1328,7 +1328,7 @@ class TestNativeEmbeddingLoading:
             str(tmp_path / "model.safetensors"),
         )
 
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel(str(tmp_path))
         tokenizer = self.MockNativeTokenizer(vocab_size=vocab_size)
@@ -1338,11 +1338,11 @@ class TestNativeEmbeddingLoading:
                 return_value=tokenizer,
             ) as mock_from_pretrained,
             patch(
-                "omlx_runtime.models.embedding.MLXEmbeddingModel._validate_native_weights",
+                "molto_runtime.models.embedding.MLXEmbeddingModel._validate_native_weights",
                 return_value=None,
             ) as mock_validate_weights,
             patch(
-                "omlx_runtime.models.xlm_roberta.Model.load_weights",
+                "molto_runtime.models.xlm_roberta.Model.load_weights",
                 return_value=None,
             ) as mock_load_weights,
         ):
@@ -1383,7 +1383,7 @@ class TestNativeEmbeddingLoading:
             str(tmp_path / "model.safetensors"),
         )
 
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel(str(tmp_path))
         tokenizer = self.MockNativeTokenizer(vocab_size=vocab_size)
@@ -1393,11 +1393,11 @@ class TestNativeEmbeddingLoading:
                 return_value=tokenizer,
             ) as mock_from_pretrained,
             patch(
-                "omlx_runtime.models.embedding.MLXEmbeddingModel._validate_native_weights",
+                "molto_runtime.models.embedding.MLXEmbeddingModel._validate_native_weights",
                 return_value=None,
             ) as mock_validate_weights,
             patch(
-                "omlx_runtime.models.xlm_roberta.Model.load_weights",
+                "molto_runtime.models.xlm_roberta.Model.load_weights",
                 return_value=None,
             ) as mock_load_weights,
         ):
@@ -1433,7 +1433,7 @@ class TestNativeEmbeddingLoading:
             {"embeddings.word_embeddings.weight": mx.ones((16, 4), dtype=mx.bfloat16)},
         )
 
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel(str(tmp_path))
         tokenizer = self.MockNativeTokenizer(vocab_size=config["vocab_size"])
@@ -1443,11 +1443,11 @@ class TestNativeEmbeddingLoading:
                 return_value=tokenizer,
             ),
             patch(
-                "omlx_runtime.models.embedding.MLXEmbeddingModel._validate_native_weights",
+                "molto_runtime.models.embedding.MLXEmbeddingModel._validate_native_weights",
                 return_value=None,
             ) as mock_validate_weights,
             patch(
-                "omlx_runtime.models.xlm_roberta.Model.load_weights",
+                "molto_runtime.models.xlm_roberta.Model.load_weights",
                 return_value=None,
             ) as mock_load_weights,
         ):
@@ -1486,7 +1486,7 @@ class TestNativeEmbeddingLoading:
             str(tmp_path / "model.safetensors"),
         )
 
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel(str(tmp_path))
         tokenizer = self.MockNativeTokenizer(vocab_size=30522)
@@ -1532,7 +1532,7 @@ class TestNativeEmbeddingLoading:
         ).astype(np.float32)
         save_file(weights, str(tmp_path / "model.safetensors"))
 
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel(str(tmp_path))
         tokenizer = self.MockNativeTokenizer(vocab_size=30522)
@@ -1559,7 +1559,7 @@ class TestNativeEmbeddingLoading:
         }
         (tmp_path / "config.json").write_text(json.dumps(config))
 
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel(str(tmp_path))
         result = model._load_native()
@@ -1591,7 +1591,7 @@ class TestNativeEmbeddingLoading:
 
         self._write_full_native_checkpoint(tmp_path, config)
 
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel(str(tmp_path))
         tokenizer = self.MockNativeTokenizer(vocab_size=vocab_size)
@@ -1612,7 +1612,7 @@ class TestGetEmbeddingMaxLength:
     """The server helper that resolves the per-request embedding token cap."""
 
     def test_request_override_wins(self):
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         controller = create_app().state.controller
 
@@ -1620,7 +1620,7 @@ class TestGetEmbeddingMaxLength:
             assert controller.get_embedding_max_length("m", 4096) == 4096
 
     def test_uses_configured_context_window(self):
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         controller = create_app().state.controller
 
@@ -1630,7 +1630,7 @@ class TestGetEmbeddingMaxLength:
     def test_returns_none_without_window_so_model_resolves(self):
         # No request override and no configured window: defer to the model's
         # own context-length resolution instead of a hard 512 cap (#1687).
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         controller = create_app().state.controller
 
@@ -1688,7 +1688,7 @@ class TestNativeQwen2Embedding:
     def _write_full_qwen2_checkpoint(self, tmp_path, config):
         """Write a complete native Qwen2 checkpoint from the adapter's own params."""
         from mlx.utils import tree_flatten
-        from omlx_runtime.models.qwen2_embedding import Model, ModelArgs
+        from molto_runtime.models.qwen2_embedding import Model, ModelArgs
         from safetensors.numpy import save_file
 
         model = Model(ModelArgs(**config))
@@ -1698,7 +1698,7 @@ class TestNativeQwen2Embedding:
         save_file(weights, str(tmp_path / "model.safetensors"))
 
     def _load(self, tmp_path):
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         (tmp_path / "config.json").write_text(json.dumps(self._CONFIG))
         self._write_full_qwen2_checkpoint(tmp_path, self._CONFIG)
@@ -1718,7 +1718,7 @@ class TestNativeQwen2Embedding:
         assert model._using_native is True
         assert model._hidden_size == self._CONFIG["hidden_size"]
         # The adapter, not the qwen3/mlx-embeddings fallback.
-        from omlx_runtime.models.qwen2_embedding import Model as Qwen2EmbeddingModel
+        from molto_runtime.models.qwen2_embedding import Model as Qwen2EmbeddingModel
 
         assert isinstance(model.model, Qwen2EmbeddingModel)
 
@@ -1742,7 +1742,7 @@ class TestNativeQwen2Embedding:
         would read a pad position under right padding and diverge.
         """
         import mlx.core as mx
-        from omlx_runtime.models.qwen2_embedding import Model, ModelArgs
+        from molto_runtime.models.qwen2_embedding import Model, ModelArgs
 
         mx.random.seed(0)
         model = Model(ModelArgs(**self._CONFIG))
@@ -1772,7 +1772,7 @@ class TestNativeQwen2Embedding:
         distinguishes jina-code (causal) from gte-Qwen2 (``is_causal: false``).
         """
         import mlx.core as mx
-        from omlx_runtime.models.qwen2_embedding import Model, ModelArgs
+        from molto_runtime.models.qwen2_embedding import Model, ModelArgs
 
         base = mx.array([[5, 9, 7, 3]])
         perturbed = mx.array([[5, 9, 7, 8]])  # differ only in the LAST token
@@ -1813,7 +1813,7 @@ class TestDeclaredPoolingMode:
         import json
         from pathlib import Path
 
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         root = Path(tmp_path)
         if pooling_config is not None:
@@ -1897,7 +1897,7 @@ class TestDeclaredPoolingMode:
     def test_malformed_config_does_not_raise(self, tmp_path):
         (tmp_path / "1_Pooling").mkdir()
         (tmp_path / "1_Pooling" / "config.json").write_text("{ not json")
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         assert MLXEmbeddingModel(str(tmp_path))._resolve_pooling_mode()[0] is None
 
@@ -1958,7 +1958,7 @@ class TestDeclaredPoolingMode:
     @staticmethod
     def _eager_model(tmp_path, processor):
         """A loaded model on the eager path, declaring last-token pooling."""
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         m = TestDeclaredPoolingMode._model(tmp_path, {"pooling_mode": "lasttoken"})
         m._pooling_mode, m._pooling_source = m._resolve_pooling_mode()
@@ -2003,7 +2003,7 @@ class TestDeclaredPoolingMode:
 
         ``mlx_embeddings.generate`` drops the mask it builds, so this path
         pooled a pad token for every mixed-length batch whenever
-        ``OMLX_EMBEDDING_COMPILE=0`` or a compile failure sent it here.
+        ``MOLTO_EMBEDDING_COMPILE=0`` or a compile failure sent it here.
         """
         import mlx.core as mx
 

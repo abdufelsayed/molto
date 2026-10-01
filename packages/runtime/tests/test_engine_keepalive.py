@@ -48,11 +48,11 @@ class TestTryCompileMaskProbe:
     """
 
     def test_mask_branching_model_falls_back_at_load(self, monkeypatch):
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
-        # An exported OMLX_EMBEDDING_COMPILE=0 would make _try_compile return
+        # An exported MOLTO_EMBEDDING_COMPILE=0 would make _try_compile return
         # False before ever calling mx.compile — a vacuously passing test.
-        monkeypatch.delenv("OMLX_EMBEDDING_COMPILE", raising=False)
+        monkeypatch.delenv("MOLTO_EMBEDDING_COMPILE", raising=False)
         model = MLXEmbeddingModel("test-model")
         model.model = _MaskBranchingModel()
 
@@ -60,9 +60,9 @@ class TestTryCompileMaskProbe:
         assert model._compiled_embed is None
 
     def test_mask_free_model_still_compiles(self, monkeypatch):
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
-        monkeypatch.delenv("OMLX_EMBEDDING_COMPILE", raising=False)
+        monkeypatch.delenv("MOLTO_EMBEDDING_COMPILE", raising=False)
         model = MLXEmbeddingModel("test-model")
         model.model = _MaskFreeModel()
 
@@ -75,12 +75,12 @@ class TestTryCompile:
 
     def test_embedding_try_compile_success(self):
         """_try_compile should return True and set _compiled_embed on success."""
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel("test-model")
         model.model = MagicMock()
 
-        with patch("omlx_runtime.models.embedding.mx") as mock_mx:
+        with patch("molto_runtime.models.embedding.mx") as mock_mx:
             mock_compiled_fn = MagicMock(return_value=MagicMock())
             mock_mx.compile.return_value = mock_compiled_fn
             mock_mx.zeros.return_value = MagicMock()
@@ -92,12 +92,12 @@ class TestTryCompile:
 
     def test_embedding_try_compile_failure(self):
         """_try_compile should return False and clear _compiled_embed on failure."""
-        from omlx_runtime.models.embedding import MLXEmbeddingModel
+        from molto_runtime.models.embedding import MLXEmbeddingModel
 
         model = MLXEmbeddingModel("test-model")
         model.model = MagicMock()
 
-        with patch("omlx_runtime.models.embedding.mx") as mock_mx:
+        with patch("molto_runtime.models.embedding.mx") as mock_mx:
             mock_mx.compile.side_effect = RuntimeError("compile failed")
             result = model._try_compile()
 
@@ -110,11 +110,11 @@ class TestEmbeddingEngineStartStop:
 
     def test_engine_starts_without_keepalive(self):
         """Engine should start without any background keepalive task."""
-        from omlx_runtime.engine.embedding import EmbeddingEngine
+        from molto_runtime.engine.embedding import EmbeddingEngine
 
         engine = EmbeddingEngine("test-model")
 
-        with patch("omlx_runtime.engine.embedding.MLXEmbeddingModel") as MockModel:
+        with patch("molto_runtime.engine.embedding.MLXEmbeddingModel") as MockModel:
             mock_model = MagicMock()
             mock_model._is_compiled = False
             mock_model.hidden_size = 384
@@ -130,11 +130,11 @@ class TestRerankerEngineStartStop:
 
     def test_engine_starts_without_keepalive(self):
         """Engine should start without any background keepalive task."""
-        from omlx_runtime.engine.reranker import RerankerEngine
+        from molto_runtime.engine.reranker import RerankerEngine
 
         engine = RerankerEngine("test-model")
 
-        with patch("omlx_runtime.engine.reranker.MLXRerankerModel") as MockModel:
+        with patch("molto_runtime.engine.reranker.MLXRerankerModel") as MockModel:
             mock_model = MagicMock()
             mock_model._is_compiled = False
             MockModel.return_value = mock_model

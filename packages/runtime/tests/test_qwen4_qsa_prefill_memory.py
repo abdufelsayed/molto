@@ -24,7 +24,7 @@ class QSAQuantizedKVCache(QSAKVCache):
 
 @pytest.mark.parametrize("cache_cls", [QSAKVCache, QSAQuantizedKVCache])
 def test_qsa_cache_is_not_retained_in_boundary_snapshots(cache_cls):
-    from omlx_runtime.scheduler import Scheduler
+    from molto_runtime.scheduler import Scheduler
 
     captured = []
     scheduler = SimpleNamespace(
@@ -54,7 +54,7 @@ def test_qsa_cache_is_not_retained_in_boundary_snapshots(cache_cls):
 
 
 def test_bool_mask_uses_tiled_sdpa_and_matches_dense(monkeypatch):
-    from omlx_runtime.patches import sdpa256_attention as sdpa256
+    from molto_runtime.patches import sdpa256_attention as sdpa256
 
     monkeypatch.setattr(sdpa256, "_FORCE_TILED", None)
     monkeypatch.setattr(sdpa256, "_SDPA256_MIN_KV_LEN", 64)
@@ -82,7 +82,7 @@ def test_bool_mask_uses_tiled_sdpa_and_matches_dense(monkeypatch):
 
 def test_long_bool_mask_turboquant_prefill_is_tiled_first(monkeypatch):
     from mlx_lm.models import base as mlx_base
-    from omlx_runtime.patches import turboquant_attention as tq_attention
+    from molto_runtime.patches import turboquant_attention as tq_attention
 
     tq_attention.apply_turboquant_attention_patch()
     monkeypatch.setattr(tq_attention, "_LONG_PREFILL_QUANTIZED_THRESHOLD", 4)
@@ -124,9 +124,9 @@ def test_qwen4_mask_dense_seam_reaches_array_tiled_sdpa256(monkeypatch):
     whose array-mask support could silently unfuse into the O(L^2) fp32
     score matrix. Uses a real Qwen4ExpAttention at production head_dim=256
     with gathered attention disabled by non-broadcast MRoPE positions."""
-    from omlx_runtime import memory_monitor
-    from omlx_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
-    from omlx_runtime.patches import sdpa256_attention as sdpa256
+    from molto_runtime import memory_monitor
+    from molto_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
+    from molto_runtime.patches import sdpa256_attention as sdpa256
 
     compat.apply_mlx_vlm_qwen4_exp_compat_patch()
     from mlx_vlm.models.qwen4_exp import TextConfig
@@ -229,7 +229,7 @@ def test_qwen4_mask_dense_seam_reaches_array_tiled_sdpa256(monkeypatch):
         mask = calls[0]
         assert isinstance(mask, mx.array)
         assert 1 <= mask.ndim <= 4
-        assert cache._omlx_last_prefill_gathered is False
+        assert cache._molto_last_prefill_gathered is False
     finally:
         for mod, fn in sdpa_snap.items():
             mod.scaled_dot_product_attention = fn

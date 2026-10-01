@@ -19,7 +19,7 @@ import struct
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.oq import _block_dequant_fp8, _LazyTensorIndex
+from molto_runtime.oq import _block_dequant_fp8, _LazyTensorIndex
 
 M3_DIR = "/Volumes/Scratch/models/MiniMax-M3-MXFP8"
 
@@ -155,7 +155,7 @@ def test_minimax_m3_k_proj_magnitude():
 
 
 def test_mimo_mxfp4_index_preserves_packed_experts_through_stack(tmp_path):
-    from omlx_runtime.oq import _discover_sanitize_plan, _DiscoveredPlan
+    from molto_runtime.oq import _discover_sanitize_plan, _DiscoveredPlan
 
     mx.random.seed(5)
     packed, scales = mx.quantize(

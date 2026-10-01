@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for oQ (oMLX Universal Dynamic Quantization)."""
+"""Tests for oQ (Molto Universal Dynamic Quantization)."""
 
 import json
 import sys
@@ -18,7 +18,7 @@ try:
 except ImportError:
     HAS_MLX = False
 
-from omlx_runtime.oq import (
+from molto_runtime.oq import (
     _LEVEL_BITS,
     _LEVEL_EXPERT_DOWN_BOOST,
     _MAX_MODEL_RAM_FRACTION,
@@ -720,13 +720,13 @@ class TestOqDtypeModelSupport:
 
 class TestShouldSkipTensor:
     def test_default_skips_mtp(self):
-        from omlx_runtime.oq import _should_skip_tensor
+        from molto_runtime.oq import _should_skip_tensor
 
         assert _should_skip_tensor("mtp.fc.weight") is True
         assert _should_skip_tensor("language_model.mtp.layers.0.foo") is True
 
     def test_preserve_mtp_keeps_mtp(self):
-        from omlx_runtime.oq import _should_skip_tensor
+        from molto_runtime.oq import _should_skip_tensor
 
         assert _should_skip_tensor("mtp.fc.weight", preserve_mtp=True) is False
         assert (
@@ -735,7 +735,7 @@ class TestShouldSkipTensor:
         )
 
     def test_non_mtp_tensors_never_skipped(self):
-        from omlx_runtime.oq import _should_skip_tensor
+        from molto_runtime.oq import _should_skip_tensor
 
         assert _should_skip_tensor("model.layers.0.attn.q_proj.weight") is False
         assert (
@@ -750,38 +750,38 @@ class TestMtpFcFullPrecision:
     extended to PR 15's DeepSeek-V4 MTPBlock layout."""
 
     def test_qwen_mtp_fc_top_level_returns_none(self):
-        from omlx_runtime.oq import _get_predicate_bits
+        from molto_runtime.oq import _get_predicate_bits
 
         bits, gs, mode = _get_predicate_bits("mtp.fc.weight", {}, 4, 64)
         assert bits is None and gs is None and mode is None
 
     def test_qwen_mtp_fc_nested_returns_none(self):
-        from omlx_runtime.oq import _get_predicate_bits
+        from molto_runtime.oq import _get_predicate_bits
 
         bits, gs, mode = _get_predicate_bits("language_model.mtp.fc.weight", {}, 4, 64)
         assert bits is None and gs is None and mode is None
 
     def test_deepseek_e_proj_protected(self):
-        from omlx_runtime.oq import _get_predicate_bits
+        from molto_runtime.oq import _get_predicate_bits
 
         bits, _, _ = _get_predicate_bits("mtp.0.e_proj.weight", {}, 4, 64)
         assert bits is None
 
     def test_deepseek_h_proj_protected(self):
-        from omlx_runtime.oq import _get_predicate_bits
+        from molto_runtime.oq import _get_predicate_bits
 
         bits, _, _ = _get_predicate_bits("mtp.0.h_proj.weight", {}, 4, 64)
         assert bits is None
 
     def test_deepseek_hc_head_sanitized_protected(self):
-        from omlx_runtime.oq import _get_predicate_bits
+        from molto_runtime.oq import _get_predicate_bits
 
         for k in ("mtp.0.hc_head.fn", "mtp.0.hc_head.base", "mtp.0.hc_head.scale"):
             bits, _, _ = _get_predicate_bits(k, {}, 4, 64)
             assert bits is None, f"{k} should be full precision"
 
     def test_deepseek_hc_head_raw_hf_protected(self):
-        from omlx_runtime.oq import _get_predicate_bits
+        from molto_runtime.oq import _get_predicate_bits
 
         # Raw HF form (before sanitize) — covered too.
         for k in ("mtp.0.hc_head_fn", "mtp.0.hc_head_base", "mtp.0.hc_head_scale"):
@@ -789,7 +789,7 @@ class TestMtpFcFullPrecision:
             assert bits is None, f"{k} should be full precision"
 
     def test_other_mtp_tensors_still_quantized(self):
-        from omlx_runtime.oq import _get_predicate_bits
+        from molto_runtime.oq import _get_predicate_bits
 
         bits, _, _ = _get_predicate_bits(
             "mtp.layers.0.self_attn.q_proj.weight", {}, 4, 64
@@ -797,20 +797,20 @@ class TestMtpFcFullPrecision:
         assert bits is not None and bits >= 4
 
     def test_deepseek_block_attn_still_quantized(self):
-        from omlx_runtime.oq import _get_predicate_bits
+        from molto_runtime.oq import _get_predicate_bits
 
         # MTPBlock 의 내부 attention/ffn 은 backbone 과 같은 양자화 정책
         bits, _, _ = _get_predicate_bits("mtp.0.block.attn.wq_a.weight", {}, 4, 64)
         assert bits is not None
 
     def test_normal_weights_unaffected(self):
-        from omlx_runtime.oq import _get_predicate_bits
+        from molto_runtime.oq import _get_predicate_bits
 
         bits, _, _ = _get_predicate_bits("model.layers.0.attn.q_proj.weight", {}, 4, 64)
         assert bits is not None
 
     def test_non_mtp_e_proj_not_protected(self):
-        from omlx_runtime.oq import _get_predicate_bits
+        from molto_runtime.oq import _get_predicate_bits
 
         # e_proj 가 mtp 밖 (가상 케이스) 이면 보호 안 함
         bits, _, _ = _get_predicate_bits("model.layers.0.e_proj.weight", {}, 4, 64)
@@ -819,7 +819,7 @@ class TestMtpFcFullPrecision:
 
 class TestNormalizeMtpInConfig:
     def test_zeros_top_level_mtp_fields(self):
-        from omlx_runtime.oq import _normalize_mtp_in_config
+        from molto_runtime.oq import _normalize_mtp_in_config
 
         cfg = {"mtp_num_hidden_layers": 1, "num_nextn_predict_layers": 2}
         _normalize_mtp_in_config(cfg)
@@ -827,7 +827,7 @@ class TestNormalizeMtpInConfig:
         assert cfg["num_nextn_predict_layers"] == 0
 
     def test_zeros_nested_text_config_fields(self):
-        from omlx_runtime.oq import _normalize_mtp_in_config
+        from molto_runtime.oq import _normalize_mtp_in_config
 
         cfg = {
             "model_type": "qwen3_5",
@@ -839,7 +839,7 @@ class TestNormalizeMtpInConfig:
         assert cfg["text_config"]["num_hidden_layers"] == 64
 
     def test_removes_dspark_discriminator_fields(self):
-        from omlx_runtime.oq import _normalize_mtp_in_config
+        from molto_runtime.oq import _normalize_mtp_in_config
 
         cfg = {
             "num_nextn_predict_layers": 1,
@@ -853,7 +853,7 @@ class TestNormalizeMtpInConfig:
         assert not any(key.startswith("dspark_") for key in cfg)
 
     def test_no_mtp_fields_is_noop(self):
-        from omlx_runtime.oq import _normalize_mtp_in_config
+        from molto_runtime.oq import _normalize_mtp_in_config
 
         cfg = {"model_type": "llama"}
         _normalize_mtp_in_config(cfg)
@@ -932,7 +932,7 @@ class TestValidateQuantizable:
         )
 
     def test_quantized_sensitivity_routing_preserves_glm_fp8_dequant(self):
-        from omlx_runtime.oq import _uses_quantized_source_sensitivity
+        from molto_runtime.oq import _uses_quantized_source_sensitivity
 
         assert (
             _uses_quantized_source_sensitivity(
@@ -1238,7 +1238,7 @@ class TestStreamingHelpers:
         assert (bits, gs, mode) == (4, 64, "affine")
 
     def test_qwen4_ngram_is_exempt_from_strict_imatrix_lookup(self):
-        from omlx_runtime.oq import OQImatrixData, _lookup_imatrix_importance
+        from molto_runtime.oq import OQImatrixData, _lookup_imatrix_importance
 
         path = (
             "model.language_model.layers.1.ple.ple_embedding."
@@ -1260,7 +1260,7 @@ class TestStreamingHelpers:
         assert report["missing"] == []
 
     def test_token_embedding_is_exempt_from_strict_imatrix_lookup(self):
-        from omlx_runtime.oq import OQImatrixData, _lookup_imatrix_importance
+        from molto_runtime.oq import OQImatrixData, _lookup_imatrix_importance
 
         imatrix = OQImatrixData(entries={}, metadata={}, path="unused.npz")
         report = {"missing": [], "mismatched": [], "applied": []}
@@ -1278,7 +1278,7 @@ class TestStreamingHelpers:
         assert report["missing"] == []
 
     def test_glm5_next_indexer_weights_proj_reuses_wk_imatrix(self):
-        from omlx_runtime.oq import OQImatrixData, _lookup_imatrix_importance
+        from molto_runtime.oq import OQImatrixData, _lookup_imatrix_importance
 
         wk_base = "language_model.model.layers.11.self_attn.indexer.wk"
         values = np.arange(64, dtype=np.float32) + 1
@@ -1312,7 +1312,7 @@ class TestStreamingHelpers:
         assert report["missing"] == []
 
     def test_non_glm_weights_proj_still_requires_its_own_imatrix(self):
-        from omlx_runtime.oq import OQImatrixData, _lookup_imatrix_importance
+        from molto_runtime.oq import OQImatrixData, _lookup_imatrix_importance
 
         base = "model.layers.0.self_attn.indexer"
         imatrix = OQImatrixData(
@@ -1340,7 +1340,7 @@ class TestStreamingHelpers:
         assert report["missing"] == [f"{base}.weights_proj"]
 
     def test_qwen4_ngram_group32_is_priced_into_budget_plan(self):
-        from omlx_runtime.oq import _structural_quant_overrides
+        from molto_runtime.oq import _structural_quant_overrides
 
         ple = "language_model.model.layers.1.ple.ple_embedding.ngram_embedding.shards.0"
         named_shapes = {
@@ -1931,7 +1931,7 @@ class TestGemma4StatefulLayerForward:
         )
 
     def test_imatrix_and_sensitivity_cover_shared_kv_tail(self, monkeypatch):
-        from omlx_runtime import oq as oq_module
+        from molto_runtime import oq as oq_module
 
         model = self._tiny_model("mlx_vlm")
         tokens = mx.array([[1, 2, 3], [3, 2, 1]])
@@ -2293,7 +2293,7 @@ class TestQuantizeChunked:
         assert weighted_err.item() < ref_err.item()
 
     def test_weighted_3d_expert_importance_chunked(self, monkeypatch):
-        monkeypatch.setattr("omlx_runtime.oq._QUANTIZE_CHUNK_BYTES", 128)
+        monkeypatch.setattr("molto_runtime.oq._QUANTIZE_CHUNK_BYTES", 128)
         w = mx.random.normal((4, 2, 64)).astype(mx.float16)
         importance = mx.arange(4 * 64, dtype=mx.float32).reshape(4, 64) + 1.0
         mx.eval(w, importance)
@@ -2444,7 +2444,7 @@ class TestOQECalibrationData:
     def test_oqe_calibration_json_is_balanced_and_multilingual(self):
         p = (
             repository_root(__file__)
-            / "packages/runtime/src/omlx_runtime/oqe_calibration_data.json"
+            / "packages/runtime/src/molto_runtime/oqe_calibration_data.json"
         )
         with open(p, encoding="utf-8") as f:
             data = json.load(f)
@@ -2978,7 +2978,7 @@ class TestModelExceedsRamGuard:
         assert _checkpoint_storage_bytes([path]) >= weight.nbytes + scales.nbytes
 
     def test_qwen4_calibration_charges_only_touched_resident_storage(self, tmp_path):
-        from omlx_runtime.oq import _calibration_resident_checkpoint_bytes
+        from molto_runtime.oq import _calibration_resident_checkpoint_bytes
         from safetensors.numpy import save_file as np_save
 
         resident = np.zeros((32, 64), dtype=np.float16)
@@ -3015,7 +3015,7 @@ class TestModelExceedsRamGuard:
         )
 
     def test_non_qwen4_resident_accounting_remains_complete_storage(self, tmp_path):
-        from omlx_runtime.oq import _calibration_resident_checkpoint_bytes
+        from molto_runtime.oq import _calibration_resident_checkpoint_bytes
         from safetensors.numpy import save_file as np_save
 
         path = tmp_path / "model.safetensors"
@@ -3039,7 +3039,7 @@ class TestModelExceedsRamGuard:
     def test_budget_reserves_25_percent_on_smaller_systems(
         self, monkeypatch, capacity_gib
     ):
-        from omlx_runtime import oq as oq_module
+        from molto_runtime import oq as oq_module
 
         gib = 1024**3
         capacity = capacity_gib * gib
@@ -3057,7 +3057,7 @@ class TestModelExceedsRamGuard:
         assert budget["reserve_bytes"] == capacity - int(capacity * 0.75)
 
     def test_budget_uses_smaller_metal_working_set(self, monkeypatch):
-        from omlx_runtime import oq as oq_module
+        from molto_runtime import oq as oq_module
 
         gib = 1024**3
         monkeypatch.setattr(
@@ -3074,7 +3074,7 @@ class TestModelExceedsRamGuard:
         assert budget["requires_proxy"] is True
 
     def test_guard_boundary_is_strict(self, monkeypatch):
-        from omlx_runtime import oq as oq_module
+        from molto_runtime import oq as oq_module
 
         capacity = 4000
         monkeypatch.setattr(
@@ -3089,7 +3089,7 @@ class TestModelExceedsRamGuard:
         assert _calibration_memory_budget(at_limit + 1)["requires_proxy"] is True
 
     def test_budget_uses_live_memory_pressure(self, monkeypatch):
-        from omlx_runtime import oq as oq_module
+        from molto_runtime import oq as oq_module
 
         gib = 1024**3
         monkeypatch.setattr(
@@ -3109,7 +3109,7 @@ class TestModelExceedsRamGuard:
 
 class TestOqeCalibrationBatchPlan:
     def test_qwen4_calibration_forces_ssd_ple_and_keeps_mtp(self):
-        from omlx_runtime.oq import _calibration_model_settings
+        from molto_runtime.oq import _calibration_model_settings
 
         settings = _calibration_model_settings(
             {"model_type": "qwen4_exp"},
@@ -3121,7 +3121,7 @@ class TestOqeCalibrationBatchPlan:
         assert settings.mtp_enabled is True
 
     def test_ordinary_non_mtp_calibration_has_no_serving_override(self):
-        from omlx_runtime.oq import _calibration_model_settings
+        from molto_runtime.oq import _calibration_model_settings
 
         assert (
             _calibration_model_settings(
@@ -3133,7 +3133,7 @@ class TestOqeCalibrationBatchPlan:
         )
 
     def test_subtracts_lazy_model_footprint(self, monkeypatch):
-        from omlx_runtime import oq as oq_module
+        from molto_runtime import oq as oq_module
 
         gib = 1024**3
         monkeypatch.setattr(
@@ -3155,7 +3155,7 @@ class TestOqeCalibrationBatchPlan:
         assert plan["fits_one_sample"] is True
 
     def test_near_limit_falls_back_to_one_sample(self, monkeypatch):
-        from omlx_runtime import oq as oq_module
+        from molto_runtime import oq as oq_module
 
         mib = 1024**2
         live = 1024 * mib
@@ -3173,7 +3173,7 @@ class TestOqeCalibrationBatchPlan:
         assert plan["fits_one_sample"] is True
 
     def test_reports_when_one_sample_cannot_fit(self, monkeypatch):
-        from omlx_runtime import oq as oq_module
+        from molto_runtime import oq as oq_module
 
         mib = 1024**2
         live = 1024 * mib
@@ -3191,7 +3191,7 @@ class TestOqeCalibrationBatchPlan:
         assert plan["fits_one_sample"] is False
 
     def test_gemma4_shared_kv_state_reduces_micro_batch(self, monkeypatch):
-        from omlx_runtime import oq as oq_module
+        from molto_runtime import oq as oq_module
 
         gib = 1024**3
         monkeypatch.setattr(
@@ -3271,7 +3271,7 @@ class TestBuildProxyForSensitivity:
 
     def test_invokes_streaming_proxy_builder(self, tmp_path, monkeypatch):
         """Proxy build uses oQ's streaming writer, not mlx_lm.convert."""
-        from omlx_runtime import oq as _oq
+        from molto_runtime import oq as _oq
 
         calls = []
 
@@ -3304,7 +3304,7 @@ class TestBuildProxyForSensitivity:
         """Proxy lives under the system temp dir, not next to the source."""
         import tempfile
 
-        from omlx_runtime import oq as _oq
+        from molto_runtime import oq as _oq
 
         monkeypatch = pytest.MonkeyPatch()
         monkeypatch.setattr(
@@ -3320,11 +3320,11 @@ class TestBuildProxyForSensitivity:
             monkeypatch.undo()
         # tempfile.gettempdir() is the system temp root (e.g. /tmp).
         assert str(proxy_dir).startswith(tempfile.gettempdir())
-        assert proxy_dir.name.startswith("omlx_oq_proxy_")
+        assert proxy_dir.name.startswith("molto_oq_proxy_")
 
     def test_caller_is_responsible_for_cleanup(self, tmp_path):
         """The helper does not auto-delete the proxy; caller cleans up."""
-        from omlx_runtime import oq as _oq
+        from molto_runtime import oq as _oq
 
         monkeypatch = pytest.MonkeyPatch()
         monkeypatch.setattr(
@@ -3343,7 +3343,7 @@ class TestBuildProxyForSensitivity:
 
     def test_propagates_dtype_argument(self, tmp_path):
         """dtype is forwarded so the proxy matches the target output dtype."""
-        from omlx_runtime import oq as _oq
+        from molto_runtime import oq as _oq
 
         captured = {}
 
@@ -3368,7 +3368,7 @@ class TestBuildProxyForSensitivity:
         """
         anchor = tmp_path / "out_volume"
         anchor.mkdir()
-        from omlx_runtime import oq as _oq
+        from molto_runtime import oq as _oq
 
         monkeypatch = pytest.MonkeyPatch()
         monkeypatch.setattr(
@@ -3411,8 +3411,8 @@ class TestBuildProxyForSensitivity:
         )
 
         with (
-            patch("omlx_runtime.oq._build_model_sanitizer", return_value=None),
-            patch("omlx_runtime.oq._build_non_quantizable_set", return_value=set()),
+            patch("molto_runtime.oq._build_model_sanitizer", return_value=None),
+            patch("molto_runtime.oq._build_non_quantizable_set", return_value=set()),
         ):
             _build_streaming_proxy_for_sensitivity(str(src), out, dtype="bfloat16")
 
@@ -3450,8 +3450,8 @@ class TestBuildProxyForSensitivity:
         )
 
         with (
-            patch("omlx_runtime.oq._build_model_sanitizer", return_value=None),
-            patch("omlx_runtime.oq._build_non_quantizable_set", return_value=set()),
+            patch("molto_runtime.oq._build_model_sanitizer", return_value=None),
+            patch("molto_runtime.oq._build_non_quantizable_set", return_value=set()),
         ):
             _build_streaming_proxy_for_sensitivity(str(src), out, dtype="bfloat16")
 
@@ -3510,11 +3510,11 @@ class TestBuildProxyForSensitivity:
             return weights
 
         monkeypatch.setattr(
-            "omlx_runtime.oq._build_model_sanitizer",
+            "molto_runtime.oq._build_model_sanitizer",
             lambda *_args, **_kwargs: qwen4_sanitize,
         )
         monkeypatch.setattr(
-            "omlx_runtime.oq._build_non_quantizable_set", lambda _c: set()
+            "molto_runtime.oq._build_non_quantizable_set", lambda _c: set()
         )
         _build_streaming_proxy_for_sensitivity(
             str(src),
@@ -3560,8 +3560,8 @@ class TestSensitivityRequiredEnforcement:
         (src / "config.json").write_text('{"model_type": "llama"}')
 
         # Force proxy admission by pretending no calibration memory is live.
-        from omlx_config import settings as _settings
-        from omlx_runtime import oq as _oq
+        from molto_config import settings as _settings
+        from molto_runtime import oq as _oq
 
         monkeypatch.setattr(_settings, "get_system_memory", lambda: 0)
         monkeypatch.setattr(_oq, "_system_available_memory_bytes", lambda: 0)
@@ -3599,11 +3599,11 @@ class TestSensitivityRequiredEnforcement:
         )
         (src / "config.json").write_text('{"model_type": "llama"}')
 
-        from omlx_config import settings as _settings
+        from molto_config import settings as _settings
 
         monkeypatch.setattr(_settings, "get_system_memory", lambda: 0)
 
-        from omlx_runtime import oq as _oq
+        from molto_runtime import oq as _oq
 
         monkeypatch.setattr(_oq, "_system_available_memory_bytes", lambda: 0)
         monkeypatch.setattr(_oq, "_metal_available_memory_bytes", lambda: 0)
@@ -3648,10 +3648,10 @@ class TestSensitivityRequiredEnforcement:
         )
         (src / "config.json").write_text('{"model_type": "llama"}')
 
-        from omlx_config import settings as _settings
+        from molto_config import settings as _settings
 
         monkeypatch.setattr(_settings, "get_system_memory", lambda: 0)
-        from omlx_runtime import oq as _oq
+        from molto_runtime import oq as _oq
 
         monkeypatch.setattr(_oq, "_system_available_memory_bytes", lambda: 0)
         monkeypatch.setattr(_oq, "_metal_available_memory_bytes", lambda: 0)
@@ -3683,7 +3683,7 @@ class TestSensitivityRequiredEnforcement:
         )
         (src / "config.json").write_text('{"model_type": "llama"}')
 
-        from omlx_runtime import oq as oq_module
+        from molto_runtime import oq as oq_module
 
         monkeypatch.setattr(oq_module, "_system_available_memory_bytes", lambda: 1000)
         monkeypatch.setattr(oq_module, "_metal_available_memory_bytes", lambda: 1000)
@@ -3719,7 +3719,7 @@ class TestSensitivityRequiredEnforcement:
         )
         (src / "config.json").write_text('{"model_type": "llama"}')
 
-        from omlx_runtime import oq as oq_module
+        from molto_runtime import oq as oq_module
 
         system_available = MagicMock(side_effect=[1000, 1])
         monkeypatch.setattr(
@@ -3805,7 +3805,7 @@ class TestOnTheFlyFp8Dequant:
         assert loaded.dtype == mx.bfloat16
         assert mx.array_equal(loaded, dense).item()
 
-        from omlx_runtime.oq import _quantize_chunked
+        from molto_runtime.oq import _quantize_chunked
 
         weight, scales, biases = _quantize_chunked(
             loaded, group_size=32, bits=4, mode="affine"
@@ -3864,7 +3864,7 @@ class TestOnTheFlyFp8Dequant:
         assert decoded.dtype == mx.bfloat16
         assert mx.array_equal(decoded, expected).item()
 
-        from omlx_runtime.oq import _quantize_chunked
+        from molto_runtime.oq import _quantize_chunked
 
         weight, scales, biases = _quantize_chunked(
             decoded, group_size=32, bits=4, mode="affine"
@@ -4617,7 +4617,7 @@ class TestQuantizeOqStreamingFp8:
     @pytest.fixture(autouse=True)
     def _mock_sensitivity(self, monkeypatch):
         """Bypass real sensitivity measurement for synthetic FP8 fixtures."""
-        from omlx_runtime import oq as _oq
+        from molto_runtime import oq as _oq
 
         def _fake_measure(model_path, config, oq_level, **_kw):
             n = (
@@ -4723,7 +4723,7 @@ class TestQuantizeOqStreamingFp8:
         assert not any(key.endswith("weight_scale_inv") for key in out_keys)
 
     def test_mxfp8_source_uses_quantized_sensitivity_path(self, tmp_path, monkeypatch):
-        from omlx_runtime import oq as oq_module
+        from molto_runtime import oq as oq_module
 
         src = tmp_path / "src"
         src.mkdir()
@@ -4791,8 +4791,8 @@ class TestQuantizeOqStreamingFp8:
 
         # Patch live calibration capacity to 1 byte — any model exceeds it.
         with (
-            patch("omlx_runtime.oq._system_available_memory_bytes", return_value=1),
-            patch("omlx_runtime.oq._metal_available_memory_bytes", return_value=1),
+            patch("molto_runtime.oq._system_available_memory_bytes", return_value=1),
+            patch("molto_runtime.oq._metal_available_memory_bytes", return_value=1),
         ):
             quantize_oq_streaming(str(src), str(out), oq_level=4)
 
@@ -4816,8 +4816,8 @@ class TestQuantizeOqStreamingFp8:
         before = set(os.listdir(tmpdir))
 
         with (
-            patch("omlx_runtime.oq._system_available_memory_bytes", return_value=1),
-            patch("omlx_runtime.oq._metal_available_memory_bytes", return_value=1),
+            patch("molto_runtime.oq._system_available_memory_bytes", return_value=1),
+            patch("molto_runtime.oq._metal_available_memory_bytes", return_value=1),
         ):
             quantize_oq_streaming(str(src), str(out), oq_level=4)
 
@@ -4902,10 +4902,10 @@ class TestQuantizeOqStreamingFp8:
         out = tmp_path / "proxy"
 
         monkeypatch.setattr(
-            "omlx_runtime.oq._build_model_sanitizer", lambda *_a, **_k: None
+            "molto_runtime.oq._build_model_sanitizer", lambda *_a, **_k: None
         )
         monkeypatch.setattr(
-            "omlx_runtime.oq._build_non_quantizable_set", lambda _config: set()
+            "molto_runtime.oq._build_non_quantizable_set", lambda _config: set()
         )
 
         _build_streaming_proxy_for_sensitivity(str(src), out, dtype="bfloat16")
@@ -5050,9 +5050,9 @@ class TestBuildModelSanitizerTextOnly:
         """Baseline: VLM config without text_only should try the VLM path."""
         from unittest.mock import patch
 
-        from omlx_runtime.oq import _build_model_sanitizer
+        from molto_runtime.oq import _build_model_sanitizer
 
-        with patch("omlx_runtime.oq.logger") as mock_logger:
+        with patch("molto_runtime.oq.logger") as mock_logger:
             _build_model_sanitizer(self.VLM_CONFIG, text_only=False)
 
         debug_messages = [str(c) for c in mock_logger.debug.call_args_list]
@@ -5064,9 +5064,9 @@ class TestBuildModelSanitizerTextOnly:
         """With text_only=True, the VLM path must be skipped entirely."""
         from unittest.mock import patch
 
-        from omlx_runtime.oq import _build_model_sanitizer
+        from molto_runtime.oq import _build_model_sanitizer
 
-        with patch("omlx_runtime.oq.logger") as mock_logger:
+        with patch("molto_runtime.oq.logger") as mock_logger:
             _build_model_sanitizer(self.VLM_CONFIG, text_only=True)
 
         debug_messages = [str(c) for c in mock_logger.debug.call_args_list]
@@ -5079,10 +5079,10 @@ class TestBuildModelSanitizerTextOnly:
         mlx-lm path regardless of text_only."""
         from unittest.mock import patch
 
-        from omlx_runtime.oq import _build_model_sanitizer
+        from molto_runtime.oq import _build_model_sanitizer
 
         for text_only in (True, False):
-            with patch("omlx_runtime.oq.logger") as mock_logger:
+            with patch("molto_runtime.oq.logger") as mock_logger:
                 _build_model_sanitizer(self.LLM_CONFIG, text_only=text_only)
 
             debug_messages = [str(c) for c in mock_logger.debug.call_args_list]
@@ -5097,7 +5097,7 @@ class TestBuildModelSanitizerMiniMaxCompat:
         from types import SimpleNamespace
 
         import mlx_vlm.utils as vlm_utils
-        from omlx_runtime.oq import _build_model_sanitizer
+        from molto_runtime.oq import _build_model_sanitizer
 
         class _Cfg:
             def __init__(self, **fields):
@@ -5138,7 +5138,7 @@ class TestBuildModelSanitizerMiniMaxCompat:
             unsupported_get_model_and_args,
         )
         monkeypatch.setattr(
-            "omlx_runtime.patches.mlx_vlm_minimax_m3_compat."
+            "molto_runtime.patches.mlx_vlm_minimax_m3_compat."
             "apply_mlx_vlm_minimax_m3_compat_patch",
             apply_compat_patch,
         )
@@ -5165,7 +5165,7 @@ class TestBuildModelSanitizerQwen4Compat:
         from types import SimpleNamespace
 
         import mlx_vlm.utils as vlm_utils
-        from omlx_runtime.oq import _build_model_sanitizer
+        from molto_runtime.oq import _build_model_sanitizer
 
         class _Cfg:
             def __init__(self, **fields):
@@ -5204,7 +5204,7 @@ class TestBuildModelSanitizerQwen4Compat:
             unsupported_get_model_and_args,
         )
         monkeypatch.setattr(
-            "omlx_runtime.patches.mlx_vlm_qwen4_exp_compat."
+            "molto_runtime.patches.mlx_vlm_qwen4_exp_compat."
             "apply_mlx_vlm_qwen4_exp_compat_patch",
             apply_compat_patch,
         )
@@ -5229,7 +5229,7 @@ class TestBuildModelSanitizerQwen4Compat:
         assert sanitize is not None
 
     def test_qwen4_model_path_binds_mmap_and_preserve_mtp(self, tmp_path, monkeypatch):
-        from omlx_runtime import oq
+        from molto_runtime import oq
 
         configured = MagicMock(return_value=True)
         monkeypatch.setattr(
@@ -5240,7 +5240,7 @@ class TestBuildModelSanitizerQwen4Compat:
         # The registration behavior itself is covered above; this assertion
         # isolates the path/MTP state passed by quantization call sites.
         monkeypatch.setattr(
-            "omlx_runtime.patches.mlx_vlm_qwen4_exp_compat."
+            "molto_runtime.patches.mlx_vlm_qwen4_exp_compat."
             "apply_mlx_vlm_qwen4_exp_compat_patch",
             lambda: True,
         )
@@ -5278,7 +5278,7 @@ class TestVlmSanitizeProxyAudioAttrs:
         pytest.importorskip("mlx_vlm.utils")
         from types import SimpleNamespace
 
-        from omlx_runtime.oq import _build_model_sanitizer
+        from molto_runtime.oq import _build_model_sanitizer
 
         class _Cfg:
             def __init__(self, **fields):
@@ -5350,11 +5350,11 @@ class TestBuildProxyForSensitivityMtpPatch:
             is_mtp_active=MagicMock(return_value=False),
             set_mtp_active=MagicMock(),
         )
-        monkeypatch.setitem(sys.modules, "omlx_runtime.patches.mlx_lm_mtp", mtp_mod)
+        monkeypatch.setitem(sys.modules, "molto_runtime.patches.mlx_lm_mtp", mtp_mod)
 
         build_mock = MagicMock(side_effect=lambda _m, out, **_kw: out.mkdir())
         monkeypatch.setattr(
-            "omlx_runtime.oq._build_streaming_proxy_for_sensitivity",
+            "molto_runtime.oq._build_streaming_proxy_for_sensitivity",
             build_mock,
         )
 
@@ -5366,7 +5366,7 @@ class TestBuildProxyForSensitivityMtpPatch:
         )
 
         assert isinstance(result, Path)
-        assert result.name.startswith("omlx_oq_proxy_")
+        assert result.name.startswith("molto_oq_proxy_")
         assert result.parent == tmp_path
 
         mtp_mod.apply_mlx_lm_mtp_patch.assert_not_called()
@@ -5379,7 +5379,7 @@ class TestBuildProxyForSensitivityMtpPatch:
     def test_streaming_helper_error_propagates(self, tmp_path, monkeypatch):
         build_mock = MagicMock(side_effect=RuntimeError("boom"))
         monkeypatch.setattr(
-            "omlx_runtime.oq._build_streaming_proxy_for_sensitivity",
+            "molto_runtime.oq._build_streaming_proxy_for_sensitivity",
             build_mock,
         )
         with pytest.raises(RuntimeError, match="boom"):
@@ -5413,7 +5413,7 @@ class TestMeasureSensitivityVlmMtp:
     def _patch_common(
         self, monkeypatch, has_mtp, has_mtp_weights=None, prev_active=False
     ):
-        from omlx_runtime import oq as oq_mod
+        from molto_runtime import oq as oq_mod
 
         if has_mtp_weights is None:
             has_mtp_weights = has_mtp
@@ -5424,7 +5424,7 @@ class TestMeasureSensitivityVlmMtp:
 
         monkeypatch.setitem(
             sys.modules,
-            "omlx_runtime.utils.model_loading",
+            "molto_runtime.utils.model_loading",
             MagicMock(
                 maybe_apply_pre_load_patches=MagicMock(),
                 _has_mtp_heads=MagicMock(return_value=has_mtp),
@@ -5433,12 +5433,12 @@ class TestMeasureSensitivityVlmMtp:
         )
         monkeypatch.setitem(
             sys.modules,
-            "omlx_runtime.patches.mlx_lm_mtp",
+            "molto_runtime.patches.mlx_lm_mtp",
             MagicMock(is_mtp_active=mock_is_active, set_mtp_active=mock_set_active),
         )
         monkeypatch.setitem(
             sys.modules,
-            "omlx_runtime.patches.mlx_vlm_mtp",
+            "molto_runtime.patches.mlx_vlm_mtp",
             MagicMock(
                 apply_mlx_vlm_mtp_patch=mock_apply_patch,
                 apply_mlx_vlm_mtp_runtime_patch=mock_apply_runtime,
@@ -5560,7 +5560,7 @@ class TestMeasureSensitivityVlmMtp:
     def test_text_load_forwards_trust_remote_code(self, monkeypatch):
         """Text sensitivity load forwards the mlx-lm custom-code opt-in when
         the installed mlx-lm supports it."""
-        import omlx_runtime.utils.model_loading as real_ml
+        import molto_runtime.utils.model_loading as real_ml
 
         self._patch_common(monkeypatch, has_mtp=True)
         mock_load = MagicMock(return_value=(MagicMock(), MagicMock()))
@@ -5570,7 +5570,7 @@ class TestMeasureSensitivityVlmMtp:
         # flag so forwarding is deterministic regardless of installed mlx-lm.
         monkeypatch.setattr(real_ml, "_LM_LOAD_ACCEPTS_TRC", True)
         sys.modules[
-            "omlx_runtime.utils.model_loading"
+            "molto_runtime.utils.model_loading"
         ].lm_load_compat = real_ml.lm_load_compat
 
         _measure_sensitivity(
@@ -5586,8 +5586,8 @@ class TestMeasureSensitivityVlmMtp:
 class TestCollectImatrixTextLoad:
     def test_uses_compat_loader_without_trust_remote_code(self, monkeypatch):
         """oQe calibration works with current mlx-lm, which removed this kwarg."""
-        import omlx_runtime.utils.model_loading as real_ml
-        from omlx_runtime import oq as oq_mod
+        import molto_runtime.utils.model_loading as real_ml
+        from molto_runtime import oq as oq_mod
 
         mock_load = MagicMock(return_value=(MagicMock(), MagicMock()))
         monkeypatch.setitem(sys.modules, "mlx_lm", MagicMock(load=mock_load))
@@ -5612,8 +5612,8 @@ class TestCollectImatrixTextLoad:
         patching Module.load_weights globally did not reliably affect the real
         Qwen4 proxy load and rejected every retained PLE shard.
         """
-        import omlx_runtime.utils.model_loading as model_loading
-        from omlx_runtime import oq as oq_mod
+        import molto_runtime.utils.model_loading as model_loading
+        from molto_runtime import oq as oq_mod
 
         vlm_load = MagicMock(return_value=MagicMock())
         tokenizer_load = MagicMock(return_value=MagicMock())
@@ -5648,7 +5648,7 @@ class TestCollectImatrixTextLoad:
         assert vlm_load.call_args.kwargs["trust_remote_code"] is True
 
     def test_empty_collection_reports_the_failed_stage(self, monkeypatch, tmp_path):
-        from omlx_runtime import oq as oq_mod
+        from molto_runtime import oq as oq_mod
 
         monkeypatch.setattr(
             oq_mod,
@@ -5679,12 +5679,12 @@ class TestCollectImatrixTextLoad:
 
 class TestMeasureSensitivityQuantizedVlm:
     def test_quantized_vlm_proxy_uses_vlm_loader(self, monkeypatch):
-        from omlx_runtime import oq as oq_mod
+        from molto_runtime import oq as oq_mod
 
         maybe_apply = MagicMock()
         monkeypatch.setitem(
             sys.modules,
-            "omlx_runtime.utils.model_loading",
+            "molto_runtime.utils.model_loading",
             MagicMock(
                 maybe_apply_pre_load_patches=maybe_apply,
                 _has_mtp_heads=MagicMock(return_value=False),
@@ -5786,11 +5786,11 @@ class TestMeasureSensitivityQuantizedGroupSize:
     """
 
     def _measure(self, monkeypatch, model):
-        from omlx_runtime import oq as oq_mod
+        from molto_runtime import oq as oq_mod
 
         monkeypatch.setitem(
             sys.modules,
-            "omlx_runtime.utils.model_loading",
+            "molto_runtime.utils.model_loading",
             MagicMock(
                 maybe_apply_pre_load_patches=MagicMock(),
                 _has_mtp_heads=MagicMock(return_value=False),
@@ -5800,7 +5800,7 @@ class TestMeasureSensitivityQuantizedGroupSize:
         )
         monkeypatch.setitem(
             sys.modules,
-            "omlx_runtime.patches.mlx_lm_mtp",
+            "molto_runtime.patches.mlx_lm_mtp",
             MagicMock(apply_mlx_lm_mtp_patch=MagicMock(return_value=False)),
         )
         monkeypatch.setattr(
@@ -5962,7 +5962,7 @@ class TestPrecomputedSensitivityMap:
             json.dumps(sensitivity_map), encoding="utf-8"
         )
 
-        from omlx_runtime import oq as _oq
+        from molto_runtime import oq as _oq
 
         # Stub all measurement functions — they should NOT be called
         monkeypatch.setattr(
@@ -6018,7 +6018,7 @@ class TestPrecomputedSensitivityMap:
             json.dumps({"1": 99.0}), encoding="utf-8"
         )
 
-        from omlx_runtime import oq as _oq
+        from molto_runtime import oq as _oq
 
         for name in (
             "_measure_sensitivity",
@@ -6090,7 +6090,7 @@ class TestPrecomputedSensitivityMap:
             json.dumps(sensitivity_map), encoding="utf-8"
         )
 
-        from omlx_runtime import oq as _oq
+        from molto_runtime import oq as _oq
 
         # Capture the config that flows into _build_quant_plan
         captured_configs = []
@@ -6125,7 +6125,7 @@ class TestPrecomputedSensitivityMap:
         )
         (src / "config.json").write_text('{"model_type": "llama"}')
 
-        from omlx_runtime import oq as _oq
+        from molto_runtime import oq as _oq
 
         monkeypatch.setattr(
             _oq,
@@ -6341,7 +6341,7 @@ class TestTextOnlyMultimodalMetadata:
         ],
     )
     def test_multimodal_key_is_dropped(self, key):
-        from omlx_runtime.oq import _normalize_text_only_in_config
+        from molto_runtime.oq import _normalize_text_only_in_config
 
         config = dict(self.MIMO_LIKE_CONFIG)
         assert key in config, "fixture must actually carry the key under test"
@@ -6351,7 +6351,7 @@ class TestTextOnlyMultimodalMetadata:
         assert key not in config
 
     def test_text_keys_survive(self):
-        from omlx_runtime.oq import _normalize_text_only_in_config
+        from molto_runtime.oq import _normalize_text_only_in_config
 
         config = dict(self.MIMO_LIKE_CONFIG)
 
@@ -6362,7 +6362,7 @@ class TestTextOnlyMultimodalMetadata:
         assert config["num_hidden_layers"] == 48
 
     def test_absent_keys_are_not_an_error(self):
-        from omlx_runtime.oq import _normalize_text_only_in_config
+        from molto_runtime.oq import _normalize_text_only_in_config
 
         config = {"model_type": "qwen3", "hidden_size": 1024}
 
@@ -6387,7 +6387,7 @@ class TestTextOnlyMultimodalMetadata:
         return src
 
     def test_text_only_skips_processor_sidecars(self, tmp_path):
-        from omlx_runtime.oq import _copy_model_sidecars
+        from molto_runtime.oq import _copy_model_sidecars
 
         src = self._make_source(tmp_path)
         out = tmp_path / "out"
@@ -6401,7 +6401,7 @@ class TestTextOnlyMultimodalMetadata:
         assert not (out / "processor_config.json").exists()
 
     def test_multimodal_keeps_processor_sidecars(self, tmp_path):
-        from omlx_runtime.oq import _copy_model_sidecars
+        from molto_runtime.oq import _copy_model_sidecars
 
         src = self._make_source(tmp_path)
         out = tmp_path / "out"
@@ -6420,7 +6420,7 @@ class TestTextOnlyMultimodalMetadata:
         it on load, so dropping the file would silently take the model's
         chat template with it.
         """
-        from omlx_runtime.oq import _copy_model_sidecars
+        from molto_runtime.oq import _copy_model_sidecars
 
         src = self._make_source(
             tmp_path,
@@ -6437,7 +6437,7 @@ class TestTextOnlyMultimodalMetadata:
 
     def test_text_only_keeps_unparseable_processor_config(self, tmp_path):
         """Preserving a file we cannot parse is the cheaper mistake."""
-        from omlx_runtime.oq import _copy_model_sidecars
+        from molto_runtime.oq import _copy_model_sidecars
 
         src = self._make_source(
             tmp_path, **{"preprocessor_config.json": "not json at all"}
@@ -6452,7 +6452,7 @@ class TestTextOnlyMultimodalMetadata:
     @pytest.mark.parametrize("body", ["[]", "null", '"processor"'])
     def test_text_only_keeps_non_mapping_processor_config(self, tmp_path, body):
         """Valid JSON with a non-object root must be preserved, not crash."""
-        from omlx_runtime.oq import _copy_model_sidecars
+        from molto_runtime.oq import _copy_model_sidecars
 
         src = self._make_source(tmp_path, **{"processor_config.json": body})
         out = tmp_path / "out"
@@ -6468,7 +6468,7 @@ class TestTextOnlyMultimodalMetadata:
         Moving either name back into the base list would bypass the guard and
         the text-only skip together, with no test failing on the copy paths.
         """
-        from omlx_runtime.oq import _MULTIMODAL_SIDECAR_PATTERNS, _SIDECAR_PATTERNS
+        from molto_runtime.oq import _MULTIMODAL_SIDECAR_PATTERNS, _SIDECAR_PATTERNS
 
         assert not set(_SIDECAR_PATTERNS) & set(_MULTIMODAL_SIDECAR_PATTERNS)
         assert "preprocessor_config.json" in _MULTIMODAL_SIDECAR_PATTERNS
@@ -6495,7 +6495,7 @@ class TestRecorderRefusesUnreplayableOps:
             return self._logical
 
     def _discover(self, sanitize_fn, logical):
-        from omlx_runtime.oq import _discover_sanitize_plan
+        from molto_runtime.oq import _discover_sanitize_plan
 
         return _discover_sanitize_plan(sanitize_fn, self._Index(logical))
 
@@ -6533,14 +6533,14 @@ class TestRecorderRefusesUnreplayableOps:
 
     def test_scalar_multiply_still_records(self):
         """Only a second tracked tensor poisons; scalars are unaffected."""
-        from omlx_runtime.oq import _TrackedTensor
+        from molto_runtime.oq import _TrackedTensor
 
         tracked = _TrackedTensor((8, 4), "BF16", sources=["w"])
         assert (tracked * 2.0).transform != "nested_unreplayable"
         assert (tracked * tracked).transform == "nested_unreplayable"
 
     def test_binary_op_records_both_operands_as_sources(self):
-        from omlx_runtime.oq import _TrackedTensor
+        from molto_runtime.oq import _TrackedTensor
 
         left = _TrackedTensor((8, 4), "BF16", sources=["w"])
         right = _TrackedTensor((8, 1), "F32", sources=["s"])
@@ -6551,7 +6551,7 @@ class TestRecorderRefusesUnreplayableOps:
     def test_ops_that_reset_the_recipe_poison_instead(self, op):
         """These built a fresh tensor with an empty recipe, discarding any
         lineage recorded before them."""
-        from omlx_runtime.oq import _TrackedTensor
+        from molto_runtime.oq import _TrackedTensor
 
         tracked = _TrackedTensor((256, 128), "BF16", sources=["w"])
         reshaped = tracked.reshape(2, 128, 128)
@@ -6566,7 +6566,7 @@ class TestRecorderRefusesUnreplayableOps:
         assert not result.recipe
 
     def test_poison_survives_a_following_replayable_op(self):
-        from omlx_runtime.oq import _TrackedTensor
+        from molto_runtime.oq import _TrackedTensor
 
         tracked = _TrackedTensor((8, 4), "BF16", sources=["w"])
         poisoned = tracked * _TrackedTensor((8, 1), "F32", sources=["s"])
@@ -6587,7 +6587,7 @@ class TestCalibrationFootprint:
             return self._logical
 
     def test_fp8_weights_are_counted_as_bf16(self):
-        from omlx_runtime.oq import _logical_footprint_bytes
+        from molto_runtime.oq import _logical_footprint_bytes
 
         # An fp8 weight occupies one byte on disk; the logical view reports
         # it as BF16, which is what the calibration forward allocates.
@@ -6602,25 +6602,25 @@ class TestCalibrationFootprint:
         unpacked column count, so one stored byte becomes two bf16 values,
         i.e. 4 bytes -- double what a per-format constant would predict.
         """
-        from omlx_runtime.oq import _logical_footprint_bytes
+        from molto_runtime.oq import _logical_footprint_bytes
 
         on_disk_bytes = 512 * 256
         index = self._FakeIndex({"w": ((512, 256 * 2), "BF16")})
         assert _logical_footprint_bytes(index) == on_disk_bytes * 4
 
     def test_unquantized_source_is_unchanged(self):
-        from omlx_runtime.oq import _logical_footprint_bytes
+        from molto_runtime.oq import _logical_footprint_bytes
 
         index = self._FakeIndex({"w": ((10, 10), "BF16"), "b": ((10,), "F32")})
         assert _logical_footprint_bytes(index) == 10 * 10 * 2 + 10 * 4
 
     def test_index_without_logical_view_contributes_nothing(self):
-        from omlx_runtime.oq import _logical_footprint_bytes
+        from molto_runtime.oq import _logical_footprint_bytes
 
         assert _logical_footprint_bytes(object()) == 0
 
     def test_dequantized_footprint_flips_requires_proxy(self, monkeypatch):
-        import omlx_runtime.oq as oq
+        import molto_runtime.oq as oq
 
         # Fixed capacity 400 -> model_limit = int(0.75 * 400) = 300.
         monkeypatch.setattr(oq, "_system_available_memory_bytes", lambda: 400)
@@ -6647,14 +6647,14 @@ class TestCalibrationFootprint:
         ids=["minimax_mxfp8", "deepseek_v4_fp4"],
     )
     def test_quantized_source_calibration_keeps_packed_footprint(self, config):
-        from omlx_runtime.oq import _calibration_footprint_bytes
+        from molto_runtime.oq import _calibration_footprint_bytes
 
         index = self._FakeIndex({"w": ((200, 1), "BF16")})
 
         assert _calibration_footprint_bytes(index, 100, config) == 100
 
     def test_native_fp8_calibration_uses_dequantized_footprint(self):
-        from omlx_runtime.oq import _calibration_footprint_bytes
+        from molto_runtime.oq import _calibration_footprint_bytes
 
         index = self._FakeIndex({"w": ((200, 1), "BF16")})
         config = {
@@ -6767,7 +6767,7 @@ class TestInklingSanitizeDiscovery:
     def _plan(self, tmp_path):
         import importlib
 
-        from omlx_runtime.patches.mlx_vlm_inkling_compat import (
+        from molto_runtime.patches.mlx_vlm_inkling_compat import (
             apply_mlx_vlm_inkling_compat_patch,
         )
 
@@ -6865,7 +6865,7 @@ class TestInklingSanitizeDiscovery:
         exactly (gate = even rows, up = odd rows of w13)."""
         import importlib
 
-        from omlx_runtime.patches.mlx_vlm_inkling_compat import (
+        from molto_runtime.patches.mlx_vlm_inkling_compat import (
             apply_mlx_vlm_inkling_compat_patch,
         )
 
@@ -6913,7 +6913,7 @@ class TestQwen4ExpLayerWalk:
         config = _tiny_config()
         from mlx_vlm.models.qwen4_exp.language import configure_mtp_runtime
         from mlx_vlm.models.qwen4_exp.qwen4_exp import Model
-        from omlx_runtime.oq import _collect_mtp_head_imatrix
+        from molto_runtime.oq import _collect_mtp_head_imatrix
 
         (tmp_path / "model.safetensors.index.json").write_text(
             json.dumps({"weight_map": {"mtp.fc_hidden.weight": "model.safetensors"}}),
@@ -6963,7 +6963,7 @@ class TestQwen4ExpLayerWalk:
 @pytest.mark.skipif(not HAS_MLX, reason="MLX not available")
 class TestGlm5NextLayerWalk:
     def test_cache_without_checkpoint_mtp_weights_is_reusable(self, tmp_path):
-        from omlx_runtime.oq import OQImatrixData, _oqe_cache_missing_mtp_entries
+        from molto_runtime.oq import OQImatrixData, _oqe_cache_missing_mtp_entries
 
         cache = OQImatrixData(entries={}, metadata={}, path="unused.npz")
         config = {
@@ -6988,8 +6988,8 @@ class TestGlm5NextLayerWalk:
         assert signature["layer_walk"] == "glm5_next_hc_moe_lm_head_v4"
 
     def test_hyper_connections_and_moe_imatrix_hooks_execute(self):
-        from omlx_runtime.oq import _collect_glm5_next_lm_head_imatrix
-        from omlx_runtime.patches import mlx_vlm_glm5_next_compat
+        from molto_runtime.oq import _collect_glm5_next_lm_head_imatrix
+        from molto_runtime.patches import mlx_vlm_glm5_next_compat
         from test_mlx_vlm_glm5_next_compat import _tiny_config
 
         mlx_vlm_glm5_next_compat.apply_mlx_vlm_glm5_next_compat_patch()
@@ -7054,7 +7054,7 @@ class TestInklingLayerWalk:
     def _model(self):
         import importlib
 
-        from omlx_runtime.patches.mlx_vlm_inkling_compat import (
+        from molto_runtime.patches.mlx_vlm_inkling_compat import (
             apply_mlx_vlm_inkling_compat_patch,
         )
 
@@ -7065,7 +7065,7 @@ class TestInklingLayerWalk:
     def test_prepare_layer_inputs_uses_inkling_branch(self):
         from types import SimpleNamespace
 
-        from omlx_runtime.oq import _prepare_layer_inputs
+        from molto_runtime.oq import _prepare_layer_inputs
 
         lm = self._model()
         wrapper = SimpleNamespace(model_type="inkling_mm_model")
@@ -7079,7 +7079,7 @@ class TestInklingLayerWalk:
         assert isinstance(state, dict) and state.get("kind") == "inkling"
 
     def test_forward_layer_result_runs_block(self):
-        from omlx_runtime.oq import _forward_layer_result
+        from molto_runtime.oq import _forward_layer_result
 
         lm = self._model()
         inputs = mx.random.normal((1, 6, 32))
@@ -7092,7 +7092,7 @@ class TestInklingLayerWalk:
     def test_find_model_layers_routes_through_embed_norm(self):
         from types import SimpleNamespace
 
-        from omlx_runtime.oq import _find_model_layers
+        from molto_runtime.oq import _find_model_layers
 
         lm = self._model()
         vlm = SimpleNamespace(language_model=lm)
@@ -7107,7 +7107,7 @@ class TestInklingLayerWalk:
         assert float(mx.max(mx.abs(normed - raw))) > 0.0
 
     def test_oqe_capture_matches_vendored_switch_children(self):
-        from omlx_runtime.oq import _OQE_SWITCH_LINEAR_CLASSES
+        from molto_runtime.oq import _OQE_SWITCH_LINEAR_CLASSES
 
         lm = self._model()
         sparse = lm.model.layers[1].mlp
@@ -7124,7 +7124,7 @@ class TestInklingModelSanitizer:
         inkling's sanitize calls sibling instance methods — the proxy must
         resolve them from the model class (regression: proxy AttributeError
         aborted proxy builds for sensitivity/imatrix)."""
-        from omlx_runtime.oq import _build_model_sanitizer
+        from molto_runtime.oq import _build_model_sanitizer
 
         config = {
             "model_type": "inkling_mm_model",
@@ -7163,7 +7163,7 @@ class TestEstimateBpwPostSanitizeNames:
         """Source names without a .weight suffix (experts.w13_weight) must
         be priced through the sanitize plan — the raw scan treated ~97% of
         an inkling checkpoint as fp16 passthrough (15.8 bpw)."""
-        from omlx_runtime.patches.mlx_vlm_inkling_compat import (
+        from molto_runtime.patches.mlx_vlm_inkling_compat import (
             apply_mlx_vlm_inkling_compat_patch,
         )
 
@@ -7210,7 +7210,7 @@ class TestStreamedCalibration:
     def checkpoint(self, tmp_path, monkeypatch):
         from dataclasses import asdict
 
-        import omlx_runtime.oq as oq
+        import molto_runtime.oq as oq
         from mlx.utils import tree_flatten
         from test_mlx_vlm_qwen4_exp_compat import _tiny_config
 
@@ -7273,7 +7273,7 @@ class TestStreamedCalibration:
     def test_imatrix_parity_and_cache_reuse(
         self, checkpoint, tmp_path, monkeypatch, keep_mtp
     ):
-        import omlx_runtime.oq as oq
+        import molto_runtime.oq as oq
 
         source, config, model, tokens, _ = checkpoint
         resident, _ = oq._collect_imatrix_from_model(
@@ -7332,10 +7332,10 @@ class TestStreamedCalibration:
     def test_output_preserves_ple_scale_and_reloads(
         self, checkpoint, tmp_path, monkeypatch, keep_mtp
     ):
-        import omlx_runtime.oq as oq
+        import molto_runtime.oq as oq
         from mlx.utils import tree_flatten
         from mlx_vlm.utils import load_model
-        from omlx_runtime.patches.mlx_vlm_qwen4_exp_compat import (
+        from molto_runtime.patches.mlx_vlm_qwen4_exp_compat import (
             configure_qwen4_exp_runtime,
         )
 
@@ -7378,9 +7378,9 @@ class TestStreamedCalibration:
         ],
     )
     def test_selection(self, monkeypatch, explicit, env, kind, over_budget, expected):
-        import omlx_runtime.oq as oq
+        import molto_runtime.oq as oq
 
-        monkeypatch.setenv("OMLX_OQ_STREAM_CALIBRATION", env)
+        monkeypatch.setenv("MOLTO_OQ_STREAM_CALIBRATION", env)
         assert (
             oq._resolve_stream_calibration(
                 explicit, model_exceeds_ram=over_budget, model_type=kind
@@ -7389,7 +7389,7 @@ class TestStreamedCalibration:
         )
 
     def test_explicit_unsupported_layout_fails_before_loading(self):
-        import omlx_runtime.oq as oq
+        import molto_runtime.oq as oq
 
         with pytest.raises(ValueError, match="streaming imatrix sourcer"):
             oq._resolve_stream_calibration(
@@ -7397,7 +7397,7 @@ class TestStreamedCalibration:
             )
 
     def test_mmap_ple_is_filtered_before_materialization(self):
-        import omlx_runtime.oq as oq
+        import molto_runtime.oq as oq
 
         prefix = "language_model.model.layers.1."
         skipped = prefix + "ple.ple_embedding.ngram_embedding.shards.0.weight"
@@ -7415,9 +7415,9 @@ class TestStreamedCalibration:
     def test_minimax_collection_matches_resident(self, tmp_path, monkeypatch):
         from dataclasses import asdict
 
-        import omlx_runtime.oq as oq
+        import molto_runtime.oq as oq
         from mlx.utils import tree_flatten
-        from omlx_runtime.patches.mlx_vlm_minimax_m3_compat import (
+        from molto_runtime.patches.mlx_vlm_minimax_m3_compat import (
             apply_mlx_vlm_minimax_m3_compat_patch,
         )
 

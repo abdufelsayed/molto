@@ -14,7 +14,7 @@ from types import SimpleNamespace
 import mlx.core as mx
 import mlx.nn as nn
 import pytest
-from omlx_runtime.speculative.vlm_mtp import (
+from molto_runtime.speculative.vlm_mtp import (
     _MTPResetBindingProxy,
     _VLMAdapterMTPProxy,
 )

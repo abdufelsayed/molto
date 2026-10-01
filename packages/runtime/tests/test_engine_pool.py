@@ -9,13 +9,13 @@ import shutil
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from omlx_runtime.engine_pool import (
+from molto_runtime.engine_pool import (
     EngineEntry,
     EnginePool,
     VLMBatchedEngine,
     _qwen35_cpu_share_estimated_bytes,
 )
-from omlx_runtime.exceptions import (
+from molto_runtime.exceptions import (
     InsufficientMemoryError,
     ModelBusyError,
     ModelLoadingError,
@@ -23,7 +23,7 @@ from omlx_runtime.exceptions import (
     ModelTooLargeError,
     ModelUnavailableError,
 )
-from omlx_runtime.scheduler import PrefillEvictionRequest
+from molto_runtime.scheduler import PrefillEvictionRequest
 
 
 def _make_pool(ceiling: int | None = None, **kwargs) -> EnginePool:
@@ -140,7 +140,7 @@ class TestExposedProfileModelResolution:
     """Tests for exposed profile model IDs that share a physical engine."""
 
     def _manager_with_exposed_profile(self, tmp_path):
-        from omlx_config.model_settings import ModelSettingsManager
+        from molto_config.model_settings import ModelSettingsManager
 
         manager = ModelSettingsManager(tmp_path)
         manager.save_profile(
@@ -173,7 +173,7 @@ class TestExposedProfileModelResolution:
         pool.discover_models(str(small_mock_model_dir))
         manager = self._manager_with_exposed_profile(tmp_path)
 
-        resolved = pool.resolve_model_id("omlx/model-b:thinking", manager)
+        resolved = pool.resolve_model_id("molto/model-b:thinking", manager)
 
         assert resolved == "model-b"
 
@@ -330,7 +330,7 @@ class TestOrphanedLoadSafetyNet:
         mock_engine.start = AsyncMock(side_effect=start_and_swap_entry)
 
         with (
-            patch("omlx_runtime.engine_pool.BatchedEngine", return_value=mock_engine),
+            patch("molto_runtime.engine_pool.BatchedEngine", return_value=mock_engine),
             pytest.raises(ModelLoadingError, match="removed or replaced"),
         ):
             await pool._load_engine("model-a")
@@ -382,8 +382,8 @@ class TestEnginePoolErrors:
         entry.text_only_size = 1200
 
         with (
-            patch("omlx_runtime.engine_pool.mx.get_active_memory", return_value=0),
-            patch("omlx_runtime.engine_pool.get_phys_footprint", return_value=0),
+            patch("molto_runtime.engine_pool.mx.get_active_memory", return_value=0),
+            patch("molto_runtime.engine_pool.get_phys_footprint", return_value=0),
         ):
             with pytest.raises(ModelTooLargeError):
                 asyncio.run(pool.get_engine("model-a"))
@@ -391,7 +391,7 @@ class TestEnginePoolErrors:
             mock_engine = MagicMock()
             mock_engine.start = AsyncMock()
             with patch(
-                "omlx_runtime.engine_pool.BatchedEngine", return_value=mock_engine
+                "molto_runtime.engine_pool.BatchedEngine", return_value=mock_engine
             ):
                 asyncio.run(pool.get_engine("model-a", force_lm=True))
             assert pool._entries["model-a"].engine is mock_engine
@@ -410,9 +410,9 @@ class TestEnginePoolErrors:
         mock_engine = MagicMock()
         mock_engine.start = AsyncMock()
         with (
-            patch("omlx_runtime.engine_pool.mx.get_active_memory", return_value=0),
-            patch("omlx_runtime.engine_pool.get_phys_footprint", return_value=0),
-            patch("omlx_runtime.engine_pool.BatchedEngine", return_value=mock_engine),
+            patch("molto_runtime.engine_pool.mx.get_active_memory", return_value=0),
+            patch("molto_runtime.engine_pool.get_phys_footprint", return_value=0),
+            patch("molto_runtime.engine_pool.BatchedEngine", return_value=mock_engine),
         ):
             asyncio.run(pool.get_engine("model-a"))
         assert pool._entries["model-a"].engine is mock_engine
@@ -451,8 +451,8 @@ class TestEnginePoolErrors:
         entry.estimated_size = 2000
 
         with (
-            patch("omlx_runtime.engine_pool.mx.get_active_memory", return_value=0),
-            patch("omlx_runtime.engine_pool.get_phys_footprint", return_value=0),
+            patch("molto_runtime.engine_pool.mx.get_active_memory", return_value=0),
+            patch("molto_runtime.engine_pool.get_phys_footprint", return_value=0),
         ):
             with pytest.raises(ModelTooLargeError):
                 asyncio.run(pool.get_engine("model-a"))
@@ -466,7 +466,7 @@ class TestEnginePoolErrors:
             mock_engine = MagicMock()
             mock_engine.start = AsyncMock()
             with patch(
-                "omlx_runtime.engine_pool.BatchedEngine", return_value=mock_engine
+                "molto_runtime.engine_pool.BatchedEngine", return_value=mock_engine
             ):
                 asyncio.run(pool.get_engine("model-a"))
             assert pool._entries["model-a"].engine is mock_engine
@@ -589,7 +589,7 @@ class TestQwenCpuShareMemoryEstimate:
         )
 
     def test_estimate_covers_gate_down_suffix_and_gdn_materialization(self, tmp_path):
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         model = tmp_path / "qwen"
         self._write_config(model)
@@ -612,7 +612,7 @@ class TestQwenCpuShareMemoryEstimate:
         assert estimated == int((gate + down + gdn) * 1.5)
 
     def test_runtime_estimate_feeds_resident_memory_accounting(self, tmp_path):
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         model = tmp_path / "qwen"
         self._write_config(model)
@@ -640,7 +640,7 @@ class TestQwenCpuShareMemoryEstimate:
     async def test_cpu_share_projection_participates_in_preload_admission(
         self, tmp_path
     ):
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         model = tmp_path / "qwen"
         self._write_config(model)
@@ -659,8 +659,8 @@ class TestQwenCpuShareMemoryEstimate:
         )
 
         with (
-            patch("omlx_runtime.engine_pool.get_phys_footprint", return_value=0),
-            patch("omlx_runtime.engine_pool.mx.get_active_memory", return_value=0),
+            patch("molto_runtime.engine_pool.get_phys_footprint", return_value=0),
+            patch("molto_runtime.engine_pool.mx.get_active_memory", return_value=0),
             pytest.raises(ModelTooLargeError) as exc_info,
         ):
             await pool.get_engine("qwen", runtime_settings=settings)
@@ -668,7 +668,7 @@ class TestQwenCpuShareMemoryEstimate:
         assert exc_info.value.model_size > 100_000
 
     def test_enabled_cpu_share_fails_closed_when_geometry_is_unreadable(self, tmp_path):
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         model = tmp_path / "qwen"
         model.mkdir()
@@ -689,8 +689,8 @@ class TestQwenCpuShareMemoryEstimate:
         assert pool._entry_runtime_resident_size(entry, settings) == 2000
 
     def test_qwen4_ple_offload_reduces_resident_projection(self, tmp_path):
-        from omlx_config.model_settings import ModelSettings
-        from omlx_runtime.patches.mlx_vlm_qwen4_exp_compat.residency import (
+        from molto_config.model_settings import ModelSettings
+        from molto_runtime.patches.mlx_vlm_qwen4_exp_compat.residency import (
             Qwen4ExpResidencyEstimate,
         )
 
@@ -716,7 +716,7 @@ class TestQwenCpuShareMemoryEstimate:
         pool._entries[entry.model_id] = entry
 
         with patch(
-            "omlx_runtime.patches.mlx_vlm_qwen4_exp_compat.residency."
+            "molto_runtime.patches.mlx_vlm_qwen4_exp_compat.residency."
             "qwen4_exp_residency_estimate",
             return_value=estimate,
         ):
@@ -734,7 +734,7 @@ class TestQwenCpuShareMemoryEstimate:
         # must be told the draft head stays resident, or it discounts the
         # head's expert slab the adapter refuses to offload and the load
         # OOMs.
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         model = tmp_path / "glm"
         model.mkdir()
@@ -759,7 +759,7 @@ class TestQwenCpuShareMemoryEstimate:
             return full - 100
 
         with patch(
-            "omlx_runtime.patches.moe_expert_offload.estimate_offload_admission_bytes",
+            "molto_runtime.patches.moe_expert_offload.estimate_offload_admission_bytes",
             side_effect=fake_estimate,
         ):
             projected = pool._entry_runtime_resident_size(
@@ -773,8 +773,8 @@ class TestQwenCpuShareMemoryEstimate:
     @pytest.mark.asyncio
     async def test_qwen4_live_admission_keeps_viable_mmap_fallback(self, tmp_path):
         """Real pressure may select mmap without making that override sticky."""
-        from omlx_config.model_settings import ModelSettings
-        from omlx_runtime.patches.mlx_vlm_qwen4_exp_compat.residency import (
+        from molto_config.model_settings import ModelSettings
+        from molto_runtime.patches.mlx_vlm_qwen4_exp_compat.residency import (
             Qwen4ExpResidencyEstimate,
         )
 
@@ -806,12 +806,12 @@ class TestQwenCpuShareMemoryEstimate:
 
         with (
             patch(
-                "omlx_runtime.engine_pool.BatchedEngine", return_value=mock_engine
+                "molto_runtime.engine_pool.BatchedEngine", return_value=mock_engine
             ) as cls,
-            patch("omlx_runtime.engine_pool.get_phys_footprint", return_value=0),
-            patch("omlx_runtime.engine_pool.mx.get_active_memory", return_value=0),
+            patch("molto_runtime.engine_pool.get_phys_footprint", return_value=0),
+            patch("molto_runtime.engine_pool.mx.get_active_memory", return_value=0),
             patch(
-                "omlx_runtime.patches.mlx_vlm_qwen4_exp_compat.residency."
+                "molto_runtime.patches.mlx_vlm_qwen4_exp_compat.residency."
                 "qwen4_exp_residency_estimate",
                 return_value=estimate,
             ),
@@ -830,8 +830,8 @@ class TestQwenCpuShareMemoryEstimate:
         assert signature["qwen4_ple_ssd_offload"] == "False"
 
     def test_v41_ple_offload_reduces_resident_projection(self, tmp_path):
-        from omlx_config.model_settings import ModelSettings
-        from omlx_runtime.patches.deepseek_v41.residency import (
+        from molto_config.model_settings import ModelSettings
+        from molto_runtime.patches.deepseek_v41.residency import (
             EngramResidencyEstimate,
         )
 
@@ -856,7 +856,7 @@ class TestQwenCpuShareMemoryEstimate:
         pool._entries[entry.model_id] = entry
 
         with patch(
-            "omlx_runtime.patches.deepseek_v41.residency."
+            "molto_runtime.patches.deepseek_v41.residency."
             "deepseek_v41_residency_estimate",
             return_value=estimate,
         ):
@@ -870,7 +870,7 @@ class TestQwenCpuShareMemoryEstimate:
         assert signature["deepseek_v41_engram_ssd_offload"] == "True"
 
     def test_v41_ced_setting_changes_engine_signature(self, tmp_path):
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         pool = _make_pool(ceiling=500)
         entry = EngineEntry(
@@ -894,8 +894,8 @@ class TestQwenCpuShareMemoryEstimate:
     @pytest.mark.asyncio
     async def test_v41_live_admission_keeps_viable_mmap_fallback(self, tmp_path):
         """Real pressure may select mmap without making that override sticky."""
-        from omlx_config.model_settings import ModelSettings
-        from omlx_runtime.patches.deepseek_v41.residency import (
+        from molto_config.model_settings import ModelSettings
+        from molto_runtime.patches.deepseek_v41.residency import (
             EngramResidencyEstimate,
         )
 
@@ -926,12 +926,12 @@ class TestQwenCpuShareMemoryEstimate:
 
         with (
             patch(
-                "omlx_runtime.engine_pool.VLMBatchedEngine", return_value=mock_engine
+                "molto_runtime.engine_pool.VLMBatchedEngine", return_value=mock_engine
             ) as cls,
-            patch("omlx_runtime.engine_pool.get_phys_footprint", return_value=0),
-            patch("omlx_runtime.engine_pool.mx.get_active_memory", return_value=0),
+            patch("molto_runtime.engine_pool.get_phys_footprint", return_value=0),
+            patch("molto_runtime.engine_pool.mx.get_active_memory", return_value=0),
             patch(
-                "omlx_runtime.patches.deepseek_v41.residency."
+                "molto_runtime.patches.deepseek_v41.residency."
                 "deepseek_v41_residency_estimate",
                 return_value=estimate,
             ),
@@ -963,7 +963,7 @@ class TestApplySettingsOverrides:
         assert pool.get_entry("model-a").engine_type == "batched"
 
         # Mock settings manager
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         settings_manager = MagicMock()
         settings_manager.get_settings.side_effect = lambda mid: (
@@ -987,7 +987,7 @@ class TestApplySettingsOverrides:
         pool = _make_pool(ceiling=10 * 1024**3)
         pool.discover_models(str(small_mock_model_dir))
 
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         settings_manager = MagicMock()
         settings_manager.get_settings.return_value = ModelSettings()
@@ -1025,11 +1025,11 @@ class TestVLMFallback:
 
         with (
             patch(
-                "omlx_runtime.engine_pool.VLMBatchedEngine",
+                "molto_runtime.engine_pool.VLMBatchedEngine",
                 return_value=mock_vlm_engine,
             ),
             patch(
-                "omlx_runtime.engine_pool.BatchedEngine",
+                "molto_runtime.engine_pool.BatchedEngine",
                 return_value=mock_batched_engine,
             ),
         ):
@@ -1053,7 +1053,7 @@ class TestVLMFallback:
         mock_engine.start = AsyncMock(side_effect=Exception("Load failed"))
 
         with (
-            patch("omlx_runtime.engine_pool.BatchedEngine", return_value=mock_engine),
+            patch("molto_runtime.engine_pool.BatchedEngine", return_value=mock_engine),
             pytest.raises(Exception, match="Load failed"),
         ):
             await pool._load_engine("model-a")
@@ -1087,11 +1087,11 @@ class TestVLMFallback:
 
         with (
             patch(
-                "omlx_runtime.engine_pool.BatchedEngine",
+                "molto_runtime.engine_pool.BatchedEngine",
                 return_value=mock_batched_engine,
             ),
             patch(
-                "omlx_runtime.engine_pool.VLMBatchedEngine",
+                "molto_runtime.engine_pool.VLMBatchedEngine",
                 return_value=mock_vlm_engine,
             ),
         ):
@@ -1115,7 +1115,7 @@ class TestVLMFallback:
         mock_engine.start = AsyncMock(side_effect=Exception("Load failed"))
 
         with (
-            patch("omlx_runtime.engine_pool.BatchedEngine", return_value=mock_engine),
+            patch("molto_runtime.engine_pool.BatchedEngine", return_value=mock_engine),
             pytest.raises(Exception, match="Load failed"),
         ):
             await pool._load_engine("model-a", force_lm=True)
@@ -1137,10 +1137,10 @@ class TestVLMFallback:
         mock_vlm_engine.start = AsyncMock()
         with (
             patch(
-                "omlx_runtime.engine_pool.VLMBatchedEngine",
+                "molto_runtime.engine_pool.VLMBatchedEngine",
                 return_value=mock_vlm_engine,
             ),
-            patch("omlx_runtime.engine_pool.BatchedEngine") as batched_cls,
+            patch("molto_runtime.engine_pool.BatchedEngine") as batched_cls,
         ):
             assert await pool.get_engine("model-a", force_lm=True) is mock_vlm_engine
         batched_cls.assert_not_called()
@@ -1171,10 +1171,10 @@ class TestVLMFallback:
         mock_vlm_engine.start = AsyncMock(side_effect=RuntimeError("bad expert table"))
         with (
             patch(
-                "omlx_runtime.engine_pool.VLMBatchedEngine",
+                "molto_runtime.engine_pool.VLMBatchedEngine",
                 return_value=mock_vlm_engine,
             ),
-            patch("omlx_runtime.engine_pool.BatchedEngine") as batched_cls,
+            patch("molto_runtime.engine_pool.BatchedEngine") as batched_cls,
             pytest.raises(ModelUnavailableError) as excinfo,
         ):
             await pool._load_engine("model-a")
@@ -1210,11 +1210,11 @@ class TestVLMFallback:
 
         with (
             patch(
-                "omlx_runtime.engine_pool.VLMBatchedEngine",
+                "molto_runtime.engine_pool.VLMBatchedEngine",
                 return_value=mock_vlm_engine,
             ),
             patch(
-                "omlx_runtime.engine_pool.BatchedEngine",
+                "molto_runtime.engine_pool.BatchedEngine",
                 return_value=mock_batched_engine,
             ),
             pytest.raises(ModelUnavailableError) as excinfo,
@@ -1263,11 +1263,11 @@ class TestVLMFallback:
 
         with (
             patch(
-                "omlx_runtime.engine_pool.BatchedEngine",
+                "molto_runtime.engine_pool.BatchedEngine",
                 return_value=mock_batched_engine,
             ),
             patch(
-                "omlx_runtime.engine_pool.VLMBatchedEngine",
+                "molto_runtime.engine_pool.VLMBatchedEngine",
                 return_value=mock_vlm_engine,
             ),
             pytest.raises(ModelUnavailableError) as excinfo,
@@ -1466,7 +1466,7 @@ class TestEnginePoolAsync:
         mock_engine.start = AsyncMock()
         mock_engine.stop = AsyncMock()
 
-        with patch("omlx_runtime.engine_pool.BatchedEngine", return_value=mock_engine):
+        with patch("molto_runtime.engine_pool.BatchedEngine", return_value=mock_engine):
             engine = await pool.get_engine("model-a")
 
         assert engine == mock_engine
@@ -1485,7 +1485,7 @@ class TestEnginePoolAsync:
         mock_engine.start = AsyncMock(side_effect=RuntimeError("broken weights"))
         mock_engine.stop = AsyncMock()
 
-        with patch("omlx_runtime.engine_pool.BatchedEngine", return_value=mock_engine):
+        with patch("molto_runtime.engine_pool.BatchedEngine", return_value=mock_engine):
             with pytest.raises(ModelUnavailableError):
                 await pool.get_engine("model-a")
             with pytest.raises(ModelUnavailableError):
@@ -1517,7 +1517,7 @@ class TestEnginePoolAsync:
         )
         mock_engine.stop = AsyncMock()
 
-        with patch("omlx_runtime.engine_pool.BatchedEngine", return_value=mock_engine):
+        with patch("molto_runtime.engine_pool.BatchedEngine", return_value=mock_engine):
             for _ in range(2):
                 with pytest.raises(
                     InsufficientMemoryError, match="ran out of GPU memory"
@@ -1530,7 +1530,7 @@ class TestEnginePoolAsync:
     @pytest.mark.asyncio
     async def test_runtime_settings_signature_reload(self, pool_with_mock_engines):
         """A profile runtime variant with engine fields reloads the base engine."""
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         pool = pool_with_mock_engines
         pool._settings_manager = MagicMock()
@@ -1546,7 +1546,7 @@ class TestEnginePoolAsync:
         profile_engine.stop = AsyncMock()
 
         with patch(
-            "omlx_runtime.engine_pool.BatchedEngine",
+            "molto_runtime.engine_pool.BatchedEngine",
             side_effect=[base_engine, profile_engine],
         ):
             first = await pool.get_engine("model-a")
@@ -1569,7 +1569,7 @@ class TestEnginePoolAsync:
     async def test_bundled_dflash_profile_switch_reloads_engine(
         self, pool_with_mock_engines, small_mock_model_dir
     ):
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         pool = pool_with_mock_engines
         model_path = small_mock_model_dir / "model-a"
@@ -1604,11 +1604,11 @@ class TestEnginePoolAsync:
 
         with (
             patch(
-                "omlx_runtime.engine_pool.BatchedEngine",
+                "molto_runtime.engine_pool.BatchedEngine",
                 side_effect=[engines[0], engines[3]],
             ),
             patch(
-                "omlx_runtime.engine.dflash.DFlashEngine", side_effect=engines[1:3]
+                "molto_runtime.engine.dflash.DFlashEngine", side_effect=engines[1:3]
             ) as load,
         ):
             for settings, expected in zip(
@@ -1632,7 +1632,7 @@ class TestEnginePoolAsync:
         self, pool_with_mock_engines
     ):
         """A profile variant switch must not unload an engine held by a request."""
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         pool = pool_with_mock_engines
         pool._settings_manager = MagicMock()
@@ -1644,7 +1644,7 @@ class TestEnginePoolAsync:
         base_engine.start = AsyncMock()
         base_engine.stop = AsyncMock()
 
-        with patch("omlx_runtime.engine_pool.BatchedEngine", return_value=base_engine):
+        with patch("molto_runtime.engine_pool.BatchedEngine", return_value=base_engine):
             first = await pool.get_engine("model-a")
             pool.get_entry("model-a").in_use = 1
             with pytest.raises(ModelBusyError, match="runtime settings variant"):
@@ -1662,7 +1662,7 @@ class TestEnginePoolAsync:
         self, pool_with_mock_engines
     ):
         """Identical DFlash requests must reuse a fail-soft fallback (#2406)."""
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         pool = pool_with_mock_engines
         settings = ModelSettings(
@@ -1683,11 +1683,11 @@ class TestEnginePoolAsync:
 
         with (
             patch(
-                "omlx_runtime.engine.dflash.DFlashEngine",
+                "molto_runtime.engine.dflash.DFlashEngine",
                 return_value=dflash_engine,
             ),
             patch(
-                "omlx_runtime.engine_pool.BatchedEngine", return_value=fallback_engine
+                "molto_runtime.engine_pool.BatchedEngine", return_value=fallback_engine
             ),
         ):
             first = await pool.get_engine(
@@ -1718,7 +1718,7 @@ class TestEnginePoolAsync:
         self, pool_with_mock_engines
     ):
         """A failed optional VLM MTP drafter must not create a reload loop."""
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         pool = pool_with_mock_engines
         settings = ModelSettings(
@@ -1739,10 +1739,10 @@ class TestEnginePoolAsync:
 
         with (
             patch(
-                "omlx_runtime.engine_pool.BatchedEngine", return_value=fallback_engine
+                "molto_runtime.engine_pool.BatchedEngine", return_value=fallback_engine
             ),
             patch(
-                "omlx_runtime.speculative.vlm_mtp.load_vlm_mtp_drafter",
+                "molto_runtime.speculative.vlm_mtp.load_vlm_mtp_drafter",
                 return_value=None,
             ),
         ):
@@ -1772,7 +1772,7 @@ class TestEnginePoolAsync:
     async def test_runtime_sampling_only_profile_reuses_loaded_engine(
         self, pool_with_mock_engines
     ):
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         pool = pool_with_mock_engines
         pool._settings_manager = MagicMock()
@@ -1784,7 +1784,7 @@ class TestEnginePoolAsync:
         base_engine.start = AsyncMock()
         base_engine.stop = AsyncMock()
 
-        with patch("omlx_runtime.engine_pool.BatchedEngine", return_value=base_engine):
+        with patch("molto_runtime.engine_pool.BatchedEngine", return_value=base_engine):
             first = await pool.get_engine("model-a")
             second = await pool.get_engine(
                 "model-a",
@@ -1800,7 +1800,7 @@ class TestEnginePoolAsync:
         projection backends, and caches a plan on every module it classifies;
         none of that can be undone in place, so a change here has to land on a
         fresh engine rather than a live toggle."""
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         pool = pool_with_mock_engines
         off = ModelSettings(qwen35_oq_a8_enabled=False)
@@ -1815,7 +1815,7 @@ class TestEnginePoolAsync:
 
     def test_oq_a8_tuning_is_ignored_while_disabled(self, pool_with_mock_engines):
         """A stale floor on a disabled feature must not split the engine."""
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         pool = pool_with_mock_engines
         a = ModelSettings(qwen35_oq_a8_enabled=False, qwen35_oq_a8_min_tokens=512)
@@ -1827,7 +1827,7 @@ class TestEnginePoolAsync:
     def test_runtime_signature_ignores_request_only_profile_fields(
         self, pool_with_mock_engines
     ):
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         pool = pool_with_mock_engines
 
@@ -1865,7 +1865,7 @@ class TestEnginePoolAsync:
     async def test_base_request_reloads_after_profile_variant(
         self, pool_with_mock_engines
     ):
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         pool = pool_with_mock_engines
         pool._settings_manager = MagicMock()
@@ -1881,7 +1881,7 @@ class TestEnginePoolAsync:
         base_engine.stop = AsyncMock()
 
         with patch(
-            "omlx_runtime.engine_pool.BatchedEngine",
+            "molto_runtime.engine_pool.BatchedEngine",
             side_effect=[profile_engine, base_engine],
         ):
             first = await pool.get_engine(
@@ -1897,7 +1897,7 @@ class TestEnginePoolAsync:
     @pytest.mark.asyncio
     async def test_embedding_engine_receives_scheduler_config(self, tmp_path):
         """Embedding chunk sizing should come from the shared scheduler config."""
-        from omlx_runtime.scheduler import SchedulerConfig
+        from molto_runtime.scheduler import SchedulerConfig
 
         model_path = tmp_path / "embed-model"
         model_path.mkdir()
@@ -1922,7 +1922,7 @@ class TestEnginePoolAsync:
         mock_engine.start = AsyncMock()
 
         with patch(
-            "omlx_runtime.engine_pool.EmbeddingEngine",
+            "molto_runtime.engine_pool.EmbeddingEngine",
             return_value=mock_engine,
         ) as MockEmbeddingEngine:
             engine = await pool.get_engine("embed-model")
@@ -1953,7 +1953,7 @@ class TestEnginePoolAsync:
         mock_engine.start = AsyncMock()
 
         with patch(
-            "omlx_runtime.engine_pool.EmbeddingEngine",
+            "molto_runtime.engine_pool.EmbeddingEngine",
             return_value=mock_engine,
         ) as MockEmbeddingEngine:
             engine = await pool.get_engine("embed-model")
@@ -1968,8 +1968,8 @@ class TestEnginePoolAsync:
     @pytest.mark.asyncio
     async def test_apply_embedding_batch_size_updates_loaded_embedding_engines(self):
         """Runtime setting changes should update pool config and loaded embedding engines."""
-        from omlx_runtime.engine.embedding import EmbeddingEngine
-        from omlx_runtime.scheduler import SchedulerConfig
+        from molto_runtime.engine.embedding import EmbeddingEngine
+        from molto_runtime.scheduler import SchedulerConfig
 
         engine = EmbeddingEngine("embed-model", batch_size=8)
         pool = _make_pool(
@@ -1998,7 +1998,7 @@ class TestEnginePoolAsync:
         mock_engine = MagicMock()
         mock_engine.start = AsyncMock()
 
-        with patch("omlx_runtime.engine_pool.BatchedEngine", return_value=mock_engine):
+        with patch("molto_runtime.engine_pool.BatchedEngine", return_value=mock_engine):
             engine1 = await pool.get_engine("model-a")
             engine2 = await pool.get_engine("model-a")
 
@@ -2015,7 +2015,7 @@ class TestEnginePoolAsync:
         mock_engine.start = AsyncMock()
         mock_engine.stop = AsyncMock()
 
-        with patch("omlx_runtime.engine_pool.BatchedEngine", return_value=mock_engine):
+        with patch("molto_runtime.engine_pool.BatchedEngine", return_value=mock_engine):
             await pool.get_engine("model-a")
             initial_memory = pool.current_model_memory
 
@@ -2047,9 +2047,9 @@ class TestEnginePoolAsync:
             return engine
 
         with (
-            patch("omlx_runtime.engine_pool.BatchedEngine", side_effect=create_engine),
+            patch("molto_runtime.engine_pool.BatchedEngine", side_effect=create_engine),
             patch(
-                "omlx_runtime.engine_pool.shutdown_mlx_executor"
+                "molto_runtime.engine_pool.shutdown_mlx_executor"
             ) as shutdown_executor,
         ):
             await pool.get_engine("model-a")
@@ -2070,7 +2070,7 @@ class TestEnginePoolAsync:
         assert reclaim_task is not None
 
         with patch(
-            "omlx_runtime.engine_pool.shutdown_mlx_executor"
+            "molto_runtime.engine_pool.shutdown_mlx_executor"
         ) as shutdown_executor:
             await pool.shutdown()
 
@@ -2098,10 +2098,10 @@ class TestEnginePoolEviction:
         pool = _make_pool(ceiling=2500)  # Allows each but not both
         pool.discover_models(str(small_mock_model_dir))
         monkeypatch.setattr(
-            "omlx_runtime.engine_pool.get_phys_footprint",
+            "molto_runtime.engine_pool.get_phys_footprint",
             lambda: pool._current_model_memory,
         )
-        monkeypatch.setattr("omlx_runtime.engine_pool.mx.get_active_memory", lambda: 0)
+        monkeypatch.setattr("molto_runtime.engine_pool.mx.get_active_memory", lambda: 0)
         return pool
 
     @pytest.mark.asyncio
@@ -2126,7 +2126,9 @@ class TestEnginePoolEviction:
                 return mock_engine_a
             return mock_engine_b
 
-        with patch("omlx_runtime.engine_pool.BatchedEngine", side_effect=create_engine):
+        with patch(
+            "molto_runtime.engine_pool.BatchedEngine", side_effect=create_engine
+        ):
             # Load model-a first
             await pool.get_engine("model-a")
             assert pool.loaded_model_count == 1
@@ -2152,8 +2154,8 @@ class TestEnginePoolEviction:
         """
         pool = _make_pool(ceiling=2500)  # each model fits alone, not both
         pool.discover_models(str(small_mock_model_dir))
-        monkeypatch.setattr("omlx_runtime.engine_pool.get_phys_footprint", lambda: 0)
-        monkeypatch.setattr("omlx_runtime.engine_pool.mx.get_active_memory", lambda: 0)
+        monkeypatch.setattr("molto_runtime.engine_pool.get_phys_footprint", lambda: 0)
+        monkeypatch.setattr("molto_runtime.engine_pool.mx.get_active_memory", lambda: 0)
         return pool
 
     @pytest.mark.asyncio
@@ -2183,7 +2185,9 @@ class TestEnginePoolEviction:
                 return mock_engine_a
             return mock_engine_b
 
-        with patch("omlx_runtime.engine_pool.BatchedEngine", side_effect=create_engine):
+        with patch(
+            "molto_runtime.engine_pool.BatchedEngine", side_effect=create_engine
+        ):
             await pool.get_engine("model-a")
             assert pool.loaded_model_count == 1
 
@@ -2216,9 +2220,9 @@ class TestEnginePoolEviction:
             return hwm["v"]
 
         monkeypatch.setattr(
-            "omlx_runtime.engine_pool.get_phys_footprint", lagging_footprint
+            "molto_runtime.engine_pool.get_phys_footprint", lagging_footprint
         )
-        monkeypatch.setattr("omlx_runtime.engine_pool.mx.get_active_memory", lambda: 0)
+        monkeypatch.setattr("molto_runtime.engine_pool.mx.get_active_memory", lambda: 0)
         return pool
 
     @pytest.mark.asyncio
@@ -2249,7 +2253,9 @@ class TestEnginePoolEviction:
                 return mock_engine_a
             return mock_engine_b
 
-        with patch("omlx_runtime.engine_pool.BatchedEngine", side_effect=create_engine):
+        with patch(
+            "molto_runtime.engine_pool.BatchedEngine", side_effect=create_engine
+        ):
             await pool.get_engine("model-a")
             assert pool.loaded_model_count == 1
 
@@ -2280,10 +2286,10 @@ class TestEnginePoolEviction:
 
         with (
             patch(
-                "omlx_runtime.engine_pool.BatchedEngine", return_value=mock_engine
+                "molto_runtime.engine_pool.BatchedEngine", return_value=mock_engine
             ) as cls,
-            patch("omlx_runtime.engine_pool.get_phys_footprint", return_value=2000),
-            patch("omlx_runtime.engine_pool.mx.get_active_memory", return_value=0),
+            patch("molto_runtime.engine_pool.get_phys_footprint", return_value=2000),
+            patch("molto_runtime.engine_pool.mx.get_active_memory", return_value=0),
         ):
             with pytest.raises(InsufficientMemoryError) as exc_info:
                 await pool.get_engine("model-a")
@@ -2303,7 +2309,7 @@ class TestEnginePoolEviction:
         mock_engine = MagicMock()
         mock_engine.start = AsyncMock()
 
-        with patch("omlx_runtime.engine_pool.BatchedEngine", return_value=mock_engine):
+        with patch("molto_runtime.engine_pool.BatchedEngine", return_value=mock_engine):
             # Load pinned model-a
             await pool.get_engine("model-a")
 
@@ -2334,10 +2340,10 @@ class TestAdmissionSoftTargetEviction:
         pool._get_admission_soft_target = lambda: 2500
         pool.discover_models(str(small_mock_model_dir))
         monkeypatch.setattr(
-            "omlx_runtime.engine_pool.get_phys_footprint",
+            "molto_runtime.engine_pool.get_phys_footprint",
             lambda: pool._current_model_memory,
         )
-        monkeypatch.setattr("omlx_runtime.engine_pool.mx.get_active_memory", lambda: 0)
+        monkeypatch.setattr("molto_runtime.engine_pool.mx.get_active_memory", lambda: 0)
         return pool
 
     @pytest.mark.asyncio
@@ -2359,7 +2365,9 @@ class TestAdmissionSoftTargetEviction:
             name = str(kwargs.get("model_name", args[0] if args else ""))
             return mock_engine_a if "model-a" in name else mock_engine_b
 
-        with patch("omlx_runtime.engine_pool.BatchedEngine", side_effect=create_engine):
+        with patch(
+            "molto_runtime.engine_pool.BatchedEngine", side_effect=create_engine
+        ):
             await pool.get_engine("model-a")
             assert pool.loaded_model_count == 1
 
@@ -2383,9 +2391,9 @@ class TestAdmissionSoftTargetEviction:
         mock_engine.start = AsyncMock()
         mock_engine.has_active_requests.return_value = False
 
-        with patch("omlx_runtime.engine_pool.BatchedEngine", return_value=mock_engine):
+        with patch("molto_runtime.engine_pool.BatchedEngine", return_value=mock_engine):
             await pool.get_engine("model-a")
-            with caplog.at_level(logging.INFO, logger="omlx_runtime.engine_pool"):
+            with caplog.at_level(logging.INFO, logger="molto_runtime.engine_pool"):
                 await pool.get_engine("model-b")
 
         assert pool._entries["model-a"].engine is not None
@@ -2403,16 +2411,16 @@ class TestAdmissionSoftTargetEviction:
         pool._get_admission_soft_target = lambda: 4000
         pool.discover_models(str(small_mock_model_dir))
         monkeypatch.setattr(
-            "omlx_runtime.engine_pool.get_phys_footprint",
+            "molto_runtime.engine_pool.get_phys_footprint",
             lambda: pool._current_model_memory,
         )
-        monkeypatch.setattr("omlx_runtime.engine_pool.mx.get_active_memory", lambda: 0)
+        monkeypatch.setattr("molto_runtime.engine_pool.mx.get_active_memory", lambda: 0)
 
         mock_engine = MagicMock()
         mock_engine.start = AsyncMock()
         mock_engine.has_active_requests.return_value = False
 
-        with patch("omlx_runtime.engine_pool.BatchedEngine", return_value=mock_engine):
+        with patch("molto_runtime.engine_pool.BatchedEngine", return_value=mock_engine):
             await pool.get_engine("model-a")
             await pool.get_engine("model-b")
 
@@ -2435,10 +2443,10 @@ class TestGuardOffBestEffortAdmission:
         pool._get_admission_ceiling = lambda: 2500
         pool.discover_models(str(small_mock_model_dir))
         monkeypatch.setattr(
-            "omlx_runtime.engine_pool.get_phys_footprint",
+            "molto_runtime.engine_pool.get_phys_footprint",
             lambda: pool._current_model_memory,
         )
-        monkeypatch.setattr("omlx_runtime.engine_pool.mx.get_active_memory", lambda: 0)
+        monkeypatch.setattr("molto_runtime.engine_pool.mx.get_active_memory", lambda: 0)
         return pool
 
     @pytest.mark.asyncio
@@ -2459,7 +2467,9 @@ class TestGuardOffBestEffortAdmission:
             name = str(kwargs.get("model_name", args[0] if args else ""))
             return mock_engine_a if "model-a" in name else mock_engine_b
 
-        with patch("omlx_runtime.engine_pool.BatchedEngine", side_effect=create_engine):
+        with patch(
+            "molto_runtime.engine_pool.BatchedEngine", side_effect=create_engine
+        ):
             await pool.get_engine("model-a")
             await pool.get_engine("model-b")
 
@@ -2477,9 +2487,9 @@ class TestGuardOffBestEffortAdmission:
         mock_engine.start = AsyncMock()
         mock_engine.has_active_requests.return_value = False
 
-        with patch("omlx_runtime.engine_pool.BatchedEngine", return_value=mock_engine):
+        with patch("molto_runtime.engine_pool.BatchedEngine", return_value=mock_engine):
             await pool.get_engine("model-a")
-            with caplog.at_level(logging.WARNING, logger="omlx_runtime.engine_pool"):
+            with caplog.at_level(logging.WARNING, logger="molto_runtime.engine_pool"):
                 await pool.get_engine("model-b")
 
         assert pool._entries["model-a"].engine is not None
@@ -2494,16 +2504,16 @@ class TestGuardOffBestEffortAdmission:
         pool = _make_pool(ceiling=None)
         pool.discover_models(str(small_mock_model_dir))
         monkeypatch.setattr(
-            "omlx_runtime.engine_pool.get_phys_footprint",
+            "molto_runtime.engine_pool.get_phys_footprint",
             lambda: pool._current_model_memory,
         )
-        monkeypatch.setattr("omlx_runtime.engine_pool.mx.get_active_memory", lambda: 0)
+        monkeypatch.setattr("molto_runtime.engine_pool.mx.get_active_memory", lambda: 0)
 
         mock_engine = MagicMock()
         mock_engine.start = AsyncMock()
         mock_engine.has_active_requests.return_value = False
 
-        with patch("omlx_runtime.engine_pool.BatchedEngine", return_value=mock_engine):
+        with patch("molto_runtime.engine_pool.BatchedEngine", return_value=mock_engine):
             await pool.get_engine("model-a")
             await pool.get_engine("model-b")
 
@@ -2578,8 +2588,8 @@ class TestEnginePoolPrefillEviction:
         )
 
         with (
-            patch("omlx_runtime.engine_pool.mx.get_active_memory", return_value=0),
-            patch("omlx_runtime.engine_pool.get_phys_footprint", return_value=0),
+            patch("molto_runtime.engine_pool.mx.get_active_memory", return_value=0),
+            patch("molto_runtime.engine_pool.get_phys_footprint", return_value=0),
         ):
             evicted = await pool._evict_idle_lru_for_prefill("target", req)
 
@@ -2612,8 +2622,8 @@ class TestEnginePoolPrefillEviction:
         )
 
         with (
-            patch("omlx_runtime.engine_pool.mx.get_active_memory", return_value=0),
-            patch("omlx_runtime.engine_pool.get_phys_footprint", return_value=0),
+            patch("molto_runtime.engine_pool.mx.get_active_memory", return_value=0),
+            patch("molto_runtime.engine_pool.get_phys_footprint", return_value=0),
         ):
             evicted = await pool._evict_idle_lru_for_prefill("target", req)
 
@@ -2658,9 +2668,9 @@ class TestEnginePoolPrefillEviction:
             pool._unload_engine = AsyncMock()
 
             with (
-                patch("omlx_runtime.engine_pool.mx.get_active_memory", return_value=0),
+                patch("molto_runtime.engine_pool.mx.get_active_memory", return_value=0),
                 patch(
-                    "omlx_runtime.engine_pool.get_phys_footprint",
+                    "molto_runtime.engine_pool.get_phys_footprint",
                     side_effect=lambda: phys[0],
                 ),
             ):
@@ -2701,9 +2711,9 @@ class TestEnginePoolPrefillEviction:
             pool._unload_engine = AsyncMock()
 
             with (
-                patch("omlx_runtime.engine_pool.mx.get_active_memory", return_value=0),
+                patch("molto_runtime.engine_pool.mx.get_active_memory", return_value=0),
                 patch(
-                    "omlx_runtime.engine_pool.get_phys_footprint",
+                    "molto_runtime.engine_pool.get_phys_footprint",
                     side_effect=lambda: phys[0],
                 ),
             ):
@@ -2755,13 +2765,13 @@ class TestEnginePoolPrefillEviction:
             pool._unload_engine = AsyncMock()
 
             with (
-                patch("omlx_runtime.engine_pool.mx.get_active_memory", return_value=0),
+                patch("molto_runtime.engine_pool.mx.get_active_memory", return_value=0),
                 patch(
-                    "omlx_runtime.engine_pool.get_phys_footprint",
+                    "molto_runtime.engine_pool.get_phys_footprint",
                     side_effect=lambda: phys[0],
                 ),
                 patch(
-                    "omlx_runtime.patches.qwen35_ane_prefill.release_qwen35_ane_prefill",
+                    "molto_runtime.patches.qwen35_ane_prefill.release_qwen35_ane_prefill",
                     side_effect=release,
                 ),
             ):
@@ -2819,13 +2829,13 @@ class TestEnginePoolPrefillEviction:
             pool._unload_engine = AsyncMock()
 
             with (
-                patch("omlx_runtime.engine_pool.mx.get_active_memory", return_value=0),
+                patch("molto_runtime.engine_pool.mx.get_active_memory", return_value=0),
                 patch(
-                    "omlx_runtime.engine_pool.get_phys_footprint",
+                    "molto_runtime.engine_pool.get_phys_footprint",
                     side_effect=lambda: phys[0],
                 ),
                 patch(
-                    "omlx_runtime.patches.qwen35_ane_prefill.release_qwen35_ane_prefill",
+                    "molto_runtime.patches.qwen35_ane_prefill.release_qwen35_ane_prefill",
                     side_effect=release,
                 ),
             ):
@@ -2876,9 +2886,9 @@ class TestEnginePoolPrefillEviction:
             pool._unload_engine = AsyncMock()
 
             with (
-                patch("omlx_runtime.engine_pool.mx.get_active_memory", return_value=0),
+                patch("molto_runtime.engine_pool.mx.get_active_memory", return_value=0),
                 patch(
-                    "omlx_runtime.engine_pool.get_phys_footprint",
+                    "molto_runtime.engine_pool.get_phys_footprint",
                     side_effect=lambda: next(phys),
                 ),
             ):
@@ -2922,9 +2932,9 @@ class TestEnginePoolPrefillEviction:
             pool._unload_engine = AsyncMock()
 
             with (
-                patch("omlx_runtime.engine_pool.mx.get_active_memory", return_value=0),
+                patch("molto_runtime.engine_pool.mx.get_active_memory", return_value=0),
                 patch(
-                    "omlx_runtime.engine_pool.get_phys_footprint",
+                    "molto_runtime.engine_pool.get_phys_footprint",
                     side_effect=lambda: phys[0],
                 ),
             ):
@@ -2957,9 +2967,9 @@ class TestEnginePoolPrefillEviction:
         )
 
         with (
-            patch("omlx_runtime.engine_pool.mx.get_active_memory", return_value=0),
+            patch("molto_runtime.engine_pool.mx.get_active_memory", return_value=0),
             patch(
-                "omlx_runtime.engine_pool.get_phys_footprint",
+                "molto_runtime.engine_pool.get_phys_footprint",
                 side_effect=lambda: phys[0],
             ),
         ):
@@ -3007,9 +3017,9 @@ class TestEnginePoolPrefillEviction:
             pool._unload_engine = AsyncMock()
 
             with (
-                patch("omlx_runtime.engine_pool.mx.get_active_memory", return_value=0),
+                patch("molto_runtime.engine_pool.mx.get_active_memory", return_value=0),
                 patch(
-                    "omlx_runtime.engine_pool.get_phys_footprint",
+                    "molto_runtime.engine_pool.get_phys_footprint",
                     side_effect=lambda: phys[0],
                 ),
             ):
@@ -3056,9 +3066,9 @@ class TestEnginePoolPrefillEviction:
         pool._reclaim_pooled_buffers_for_prefill = AsyncMock(return_value=0)
 
         with (
-            patch("omlx_runtime.engine_pool.mx.get_active_memory", return_value=0),
-            patch("omlx_runtime.engine_pool.get_phys_footprint", side_effect=_phys),
-            caplog.at_level(logging.INFO, logger="omlx_runtime.engine_pool"),
+            patch("molto_runtime.engine_pool.mx.get_active_memory", return_value=0),
+            patch("molto_runtime.engine_pool.get_phys_footprint", side_effect=_phys),
+            caplog.at_level(logging.INFO, logger="molto_runtime.engine_pool"),
         ):
             first = await pool._evict_idle_lru_for_prefill("target", req)
             # Pressure returns after the first callback found enough headroom.
@@ -3264,7 +3274,7 @@ class TestHasActiveRequests:
 
     def test_base_non_streaming_engine_active_count(self):
         """Test BaseNonStreamingEngine active request tracking."""
-        from omlx_runtime.engine.base import BaseNonStreamingEngine
+        from molto_runtime.engine.base import BaseNonStreamingEngine
 
         class DummyEngine(BaseNonStreamingEngine):
             @property
@@ -3293,7 +3303,7 @@ class TestHasActiveRequests:
 
     def test_batched_engine_has_active_requests(self):
         """Test BatchedEngine.has_active_requests() via _output_collectors."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine.__new__(BatchedEngine)
         engine._engine = None
@@ -3313,7 +3323,7 @@ class TestHasActiveRequests:
 
     def test_vlm_engine_has_active_requests(self):
         """Test VLMBatchedEngine.has_active_requests() via _output_collectors."""
-        from omlx_runtime.engine.vlm import VLMBatchedEngine
+        from molto_runtime.engine.vlm import VLMBatchedEngine
 
         engine = VLMBatchedEngine.__new__(VLMBatchedEngine)
         engine._engine = None
@@ -3345,7 +3355,7 @@ class TestResolveModelId:
 
         settings_manager = MagicMock()
         settings_manager.get_exposed_profile_source_model_id.return_value = None
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         settings_manager.get_all_settings.return_value = {
             "model-a": ModelSettings(model_alias="gpt-4"),
@@ -3362,7 +3372,7 @@ class TestResolveModelId:
 
         settings_manager = MagicMock()
         settings_manager.get_exposed_profile_source_model_id.return_value = None
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         settings_manager.get_all_settings.return_value = {
             "model-a": ModelSettings(),
@@ -3380,20 +3390,20 @@ class TestResolveModelId:
         assert result == "some-alias"
 
     def test_provider_prefix_alias_match(self, small_mock_model_dir):
-        """Test alias resolution with provider prefix (e.g. omlx/alias)."""
+        """Test alias resolution with provider prefix (e.g. molto/alias)."""
         pool = _make_pool(ceiling=10 * 1024**3)
         pool.discover_models(str(small_mock_model_dir))
 
         settings_manager = MagicMock()
         settings_manager.get_exposed_profile_source_model_id.return_value = None
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         settings_manager.get_all_settings.return_value = {
             "model-a": ModelSettings(model_alias="gpt-4"),
             "model-b": ModelSettings(),
         }
 
-        result = pool.resolve_model_id("omlx/gpt-4", settings_manager)
+        result = pool.resolve_model_id("molto/gpt-4", settings_manager)
         assert result == "model-a"
 
     def test_provider_prefix_direct_match(self, small_mock_model_dir):
@@ -3411,14 +3421,14 @@ class TestResolveModelId:
 
         settings_manager = MagicMock()
         settings_manager.get_exposed_profile_source_model_id.return_value = None
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         settings_manager.get_all_settings.return_value = {
             "model-a": ModelSettings(),
         }
 
-        result = pool.resolve_model_id("omlx/nonexistent", settings_manager)
-        assert result == "omlx/nonexistent"
+        result = pool.resolve_model_id("molto/nonexistent", settings_manager)
+        assert result == "molto/nonexistent"
 
     def test_case_insensitive_match(self, small_mock_model_dir):
         """Test case-insensitive fallback when exact match fails."""
@@ -3433,7 +3443,7 @@ class TestResolveModelId:
         pool = _make_pool(ceiling=10 * 1024**3)
         pool.discover_models(str(small_mock_model_dir))
 
-        result = pool.resolve_model_id("omlx/MODEL-B", settings_manager=None)
+        result = pool.resolve_model_id("molto/MODEL-B", settings_manager=None)
         assert result == "model-b"
 
 
@@ -3448,7 +3458,7 @@ class TestMemorySettleBarrier:
         (max(2GB, 5% of 5GB) = max(2GB, 0.25GB) = 2GB), the barrier
         requires at least 3GB freed.
         """
-        monkeypatch.setattr("omlx_runtime.engine_pool.gc", MagicMock())
+        monkeypatch.setattr("molto_runtime.engine_pool.gc", MagicMock())
         pool = _make_pool(ceiling=100 * 1024**3)
         pool.discover_models(str(small_mock_model_dir))
 
@@ -3479,8 +3489,8 @@ class TestMemorySettleBarrier:
             return val
 
         with (
-            patch("omlx_runtime.engine_pool.mx") as mock_mx,
-            patch("omlx_runtime.engine_pool.get_mlx_executor", return_value=None),
+            patch("molto_runtime.engine_pool.mx") as mock_mx,
+            patch("molto_runtime.engine_pool.get_mlx_executor", return_value=None),
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             mock_mx.get_active_memory = mock_get_active
@@ -3497,8 +3507,8 @@ class TestMemorySettleBarrier:
     async def test_v41_settle_tracks_metal_engram_and_admission(
         self, pool_with_loaded_model, offload, caplog
     ):
-        from omlx_config.model_settings import ModelSettings
-        from omlx_runtime.patches.deepseek_v41.residency import EngramResidencyEstimate
+        from molto_config.model_settings import ModelSettings
+        from molto_runtime.patches.deepseek_v41.residency import EngramResidencyEstimate
 
         pool = pool_with_loaded_model
         entry = pool._entries["model-a"]
@@ -3507,7 +3517,7 @@ class TestMemorySettleBarrier:
         estimate = EngramResidencyEstimate(True, 80 * gib, 50 * gib, 30 * gib)
         settings = ModelSettings(deepseek_v41_engram_ssd_offload=offload)
         with patch(
-            "omlx_runtime.patches.deepseek_v41.residency.deepseek_v41_residency_estimate",
+            "molto_runtime.patches.deepseek_v41.residency.deepseek_v41_residency_estimate",
             return_value=estimate,
         ):
             entry.runtime_estimated_size = pool._entry_runtime_resident_size(
@@ -3529,8 +3539,8 @@ class TestMemorySettleBarrier:
 
         readings = iter([charge + gib, gib])
         with (
-            patch("omlx_runtime.engine_pool.mx") as mock_mx,
-            patch("omlx_runtime.engine_pool.get_mlx_executor", return_value=None),
+            patch("molto_runtime.engine_pool.mx") as mock_mx,
+            patch("molto_runtime.engine_pool.get_mlx_executor", return_value=None),
             patch("asyncio.sleep", new_callable=AsyncMock) as sleep,
         ):
             mock_mx.get_active_memory.side_effect = active_memory
@@ -3562,8 +3572,8 @@ class TestMemorySettleBarrier:
             sleep_calls.append(duration)
 
         with (
-            patch("omlx_runtime.engine_pool.mx") as mock_mx,
-            patch("omlx_runtime.engine_pool.get_mlx_executor", return_value=None),
+            patch("molto_runtime.engine_pool.mx") as mock_mx,
+            patch("molto_runtime.engine_pool.get_mlx_executor", return_value=None),
             patch("asyncio.sleep", side_effect=mock_sleep),
         ):
             mock_mx.get_active_memory = mock_get_active
@@ -3600,8 +3610,8 @@ class TestMemorySettleBarrier:
             sleep_calls.append(duration)
 
         with (
-            patch("omlx_runtime.engine_pool.mx") as mock_mx,
-            patch("omlx_runtime.engine_pool.get_mlx_executor", return_value=None),
+            patch("molto_runtime.engine_pool.mx") as mock_mx,
+            patch("molto_runtime.engine_pool.get_mlx_executor", return_value=None),
             patch("asyncio.sleep", side_effect=mock_sleep),
         ):
             mock_mx.get_active_memory = mock_get_active
@@ -3621,15 +3631,15 @@ class TestMemorySettleBarrier:
 
         # Memory never drops — stays at 10GB throughout (well above 5GB threshold)
         with (
-            patch("omlx_runtime.engine_pool.mx") as mock_mx,
-            patch("omlx_runtime.engine_pool.get_mlx_executor", return_value=None),
+            patch("molto_runtime.engine_pool.mx") as mock_mx,
+            patch("molto_runtime.engine_pool.get_mlx_executor", return_value=None),
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             mock_mx.get_active_memory = MagicMock(return_value=10 * 1024**3)
             mock_mx.synchronize = MagicMock()
             mock_mx.clear_cache = MagicMock()
 
-            with patch("omlx_runtime.engine_pool.logger") as mock_logger:
+            with patch("molto_runtime.engine_pool.logger") as mock_logger:
                 await pool._unload_engine("model-a")
 
             # Should have logged an error about emergency reclaim failure
@@ -3658,8 +3668,8 @@ class TestMemorySettleBarrier:
             return 5 * 1024**3  # 5GB freed >= 3GB needed
 
         with (
-            patch("omlx_runtime.engine_pool.mx") as mock_mx,
-            patch("omlx_runtime.engine_pool.get_mlx_executor", return_value=None),
+            patch("molto_runtime.engine_pool.mx") as mock_mx,
+            patch("molto_runtime.engine_pool.get_mlx_executor", return_value=None),
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             mock_mx.get_active_memory = mock_get_active
@@ -3710,8 +3720,8 @@ class TestMemorySettleBarrier:
             return val
 
         with (
-            patch("omlx_runtime.engine_pool.mx") as mock_mx,
-            patch("omlx_runtime.engine_pool.get_mlx_executor", return_value=None),
+            patch("molto_runtime.engine_pool.mx") as mock_mx,
+            patch("molto_runtime.engine_pool.get_mlx_executor", return_value=None),
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             mock_mx.get_active_memory = mock_get_active
@@ -3752,8 +3762,8 @@ class TestMemorySettleBarrier:
             return val
 
         with (
-            patch("omlx_runtime.engine_pool.mx") as mock_mx,
-            patch("omlx_runtime.engine_pool.get_mlx_executor", return_value=None),
+            patch("molto_runtime.engine_pool.mx") as mock_mx,
+            patch("molto_runtime.engine_pool.get_mlx_executor", return_value=None),
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             mock_mx.get_active_memory = mock_get_active
@@ -3783,10 +3793,10 @@ class TestMemorySettleBarrier:
             sleeps.append(duration)
 
         with (
-            patch("omlx_runtime.engine_pool.mx") as mx,
-            patch("omlx_runtime.engine_pool.get_mlx_executor", return_value=None),
+            patch("molto_runtime.engine_pool.mx") as mx,
+            patch("molto_runtime.engine_pool.get_mlx_executor", return_value=None),
             patch(
-                "omlx_runtime.engine_pool.get_phys_footprint",
+                "molto_runtime.engine_pool.get_phys_footprint",
                 side_effect=[12 * 1024**3, 9 * 1024**3, 1 * 1024**3],
             ),
             patch("asyncio.sleep", side_effect=record_sleep),
@@ -3828,10 +3838,10 @@ class TestMemorySettleBarrier:
             sleep_calls.append(duration)
 
         with (
-            patch("omlx_runtime.engine_pool.mx") as mock_mx,
-            patch("omlx_runtime.engine_pool.get_mlx_executor", return_value=None),
+            patch("molto_runtime.engine_pool.mx") as mock_mx,
+            patch("molto_runtime.engine_pool.get_mlx_executor", return_value=None),
             patch("asyncio.sleep", side_effect=record_sleep),
-            caplog.at_level(logging.DEBUG, logger="omlx_runtime.engine_pool"),
+            caplog.at_level(logging.DEBUG, logger="molto_runtime.engine_pool"),
         ):
             mock_mx.get_active_memory = rising_gauge
             mock_mx.synchronize = MagicMock()
@@ -3881,10 +3891,10 @@ class TestMemorySettleBarrier:
             sleep_calls.append(duration)
 
         with (
-            patch("omlx_runtime.engine_pool.mx") as mock_mx,
-            patch("omlx_runtime.engine_pool.get_mlx_executor", return_value=None),
+            patch("molto_runtime.engine_pool.mx") as mock_mx,
+            patch("molto_runtime.engine_pool.get_mlx_executor", return_value=None),
             patch("asyncio.sleep", side_effect=record_sleep),
-            caplog.at_level(logging.DEBUG, logger="omlx_runtime.engine_pool"),
+            caplog.at_level(logging.DEBUG, logger="molto_runtime.engine_pool"),
         ):
             mock_mx.get_active_memory = rising_gauge
             mock_mx.synchronize = MagicMock()
@@ -3917,10 +3927,10 @@ class TestMemorySettleBarrier:
             return val
 
         with (
-            patch("omlx_runtime.engine_pool.mx") as mock_mx,
-            patch("omlx_runtime.engine_pool.get_mlx_executor", return_value=None),
+            patch("molto_runtime.engine_pool.mx") as mock_mx,
+            patch("molto_runtime.engine_pool.get_mlx_executor", return_value=None),
             patch("asyncio.sleep", new_callable=AsyncMock),
-            caplog.at_level(logging.DEBUG, logger="omlx_runtime.engine_pool"),
+            caplog.at_level(logging.DEBUG, logger="molto_runtime.engine_pool"),
         ):
             mock_mx.get_active_memory = rising_gauge
             mock_mx.synchronize = MagicMock()
@@ -4259,7 +4269,7 @@ class TestEnginePoolInUseLease:
     @pytest.mark.asyncio
     async def test_get_engine_rejects_loaded_llm_without_tokenizer(self):
         """A stale/half-loaded LLM engine must not reach chat tokenization."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         pool = _make_pool(ceiling=0)
         engine = BatchedEngine.__new__(BatchedEngine)
@@ -4279,7 +4289,7 @@ class TestResetActivityTracking:
 
     @staticmethod
     def _engine():
-        from omlx_runtime.engine.base import BaseNonStreamingEngine
+        from molto_runtime.engine.base import BaseNonStreamingEngine
 
         class DummyEngine(BaseNonStreamingEngine):
             @property
@@ -4335,8 +4345,8 @@ class TestResetActivityTracking:
         pool._current_model_memory = entry.estimated_size
 
         with (
-            patch("omlx_runtime.engine_pool.mx") as mock_mx,
-            patch("omlx_runtime.engine_pool.get_mlx_executor", return_value=None),
+            patch("molto_runtime.engine_pool.mx") as mock_mx,
+            patch("molto_runtime.engine_pool.get_mlx_executor", return_value=None),
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             mock_mx.get_active_memory = MagicMock(return_value=0)
@@ -4378,20 +4388,20 @@ class TestFailedLoadReclaim:
         try:
             with (
                 patch(
-                    "omlx_runtime.engine_pool.mx.get_active_memory",
+                    "molto_runtime.engine_pool.mx.get_active_memory",
                     side_effect=_fake_active,
                 ),
-                patch("omlx_runtime.engine_pool.mx.synchronize"),
+                patch("molto_runtime.engine_pool.mx.synchronize"),
                 patch(
-                    "omlx_runtime.engine_pool.mx.clear_cache",
+                    "molto_runtime.engine_pool.mx.clear_cache",
                     side_effect=_drop_on_clear,
                 ),
-                patch("omlx_runtime.engine_pool.get_phys_footprint", return_value=0),
+                patch("molto_runtime.engine_pool.get_phys_footprint", return_value=0),
                 patch(
-                    "omlx_runtime.engine_pool.get_mlx_executor", return_value=executor
+                    "molto_runtime.engine_pool.get_mlx_executor", return_value=executor
                 ),
                 patch(
-                    "omlx_runtime.engine_pool.asyncio.sleep",
+                    "molto_runtime.engine_pool.asyncio.sleep",
                     new=AsyncMock(return_value=None),
                 ),
             ):
@@ -4413,19 +4423,19 @@ class TestFailedLoadReclaim:
         executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         try:
             with (
-                patch("omlx_runtime.engine_pool.gc"),
+                patch("molto_runtime.engine_pool.gc"),
                 patch(
-                    "omlx_runtime.engine_pool.mx.get_active_memory",
+                    "molto_runtime.engine_pool.mx.get_active_memory",
                     return_value=80 * 1024**3,
                 ),
-                patch("omlx_runtime.engine_pool.mx.synchronize"),
-                patch("omlx_runtime.engine_pool.mx.clear_cache"),
-                patch("omlx_runtime.engine_pool.get_phys_footprint", return_value=0),
+                patch("molto_runtime.engine_pool.mx.synchronize"),
+                patch("molto_runtime.engine_pool.mx.clear_cache"),
+                patch("molto_runtime.engine_pool.get_phys_footprint", return_value=0),
                 patch(
-                    "omlx_runtime.engine_pool.get_mlx_executor", return_value=executor
+                    "molto_runtime.engine_pool.get_mlx_executor", return_value=executor
                 ),
                 patch(
-                    "omlx_runtime.engine_pool.asyncio.sleep",
+                    "molto_runtime.engine_pool.asyncio.sleep",
                     new=AsyncMock(return_value=None),
                 ),
             ):
@@ -4446,7 +4456,7 @@ class TestFailedLoadReclaim:
 
         with (
             patch(
-                "omlx_runtime.engine_pool.BatchedEngine", return_value=failing_engine
+                "molto_runtime.engine_pool.BatchedEngine", return_value=failing_engine
             ),
             patch.object(pool, "_schedule_failed_load_reclaim") as scheduled,
             pytest.raises(ModelUnavailableError),
@@ -4473,7 +4483,7 @@ class TestSchedulerConfigModelId:
         mock_engine.start = AsyncMock()
 
         with patch(
-            "omlx_runtime.engine_pool.BatchedEngine",
+            "molto_runtime.engine_pool.BatchedEngine",
             return_value=mock_engine,
         ):
             await pool.get_engine("model-a")
@@ -4512,7 +4522,7 @@ class TestLoadRefusalNamesBindingCeiling:
     to raise `iogpu.wired_limit_mb`, and neither touches the dynamic
     ceiling that was actually binding. The user lowered the tier (which
     shrinks the ceiling further), raised the sysctl, and eventually
-    deleted `~/.omlx`.
+    deleted `~/.molto`.
     """
 
     def _pool_with_enforcer(
@@ -4599,9 +4609,9 @@ class TestLoadRefusalNamesBindingCeiling:
         mock_engine.start = AsyncMock()
 
         with (
-            patch("omlx_runtime.engine_pool.BatchedEngine", return_value=mock_engine),
-            patch("omlx_runtime.engine_pool.get_phys_footprint", return_value=2000),
-            patch("omlx_runtime.engine_pool.mx.get_active_memory", return_value=0),
+            patch("molto_runtime.engine_pool.BatchedEngine", return_value=mock_engine),
+            patch("molto_runtime.engine_pool.get_phys_footprint", return_value=2000),
+            patch("molto_runtime.engine_pool.mx.get_active_memory", return_value=0),
             pytest.raises(InsufficientMemoryError) as exc_info,
         ):
             await pool.get_engine("model-a")
@@ -4631,9 +4641,9 @@ class TestLoadRefusalNamesBindingCeiling:
             pass
 
         with (
-            patch("omlx_runtime.engine_pool._ADMISSION_CEILING_RECHECK_S", 0),
-            patch("omlx_runtime.engine_pool.get_phys_footprint", return_value=0),
-            patch("omlx_runtime.engine_pool.mx.get_active_memory", return_value=0),
+            patch("molto_runtime.engine_pool._ADMISSION_CEILING_RECHECK_S", 0),
+            patch("molto_runtime.engine_pool.get_phys_footprint", return_value=0),
+            patch("molto_runtime.engine_pool.mx.get_active_memory", return_value=0),
             patch.object(pool, "_load_engine", AsyncMock(side_effect=_Admitted)),
             pytest.raises(_Admitted),
         ):
@@ -4651,8 +4661,8 @@ class TestLoadRefusalNamesBindingCeiling:
 def test_qwen4_moe_savings_precede_ple_force_decision(
     tmp_path, ple_enabled, ceiling, expected, forced
 ):
-    from omlx_config.model_settings import ModelSettings
-    from omlx_runtime.patches.mlx_vlm_qwen4_exp_compat.residency import (
+    from molto_config.model_settings import ModelSettings
+    from molto_runtime.patches.mlx_vlm_qwen4_exp_compat.residency import (
         Qwen4ExpResidencyEstimate,
     )
 
@@ -4679,12 +4689,12 @@ def test_qwen4_moe_savings_precede_ple_force_decision(
     pool = _make_pool(ceiling=ceiling)
     with (
         patch(
-            "omlx_runtime.patches.mlx_vlm_qwen4_exp_compat.residency."
+            "molto_runtime.patches.mlx_vlm_qwen4_exp_compat.residency."
             "qwen4_exp_residency_estimate",
             return_value=estimate,
         ),
         patch(
-            "omlx_runtime.patches.moe_expert_offload.estimate_offload_admission_bytes",
+            "molto_runtime.patches.moe_expert_offload.estimate_offload_admission_bytes",
             side_effect=lambda path, size, fraction, **kw: size - 400,
         ),
     ):
@@ -4701,8 +4711,8 @@ def test_qwen4_ple_resident_load_must_leave_room_to_serve(tmp_path, headroom, fo
     mmap wins when it fits that line; the checkpoint is the footprint."""
     from types import SimpleNamespace
 
-    from omlx_config.model_settings import ModelSettings
-    from omlx_runtime.patches.mlx_vlm_qwen4_exp_compat.residency import (
+    from molto_config.model_settings import ModelSettings
+    from molto_runtime.patches.mlx_vlm_qwen4_exp_compat.residency import (
         Qwen4ExpResidencyEstimate,
     )
 
@@ -4728,7 +4738,7 @@ def test_qwen4_ple_resident_load_must_leave_room_to_serve(tmp_path, headroom, fo
             _prefill_headroom_safety=headroom
         )
     with patch(
-        "omlx_runtime.patches.mlx_vlm_qwen4_exp_compat.residency."
+        "molto_runtime.patches.mlx_vlm_qwen4_exp_compat.residency."
         "qwen4_exp_residency_estimate",
         return_value=estimate,
     ):
@@ -4742,8 +4752,8 @@ def test_qwen4_ple_resident_load_must_leave_room_to_serve(tmp_path, headroom, fo
 @pytest.mark.parametrize("mtp_enabled", [False, True])
 def test_qwen4_ple_admission_keeps_native_mtp_head_resident(tmp_path, mtp_enabled):
     """Lightning MTP + expert offload: the head is priced as resident."""
-    from omlx_config.model_settings import ModelSettings
-    from omlx_runtime.patches.mlx_vlm_qwen4_exp_compat.residency import (
+    from molto_config.model_settings import ModelSettings
+    from molto_runtime.patches.mlx_vlm_qwen4_exp_compat.residency import (
         Qwen4ExpResidencyEstimate,
     )
 
@@ -4777,12 +4787,12 @@ def test_qwen4_ple_admission_keeps_native_mtp_head_resident(tmp_path, mtp_enable
     pool = _make_pool(ceiling=10_000)
     with (
         patch(
-            "omlx_runtime.patches.mlx_vlm_qwen4_exp_compat.residency."
+            "molto_runtime.patches.mlx_vlm_qwen4_exp_compat.residency."
             "qwen4_exp_residency_estimate",
             return_value=estimate,
         ),
         patch(
-            "omlx_runtime.patches.moe_expert_offload.estimate_offload_admission_bytes",
+            "molto_runtime.patches.moe_expert_offload.estimate_offload_admission_bytes",
             side_effect=fake_estimate,
         ),
     ):

@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx_runtime.utils.system_sampler."""
+"""Tests for molto_runtime.utils.system_sampler."""
 
 import sys
 import time
 from unittest.mock import patch
 
 import pytest
-from omlx_runtime.utils.system_sampler import (
+from molto_runtime.utils.system_sampler import (
     SystemSampler,
     _cluster_map,
     _cluster_map_from_ioreg,
@@ -192,14 +192,14 @@ class TestClusterMap:
                 self.stdout = out
 
         return patch(
-            "omlx_runtime.utils.system_sampler.subprocess.run",
+            "molto_runtime.utils.system_sampler.subprocess.run",
             return_value=Result(stdout),
         )
 
     def test_parses_interleaved_layout(self):
         with (
             self._run_with_ioreg(_ULTRA_IOREG),
-            patch("omlx_runtime.utils.system_sampler.IS_DARWIN", True),
+            patch("molto_runtime.utils.system_sampler.IS_DARWIN", True),
         ):
             assert _cluster_map_from_ioreg() == (
                 True,
@@ -218,7 +218,7 @@ class TestClusterMap:
         # mislabels half of them on a fused-die part.
         with (
             self._run_with_ioreg(_ULTRA_IOREG),
-            patch("omlx_runtime.utils.system_sampler.IS_DARWIN", True),
+            patch("molto_runtime.utils.system_sampler.IS_DARWIN", True),
         ):
             actual = _cluster_map_from_ioreg()
         prefix_guess = tuple(i < 4 for i in range(8))
@@ -227,14 +227,14 @@ class TestClusterMap:
     def test_parses_contiguous_layout(self):
         with (
             self._run_with_ioreg(_CONTIGUOUS_IOREG),
-            patch("omlx_runtime.utils.system_sampler.IS_DARWIN", True),
+            patch("molto_runtime.utils.system_sampler.IS_DARWIN", True),
         ):
             assert _cluster_map_from_ioreg() == (True, True, False)
 
     def test_malformed_output_returns_none(self):
         with (
             self._run_with_ioreg("no cpu entries here"),
-            patch("omlx_runtime.utils.system_sampler.IS_DARWIN", True),
+            patch("molto_runtime.utils.system_sampler.IS_DARWIN", True),
         ):
             assert _cluster_map_from_ioreg() is None
 
@@ -247,17 +247,17 @@ class TestClusterMap:
 """
         with (
             self._run_with_ioreg(broken),
-            patch("omlx_runtime.utils.system_sampler.IS_DARWIN", True),
+            patch("molto_runtime.utils.system_sampler.IS_DARWIN", True),
         ):
             assert _cluster_map_from_ioreg() is None
 
     def test_falls_back_to_prefix_when_ioreg_unavailable(self):
         with (
             patch(
-                "omlx_runtime.utils.system_sampler._cluster_map_from_ioreg",
+                "molto_runtime.utils.system_sampler._cluster_map_from_ioreg",
                 return_value=None,
             ),
-            patch("omlx_runtime.utils.system_sampler._sysctl_int", return_value=4),
+            patch("molto_runtime.utils.system_sampler._sysctl_int", return_value=4),
         ):
             assert _cluster_map(8) == (
                 True,
@@ -273,20 +273,20 @@ class TestClusterMap:
     def test_falls_back_to_all_performance_when_nothing_is_known(self):
         with (
             patch(
-                "omlx_runtime.utils.system_sampler._cluster_map_from_ioreg",
+                "molto_runtime.utils.system_sampler._cluster_map_from_ioreg",
                 return_value=None,
             ),
-            patch("omlx_runtime.utils.system_sampler._sysctl_int", return_value=None),
+            patch("molto_runtime.utils.system_sampler._sysctl_int", return_value=None),
         ):
             assert _cluster_map(4) == (False, False, False, False)
 
     def test_ioreg_map_ignored_when_length_disagrees_with_cpu_count(self):
         with (
             patch(
-                "omlx_runtime.utils.system_sampler._cluster_map_from_ioreg",
+                "molto_runtime.utils.system_sampler._cluster_map_from_ioreg",
                 return_value=(True, True),
             ),
-            patch("omlx_runtime.utils.system_sampler._sysctl_int", return_value=2),
+            patch("molto_runtime.utils.system_sampler._sysctl_int", return_value=2),
         ):
             assert _cluster_map(8) == (
                 True,

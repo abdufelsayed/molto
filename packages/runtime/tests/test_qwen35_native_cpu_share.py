@@ -6,7 +6,7 @@ import pytest
 @pytest.mark.skipif(sys.platform != "darwin", reason="Darwin-only native API")
 def test_native_shared_cluster_cpu_matmul():
     mx = pytest.importorskip("mlx.core")
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
 
     if not mx.metal.is_available():
         pytest.skip("Metal is unavailable")

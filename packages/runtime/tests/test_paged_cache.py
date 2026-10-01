@@ -9,7 +9,7 @@ architecture, adapted for MLX on Apple Silicon.
 from unittest.mock import MagicMock
 
 import pytest
-from omlx_runtime.cache.paged_cache import (
+from molto_runtime.cache.paged_cache import (
     BlockHash,
     BlockHashToBlockMap,
     BlockTable,
@@ -172,7 +172,7 @@ class TestCacheBlock:
         old_access = block.last_access
 
         monkeypatch.setattr(
-            "omlx_runtime.cache.paged_cache.time.time", lambda: old_access + 1
+            "molto_runtime.cache.paged_cache.time.time", lambda: old_access + 1
         )
         block.touch()
 
@@ -996,7 +996,7 @@ class TestPagedCacheManager:
         _, num_tokens = manager.get_computed_blocks([1, 2, 3, 9, 9])
         assert num_tokens == 3
         # The per-parent index stays bounded as tails accumulate.
-        from omlx_runtime.cache.paged_cache import _TAIL_INDEX_PER_PARENT
+        from molto_runtime.cache.paged_cache import _TAIL_INDEX_PER_PARENT
 
         for i in range(_TAIL_INDEX_PER_PARENT + 2):
             manager.register_tail_block(None, bytes([i]) * 4, i + 4)

@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 import pytest
-from omlx_management.oq_manager import OQManager, QuantStatus, QuantTask
+from molto_management.oq_manager import OQManager, QuantStatus, QuantTask
 
 
 @pytest.fixture
@@ -335,9 +335,9 @@ class TestOQManagerAssistantCombine:
             Path(output_path).mkdir(parents=True)
 
         combine_calls = []
-        monkeypatch.setattr("omlx_runtime.oq.quantize_oq_streaming", _fake_quantize)
+        monkeypatch.setattr("molto_runtime.oq.quantize_oq_streaming", _fake_quantize)
         monkeypatch.setattr(
-            "omlx_runtime.oq.combine_mtp_into_output",
+            "molto_runtime.oq.combine_mtp_into_output",
             lambda out, asst: combine_calls.append((out, asst)),
         )
 
@@ -370,9 +370,9 @@ class TestOQManagerAssistantCombine:
             Path(output_path).mkdir(parents=True)
 
         legacy_calls = []
-        monkeypatch.setattr("omlx_runtime.oq.quantize_oq_streaming", _fake_quantize)
+        monkeypatch.setattr("molto_runtime.oq.quantize_oq_streaming", _fake_quantize)
         monkeypatch.setattr(
-            "omlx_runtime.oq.combine_gemma4_assistant_mtp",
+            "molto_runtime.oq.combine_gemma4_assistant_mtp",
             lambda out, asst: legacy_calls.append((out, asst)),
         )
 
@@ -524,9 +524,9 @@ class TestOQManagerMtpDonorCombine:
             Path(output_path).mkdir(parents=True)
 
         combine_calls = []
-        monkeypatch.setattr("omlx_runtime.oq.quantize_oq_streaming", _fake_quantize)
+        monkeypatch.setattr("molto_runtime.oq.quantize_oq_streaming", _fake_quantize)
         monkeypatch.setattr(
-            "omlx_runtime.oq.combine_mtp_into_output",
+            "molto_runtime.oq.combine_mtp_into_output",
             lambda out, donor_path: combine_calls.append((out, donor_path)),
         )
 
@@ -810,7 +810,7 @@ async def test_v41_source_metadata_and_converted_filter(tmp_path, layer_key):
                 "quantization_config": {"quant_method": "fp8", "expert_dtype": "fp4"},
             },
         ),
-        ("converted", {**base, "omlx_deepseek_v41": {"version": 1}}),
+        ("converted", {**base, "molto_deepseek_v41": {"version": 1}}),
     ):
         folder = root / name
         folder.mkdir()

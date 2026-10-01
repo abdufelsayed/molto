@@ -9,7 +9,7 @@ all and the model free-ran as document continuation until max_tokens:
   2. a trailing system message after the last user turn (workspace notes).
 """
 
-from omlx_runtime.patches.deepseek_v4.chat_template_v4 import (
+from molto_runtime.patches.deepseek_v4.chat_template_v4 import (
     ASSISTANT_SP_TOKEN,
     DS_TASK_SP_TOKENS,
     apply_chat_template,

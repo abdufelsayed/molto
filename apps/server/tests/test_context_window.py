@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from fastapi import HTTPException
-from omlx_config.model_settings import ModelSettings
+from molto_config.model_settings import ModelSettings
 
 
 class TestGetMaxContextWindow:
@@ -16,7 +16,7 @@ class TestGetMaxContextWindow:
         """Create a mock server state with given global
         ``max_context_window`` fallback and optional
         ``max_context_window_policy`` cap."""
-        from omlx_server.state import SamplingDefaults
+        from molto_server.state import SamplingDefaults
 
         state = MagicMock()
         state.sampling = SamplingDefaults(
@@ -32,7 +32,7 @@ class TestGetMaxContextWindow:
 
     def test_returns_global_default(self):
         """Test returns global default when no model settings."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         state = self._make_server_state(global_max_ctx=32768)
         with nullcontext(create_app(state).state.controller) as controller:
@@ -41,7 +41,7 @@ class TestGetMaxContextWindow:
 
     def test_model_setting_overrides_global(self):
         """Test model-specific setting takes priority over global."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         state = self._make_server_state(global_max_ctx=32768)
         mock_manager = MagicMock()
@@ -56,7 +56,7 @@ class TestGetMaxContextWindow:
 
     def test_falls_back_to_global_when_model_not_set(self):
         """Test falls back to global when model has no max_context_window."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         state = self._make_server_state(global_max_ctx=65536)
         mock_manager = MagicMock()
@@ -71,7 +71,7 @@ class TestGetMaxContextWindow:
 
     def test_no_model_id_returns_global(self):
         """Test returns global when model_id is None."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         state = self._make_server_state(global_max_ctx=16384)
         with nullcontext(create_app(state).state.controller) as controller:
@@ -100,7 +100,7 @@ class TestGetMaxContextWindow:
         """With ``max_context_window_policy`` unset, the model's
         native context length is returned verbatim — existing
         installs see no behavior change after this PR."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         state = self._mount_native_and_policy(native_ctx=262_144, policy_cap=None)
         with nullcontext(create_app(state).state.controller) as controller:
@@ -109,7 +109,7 @@ class TestGetMaxContextWindow:
     def test_policy_set_clamps_native(self):
         """With ``max_context_window_policy=128_000`` and a model that
         natively declares 256 K, the effective cap is the policy."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         state = self._mount_native_and_policy(native_ctx=262_144, policy_cap=128_000)
         with nullcontext(create_app(state).state.controller) as controller:
@@ -120,7 +120,7 @@ class TestGetMaxContextWindow:
     def test_policy_set_native_below_policy_wins(self):
         """When the model's native length is already below the policy,
         the native value wins — policy is a ceiling, not a floor."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         state = self._mount_native_and_policy(native_ctx=32_768, policy_cap=128_000)
         with nullcontext(create_app(state).state.controller) as controller:
@@ -131,7 +131,7 @@ class TestGetMaxContextWindow:
         choice; the global policy cap does NOT clamp it. This is the
         operator's escape hatch for individual models that should
         exceed the policy."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         state = self._mount_native_and_policy(native_ctx=100_000, policy_cap=64_000)
         # Add a per-model override above both native and policy
@@ -151,7 +151,7 @@ class TestGetMaxContextWindow:
         ``settings.json`` files with the historical 32768 fallback
         therefore keep working unchanged even when a policy is later
         added to the install."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         # native_ctx=None: model config doesn't expose a context length
         state = self._mount_native_and_policy(native_ctx=None, policy_cap=16_000)
@@ -164,7 +164,7 @@ class TestValidateContextWindow:
     """Tests for controller.validate_context_window()."""
 
     def _make_server_state(self, global_max_ctx=32768):
-        from omlx_server.state import SamplingDefaults
+        from molto_server.state import SamplingDefaults
 
         state = MagicMock()
         state.sampling = SamplingDefaults(max_context_window=global_max_ctx)
@@ -173,7 +173,7 @@ class TestValidateContextWindow:
 
     def test_passes_when_under_limit(self):
         """Test no exception when token count is under limit."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         state = self._make_server_state(global_max_ctx=1000)
         with nullcontext(create_app(state).state.controller) as controller:
@@ -182,7 +182,7 @@ class TestValidateContextWindow:
 
     def test_passes_at_exact_limit(self):
         """Test no exception when token count equals limit."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         state = self._make_server_state(global_max_ctx=1000)
         with nullcontext(create_app(state).state.controller) as controller:
@@ -191,7 +191,7 @@ class TestValidateContextWindow:
 
     def test_raises_when_over_limit(self):
         """Test HTTPException raised when token count exceeds limit."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         state = self._make_server_state(global_max_ctx=1000)
         with nullcontext(create_app(state).state.controller) as controller:
@@ -203,7 +203,7 @@ class TestValidateContextWindow:
 
     def test_raises_with_model_specific_limit(self):
         """Test uses model-specific limit when available."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         state = self._make_server_state(global_max_ctx=32768)
         mock_manager = MagicMock()
@@ -225,7 +225,7 @@ class TestCountChatTokens:
 
     def test_count_chat_tokens(self):
         """Test token counting with mocked tokenizer."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine.__new__(BatchedEngine)
         engine._loaded = True
@@ -249,7 +249,7 @@ class TestCountChatTokens:
 
     def test_count_chat_tokens_with_tools(self):
         """Test token counting includes tools in template."""
-        from omlx_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
 
         engine = BatchedEngine.__new__(BatchedEngine)
         engine._loaded = True

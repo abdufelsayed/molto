@@ -10,14 +10,14 @@ from types import SimpleNamespace
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from omlx_contracts.management import (
+from molto_contracts.management import (
     DiffusionCalibrationRequest,
     DiffusionQuantizationRequest,
 )
-from omlx_management import diffusion_jobs as module
-from omlx_management.diffusion_jobs import DiffusionJobs
-from omlx_server.api.management_routes import router
-from omlx_server.auth import AuthContext
+from molto_management import diffusion_jobs as module
+from molto_management.diffusion_jobs import DiffusionJobs
+from molto_server.api.management_routes import router
+from molto_server.auth import AuthContext
 from pydantic import ValidationError
 
 

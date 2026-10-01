@@ -7,7 +7,7 @@ mlx-lm's ``GenerationBatch._step`` does
 (instead of an empty list), this raises
 ``TypeError: 'NoneType' object is not iterable``.
 
-This crash escapes omlx's recovery path if ``CACHE_CORRUPTION_PATTERNS``
+This crash escapes molto's recovery path if ``CACHE_CORRUPTION_PATTERNS``
 doesn't match it, and presents to users as a request hang. See
 ``vllm-mlx-patched`` commit ``8d4052b`` for the same root cause in a
 sibling project.
@@ -27,7 +27,7 @@ Three levels of defense:
 1. **Chokepoint**: ``_patched_generation_batch_step`` normalises the whole
    list AND every per-row slot to ``[]`` before each step, covering both the
    insert and the ``extend()`` merge origins. This is the load-bearing guard.
-2. **Caller-side**: ``omlx/scheduler.py`` always wraps ``logits_processors``
+2. **Caller-side**: ``molto/scheduler.py`` always wraps ``logits_processors``
    as a list (possibly empty), never None, at the insert call site.
 3. **Pattern matcher**: ``CACHE_CORRUPTION_PATTERNS`` includes
    ``"'NoneType' object is not iterable"`` so the scheduler recovers
@@ -39,7 +39,10 @@ These tests pin all three invariants.
 from __future__ import annotations
 
 import pytest
-from omlx_runtime.exceptions import CACHE_CORRUPTION_PATTERNS, is_cache_corruption_error
+from molto_runtime.exceptions import (
+    CACHE_CORRUPTION_PATTERNS,
+    is_cache_corruption_error,
+)
 from repo_paths import repository_root
 
 
@@ -56,7 +59,8 @@ class TestLogitsProcessorsCallShape:
         """
 
         scheduler_src = (
-            repository_root(__file__) / "packages/runtime/src/omlx_runtime/scheduler.py"
+            repository_root(__file__)
+            / "packages/runtime/src/molto_runtime/scheduler.py"
         ).read_text()
         # The variable name and the wrapping pattern.
         assert (
@@ -81,11 +85,11 @@ class TestChokepointNormalisation:
         to [] at the chokepoint, before the wrapped mlx-lm step is called.
 
         Fails before the fix: the raw None slot reaches the wrapped step (or
-        crashes omlx's own grammar-accept loop). Passes after: the slot is [].
+        crashes molto's own grammar-accept loop). Passes after: the slot is [].
         No model required — the rope branch is skipped without ``_uses_mrope``
         and the grammar branch is skipped without GrammarConstraintProcessor.
         """
-        import omlx_runtime.scheduler as scheduler
+        import molto_runtime.scheduler as scheduler
 
         captured = {}
 
@@ -123,7 +127,8 @@ class TestChokepointNormalisation:
         normalisation. Cheap; runs without a model in CI."""
 
         scheduler_src = (
-            repository_root(__file__) / "packages/runtime/src/omlx_runtime/scheduler.py"
+            repository_root(__file__)
+            / "packages/runtime/src/molto_runtime/scheduler.py"
         ).read_text()
         assert "procs if procs is not None else []" in scheduler_src, (
             "scheduler.py must normalise every per-row logits_processors slot "
@@ -159,7 +164,7 @@ def _bare_grammar_processor(*, pending, allowed=None, vocab_size=64):
     Mirrors the ``__class__.__new__`` idiom of ``_bare_generation_batch``.
     """
     import numpy as np
-    from omlx_runtime.generation.grammar import GrammarConstraintProcessor
+    from molto_runtime.generation.grammar import GrammarConstraintProcessor
 
     proc = GrammarConstraintProcessor.__new__(GrammarConstraintProcessor)
     proc._matcher = _RecordingMatcher(allowed)
@@ -188,19 +193,19 @@ class TestGrammarRowAdvance:
     Grammar rows used to be advanced immediately after the wrapped step
     dispatched the sampled tokens, which forced ``mx.eval`` on them before
     any of the host work that follows a step could overlap with the GPU.
-    ``_omlx_advance_grammar_rows`` moves the read to the top of the next
+    ``_molto_advance_grammar_rows`` moves the read to the top of the next
     step, where the ids are needed anyway; these tests pin the placement and
     the ``pending`` bookkeeping that makes it exact.
     """
 
     def test_sampled_token_is_accepted_at_the_next_step(self):
         import mlx.core as mx
-        import omlx_runtime.scheduler as scheduler
+        import molto_runtime.scheduler as scheduler
 
         proc = _bare_grammar_processor(pending=True)
         batch = _grammar_batch([[proc]], mx.array([7], dtype=mx.uint32))
 
-        scheduler._omlx_advance_grammar_rows(batch)
+        scheduler._molto_advance_grammar_rows(batch)
 
         assert proc._matcher.accepted == [7]
         assert proc.pending is False
@@ -211,12 +216,12 @@ class TestGrammarRowAdvance:
         must not see it. The guard is the processor's own ``pending`` flag,
         which ``extend()`` carries along with the row."""
         import mlx.core as mx
-        import omlx_runtime.scheduler as scheduler
+        import molto_runtime.scheduler as scheduler
 
         proc = _bare_grammar_processor(pending=False)
         batch = _grammar_batch([[proc]], mx.array([7], dtype=mx.uint32))
 
-        scheduler._omlx_advance_grammar_rows(batch)
+        scheduler._molto_advance_grammar_rows(batch)
 
         assert proc._matcher.accepted == []
 
@@ -224,7 +229,7 @@ class TestGrammarRowAdvance:
         """A row without a grammar processor must not be touched, and a
         batch with no pending grammar row must not force an eval at all."""
         import mlx.core as mx
-        import omlx_runtime.scheduler as scheduler
+        import molto_runtime.scheduler as scheduler
 
         def identity_processor(token_context, logits):
             return logits
@@ -234,18 +239,18 @@ class TestGrammarRowAdvance:
             [[identity_processor], [proc]], mx.array([3, 9], dtype=mx.uint32)
         )
 
-        scheduler._omlx_advance_grammar_rows(batch)
+        scheduler._molto_advance_grammar_rows(batch)
 
         assert proc._matcher.accepted == [9]
 
     def test_none_next_tokens_is_skipped(self):
         """``filter([])`` leaves ``_next_tokens`` as None (mlx-lm)."""
-        import omlx_runtime.scheduler as scheduler
+        import molto_runtime.scheduler as scheduler
 
         proc = _bare_grammar_processor(pending=True)
         batch = _grammar_batch([[proc]], None)
 
-        scheduler._omlx_advance_grammar_rows(batch)
+        scheduler._molto_advance_grammar_rows(batch)
 
         assert proc._matcher.accepted == []
 
@@ -253,12 +258,12 @@ class TestGrammarRowAdvance:
         """Same defensive criterion as the row realignment: a token array
         that disagrees with ``uids`` cannot be attributed to rows."""
         import mlx.core as mx
-        import omlx_runtime.scheduler as scheduler
+        import molto_runtime.scheduler as scheduler
 
         proc = _bare_grammar_processor(pending=True)
         batch = _grammar_batch([[proc]], mx.array([1, 2], dtype=mx.uint32))
 
-        scheduler._omlx_advance_grammar_rows(batch)
+        scheduler._molto_advance_grammar_rows(batch)
 
         assert proc._matcher.accepted == []
 
@@ -267,7 +272,7 @@ class TestGrammarRowAdvance:
         previous samples — the original step promotes them to the model
         input on its first line."""
         import mlx.core as mx
-        import omlx_runtime.scheduler as scheduler
+        import molto_runtime.scheduler as scheduler
 
         order = []
 
@@ -303,13 +308,14 @@ class TestGrammarRowAdvance:
         """
 
         scheduler_src = (
-            repository_root(__file__) / "packages/runtime/src/omlx_runtime/scheduler.py"
+            repository_root(__file__)
+            / "packages/runtime/src/molto_runtime/scheduler.py"
         ).read_text()
-        realign = scheduler_src.index("    _omlx_realign_generation_batch_rows(self)")
-        advance = scheduler_src.index("    _omlx_advance_grammar_rows(self)")
+        realign = scheduler_src.index("    _molto_realign_generation_batch_rows(self)")
+        advance = scheduler_src.index("    _molto_advance_grammar_rows(self)")
         step = scheduler_src.index("return _original_generation_batch_step(self)")
         assert realign < advance < step, (
-            "_omlx_advance_grammar_rows must run after the row realignment "
+            "_molto_advance_grammar_rows must run after the row realignment "
             "(it indexes logits_processors by row) and before the wrapped "
             "step (which promotes _next_tokens to the model input)."
         )
@@ -351,7 +357,7 @@ class TestFilterStaleProcessorAlignment:
     when ``any(self.logits_processors)`` is True; there is no else branch
     (the prompt-batch class has one: ``[[]] * len(keep)``). After a request
     with no per-request processors finishes — every slot ``[]``, the shape
-    omlx inserts — removal shrinks ``uids`` but leaves the stale processor
+    molto inserts — removal shrinks ``uids`` but leaves the stale processor
     list behind. The next request's row then ``extend()``s in BEHIND its own
     index: row 0 reads the leftover empty slot and its real processor
     (thinking budget, grammar constraint) is silently never applied. The
@@ -370,7 +376,7 @@ class TestFilterStaleProcessorAlignment:
         Fails before the fix: ``logits_processors`` stays ``[[]]`` while
         ``uids`` becomes ``[]``. Passes after: both are empty.
         """
-        import omlx_runtime.scheduler  # noqa: F401  (installs the filter patch)
+        import molto_runtime.scheduler  # noqa: F401  (installs the filter patch)
 
         batch = _bare_generation_batch(uid=0, logits_processors=[[]])
         batch.filter([])
@@ -387,7 +393,7 @@ class TestFilterStaleProcessorAlignment:
         ``logits_processors == [[], [processor]]`` against ``uids == [1]`` —
         row 0 reads the stale empty slot and the processor is never called.
         """
-        import omlx_runtime.scheduler  # noqa: F401  (installs the filter patch)
+        import molto_runtime.scheduler  # noqa: F401  (installs the filter patch)
 
         def budget_processor(tokens, logits):
             return logits
@@ -405,7 +411,7 @@ class TestFilterStaleProcessorAlignment:
     def test_filter_preserves_active_processor_reindex(self):
         """When any slot is active the original reindex path runs; the patch
         must not clobber its (correct) result."""
-        import omlx_runtime.scheduler  # noqa: F401  (installs the filter patch)
+        import molto_runtime.scheduler  # noqa: F401  (installs the filter patch)
 
         def grammar_processor(tokens, logits):
             return logits
@@ -432,7 +438,7 @@ class TestFilterStaleProcessorAlignment:
     def test_filter_normalises_none_list(self):
         """A None logits_processors list must not crash the original filter
         (``any(None)`` raises TypeError) and must come out aligned."""
-        import omlx_runtime.scheduler  # noqa: F401  (installs the filter patch)
+        import molto_runtime.scheduler  # noqa: F401  (installs the filter patch)
 
         batch = _bare_generation_batch(uid=0, logits_processors=None)
         batch.filter([])
@@ -444,7 +450,8 @@ class TestFilterStaleProcessorAlignment:
         installation. Cheap; runs without a model in CI."""
 
         scheduler_src = (
-            repository_root(__file__) / "packages/runtime/src/omlx_runtime/scheduler.py"
+            repository_root(__file__)
+            / "packages/runtime/src/molto_runtime/scheduler.py"
         ).read_text()
         assert (
             "GenerationBatch.filter = _patched_generation_batch_filter" in scheduler_src
@@ -555,14 +562,14 @@ class TestHeterogeneousMergeReproduction:
     def test_extend_renones_empty_slots_but_chokepoint_survives(self, small_model):
         """The actual gap: extend() turns insert-time [] slots back into None.
 
-        Importing ``omlx_runtime.scheduler`` installs ``_patched_generation_batch_step``
+        Importing ``molto_runtime.scheduler`` installs ``_patched_generation_batch_step``
         on ``GenerationBatch._step``. With the per-row normalisation in place,
         a grammar batch merged with a no-active-processor batch (the empty-list
         shape #1747 ships) must decode without raising, even though extend()
         re-None-ifies the empty slots. Drop the chokepoint normalisation and
         this test raises ``TypeError: 'NoneType' object is not iterable``.
         """
-        import omlx_runtime.scheduler  # noqa: F401  (installs the _step chokepoint patch)
+        import molto_runtime.scheduler  # noqa: F401  (installs the _step chokepoint patch)
         from mlx_lm.generate import BatchGenerator
 
         model, tokenizer = small_model
@@ -608,7 +615,7 @@ class TestRowRealignment:
         """
         from collections import OrderedDict
 
-        import omlx_runtime.scheduler as scheduler
+        import molto_runtime.scheduler as scheduler
 
         monkeypatch.setattr(scheduler, "_uid_row_registry", OrderedDict())
 
@@ -670,7 +677,7 @@ class TestRowRealignment:
         """A missed cleanup must never grow the registry unbounded."""
         from collections import OrderedDict
 
-        import omlx_runtime.scheduler as scheduler
+        import molto_runtime.scheduler as scheduler
 
         registry = OrderedDict()
         original = scheduler._uid_row_registry
@@ -691,7 +698,8 @@ class TestRowRealignment:
         is supposed to run, or the chokepoint has nothing to realign from."""
 
         scheduler_src = (
-            repository_root(__file__) / "packages/runtime/src/omlx_runtime/scheduler.py"
+            repository_root(__file__)
+            / "packages/runtime/src/molto_runtime/scheduler.py"
         ).read_text()
         assert scheduler_src.count("_register_uid_rows(self.model, uids") >= 2, (
             "every batch_generator.insert call site must register the "
@@ -705,7 +713,7 @@ class TestRowRealignment:
         instead of raising."""
         from collections import OrderedDict
 
-        import omlx_runtime.scheduler as scheduler
+        import molto_runtime.scheduler as scheduler
 
         monkeypatch.setattr(scheduler, "_uid_row_registry", OrderedDict())
 
@@ -750,7 +758,7 @@ class TestRowRealignment:
         sampler and processors."""
         from collections import OrderedDict
 
-        import omlx_runtime.scheduler as scheduler
+        import molto_runtime.scheduler as scheduler
 
         monkeypatch.setattr(scheduler, "_uid_row_registry", OrderedDict())
 
@@ -801,7 +809,7 @@ class TestRowRealignment:
         not pinned until FIFO eviction."""
         from collections import OrderedDict
 
-        import omlx_runtime.scheduler as scheduler
+        import molto_runtime.scheduler as scheduler
 
         registry = OrderedDict()
         original = scheduler._uid_row_registry
@@ -822,7 +830,7 @@ class TestRowRealignment:
         replaced by the registered rows and the drift flag is set."""
         from collections import OrderedDict
 
-        import omlx_runtime.scheduler as scheduler
+        import molto_runtime.scheduler as scheduler
 
         registry = OrderedDict()
         original = scheduler._uid_row_registry
@@ -848,7 +856,7 @@ class TestRowRealignment:
         must report no drift: the identity fast path short-circuits."""
         from collections import OrderedDict
 
-        import omlx_runtime.scheduler as scheduler
+        import molto_runtime.scheduler as scheduler
 
         registry = OrderedDict()
         original = scheduler._uid_row_registry
@@ -869,7 +877,7 @@ class TestRowRealignment:
         """A corrected sampler-only mismatch is still row-state drift."""
         from collections import OrderedDict
 
-        import omlx_runtime.scheduler as scheduler
+        import molto_runtime.scheduler as scheduler
 
         registry = OrderedDict()
         original = scheduler._uid_row_registry
@@ -893,7 +901,7 @@ class TestRowRealignment:
         hook must realign rows independently of the patched step wrapper."""
         from collections import OrderedDict
 
-        import omlx_runtime.scheduler as scheduler
+        import molto_runtime.scheduler as scheduler
 
         monkeypatch.setattr(scheduler, "_uid_row_registry", OrderedDict())
 
@@ -907,7 +915,7 @@ class TestRowRealignment:
         batch.logits_processors = [[], []]
         batch.samplers = [None, expected_sampler]
 
-        scheduler._omlx_realign_generation_batch_rows(batch)
+        scheduler._molto_realign_generation_batch_rows(batch)
 
         assert batch.samplers == [expected_sampler]
         assert batch.logits_processors == [[]]
@@ -917,7 +925,7 @@ class TestRowRealignment:
         engine goes, every row of the other engine stays."""
         from collections import OrderedDict
 
-        import omlx_runtime.scheduler as scheduler
+        import molto_runtime.scheduler as scheduler
 
         registry = OrderedDict()
         original = scheduler._uid_row_registry
@@ -945,7 +953,7 @@ class TestRowRealignment:
         ``test_patched_step_realigns_offset_rows_from_registry``."""
         from collections import OrderedDict
 
-        import omlx_runtime.scheduler as scheduler
+        import molto_runtime.scheduler as scheduler
 
         monkeypatch.setattr(scheduler, "_uid_row_registry", OrderedDict())
 
@@ -986,7 +994,7 @@ class TestRowRealignment:
         import logging
         from collections import OrderedDict
 
-        import omlx_runtime.scheduler as scheduler
+        import molto_runtime.scheduler as scheduler
 
         monkeypatch.setattr(scheduler, "_uid_row_registry", OrderedDict())
         monkeypatch.setattr(scheduler, "_uid_row_drift_last_warning", float("-inf"))
@@ -1050,7 +1058,8 @@ class TestRegistryCleanupPaths:
         import ast
 
         source = (
-            repository_root(__file__) / "packages/runtime/src/omlx_runtime/scheduler.py"
+            repository_root(__file__)
+            / "packages/runtime/src/molto_runtime/scheduler.py"
         ).read_text()
         tree = ast.parse(source)
         for node in ast.walk(tree):

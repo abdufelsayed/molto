@@ -9,10 +9,10 @@ from typing import Any
 from unittest.mock import patch
 
 import mlx.core as mx
-import omlx_runtime.specprefill.target as target_workflow
+import molto_runtime.specprefill.target as target_workflow
 import pytest
-from omlx_runtime.patches.specprefill import _OffsetAdjustedRoPE
-from omlx_runtime.specprefill.planning import plan_specprefill_target
+from molto_runtime.patches.specprefill import _OffsetAdjustedRoPE
+from molto_runtime.specprefill.planning import plan_specprefill_target
 
 
 class _Logger:
@@ -212,15 +212,15 @@ def _run(
         ),
         patch.object(target_workflow.mx, "stream", side_effect=use_stream),
         patch(
-            "omlx_runtime.patches.specprefill._find_attention_layers",
+            "molto_runtime.patches.specprefill._find_attention_layers",
             return_value=[(0, attention_layer)],
         ),
         patch(
-            "omlx_runtime.patches.specprefill._get_attn_module",
+            "molto_runtime.patches.specprefill._get_attn_module",
             return_value=attention_module,
         ),
         patch(
-            "omlx_runtime.patches.specprefill.sparse_prefill",
+            "molto_runtime.patches.specprefill.sparse_prefill",
             side_effect=sparse_prefill,
         ),
     ):

@@ -2,7 +2,7 @@
 
 from types import SimpleNamespace
 
-from omlx_runtime.engine_pool import EnginePool
+from molto_runtime.engine_pool import EnginePool
 
 
 def test_request_counts_sum_loaded_engines_without_counting_other_engine_types():
@@ -36,7 +36,7 @@ def test_request_counts_sum_loaded_engines_without_counting_other_engine_types()
 def test_ane_snapshot_includes_attempted_models_without_leaking_patch_state(
     monkeypatch,
 ):
-    from omlx_runtime.patches import qwen35_ane_prefill
+    from molto_runtime.patches import qwen35_ane_prefill
 
     pool = EnginePool()
     attempted = object()

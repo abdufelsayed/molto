@@ -6,12 +6,12 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from omlx_management.management import (
+from molto_management.management import (
     ManagementContext,
     ManagementError,
     ManagementService,
 )
-from omlx_runtime.engine_pool import EngineEntry, EnginePool
+from molto_runtime.engine_pool import EngineEntry, EnginePool
 
 
 def _service(tmp_path, pool=None):
@@ -79,12 +79,12 @@ async def test_clear_refuses_busy_engine_without_touching_cache(tmp_path, kind):
 async def test_hot_clear_reclaims_even_when_no_model_is_loaded(tmp_path, monkeypatch):
     calls = []
     monkeypatch.setattr(
-        "omlx_runtime.scheduler._sync_and_clear_cache",
+        "molto_runtime.scheduler._sync_and_clear_cache",
         lambda stream: calls.append(stream),
     )
     with ThreadPoolExecutor(max_workers=1) as executor:
         monkeypatch.setattr(
-            "omlx_runtime.engine_core.get_mlx_executor", lambda: executor
+            "molto_runtime.engine_core.get_mlx_executor", lambda: executor
         )
         result = await _service(tmp_path).clear_cache("hot")
 
@@ -100,12 +100,12 @@ async def test_hot_clear_reaches_loaded_engine_and_orphan_budget(tmp_path, monke
     pool._scheduler_config = SimpleNamespace(hot_cache_budget=budget)
     calls = []
     monkeypatch.setattr(
-        "omlx_runtime.scheduler._sync_and_clear_cache",
+        "molto_runtime.scheduler._sync_and_clear_cache",
         lambda stream: calls.append(stream),
     )
     with ThreadPoolExecutor(max_workers=1) as executor:
         monkeypatch.setattr(
-            "omlx_runtime.engine_core.get_mlx_executor", lambda: executor
+            "molto_runtime.engine_core.get_mlx_executor", lambda: executor
         )
         result = await _service(tmp_path, pool).clear_cache("hot")
 

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """DeepSeek V4.1 expert offload on one machine: load, prefill, decode.
 
-Loads a V4.1 checkpoint through the oMLX loader with Engram on SSD and MoE
+Loads a V4.1 checkpoint through the Molto loader with Engram on SSD and MoE
 expert offload at each requested resident fraction, then runs a chunked
 prefill and a greedy decode directly on the model (no scheduler), reporting
 load time, Metal and process memory, time to first token, decode speed, and
@@ -23,7 +23,7 @@ import time
 from pathlib import Path
 
 import mlx.core as mx
-from omlx_config.utils.proc_memory import (
+from molto_config.utils.proc_memory import (
     get_lifetime_max_phys_footprint,
     get_phys_footprint,
 )
@@ -55,7 +55,7 @@ def _delta(after: dict, before: dict, seconds: float) -> dict:
 
 
 def sizing(path: Path, budget: int, engram_ssd: bool) -> dict:
-    from omlx_runtime.patches.deepseek_v41.moe_offload import (
+    from molto_runtime.patches.deepseek_v41.moe_offload import (
         _plan,
         admission_bytes,
         fit_resident_fraction,
@@ -97,7 +97,7 @@ def sizing(path: Path, budget: int, engram_ssd: bool) -> dict:
 
 
 def run(path: Path, fraction: float, args) -> dict:
-    from omlx_runtime.patches.deepseek_v41.loading import load
+    from molto_runtime.patches.deepseek_v41.loading import load
 
     gc.collect()
     mx.clear_cache()

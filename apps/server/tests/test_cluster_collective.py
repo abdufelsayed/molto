@@ -5,7 +5,7 @@ import json
 import subprocess
 
 import pytest
-from omlx_runtime.cluster.collective import (
+from molto_runtime.cluster.collective import (
     CollectiveSmokeError,
     _run_local_minimax_decode_smoke,
     run_local_collective_smoke,
@@ -78,7 +78,7 @@ def test_local_collective_smoke_rejects_invalid_port():
 
 def test_local_pipeline_smoke_validates_unequal_nemotron_ranks():
     def runner(argv, *, timeout):
-        assert "omlx_runtime.cluster.pipeline_smoke_worker" in argv
+        assert "molto_runtime.cluster.pipeline_smoke_worker" in argv
         assert timeout == 7.0
         records = [
             {
@@ -141,7 +141,7 @@ def test_local_pipeline_smoke_rejects_divergent_outputs():
 
 def test_local_minimax_decode_smoke_validates_real_rank_roles():
     def runner(argv, *, timeout):
-        assert "omlx_runtime.cluster.minimax_decode_smoke_worker" in argv
+        assert "molto_runtime.cluster.minimax_decode_smoke_worker" in argv
         assert timeout == 9.0
         records = [
             {

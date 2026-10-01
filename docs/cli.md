@@ -1,6 +1,6 @@
-# oMLX command line
+# Molto command line
 
-Use `omlx` to run the application and manage a local or remote server through its public dashboard origin. `omlx --help` and each command's `--help` list supported flags. Existing inference integration, offline preparation, and cluster commands remain available.
+Use `molto` to run the application and manage a local or remote server through its public dashboard origin. `molto --help` and each command's `--help` list supported flags. Existing inference integration, offline preparation, and cluster commands remain available.
 
 ## Source checkout
 
@@ -9,22 +9,22 @@ Install both workspaces from the repository root before using the CLI:
 ```sh
 uv sync --all-packages --inexact
 pnpm install --frozen-lockfile
-pnpm --filter omlx-dashboard build
-uv run --all-packages --inexact omlx --help
+pnpm --filter molto-dashboard build
+uv run --all-packages --inexact molto --help
 ```
 
 The command implementation and its HTTP client live in `apps/cli/`. Installed
-release wheels expose the same `omlx` command and include the dashboard runtime.
+release wheels expose the same `molto` command and include the dashboard runtime.
 See [architecture](architecture.md) for package ownership and root checks.
 
 ## Start and connect
 
 ```sh
-omlx start
-omlx status
-omlx init
-omlx open
-omlx models list
+molto start
+molto status
+molto init
+molto open
+molto models list
 ```
 
 `start` starts the application in the background and waits for public readiness. `stop` stops the locally managed application; `restart` stops and starts it again. `serve` keeps the application in the foreground until Ctrl+C. `start` and `restart` accept `--model-dir`, `--host`, `--port`, source-only `--dashboard-dev`, and `--no-wait`. Use `status` after `--no-wait` to check readiness.
@@ -35,18 +35,18 @@ Explicit startup settings such as `--host`, `--port`, and `--model-dir` are save
 
 Default Homebrew lifecycle commands retain `brew services` behavior. Explicit custom settings or source/pip installations use a managed background application under the selected base path. The CLI checks process identity before stopping it and does not take ownership of an unrelated foreground server. Startup output goes to `<base_path>/logs/application.log`; this local launcher file is separate from the API log tail.
 
-`init` creates a main key through guarded setup on an already running, fresh loopback-bound server. It prompts for the key and confirmation in a terminal. For unattended setup, provide `OMLX_API_KEY` or `--api-key-file`; init does not generate a key automatically. Setup is unavailable through remote origins or forwarded requests. `open` opens the selected dashboard origin in a browser.
+`init` creates a main key through guarded setup on an already running, fresh loopback-bound server. It prompts for the key and confirmation in a terminal. For unattended setup, provide `MOLTO_API_KEY` or `--api-key-file`; init does not generate a key automatically. Setup is unavailable through remote origins or forwarded requests. `open` opens the selected dashboard origin in a browser.
 
 Connection flags work before or after management commands:
 
 ```sh
-omlx --url https://inference.example --api-key-file ~/.config/omlx/main-key models list
-omlx models list --json
+molto --url https://inference.example --api-key-file ~/.config/molto/main-key models list
+molto models list --json
 ```
 
-`--url` overrides `OMLX_URL`; otherwise the CLI derives the local origin from saved host/port. Supply the main key with `--api-key-file`, `--api-key`, or `OMLX_API_KEY`. Key files must be private, for example mode `600`. A saved local key is used only for the exact derived loopback origin, never sent automatically to a remote destination. Redirects do not receive credentials. Management always requires a main key, even when local inference authentication is bypassed.
+`--url` overrides `MOLTO_URL`; otherwise the CLI derives the local origin from saved host/port. Supply the main key with `--api-key-file`, `--api-key`, or `MOLTO_API_KEY`. Key files must be private, for example mode `600`. A saved local key is used only for the exact derived loopback origin, never sent automatically to a remote destination. Redirects do not receive credentials. Management always requires a main key, even when local inference authentication is bypassed.
 
-Local lifecycle commands reject another server's `--url` or `OMLX_URL`. `status` can check remote health; an authenticated remote restart can use `omlx api POST /server/restart` when supported.
+Local lifecycle commands reject another server's `--url` or `MOLTO_URL`. `status` can check remote health; an authenticated remote restart can use `molto api POST /server/restart` when supported.
 
 ## Management commands
 
@@ -67,21 +67,21 @@ Local lifecycle commands reject another server's `--url` or `OMLX_URL`. `status`
 Typed settings preserve JSON types. Shell-quote string assignments so the JSON quotes reach the CLI:
 
 ```sh
-omlx models settings set MODEL temperature=0.7 'model_alias="my-model"'
-omlx models settings set MODEL temperature=null
-omlx settings set sampling.temperature=0.7
-omlx models profiles create MODEL focused --settings '{"temperature":0.2}'
-omlx models download mlx-community/REPO --provider hf
-omlx api GET /server/resources
+molto models settings set MODEL temperature=0.7 'model_alias="my-model"'
+molto models settings set MODEL temperature=null
+molto settings set sampling.temperature=0.7
+molto models profiles create MODEL focused --settings '{"temperature":0.2}'
+molto models download mlx-community/REPO --provider hf
+molto api GET /server/resources
 ```
 
 Download providers are `hf` and `ms`; `--token-file` supplies a private provider credential. `jobs list` combines operations and diffusion jobs, reporting when optional diffusion history is unavailable. Use `--kind acquisition`, `--kind workspace`, or `--kind diffusion` to select a history. Other job commands default to operation IDs; specify `--kind diffusion` for diffusion jobs. Retry uses a fresh `--token-file` when needed. Diffusion retry is unavailable; start a new preparation job. Backend-advertised state and actions remain authoritative.
 
 ```sh
-omlx jobs watch JOB --interval 1 --wait-timeout 300
-omlx logs --follow --lines 200 --wait-timeout 60
-omlx monitoring usage --range 7d --model MODEL --details
-omlx diagnostics start throughput --options @throughput.json
+molto jobs watch JOB --interval 1 --wait-timeout 300
+molto logs --follow --lines 200 --wait-timeout 60
+molto monitoring usage --range 7d --model MODEL --details
+molto diagnostics start throughput --options @throughput.json
 ```
 
 Log following polls overlapping HTTP tail windows and prints new suffixes; it is not a lossless streaming log subscription. Both watches have bounded duration, defaulting to 300 seconds. JSON watches return the final observed object. A job still active at timeout exits with failure; a log follow that reaches its duration completes successfully.
@@ -106,4 +106,4 @@ Human output uses Rich tables and status displays. `--json` writes the result to
 | `5`       | Server conflict                                |
 | `130`     | Interrupted or cancelled                       |
 
-The CLI uses bearer authentication at `/api/management/v1` on the public dashboard port. The gateway rejects browser Origin-bearing requests and requires the main key. Browser UI sessions continue using the separate `/api/omlx` gateway. Raw private `/management/v1` and `/admin` routes remain blocked at the public proxy.
+The CLI uses bearer authentication at `/api/management/v1` on the public dashboard port. The gateway rejects browser Origin-bearing requests and requires the main key. Browser UI sessions continue using the separate `/api/molto` gateway. Raw private `/management/v1` and `/admin` routes remain blocked at the public proxy.

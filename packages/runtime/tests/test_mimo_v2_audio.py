@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import mlx.core as mx
 import mlx.nn as nn
 import numpy as np
-from omlx_runtime.patches.mimo_v2.audio import (
+from molto_runtime.patches.mimo_v2.audio import (
     AudioTokenizerEncoder,
     MiMoAudioProcessor,
     _load_codebook_weights,
@@ -208,7 +208,7 @@ def test_audio_processor_expands_placeholders_and_returns_codes(monkeypatch):
     processor = MiMoAudioProcessor(base, "/unused")
     monkeypatch.setattr(processor, "_load_audio_tokenizer", lambda: fake_tokenizer)
     monkeypatch.setattr(
-        "omlx_runtime.patches.mimo_v2.audio.mel_spectrogram",
+        "molto_runtime.patches.mimo_v2.audio.mel_spectrogram",
         lambda audio, _config: mx.array(audio),
     )
 

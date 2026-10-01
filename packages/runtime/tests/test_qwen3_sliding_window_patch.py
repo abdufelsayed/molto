@@ -5,8 +5,8 @@ import mlx.core as mx
 import numpy as np
 from mlx.utils import tree_flatten
 from mlx_lm.models import qwen3 as upstream_qwen3
-from omlx_runtime.patches import qwen3_sliding_window as patch_module
-from omlx_runtime.patches.qwen3_sliding_window import qwen3_model
+from molto_runtime.patches import qwen3_sliding_window as patch_module
+from molto_runtime.patches.qwen3_sliding_window import qwen3_model
 
 
 def _model_args(args_class, **overrides):

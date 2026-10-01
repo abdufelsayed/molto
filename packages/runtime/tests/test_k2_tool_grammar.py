@@ -5,9 +5,9 @@ import json
 from types import SimpleNamespace
 
 import pytest
-from omlx_runtime._torch_stub import install
-from omlx_runtime.exceptions import InvalidRequestError
-from omlx_runtime.patches.k2_horizon.tool_grammar import compile_tool_grammar
+from molto_runtime._torch_stub import install
+from molto_runtime.exceptions import InvalidRequestError
+from molto_runtime.patches.k2_horizon.tool_grammar import compile_tool_grammar
 
 install()
 xgr = pytest.importorskip("xgrammar")
@@ -131,7 +131,7 @@ def test_optional_backend_and_conflicting_constraints(compiler):
 
 
 def test_non_k2_engine_does_not_touch_grammar():
-    from omlx_runtime.engine.batched import BatchedEngine
+    from molto_runtime.engine.batched import BatchedEngine
 
     for model_type in ("gemma4", "qwen3", "llama", None):
         engine = SimpleNamespace(model_type=model_type)
@@ -142,7 +142,7 @@ def test_non_k2_engine_does_not_touch_grammar():
 
 
 def test_partial_tool_prefix_is_explicitly_rejected():
-    from omlx_runtime.patches.k2_horizon.tool_grammar import validate_tool_prefix
+    from molto_runtime.patches.k2_horizon.tool_grammar import validate_tool_prefix
 
     messages = [{"role": "assistant", "content": "<ifm|tool_calls><ifm|tool_call>rea"}]
     with pytest.raises(InvalidRequestError, match="prefix"):

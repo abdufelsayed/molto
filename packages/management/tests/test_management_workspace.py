@@ -6,10 +6,10 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from omlx_config.model_settings import ModelSettings, ModelSettingsManager
-from omlx_management.management import ManagementContext, ManagementError
-from omlx_management.management_runtime import ManagementRuntime
-from omlx_management.management_workspace import WorkspaceService, root_id
+from molto_config.model_settings import ModelSettings, ModelSettingsManager
+from molto_management.management import ManagementContext, ManagementError
+from molto_management.management_runtime import ManagementRuntime
+from molto_management.management_workspace import WorkspaceService, root_id
 
 
 @pytest.fixture
@@ -62,7 +62,7 @@ def workspace(tmp_path):
     pool.load_model = AsyncMock(side_effect=load_model)
 
     async def smoke_model(mid, kind):
-        from omlx_runtime.model_probe import smoke
+        from molto_runtime.model_probe import smoke
 
         return await smoke(await pool.get_engine(mid), kind)
 
@@ -395,7 +395,7 @@ async def test_revision_rejects_traversal_and_noncache(workspace):
 async def test_smoke_loads_probes_and_unloads_with_shared_gate(workspace, monkeypatch):
     service, _, entry, _ = workspace
     monkeypatch.setattr(
-        "omlx_management.management_workspace.verify_model_files",
+        "molto_management.management_workspace.verify_model_files",
         lambda _: {"status": "ready", "summary": "files", "checks": []},
     )
     result = await service.verify("model-a", mode="smoke")
@@ -411,7 +411,7 @@ async def test_smoke_loads_probes_and_unloads_with_shared_gate(workspace, monkey
 async def test_smoke_failures_persist_failed_health(workspace, monkeypatch):
     service, _, entry, _ = workspace
     monkeypatch.setattr(
-        "omlx_management.management_workspace.verify_model_files",
+        "molto_management.management_workspace.verify_model_files",
         lambda _: {"status": "ready", "summary": "files", "checks": []},
     )
     entry.engine = SimpleNamespace(
@@ -481,7 +481,7 @@ async def test_revision_activation_and_failed_refresh_rollback(workspace, monkey
     service.guard = AsyncMock()
     service.refresh_files = AsyncMock()
     monkeypatch.setattr(
-        "omlx_management.management_workspace.verify_model_files",
+        "molto_management.management_workspace.verify_model_files",
         lambda _: {"status": "ready"},
     )
     assert (await service.activate_revision("model-a", "bbbbbbb"))["activated"]
@@ -521,7 +521,7 @@ async def test_check_and_stage_updates_use_pinned_commit_without_activation(
     download = MagicMock(return_value=str(staged))
     monkeypatch.setattr(huggingface_hub, "snapshot_download", download)
     monkeypatch.setattr(
-        "omlx_management.management_workspace.verify_model_files",
+        "molto_management.management_workspace.verify_model_files",
         lambda _: {"status": "ready"},
     )
     check = (await service.check_update("model-a"))["operation"]
@@ -552,7 +552,7 @@ async def test_cancelled_smoke_drains_worker_before_releasing_gate(
 
     entry.engine = SimpleNamespace(generate=generate)
     monkeypatch.setattr(
-        "omlx_management.management_workspace.verify_model_files",
+        "molto_management.management_workspace.verify_model_files",
         lambda _: {"status": "ready", "checks": []},
     )
     operation = (await service.verify("model-a", mode="smoke"))["operation"]
@@ -879,8 +879,8 @@ async def test_import_default_change_previews_previous_default_side_effect(works
 
 def discovered_workspace(tmp_path, *, cached=False):
     """Real pool/discovery over synthetic bytes; never load an engine."""
-    from omlx_runtime.engine_pool import EnginePool
-    from omlx_runtime.model_discovery import discover_models
+    from molto_runtime.engine_pool import EnginePool
+    from molto_runtime.model_discovery import discover_models
 
     roots = [tmp_path / "source", tmp_path / "destination"]
     for root in roots:
@@ -955,7 +955,7 @@ def discovered_workspace(tmp_path, *, cached=False):
 async def test_real_discovery_move_preserves_identity_metadata_and_cache_links(
     tmp_path, cached
 ):
-    from omlx_runtime.model_discovery import discover_models, model_display_name
+    from molto_runtime.model_discovery import discover_models, model_display_name
 
     service, roots, container, checkpoint, model_id, default = discovered_workspace(
         tmp_path, cached=cached
@@ -1016,7 +1016,7 @@ async def test_real_move_rolls_back_before_original_deletion(
             raise OSError("copy failure")
 
         monkeypatch.setattr(
-            "omlx_management.management_workspace.copy_model_container", failing_copy
+            "molto_management.management_workspace.copy_model_container", failing_copy
         )
     elif failure == "discovery":
         calls = 0
@@ -1200,7 +1200,7 @@ async def test_move_reserves_staging_and_original_backup_through_native_copy(
     tmp_path, monkeypatch
 ):
     service, roots, _, _, model_id, _ = discovered_workspace(tmp_path, cached=True)
-    from omlx_management.management_workspace import copy_model_container
+    from molto_management.management_workspace import copy_model_container
 
     observed = []
 
@@ -1222,7 +1222,7 @@ async def test_move_reserves_staging_and_original_backup_through_native_copy(
         copy_model_container(source, staging, destination)
 
     monkeypatch.setattr(
-        "omlx_management.management_workspace.copy_model_container", inspect_copy
+        "molto_management.management_workspace.copy_model_container", inspect_copy
     )
     await service.move(model_id, destination_root_id=root_id(roots[1]), drain=True)
     assert observed == [True] and not service.runtime.path_activities
@@ -1243,7 +1243,7 @@ async def test_move_copy_failure_preserves_unrelated_new_operation_records(
         raise OSError("copy failed")
 
     monkeypatch.setattr(
-        "omlx_management.management_workspace.copy_model_container", fail_copy
+        "molto_management.management_workspace.copy_model_container", fail_copy
     )
     with pytest.raises(OSError, match="copy failed"):
         await service.move(model_id, destination_root_id=root_id(roots[1]), drain=True)

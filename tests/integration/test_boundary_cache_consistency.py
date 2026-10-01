@@ -118,8 +118,8 @@ def _generate_tokens(
     block_size: int = 2048,
 ) -> tuple[list[int], int]:
     """Run generation and return (output_token_ids, cached_tokens)."""
-    from omlx_runtime.request import Request, SamplingParams
-    from omlx_runtime.scheduler import Scheduler, SchedulerConfig
+    from molto_runtime.request import Request, SamplingParams
+    from molto_runtime.scheduler import Scheduler, SchedulerConfig
 
     config_kwargs = dict(
         max_num_seqs=1,
@@ -207,7 +207,7 @@ def _run_model_test(model_path: str, model_desc: str, expect_on_off_match: bool)
     # --- Test 1: Boundary ON vs OFF ---
     print("\n  [Test 1] Boundary cache ON vs OFF...")
 
-    tmp_dir = tempfile.mkdtemp(prefix="omlx_test_")
+    tmp_dir = tempfile.mkdtemp(prefix="molto_test_")
     try:
         tokens_on, _ = _generate_tokens(
             model,
@@ -265,7 +265,7 @@ def _run_model_test(model_path: str, model_desc: str, expect_on_off_match: bool)
     # --- Test 2: SSD cache hit vs fresh ---
     print("\n  [Test 2] SSD cache hit vs fresh prefill...")
 
-    tmp_dir = tempfile.mkdtemp(prefix="omlx_test_ssd_")
+    tmp_dir = tempfile.mkdtemp(prefix="molto_test_ssd_")
     try:
         tokens_fresh, cached_fresh = _generate_tokens(
             model,

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 from mlx_lm.tokenizer_utils import TokenizerWrapper
-from omlx_runtime.patches.k2_horizon.checkpoint import _patch_tokenizer
+from molto_runtime.patches.k2_horizon.checkpoint import _patch_tokenizer
 from tokenizers import Tokenizer, models, pre_tokenizers, processors
 from transformers import PreTrainedTokenizerFast
 

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Contract tests for oMLX's Laguna extension to dflash-mlx."""
+"""Contract tests for Molto's Laguna extension to dflash-mlx."""
 
 import mlx.core as mx
 import pytest
@@ -75,7 +75,7 @@ def _draft_config(**overrides):
 
 
 def _target_model():
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
     from mlx_lm.models import laguna
@@ -91,7 +91,7 @@ def _assert_close(actual, expected, atol=1e-5):
 def test_installer_registers_target_backend_and_laguna_draft_classes():
     from dflash_mlx.engine import target_ops
     from dflash_mlx.runtime import loading
-    from omlx_runtime.patches.dflash_laguna import (
+    from molto_runtime.patches.dflash_laguna import (
         LagunaDFlashDraftModel,
         LagunaDFlashDraftModelArgs,
         install_dflash_laguna_backend,
@@ -100,7 +100,7 @@ def test_installer_registers_target_backend_and_laguna_draft_classes():
     install_dflash_laguna_backend()
 
     assert (
-        "omlx_runtime.patches.dflash_laguna:LagunaTargetOps"
+        "molto_runtime.patches.dflash_laguna:LagunaTargetOps"
         in target_ops.TARGET_BACKENDS
     )
     assert loading._get_dflash_model_classes(_draft_config()) == (
@@ -110,7 +110,7 @@ def test_installer_registers_target_backend_and_laguna_draft_classes():
 
 
 def test_target_ops_matches_native_forward_and_captures_requested_layers():
-    from omlx_runtime.patches.dflash_laguna import LagunaTargetOps
+    from molto_runtime.patches.dflash_laguna import LagunaTargetOps
 
     model = _target_model()
     ops = LagunaTargetOps()
@@ -130,7 +130,7 @@ def test_target_ops_matches_native_forward_and_captures_requested_layers():
 
 
 def test_target_ops_rewinds_full_and_rotating_cache_after_rejection():
-    from omlx_runtime.patches.dflash_laguna import LagunaTargetOps
+    from molto_runtime.patches.dflash_laguna import LagunaTargetOps
 
     model = _target_model()
     ops = LagunaTargetOps()
@@ -188,8 +188,8 @@ def test_target_ops_prefix_snapshot_round_trip_preserves_mixed_cache():
     from dflash_mlx.cache.codecs import build_snapshot, hydrate_target_cache
     from dflash_mlx.cache.fingerprints import DFlashPrefixKey
     from mlx_lm.models.cache import KVCache, RotatingKVCache
-    from omlx_runtime.patches.dflash_laguna import LagunaTargetOps
-    from omlx_runtime.patches.dflash_lifecycle import install_dflash_lifecycle_wrap
+    from molto_runtime.patches.dflash_laguna import LagunaTargetOps
+    from molto_runtime.patches.dflash_lifecycle import install_dflash_lifecycle_wrap
 
     install_dflash_lifecycle_wrap()
     model = _target_model()
@@ -259,7 +259,7 @@ def test_laguna_draft_decodes_trimmed_prefix_snapshot():
     from dflash_mlx.engine.events import SummaryEvent
     from dflash_mlx.runtime import stream_dflash_generate
     from dflash_mlx.runtime.context import build_offline_runtime_context
-    from omlx_runtime.patches.dflash_laguna import (
+    from molto_runtime.patches.dflash_laguna import (
         LagunaDFlashDraftModel,
         LagunaDFlashDraftModelArgs,
         LagunaTargetOps,
@@ -341,7 +341,7 @@ def test_laguna_draft_decodes_trimmed_prefix_snapshot():
 def test_laguna_draft_advances_trimmed_projected_context():
     from dflash_mlx.cache.snapshot import TargetHiddenChunks
     from dflash_mlx.draft_backend import EagerDraftBackend
-    from omlx_runtime.patches.dflash_laguna import (
+    from molto_runtime.patches.dflash_laguna import (
         LagunaDFlashDraftModel,
         LagunaDFlashDraftModelArgs,
     )
@@ -386,7 +386,7 @@ def test_laguna_draft_advances_trimmed_projected_context():
 
 
 def test_laguna_draft_normalizes_nested_config_and_builds_gated_layers():
-    from omlx_runtime.patches.dflash_laguna import (
+    from molto_runtime.patches.dflash_laguna import (
         LagunaDFlashDraftModel,
         LagunaDFlashDraftModelArgs,
     )
@@ -404,7 +404,7 @@ def test_laguna_draft_normalizes_nested_config_and_builds_gated_layers():
 
 
 def test_laguna_draft_forward_uses_aux_norms_and_binds_matching_target():
-    from omlx_runtime.patches.dflash_laguna import (
+    from molto_runtime.patches.dflash_laguna import (
         LagunaDFlashDraftModel,
         LagunaDFlashDraftModelArgs,
         LagunaTargetOps,
@@ -425,7 +425,7 @@ def test_laguna_draft_forward_uses_aux_norms_and_binds_matching_target():
 
 
 def test_laguna_draft_sanitize_splits_poolside_fused_qkv_layout():
-    from omlx_runtime.patches.dflash_laguna import (
+    from molto_runtime.patches.dflash_laguna import (
         LagunaDFlashDraftModel,
         LagunaDFlashDraftModelArgs,
     )
@@ -458,7 +458,7 @@ def test_laguna_draft_sanitize_splits_poolside_fused_qkv_layout():
 
 
 def test_laguna_draft_rejects_mixed_attention_flavors():
-    from omlx_runtime.patches.dflash_laguna import LagunaDFlashDraftModelArgs
+    from molto_runtime.patches.dflash_laguna import LagunaDFlashDraftModelArgs
 
     with pytest.raises(ValueError, match="one attention type"):
         LagunaDFlashDraftModelArgs.from_dict(
@@ -476,7 +476,7 @@ def test_target_ops_logits_last_only_slices_before_lm_head():
     see docs/laguna-mlxfast-port-correctness.md C2); asserted at the repo
     tolerance, matching the DFlash reference layer's frame-divergence tolerance.
     """
-    from omlx_runtime.patches.dflash_laguna import LagunaTargetOps
+    from molto_runtime.patches.dflash_laguna import LagunaTargetOps
 
     model = _target_model()
     ops = LagunaTargetOps()

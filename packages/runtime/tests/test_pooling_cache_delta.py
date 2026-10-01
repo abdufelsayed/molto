@@ -7,14 +7,14 @@ import time
 from unittest.mock import MagicMock
 
 import pytest
-from omlx_runtime.cache.paged_cache import BlockTable, PagedCacheManager
-from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
-from omlx_runtime.cache.pooling_delta import (
+from molto_runtime.cache.paged_cache import BlockTable, PagedCacheManager
+from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+from molto_runtime.cache.pooling_delta import (
     POOLING_CACHE_DELTA_CLASS,
     POOLING_CACHE_DELTA_FORMAT_VERSION,
     compact_pooling_cache_snapshot,
 )
-from omlx_runtime.cache.prefix_cache import BlockAwarePrefixCache
+from molto_runtime.cache.prefix_cache import BlockAwarePrefixCache
 
 try:
     import mlx.core as mx
@@ -73,7 +73,7 @@ def _delta_pooling_layer(
 
 
 def _make_cache(tmp_path, *, hot_cache_only: bool = True):
-    from omlx_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
+    from molto_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
 
     apply_deepseek_v4_patch()
     paged = PagedCacheManager(
@@ -149,7 +149,7 @@ def test_compaction_preserves_overlap_state():
 
 
 def test_boundary_snapshot_metadata_roundtrip(tmp_path):
-    from omlx_runtime.cache.boundary_snapshot_store import BoundarySnapshotSSDStore
+    from molto_runtime.cache.boundary_snapshot_store import BoundarySnapshotSSDStore
 
     store = BoundarySnapshotSSDStore(tmp_path)
     layers = [_pooling_layer(2 * BLOCK_SIZE)]
@@ -169,7 +169,7 @@ def test_boundary_snapshot_metadata_roundtrip(tmp_path):
 
 
 def test_v4_delta_blocks_restore_full_and_partial_prefix(tmp_path):
-    from omlx_runtime.cache.paged_ssd_cache import _signature_cachelist_subtypes
+    from molto_runtime.cache.paged_ssd_cache import _signature_cachelist_subtypes
 
     cache, ssd = _make_cache(tmp_path)
     num_blocks = 3
@@ -194,7 +194,7 @@ def test_v4_delta_blocks_restore_full_and_partial_prefix(tmp_path):
         hot_entry = ssd._hot_cache_get(block.block_hash)
         assert hot_entry is not None
         assert (
-            hot_entry["file_metadata"]["omlx_cache_format_version"]
+            hot_entry["file_metadata"]["molto_cache_format_version"]
             == POOLING_CACHE_DELTA_FORMAT_VERSION
         )
         marker = block_data[0][0]
@@ -238,7 +238,7 @@ def test_v4_delta_blocks_restore_full_and_partial_prefix(tmp_path):
 
 
 def test_missing_intermediate_snapshot_stops_before_pooling_delta_gap(tmp_path):
-    from omlx_runtime.cache.paged_ssd_cache import _signature_cachelist_subtypes
+    from molto_runtime.cache.paged_ssd_cache import _signature_cachelist_subtypes
 
     cache, ssd = _make_cache(tmp_path)
     tokens = list(range(3 * BLOCK_SIZE))
@@ -284,7 +284,7 @@ def test_legacy_full_block_can_anchor_v4_delta_chain(tmp_path):
     assert first_metadata is not None
     first_entry = ssd._hot_cache_get(first_block.block_hash)
     assert first_entry is not None
-    assert first_entry["file_metadata"]["omlx_cache_format_version"] == "3"
+    assert first_entry["file_metadata"]["molto_cache_format_version"] == "3"
 
     tokens = list(range(3 * BLOCK_SIZE))
     snapshots = {
@@ -311,8 +311,8 @@ def test_legacy_full_block_can_anchor_v4_delta_chain(tmp_path):
 
 
 def test_live_pooling_signature_records_state_arity():
-    from omlx_runtime.cache.paged_ssd_cache import cachelist_subtypes_from_cache_list
-    from omlx_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
+    from molto_runtime.cache.paged_ssd_cache import cachelist_subtypes_from_cache_list
+    from molto_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
 
     apply_deepseek_v4_patch()
     from mlx_lm.models.cache import CacheList, PoolingCache
@@ -322,7 +322,7 @@ def test_live_pooling_signature_records_state_arity():
 
 
 def test_legacy_pooling_state_arity_is_rejected(tmp_path):
-    from omlx_runtime.cache.paged_ssd_cache import _signature_cachelist_subtypes
+    from molto_runtime.cache.paged_ssd_cache import _signature_cachelist_subtypes
 
     cache, ssd = _make_cache(tmp_path)
     table = cache.store_cache(
@@ -349,7 +349,7 @@ def test_legacy_pooling_state_arity_is_rejected(tmp_path):
 
 @pytest.mark.parametrize("hot_cache_only", [True, False], ids=["hot-cache", "ssd"])
 def test_stale_pooling_tail_is_replaced_in_one_refill(tmp_path, caplog, hot_cache_only):
-    from omlx_runtime.cache.paged_ssd_cache import _signature_cachelist_subtypes
+    from molto_runtime.cache.paged_ssd_cache import _signature_cachelist_subtypes
 
     cache, ssd = _make_cache(tmp_path, hot_cache_only=hot_cache_only)
     tokens = list(range(4 * BLOCK_SIZE))

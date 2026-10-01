@@ -4,7 +4,7 @@ import json
 import stat
 
 import pytest
-from omlx_runtime.cluster.enrollment import (
+from molto_runtime.cluster.enrollment import (
     JOIN_SESSION_TTL_SECONDS,
     ClusterEnrollmentStore,
     EnrolledNode,
@@ -26,13 +26,13 @@ def _node(
     return EnrolledNode(
         node_id=node_id,
         hostname="cuda-worker-1",
-        ssh="omlxworker@10.42.0.21",
-        ssh_user="omlxworker",
+        ssh="moltoworker@10.42.0.21",
+        ssh_user="moltoworker",
         ssh_port=22,
         addresses=("10.42.0.21",),
         accelerator="cuda",
         platform="Linux-aarch64",
-        python_executable="/opt/omlx-cluster-worker/venv/bin/python",
+        python_executable="/opt/molto-cluster-worker/venv/bin/python",
         source_digest=digest,
         ssh_host_fingerprint="SHA256:" + "A" * 43,
         joined_at=1001.0,
@@ -51,7 +51,7 @@ def test_join_key_is_single_use_and_status_never_returns_the_secret(tmp_path):
         raw_key,
         node_id="cuda-worker-1-machine",
         hostname="cuda-worker-1",
-        ssh_user="omlxworker",
+        ssh_user="moltoworker",
         ssh_port=22,
         addresses=("10.42.0.21",),
     )
@@ -65,7 +65,7 @@ def test_join_key_is_single_use_and_status_never_returns_the_secret(tmp_path):
             raw_key,
             node_id="cuda-worker-1-machine",
             hostname="cuda-worker-1",
-            ssh_user="omlxworker",
+            ssh_user="moltoworker",
             ssh_port=22,
             addresses=("10.42.0.21",),
         )
@@ -85,7 +85,7 @@ def test_default_join_key_survives_fresh_worker_prerequisite_install(tmp_path):
         raw_key,
         node_id="cuda-worker-1-machine",
         hostname="cuda-worker-1",
-        ssh_user="omlxworker",
+        ssh_user="moltoworker",
         ssh_port=22,
         addresses=("10.42.0.21",),
     )
@@ -106,7 +106,7 @@ def test_expired_join_key_and_session_fail_closed(tmp_path):
             raw_key,
             node_id="cuda-worker-1-machine",
             hostname="cuda-worker-1",
-            ssh_user="omlxworker",
+            ssh_user="moltoworker",
             ssh_port=22,
             addresses=("10.42.0.21",),
         )
@@ -121,7 +121,7 @@ def test_expired_join_key_and_session_fail_closed(tmp_path):
         raw_key,
         node_id="cuda-worker-1-machine",
         hostname="cuda-worker-1",
-        ssh_user="omlxworker",
+        ssh_user="moltoworker",
         ssh_port=22,
         addresses=("10.42.0.21",),
     )
@@ -141,7 +141,7 @@ def test_claim_session_outlives_an_allowed_worker_dependency_install(tmp_path):
         raw_key,
         node_id="cuda-worker-1-machine",
         hostname="cuda-worker-1",
-        ssh_user="omlxworker",
+        ssh_user="moltoworker",
         ssh_port=22,
         addresses=("10.42.0.21",),
     )
@@ -161,7 +161,7 @@ def test_completion_is_bound_to_claimed_worker_identity(tmp_path):
         raw_key,
         node_id="cuda-worker-1-machine",
         hostname="cuda-worker-1",
-        ssh_user="omlxworker",
+        ssh_user="moltoworker",
         ssh_port=22,
         addresses=("10.42.0.21",),
     )
@@ -186,7 +186,7 @@ def test_completed_nodes_persist_without_credentials(tmp_path):
         raw_key,
         node_id="cuda-worker-1-machine",
         hostname="cuda-worker-1",
-        ssh_user="omlxworker",
+        ssh_user="moltoworker",
         ssh_port=22,
         addresses=("10.42.0.21",),
     )
@@ -213,7 +213,7 @@ def test_revocation_invalidates_a_claim_session(tmp_path):
         raw_key,
         node_id="cuda-worker-1-machine",
         hostname="cuda-worker-1",
-        ssh_user="omlxworker",
+        ssh_user="moltoworker",
         ssh_port=22,
         addresses=("10.42.0.21",),
     )
@@ -235,7 +235,7 @@ def test_claim_session_can_still_be_revoked_after_join_key_expiry(tmp_path):
         raw_key,
         node_id="cuda-worker-1-machine",
         hostname="cuda-worker-1",
-        ssh_user="omlxworker",
+        ssh_user="moltoworker",
         ssh_port=22,
         addresses=("10.42.0.21",),
     )

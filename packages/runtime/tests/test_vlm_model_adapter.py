@@ -47,7 +47,7 @@ class TestVLMModelAdapter:
 
     def test_init(self):
         """Test initialization stores vlm_model reference."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mock_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -59,7 +59,7 @@ class TestVLMModelAdapter:
 
     def test_release_resources_drops_model_references(self):
         """release_resources drops raw VLM/language model and pending arrays."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mock_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -79,7 +79,7 @@ class TestVLMModelAdapter:
 
     def test_layers_property(self):
         """Test layers property delegates to language_model.model.layers."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mock_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -89,7 +89,7 @@ class TestVLMModelAdapter:
 
     def test_config_property(self):
         """Test config property returns vlm_model config."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mock_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -98,7 +98,7 @@ class TestVLMModelAdapter:
 
     def test_model_type_property(self):
         """Test model_type property returns config.model_type."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mock_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -107,7 +107,7 @@ class TestVLMModelAdapter:
 
     def test_args_property(self):
         """Test args property delegates to language_model."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mock_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -116,7 +116,7 @@ class TestVLMModelAdapter:
 
     def test_make_cache_delegates(self):
         """Test make_cache delegates to language_model."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mock_vlm_model()
         vlm.language_model.make_cache.return_value = [MagicMock()]
@@ -128,7 +128,7 @@ class TestVLMModelAdapter:
 
     def test_set_pending_embeddings(self):
         """Test set_pending_embeddings stores state."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mock_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -145,7 +145,7 @@ class TestVLMModelAdapter:
 
     def test_clear_pending_embeddings(self):
         """Test clear_pending_embeddings resets state."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mock_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -162,7 +162,7 @@ class TestVLMModelAdapter:
 
     def test_forward_without_embeddings(self):
         """Test forward pass without pending embeddings delegates to language_model."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mock_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -180,7 +180,7 @@ class TestVLMModelAdapter:
 
     def test_forward_text_only_uses_language_model_directly(self):
         """Text-only decode passes cache directly to language_model."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mock_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -197,7 +197,7 @@ class TestVLMModelAdapter:
 
     def test_forward_with_embeddings(self):
         """Test forward pass with pending embeddings injects inputs_embeds."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mock_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -218,7 +218,7 @@ class TestVLMModelAdapter:
 
     def test_embedding_offset_tracks_chunks(self):
         """Test that embed_offset correctly tracks through chunked prefill."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mock_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -243,7 +243,7 @@ class TestVLMModelAdapter:
 
     def test_get_input_embeddings_delegates(self):
         """Test get_input_embeddings delegates to vlm_model."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mock_vlm_model()
         expected = MagicMock()
@@ -259,7 +259,7 @@ class TestVLMModelAdapter:
 
     def test_forward_with_inputs_embeds_kwarg(self):
         """Test batched VLM path: inputs_embeds kwarg passed to language_model."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mock_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -280,7 +280,7 @@ class TestVLMModelAdapter:
 
     def test_inputs_embeds_kwarg_takes_priority_over_pending(self):
         """Test that inputs_embeds kwarg takes priority over _pending_embeds."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mock_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -304,7 +304,7 @@ class TestMRoPEDetection:
 
     def test_detect_mrope_via_rope_scaling(self):
         """Detect mRoPE via text_config.rope_scaling.mrope_section (Qwen3-VL)."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = MagicMock(spec=[])
         vlm.config = MagicMock(spec=[])
@@ -319,7 +319,7 @@ class TestMRoPEDetection:
 
     def test_detect_mrope_via_rope_parameters(self):
         """Detect mRoPE via text_config.rope_parameters.mrope_section (Qwen3.5)."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = MagicMock(spec=[])
         vlm.config = MagicMock(spec=[])
@@ -334,7 +334,7 @@ class TestMRoPEDetection:
 
     def test_detect_mrope_false_for_standard_rope(self):
         """Standard RoPE (no mrope_section) should return False."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = MagicMock(spec=[])
         vlm.config = MagicMock(spec=[])
@@ -348,14 +348,14 @@ class TestMRoPEDetection:
 
     def test_detect_mrope_false_for_no_config(self):
         """No config attribute should return False."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = MagicMock(spec=[])
         assert VLMModelAdapter._detect_mrope(vlm) is False
 
     def test_detect_mrope_true_for_minimax_m3_vl(self):
         """MiniMax M3 uses per-row decode positions even without mrope_section."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = MagicMock(spec=[])
         vlm.config = MagicMock(spec=[])
@@ -403,7 +403,7 @@ class TestPerRequestMRoPEDecode:
     def test_mrope_decode_uses_language_model_with_position_ids(self):
         """mRoPE decode with batch_rope_deltas should use language_model with position_ids."""
         import mlx.core as mx
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mrope_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -426,7 +426,7 @@ class TestPerRequestMRoPEDecode:
     def test_mrope_always_uses_language_model(self):
         """mRoPE model always uses vlm language_model with position_ids."""
         import mlx.core as mx
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mrope_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -442,7 +442,7 @@ class TestPerRequestMRoPEDecode:
     def test_position_ids_shape_and_values(self):
         """Verify position_ids = (3, batch, seq) with correct offset+delta values."""
         import mlx.core as mx
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mrope_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -471,7 +471,7 @@ class TestPerRequestMRoPEDecode:
     def test_mrope_decode_scalar_cache_offset_uses_position_ids(self):
         """Singleton KVCache offset should not rely on stale language-model state."""
         import mlx.core as mx
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mrope_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -492,7 +492,7 @@ class TestPerRequestMRoPEDecode:
     def test_qwen4_b1_text_prefill_uses_canonical_rank_two_positions(self):
         """Three broadcast-identical text planes stay in QSA's proven shape."""
         import mlx.core as mx
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_qwen4_mrope_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -511,7 +511,7 @@ class TestPerRequestMRoPEDecode:
         """An exception cannot leak the text-only proof into the next call."""
         import mlx.core as mx
         import pytest
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_qwen4_mrope_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -533,7 +533,7 @@ class TestPerRequestMRoPEDecode:
     def test_qwen4_text_prefill_b2_remains_rank_three(self):
         """The text proof is not widened to an unqualified batched QSA path."""
         import mlx.core as mx
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_qwen4_mrope_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -551,7 +551,7 @@ class TestPerRequestMRoPEDecode:
     def test_qwen4_media_positions_remain_divergent_rank_three(self):
         """True mRoPE media planes bypass text canonicalization unchanged."""
         import mlx.core as mx
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_qwen4_mrope_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -577,7 +577,7 @@ class TestPerRequestMRoPEDecode:
     def test_non_minimax_mrope_mismatched_delta_size_keeps_existing_path(self):
         """Non-MiniMax mRoPE models keep prior no-position_ids mismatch behavior."""
         import mlx.core as mx
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mrope_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -598,7 +598,7 @@ class TestPerRequestMRoPEDecode:
     def test_minimax_m3_decode_uses_2d_position_ids(self):
         """MiniMax M3 expects position_ids = (batch, seq), not Qwen-style rank 3."""
         import mlx.core as mx
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_minimax_m3_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -633,7 +633,7 @@ class TestPerRequestMRoPEDecode:
         the positions we pass must match that.
         """
         import mlx.core as mx
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mrope_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -660,7 +660,7 @@ class TestPerRequestMRoPEDecode:
     def test_get_last_rope_deltas(self):
         """get_last_rope_deltas extracts value from language model."""
         import mlx.core as mx
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mrope_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -684,7 +684,7 @@ class TestPerRequestMRoPEDecode:
         fallback for scalar cache offsets must call _set_position_state.
         """
         import mlx.core as mx
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mrope_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -704,7 +704,7 @@ class TestPerRequestMRoPEDecode:
     def test_mrope_delta_fallback_initializes_position_state(self):
         """Same as above for the batch-deltas branch with unusable offsets."""
         import mlx.core as mx
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mrope_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -722,11 +722,11 @@ class TestPerRequestMRoPEDecode:
 
     def test_qwen4_text_request_steps_use_rank_two_positions(self, monkeypatch):
         """A scheduler-proven text request keeps (1, T) positions through decode and MTP verify steps."""
-        import omlx_runtime.models.vlm as vlm_module
+        import molto_runtime.models.vlm as vlm_module
 
         monkeypatch.setattr(vlm_module, "_STEP_TEXT_POSITIONS_MIN_CONTEXT", 0)
         import mlx.core as mx
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_qwen4_mrope_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -746,11 +746,11 @@ class TestPerRequestMRoPEDecode:
 
     def test_qwen4_step_positions_stay_rank_three_without_text_proof(self, monkeypatch):
         """Unproven requests and batched steps keep the fail-closed (3, B, T) form."""
-        import omlx_runtime.models.vlm as vlm_module
+        import molto_runtime.models.vlm as vlm_module
 
         monkeypatch.setattr(vlm_module, "_STEP_TEXT_POSITIONS_MIN_CONTEXT", 0)
         import mlx.core as mx
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_qwen4_mrope_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -785,10 +785,10 @@ class TestPerRequestMRoPEDecode:
         assert vlm.language_model.call_args.kwargs["position_ids"].shape == (3, 1, 2)
 
     def test_qwen4_step_text_positions_kill_switch(self, monkeypatch):
-        """OMLX_QWEN4_STEP_TEXT_POSITIONS=0 keeps every step on the rank-three form."""
+        """MOLTO_QWEN4_STEP_TEXT_POSITIONS=0 keeps every step on the rank-three form."""
         import mlx.core as mx
-        import omlx_runtime.models.vlm as vlm_module
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        import molto_runtime.models.vlm as vlm_module
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         monkeypatch.setattr(vlm_module, "_STEP_TEXT_POSITIONS_DISABLED", True)
         vlm = self._make_qwen4_mrope_vlm_model()
@@ -804,8 +804,8 @@ class TestPerRequestMRoPEDecode:
         """Backbone rows keep the generic form below the context threshold (gathered arms are
         null-to-negative there) and switch to (1, T) above it."""
         import mlx.core as mx
-        import omlx_runtime.models.vlm as vlm_module
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        import molto_runtime.models.vlm as vlm_module
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         monkeypatch.setattr(vlm_module, "_STEP_TEXT_POSITIONS_MIN_CONTEXT", 65536)
         vlm = self._make_qwen4_mrope_vlm_model()
@@ -833,7 +833,7 @@ class TestPerRequestMRoPEDecode:
 
     def test_qwen4_unregister_clears_text_positions_proof(self):
         import mlx.core as mx
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_qwen4_mrope_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -862,7 +862,7 @@ class TestLogitsExtraction:
 
     def test_logits_extraction_from_language_model_output(self):
         """Test that LanguageModelOutput.logits is extracted for BatchGenerator."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mock_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -877,7 +877,7 @@ class TestLogitsExtraction:
 
     def test_return_hidden_preserves_language_model_output(self):
         """MTP backbone calls must keep hidden_states/gdn_states intact."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = self._make_mock_vlm_model()
         adapter = VLMModelAdapter(vlm)
@@ -901,7 +901,7 @@ class TestVLMModelAdapterModelProperty:
 
     def test_model_property(self):
         """Test .model returns language_model.model for BatchGenerator compatibility."""
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         vlm = MagicMock()
         vlm.language_model.model = MagicMock()
@@ -915,7 +915,7 @@ class TestVLMModelAdapterModelProperty:
 def test_adapter_forwards_prefetch_ple_to_the_language_model():
     from unittest.mock import MagicMock
 
-    from omlx_runtime.models.vlm import VLMModelAdapter
+    from molto_runtime.models.vlm import VLMModelAdapter
 
     vlm = MagicMock()
     vlm.config.model_type = "qwen4_exp"
@@ -939,8 +939,8 @@ def test_ssd_cache_restore_binds_nested_vlm_caches_and_preserves_quantization():
     import mlx.core as mx
     from mlx_lm.models import cache as lm_cache
     from mlx_vlm.models import cache as vlm_cache
-    from omlx_runtime.models.vlm import VLMModelAdapter
-    from omlx_runtime.turboquant_kv import TurboQuantKVCache
+    from molto_runtime.models.vlm import VLMModelAdapter
+    from molto_runtime.turboquant_kv import TurboQuantKVCache
 
     keys = mx.arange(16 * 64).reshape(1, 1, 16, 64).astype(mx.float16) / 1024
     kv = lm_cache.KVCache()
@@ -1005,8 +1005,8 @@ def test_restored_rotating_cache_uses_vlm_speculative_buffer():
     import mlx.core as mx
     from mlx_vlm.models import cache as vlm_cache
     from mlx_vlm.speculative.mtp import _buffer_mtp_target_cache
-    from omlx_runtime.cache.type_handlers import RotatingKVCacheHandler
-    from omlx_runtime.models.vlm import VLMModelAdapter
+    from molto_runtime.cache.type_handlers import RotatingKVCacheHandler
+    from molto_runtime.models.vlm import VLMModelAdapter
 
     keys = mx.arange(6 * 8).reshape(1, 1, 6, 8).astype(mx.float16)
     source = RotatingKVCacheHandler().reconstruct_cache(
@@ -1045,9 +1045,9 @@ def test_deepseek_v4_pooling_boundary_restore(ratio, boundary_delta, tmp_path):
 
     import mlx.core as mx
     from mlx_vlm.models import cache as vlm_cache
-    from omlx_runtime.cache.type_handlers import CacheListHandler
-    from omlx_runtime.models.vlm import VLMModelAdapter
-    from omlx_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
+    from molto_runtime.cache.type_handlers import CacheListHandler
+    from molto_runtime.models.vlm import VLMModelAdapter
+    from molto_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
 
     apply_deepseek_v4_patch()
     count = ratio + boundary_delta
@@ -1129,9 +1129,9 @@ def test_vlm_pooling_restore_rejects_text_overlap_state():
 
     import mlx.core as mx
     from mlx_vlm.models.cache import PoolingCache
-    from omlx_runtime.models.vlm import VLMModelAdapter
-    from omlx_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
-    from omlx_runtime.patches.deepseek_v4.cache_handlers import PoolingCacheHandler
+    from molto_runtime.models.vlm import VLMModelAdapter
+    from molto_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
+    from molto_runtime.patches.deepseek_v4.cache_handlers import PoolingCacheHandler
 
     apply_deepseek_v4_patch()
     handler = PoolingCacheHandler()
@@ -1155,7 +1155,7 @@ def test_vlm_pooling_restore_rejects_text_overlap_state():
 def test_deepseek_v4_image_prefix_covers_all_images(tokens, expected):
     from types import SimpleNamespace
 
-    from omlx_runtime.models.vlm import VLMModelAdapter
+    from molto_runtime.models.vlm import VLMModelAdapter
 
     config = SimpleNamespace(
         model_type="deepseek_v4", vision_n_layers=32, vocab_size=16

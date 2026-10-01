@@ -3,7 +3,7 @@
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.patches.deepseek_v41.language import _hc_post_reference, hc_post
+from molto_runtime.patches.deepseek_v41.language import _hc_post_reference, hc_post
 
 
 @pytest.mark.parametrize("dtype", [mx.bfloat16, mx.float16, mx.float32])
@@ -49,7 +49,7 @@ def test_hc_post_noncontiguous_inputs_and_other_stream_counts():
 )
 @pytest.mark.parametrize("width", [64, 513, 5120])
 def test_pre_norm_fusion_bounds_and_repeat(dtype, tolerance, width):
-    from omlx_runtime.patches.deepseek_v41.language import hc_pre, hc_pre_norm, norm
+    from molto_runtime.patches.deepseek_v41.language import hc_pre, hc_pre_norm, norm
 
     mx.random.seed(944)
     x = mx.random.normal((2, 7, 4, width)).astype(dtype)
@@ -70,7 +70,7 @@ def test_pre_norm_fusion_bounds_and_repeat(dtype, tolerance, width):
 
 
 def test_pre_norm_fusion_zero_and_intermediate_cast():
-    from omlx_runtime.patches.deepseek_v41.language import hc_pre, hc_pre_norm, norm
+    from molto_runtime.patches.deepseek_v41.language import hc_pre, hc_pre_norm, norm
 
     x = mx.zeros((1, 2, 4, 5120), mx.bfloat16)
     pre = mx.ones((1, 2, 4))
@@ -92,7 +92,7 @@ def test_pre_norm_fusion_zero_and_intermediate_cast():
 
 
 def test_pre_norm_fusion_cancellation_preserves_pre_reduction_order():
-    from omlx_runtime.patches.deepseek_v41.language import hc_pre, hc_pre_norm, norm
+    from molto_runtime.patches.deepseek_v41.language import hc_pre, hc_pre_norm, norm
 
     small = mx.linspace(0.25, 2, 64)
     large = mx.full((64,), 2**24)
@@ -108,7 +108,7 @@ def test_pre_norm_fusion_cancellation_preserves_pre_reduction_order():
 
 @pytest.mark.parametrize("width", [64, 513, 5120])
 def test_hc_projection_fp32_weight_accuracy_and_repeat(width):
-    from omlx_runtime.patches.deepseek_v41.hyper_connection import fused_hc_projection
+    from molto_runtime.patches.deepseek_v41.hyper_connection import fused_hc_projection
 
     mx.random.seed(952)
     x = mx.random.normal((2, 3, 4, width)).astype(mx.bfloat16)
@@ -127,7 +127,7 @@ def test_hc_projection_fp32_weight_accuracy_and_repeat(width):
 def test_prefill_hc_mixes_dispatch_and_controls_match_reference():
     from types import SimpleNamespace
 
-    from omlx_runtime.patches.deepseek_v41.language import _hc_mixes, hc_mixes
+    from molto_runtime.patches.deepseek_v41.language import _hc_mixes, hc_mixes
 
     mx.random.seed(953)
     c = SimpleNamespace(hc_mult=4, norm_eps=1e-6, hc_eps=1e-6, hc_sinkhorn_iters=20)
@@ -144,7 +144,7 @@ def test_prefill_hc_mixes_dispatch_and_controls_match_reference():
 
 
 def test_hc_projection_large_row_dispatch_matches_fp64():
-    from omlx_runtime.patches.deepseek_v41.hyper_connection import fused_hc_projection
+    from molto_runtime.patches.deepseek_v41.hyper_connection import fused_hc_projection
 
     mx.random.seed(960)
     x = mx.random.normal((1, 1024, 4, 513)).astype(mx.bfloat16)

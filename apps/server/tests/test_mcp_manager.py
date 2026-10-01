@@ -1,15 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
 """
-Tests for MCP client manager (omlx/mcp/manager.py).
+Tests for MCP client manager (molto/mcp/manager.py).
 """
 
 import json
 from unittest.mock import AsyncMock
 
 import pytest
-from omlx_server.mcp.client import MCPClient
-from omlx_server.mcp.manager import MCPClientManager
-from omlx_server.mcp.types import (
+from molto_server.mcp.client import MCPClient
+from molto_server.mcp.manager import MCPClientManager
+from molto_server.mcp.types import (
     MCPConfig,
     MCPServerState,
     MCPTool,
@@ -573,7 +573,7 @@ class TestInitMCPGracefulFallback:
         bad_config = tmp_path / "mcp.json"
         bad_config.write_text("{invalid json")
 
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         init_mcp = create_app().state.controller.init_mcp
 
@@ -583,7 +583,7 @@ class TestInitMCPGracefulFallback:
     @pytest.mark.asyncio
     async def test_missing_file_does_not_crash(self):
         """init_mcp should not raise on nonexistent config path."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         init_mcp = create_app().state.controller.init_mcp
 
@@ -595,7 +595,7 @@ class TestInitMCPGracefulFallback:
         bad_config = tmp_path / "mcp.json"
         bad_config.write_text(json.dumps("not a dict"))
 
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         init_mcp = create_app().state.controller.init_mcp
 

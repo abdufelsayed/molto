@@ -2,9 +2,9 @@
 import json
 
 import pytest
-from omlx_runtime.adapter.output_parser import detect_output_parser
-from omlx_runtime.generation.tool_calling import extract_tool_calls_with_thinking
-from omlx_runtime.patches.deepseek_v41.tool_parser import parse_tool_call
+from molto_runtime.adapter.output_parser import detect_output_parser
+from molto_runtime.generation.tool_calling import extract_tool_calls_with_thinking
+from molto_runtime.patches.deepseek_v41.tool_parser import parse_tool_call
 from test_output_parser import CohereTokenizer
 
 
@@ -83,7 +83,7 @@ def test_http_extraction_does_not_promote_reasoning_calls():
 
 
 def test_server_thinking_filter_preserves_literal_dsml():
-    from omlx_runtime.generation.tool_calling import ToolCallStreamFilter
+    from molto_runtime.generation.tool_calling import ToolCallStreamFilter
 
     stream = ToolCallStreamFilter(Tokenizer({}), consume_dsml_separator=False)
     assert "".join(stream.feed(char) for char in CALL) + stream.finish() == CALL
@@ -93,9 +93,9 @@ def test_server_thinking_filter_preserves_literal_dsml():
     "namespace", ["weather", {"name": "weather", "description": "Weather tools"}]
 )
 def test_namespace_survives_request_encoding_completion_and_history(namespace):
-    from omlx_contracts.api.openai_models import ToolCall, ToolDefinition
-    from omlx_runtime.generation.tool_calling import parse_tool_calls
-    from omlx_runtime.patches.deepseek_v41 import encoding
+    from molto_contracts.api.openai_models import ToolCall, ToolDefinition
+    from molto_runtime.generation.tool_calling import parse_tool_calls
+    from molto_runtime.patches.deepseek_v41 import encoding
 
     raw = {
         "type": "function",
@@ -125,7 +125,7 @@ def test_namespace_survives_request_encoding_completion_and_history(namespace):
 
 
 def test_namespace_conflict_is_rejected_without_affecting_plain_tools():
-    from omlx_contracts.api.openai_models import ToolDefinition
+    from molto_contracts.api.openai_models import ToolDefinition
 
     plain = {"type": "function", "function": {"name": "get"}}
     assert ToolDefinition.model_validate(plain).model_dump() == plain
@@ -151,7 +151,7 @@ def test_namespace_conflict_is_rejected_without_affecting_plain_tools():
     ],
 )
 def test_invalid_namespace_fields_raise_validation_errors(namespace, function):
-    from omlx_contracts.api.openai_models import ToolDefinition
+    from molto_contracts.api.openai_models import ToolDefinition
     from pydantic import ValidationError
 
     with pytest.raises(ValidationError):

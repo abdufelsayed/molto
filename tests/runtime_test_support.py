@@ -8,7 +8,7 @@ os.environ.setdefault("MLX_ENABLE_TF32", "0")
 
 # SPDX-License-Identifier: Apache-2.0
 """
-Pytest configuration and fixtures for oMLX tests.
+Pytest configuration and fixtures for Molto tests.
 
 This module provides common fixtures used across test files.
 """
@@ -23,7 +23,7 @@ import pytest
 # decorators that resolve the target at collection time). When real torch is
 # present this is a no-op; otherwise it satisfies xgrammar's import-time torch
 # references so the package can load without a full PyTorch installation.
-from omlx_runtime._torch_stub import install as _install_torch_stub
+from molto_runtime._torch_stub import install as _install_torch_stub
 
 _install_torch_stub()
 
@@ -31,12 +31,12 @@ _install_torch_stub()
 # installs at model load (issue #2267). Without it, kernel-sensitive
 # tests (e.g. the SwitchGLU fusion bit-exactness test, whose inter=32
 # down_proj runs at K=32) fail on M5 hardware. No-op elsewhere.
-from omlx_runtime.patches.m5_gather_qmm import apply_m5_gather_qmm_workaround
+from molto_runtime.patches.m5_gather_qmm import apply_m5_gather_qmm_workaround
 
 apply_m5_gather_qmm_workaround()
 
-from omlx_runtime.custom_kernels.nax import is_nax_available
-from omlx_runtime.request import Request, SamplingParams
+from molto_runtime.custom_kernels.nax import is_nax_available
+from molto_runtime.request import Request, SamplingParams
 
 
 @pytest.fixture
@@ -45,7 +45,7 @@ def glm5_fused_decode():
     reference bit for bit) only on NAX GPUs."""
     if not is_nax_available():
         pytest.skip("the fused GLM-5.3 decode kernels run on M5 (NAX) GPUs")
-    from omlx_runtime.patches.mlx_vlm_glm5_next_compat import (
+    from molto_runtime.patches.mlx_vlm_glm5_next_compat import (
         apply_mlx_vlm_glm5_next_compat_patch,
     )
 
@@ -58,7 +58,7 @@ def glm5_fused_decode():
 
 @pytest.fixture(autouse=True)
 def cluster_home(tmp_path, monkeypatch):
-    from omlx_runtime.cluster import ssh_keys, worker_shim
+    from molto_runtime.cluster import ssh_keys, worker_shim
 
     home = tmp_path / "cluster-home"
     publish = worker_shim.ensure_cluster_python_shim
@@ -72,8 +72,8 @@ def cluster_home(tmp_path, monkeypatch):
     # SSH paths are resolved at import time, before test fixtures run.
     ssh_dir = home / ".ssh"
     monkeypatch.setattr(ssh_keys, "_SSH_DIR", ssh_dir)
-    monkeypatch.setattr(ssh_keys, "_SSH_KEY_PATH", ssh_dir / "omlx_cluster")
-    monkeypatch.setattr(ssh_keys, "_SSH_PUBKEY_PATH", ssh_dir / "omlx_cluster.pub")
+    monkeypatch.setattr(ssh_keys, "_SSH_KEY_PATH", ssh_dir / "molto_cluster")
+    monkeypatch.setattr(ssh_keys, "_SSH_PUBKEY_PATH", ssh_dir / "molto_cluster.pub")
     return home
 
 
@@ -185,7 +185,7 @@ def mock_tokenizer() -> MockTokenizer:
 
 @pytest.fixture
 def mock_cluster_ssh(monkeypatch):
-    from omlx_runtime.cluster import launch
+    from molto_runtime.cluster import launch
 
     runner = MagicMock(
         return_value=subprocess.CompletedProcess(
@@ -272,7 +272,7 @@ def _reset_decode_activity_registry():
     without this a scheduler stepped in one test reads as cross-engine
     decode contention in the next.
     """
-    from omlx_runtime.decode_activity import get_decode_activity
+    from molto_runtime.decode_activity import get_decode_activity
 
     get_decode_activity().clear()
     yield
@@ -288,14 +288,14 @@ def _hermetic_metal_release_accounting(monkeypatch):
     discount them unpredictably. Tests of the split patch these explicitly.
     """
     for name in (
-        "omlx_runtime.scheduler",
-        "omlx_runtime.process_memory_enforcer",
-        "omlx_runtime.utils.metal_sync",
+        "molto_runtime.scheduler",
+        "molto_runtime.process_memory_enforcer",
+        "molto_runtime.utils.metal_sync",
     ):
         module = sys.modules.get(name)
         if module is not None and hasattr(module, "get_graphics_footprint"):
             monkeypatch.setattr(module, "get_graphics_footprint", lambda: 0)
-    metal_sync = sys.modules.get("omlx_runtime.utils.metal_sync")
+    metal_sync = sys.modules.get("molto_runtime.utils.metal_sync")
     if metal_sync is not None:
         metal_sync._residuals.clear()
         metal_sync._last_unreleased = (0.0, 0)

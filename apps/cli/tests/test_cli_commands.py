@@ -7,8 +7,8 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
-from omlx_cli import cli_commands as commands
-from omlx_cli.client import CLIError
+from molto_cli import cli_commands as commands
+from molto_cli.client import CLIError
 
 
 @pytest.fixture
@@ -299,7 +299,7 @@ def test_follow_logs_overlap(old, new, expected):
 def test_real_non_tty_confirmation_blocks_mutation(cli, monkeypatch, capsys):
     import sys
 
-    from omlx_cli.cli_output import Output
+    from molto_cli.cli_output import Output
 
     monkeypatch.setattr(commands, "Output", Output)
     monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
@@ -310,7 +310,7 @@ def test_real_non_tty_confirmation_blocks_mutation(cli, monkeypatch, capsys):
 
 
 def test_real_json_key_listing_masks_secrets(cli, monkeypatch, capsys):
-    from omlx_cli.cli_output import Output
+    from molto_cli.cli_output import Output
 
     monkeypatch.setattr(commands, "Output", Output)
     cli.client.request.return_value = {

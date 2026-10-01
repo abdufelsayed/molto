@@ -3,7 +3,7 @@
 from types import SimpleNamespace
 
 from fastapi import FastAPI
-from omlx_runtime.cluster import (
+from molto_runtime.cluster import (
     discovery,
     enrollment,
     identity,
@@ -11,9 +11,9 @@ from omlx_runtime.cluster import (
     registry,
     strategy_benchmarks,
 )
-from omlx_runtime.cluster.rdma import store
-from omlx_server.cluster.services import ClusterServices
-from omlx_server.state import ServerState
+from molto_runtime.cluster.rdma import store
+from molto_server.cluster.services import ClusterServices
+from molto_server.state import ServerState
 
 
 def _configured(getter):

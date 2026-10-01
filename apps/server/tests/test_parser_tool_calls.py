@@ -3,13 +3,13 @@
 
 import logging
 
-from omlx_server.api.parser_tool_calls import convert_parser_tool_calls
+from molto_server.api.parser_tool_calls import convert_parser_tool_calls
 
 
 class TestParserToolCallConversion:
     def test_drops_malformed_parser_tool_call_arguments(self, caplog):
         with caplog.at_level(
-            logging.WARNING, logger="omlx_server.api.parser_tool_calls"
+            logging.WARNING, logger="molto_server.api.parser_tool_calls"
         ):
             converted = convert_parser_tool_calls(
                 [

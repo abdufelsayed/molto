@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Losslessness tests for the append-in-place PoolingCache rework.
 
-The caches in ``omlx/patches/deepseek_v4/cache_extras.py`` used to rebuild
+The caches in ``molto/patches/deepseek_v4/cache_extras.py`` used to rebuild
 ``self.pooled`` with ``mx.concatenate`` on every chunk; they now append into
 a preallocated backing buffer with geometric regrowth and expose the logical
 tensor as a view. These tests pin the exact old observable behavior:
@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.patches.deepseek_v4.cache_extras import (
+from molto_runtime.patches.deepseek_v4.cache_extras import (
     BatchPoolingCache,
     PoolingCache,
 )
@@ -195,7 +195,7 @@ def test_single_undo_trim_restores_pre_update_rows():
     """MTP draft rejection: a decode-sized update that completed a window is
     rolled back through the one-update undo log; pooled must return to the
     exact pre-update logical contents."""
-    from omlx_runtime.patches.mlx_lm_mtp import cache_rollback
+    from molto_runtime.patches.mlx_lm_mtp import cache_rollback
 
     cache_rollback.set_undo_armed(True)
     try:

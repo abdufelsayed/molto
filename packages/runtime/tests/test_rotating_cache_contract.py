@@ -2,9 +2,9 @@
 """Regression tests for the RotatingKVCache contract with mlx-lm 0.31.3.
 
 Issues #934 (infinite loop), #903 (empty content), and #900 (preserve_thinking
-flakiness) all traced back to omlx feeding mlx-lm a RotatingKVCache whose
+flakiness) all traced back to molto feeding mlx-lm a RotatingKVCache whose
 shape and meta_state did not match the new BatchRotatingKVCache.merge()
-semantics introduced by mlx-lm PR #1072. After the fix, omlx's restore path
+semantics introduced by mlx-lm PR #1072. After the fix, molto's restore path
 must satisfy:
 
 1. ``size()`` reports a length the merge slice can actually fill — clamping
@@ -47,7 +47,7 @@ class TestPrefillReadyRotatingKVCacheSize:
     """size() must reflect the actual buffer length, not just the offset."""
 
     def test_zero_length_buffer_reports_zero(self, mx, mlx_lm_classes):
-        from omlx_runtime.cache._rotating_subclass import PrefillReadyRotatingKVCache
+        from molto_runtime.cache._rotating_subclass import PrefillReadyRotatingKVCache
 
         cache = PrefillReadyRotatingKVCache(max_size=128, keep=0)
         cache.keys = mx.zeros((1, 4, 0, 32))
@@ -59,7 +59,7 @@ class TestPrefillReadyRotatingKVCacheSize:
         assert cache.size() == 0
 
     def test_partial_buffer_clamps_to_buffer_length(self, mx, mlx_lm_classes):
-        from omlx_runtime.cache._rotating_subclass import PrefillReadyRotatingKVCache
+        from molto_runtime.cache._rotating_subclass import PrefillReadyRotatingKVCache
 
         cache = PrefillReadyRotatingKVCache(max_size=128, keep=0)
         cache.keys = mx.zeros((1, 4, 64, 32))
@@ -71,7 +71,7 @@ class TestPrefillReadyRotatingKVCacheSize:
         assert cache.size() == 64
 
     def test_full_buffer_unchanged(self, mx, mlx_lm_classes):
-        from omlx_runtime.cache._rotating_subclass import PrefillReadyRotatingKVCache
+        from molto_runtime.cache._rotating_subclass import PrefillReadyRotatingKVCache
 
         cache = PrefillReadyRotatingKVCache(max_size=128, keep=0)
         cache.keys = mx.zeros((1, 4, 128, 32))
@@ -82,7 +82,7 @@ class TestPrefillReadyRotatingKVCacheSize:
         assert cache.size() == 128
 
     def test_empty_keys_none_reports_zero(self, mx, mlx_lm_classes):
-        from omlx_runtime.cache._rotating_subclass import PrefillReadyRotatingKVCache
+        from molto_runtime.cache._rotating_subclass import PrefillReadyRotatingKVCache
 
         cache = PrefillReadyRotatingKVCache(max_size=128, keep=0)
         # keys never populated
@@ -93,8 +93,8 @@ class TestReconstructCacheUndersized:
     """Restored caches with shorter buffers must round-trip through merge."""
 
     def test_merge_with_fresh_empty_does_not_overshoot(self, mx, mlx_lm_classes):
-        from omlx_runtime.cache._rotating_subclass import PrefillReadyRotatingKVCache
-        from omlx_runtime.cache.type_handlers import RotatingKVCacheHandler
+        from molto_runtime.cache._rotating_subclass import PrefillReadyRotatingKVCache
+        from molto_runtime.cache.type_handlers import RotatingKVCacheHandler
 
         _, batch_rotating = mlx_lm_classes
         handler = RotatingKVCacheHandler()
@@ -133,7 +133,7 @@ class TestReconstructCacheUndersized:
         assert all(float(v.item()) == 0.0 for v in row1)
 
     def test_two_restored_caches_align_correctly(self, mx, mlx_lm_classes):
-        from omlx_runtime.cache.type_handlers import RotatingKVCacheHandler
+        from molto_runtime.cache.type_handlers import RotatingKVCacheHandler
 
         _, batch_rotating = mlx_lm_classes
         handler = RotatingKVCacheHandler()
@@ -170,7 +170,7 @@ class TestNormalizeRotatingStateIdx:
     """``_normalize_rotating_state`` should always emit ``_idx == keys.shape[2]``."""
 
     def test_oversized_normalizes_idx_to_buffer_length(self, mx, mlx_lm_classes):
-        from omlx_runtime.scheduler import Scheduler
+        from molto_runtime.scheduler import Scheduler
 
         # Build a stand-in oversized state. _normalize_rotating_state is a
         # method on Scheduler; calling it directly avoids spinning up the

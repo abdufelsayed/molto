@@ -3,7 +3,7 @@ import { useRouter } from "@tanstack/react-router"
 import { ApiError } from "./api"
 import type { ManagementClient } from "./api"
 
-export const managementKey = ["omlx"] as const
+export const managementKey = ["molto"] as const
 function retry(attempt: number, error: Error) {
   return !(error instanceof ApiError && error.status < 500) && attempt < 1
 }

@@ -12,17 +12,17 @@ import time
 
 import psutil
 import pytest
-from omlx_cli import cli_lifecycle as lifecycle
-from omlx_cli.client import CLIError as LifecycleError
+from molto_cli import cli_lifecycle as lifecycle
+from molto_cli.client import CLIError as LifecycleError
 
 
 @pytest.fixture(autouse=True)
 def isolated(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     for key in list(os.environ):
-        if key.startswith("OMLX_"):
+        if key.startswith("MOLTO_"):
             monkeypatch.delenv(key)
-    monkeypatch.setenv("OMLX_PORT", str(free_port()))
+    monkeypatch.setenv("MOLTO_PORT", str(free_port()))
     monkeypatch.setattr(lifecycle, "is_homebrew", lambda: False)
 
 
@@ -51,7 +51,7 @@ def free_port():
 @pytest.fixture
 def harmless_cli(monkeypatch, tmp_path):
     root = tmp_path / "fake-package"
-    package = root / "omlx_cli"
+    package = root / "molto_cli"
     package.mkdir(parents=True)
     (package / "__init__.py").touch()
     (package / "cli.py").write_text("""
@@ -205,7 +205,7 @@ def test_lock_timeout_is_bounded(tmp_path):
     with (base / "run" / "application.lock").open("w") as stream:
         fcntl.flock(stream, fcntl.LOCK_EX)
         start = time.monotonic()
-        with pytest.raises(LifecycleError, match="Another oMLX"):
+        with pytest.raises(LifecycleError, match="Another Molto"):
             lifecycle.run(args(base, "status", timeout=0.1))
         assert time.monotonic() - start < 0.5
 
@@ -226,7 +226,7 @@ def test_stop_timeout_preserves_identity_record(harmless_cli, monkeypatch, tmp_p
 
 def test_remote_stop_rejected_without_local_state(monkeypatch, tmp_path):
     base = tmp_path / "base"
-    monkeypatch.setenv("OMLX_URL", "http://192.0.2.1:8000")
+    monkeypatch.setenv("MOLTO_URL", "http://192.0.2.1:8000")
     with pytest.raises(LifecycleError, match="another server"):
         lifecycle.run(args(base, "stop"))
     assert not base.exists()
@@ -270,7 +270,7 @@ def test_only_explicit_serve_options_forwarded(tmp_path):
         ),
         base,
     )
-    assert command[1:4] == ["-m", "omlx_cli.cli", "serve"]
+    assert command[1:4] == ["-m", "molto_cli.cli", "serve"]
     assert command[-7:] == [
         "--host",
         "127.0.0.1",
@@ -413,7 +413,7 @@ def test_lifecycle_record_does_not_capture_runtime_keys(
     harmless_cli, monkeypatch, tmp_path
 ):
     base = tmp_path / "base"
-    monkeypatch.setenv("OMLX_API_KEY", "runtime-secret")
+    monkeypatch.setenv("MOLTO_API_KEY", "runtime-secret")
     lifecycle.run(args(base, port=free_port()))
     try:
         record = (base / "run" / "application.json").read_text()
@@ -484,7 +484,7 @@ def test_homebrew_status_reports_loading_and_readiness(monkeypatch, tmp_path):
         subprocess,
         "run",
         lambda *args, **kwargs: argparse.Namespace(
-            returncode=0, stdout='[{"name":"omlx","status":"started"}]'
+            returncode=0, stdout='[{"name":"molto","status":"started"}]'
         ),
     )
     monkeypatch.setattr(lifecycle, "health_status", lambda url: 503)
@@ -503,7 +503,7 @@ def test_malformed_saved_server_types_never_spawn(monkeypatch, tmp_path, port, h
     base.mkdir()
     saved = base / "settings.json"
     saved.write_text(json.dumps({"server": {"port": port, "host": host}}))
-    monkeypatch.delenv("OMLX_PORT")
+    monkeypatch.delenv("MOLTO_PORT")
     monkeypatch.setattr(
         subprocess,
         "Popen",

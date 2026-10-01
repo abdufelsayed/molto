@@ -74,7 +74,7 @@ export function ConnectionDialog({ compact = false }: { compact?: boolean }) {
   const { api, queryClient } = useManagement()
   const router = useRouter()
   const setup = useQuery({
-    queryKey: ["omlx", "setup"],
+    queryKey: ["molto", "setup"],
     queryFn: async ({ signal }) => {
       const result = await setupRequest<SetupStatus>("GET", undefined, signal)
       if (
@@ -140,7 +140,7 @@ export function ConnectionDialog({ compact = false }: { compact?: boolean }) {
   function generateKey() {
     const bytes = new Uint8Array(32)
     crypto.getRandomValues(bytes)
-    const generated = `omlx_${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`
+    const generated = `molto_${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`
     setKey(generated)
     setConfirmation(generated)
     setRevealed(false)
@@ -165,12 +165,12 @@ export function ConnectionDialog({ compact = false }: { compact?: boolean }) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {initialSetup ? "Set up oMLX access" : "Connect to oMLX"}
+            {initialSetup ? "Set up Molto access" : "Connect to Molto"}
           </DialogTitle>
           <DialogDescription>
             {initialSetup
               ? "This server has no main key yet. Create an administrator key, keep a secure copy, and connect this dashboard."
-              : "Enter the main API key configured on your oMLX server."}
+              : "Enter the main API key configured on your Molto server."}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -305,7 +305,7 @@ export function ConnectionDialog({ compact = false }: { compact?: boolean }) {
                   />
                   <FieldDescription>
                     The main key grants full server administration and inference
-                    access. Setup saves it on the oMLX server. This browser
+                    access. Setup saves it on the Molto server. This browser
                     receives an HttpOnly session cookie.
                   </FieldDescription>
                   {confirmation && confirmation !== key && (

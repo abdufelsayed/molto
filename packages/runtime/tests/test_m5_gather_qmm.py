@@ -4,9 +4,9 @@
 from __future__ import annotations
 
 import mlx.core as mx
-import omlx_runtime.patches.m5_gather_qmm as patch_mod
+import molto_runtime.patches.m5_gather_qmm as patch_mod
 import pytest
-from omlx_runtime.patches.m5_gather_qmm import apply_m5_gather_qmm_workaround
+from molto_runtime.patches.m5_gather_qmm import apply_m5_gather_qmm_workaround
 
 
 @pytest.fixture(autouse=True)
@@ -19,11 +19,11 @@ def _fresh_state(monkeypatch):
     reinstall bypasses ``apply`` so a kill-switch env var set by the
     test cannot leave the session unwrapped.
     """
-    monkeypatch.delenv("OMLX_M5_GATHER_QMM_FIX", raising=False)
-    monkeypatch.delenv("OMLX_M5_GATHER_QMM_NATIVE", raising=False)
-    monkeypatch.delenv("OMLX_M5_GATHER_QMM_NAX", raising=False)
+    monkeypatch.delenv("MOLTO_M5_GATHER_QMM_FIX", raising=False)
+    monkeypatch.delenv("MOLTO_M5_GATHER_QMM_NATIVE", raising=False)
+    monkeypatch.delenv("MOLTO_M5_GATHER_QMM_NAX", raising=False)
     monkeypatch.setattr(patch_mod, "_native_gather", None)
-    was_installed = getattr(mx.gather_qmm, "_omlx_m5_reroute", False)
+    was_installed = getattr(mx.gather_qmm, "_molto_m5_reroute", False)
     raw = patch_mod._original_gather_qmm if was_installed else mx.gather_qmm
     saved_defective = patch_mod._defective
     if was_installed:
@@ -38,14 +38,14 @@ def _fresh_state(monkeypatch):
 
 def test_apply_idempotent():
     assert apply_m5_gather_qmm_workaround()
-    assert getattr(mx.gather_qmm, "_omlx_m5_reroute", False)
+    assert getattr(mx.gather_qmm, "_molto_m5_reroute", False)
     assert not apply_m5_gather_qmm_workaround()
 
 
 def test_env_kill_switch(monkeypatch):
-    monkeypatch.setenv("OMLX_M5_GATHER_QMM_FIX", "0")
+    monkeypatch.setenv("MOLTO_M5_GATHER_QMM_FIX", "0")
     assert not apply_m5_gather_qmm_workaround()
-    assert not getattr(mx.gather_qmm, "_omlx_m5_reroute", False)
+    assert not getattr(mx.gather_qmm, "_molto_m5_reroute", False)
 
 
 def _call(x_shape, **kwargs):
@@ -201,7 +201,7 @@ def test_oversized_sorted_calls_prefer_native_and_fall_back_to_slices(monkeypatc
     assert native_calls == [] and len(sliced) == 3
 
     # The kill switch disables native routing for a fresh resolution.
-    monkeypatch.setenv("OMLX_M5_GATHER_QMM_NATIVE", "0")
+    monkeypatch.setenv("MOLTO_M5_GATHER_QMM_NATIVE", "0")
     monkeypatch.setattr(patch_mod, "_native_gather", None)
     sliced.clear()
     mx.gather_qmm(x, x, x, x, group_size=64, **kw)
@@ -212,7 +212,7 @@ def _kernel_defective_here() -> bool:
     if not mx.metal.is_available():
         return False
     raw = mx.gather_qmm
-    if getattr(raw, "_omlx_m5_reroute", False):
+    if getattr(raw, "_molto_m5_reroute", False):
         raw = patch_mod._original_gather_qmm
     saved_orig, saved_flag = patch_mod._original_gather_qmm, patch_mod._defective
     patch_mod._original_gather_qmm = raw
@@ -235,7 +235,7 @@ def test_reroute_restores_correct_output_on_defective_hardware(monkeypatch, nax_
     Covered with the NAX route (m5_gather_qmm_nax) and with only the stock
     reroute (flag dropped for K % 64 != 0).
     """
-    monkeypatch.setenv("OMLX_M5_GATHER_QMM_NAX", nax_route)
+    monkeypatch.setenv("MOLTO_M5_GATHER_QMM_NAX", nax_route)
     assert apply_m5_gather_qmm_workaround()
 
     n, e, out_dim, k = 80, 8, 64, 96
@@ -272,7 +272,7 @@ def test_segmented_sorted_call_matches_reference_past_row_cap(monkeypatch, nax_r
 
     One NAX-route dispatch, or (route off) the native kernel / slices.
     """
-    monkeypatch.setenv("OMLX_M5_GATHER_QMM_NAX", nax_route)
+    monkeypatch.setenv("MOLTO_M5_GATHER_QMM_NAX", nax_route)
     assert apply_m5_gather_qmm_workaround()
 
     n, e, out_dim, k = patch_mod._MAX_SORTED_ROWS + 4096, 8, 64, 64
@@ -302,7 +302,7 @@ def test_segmented_sorted_call_matches_reference_past_row_cap(monkeypatch, nax_r
 
 def _native_gather_here() -> bool:
     try:
-        from omlx_runtime.custom_kernels.qwen35_prefill import fast
+        from molto_runtime.custom_kernels.qwen35_prefill import fast
     except Exception:
         return False
     return fast.gather_qmm_rhs_available()
@@ -326,7 +326,7 @@ def test_native_oversized_call_is_bit_identical_to_slices(
 ):
     """Past the row cap the native dispatch equals the sliced mlx result."""
     # The NAX route would take the supported layouts first.
-    monkeypatch.setenv("OMLX_M5_GATHER_QMM_NAX", "0")
+    monkeypatch.setenv("MOLTO_M5_GATHER_QMM_NAX", "0")
     assert apply_m5_gather_qmm_workaround()
 
     n, e = patch_mod._MAX_SORTED_ROWS + 7001, 96

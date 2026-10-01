@@ -4,7 +4,7 @@ import json
 import os
 
 import pytest
-from omlx_runtime.cluster.jaccl_lease import (
+from molto_runtime.cluster.jaccl_lease import (
     JacclCommunicatorBusyError,
     acquire_jaccl_communicator_lease,
 )

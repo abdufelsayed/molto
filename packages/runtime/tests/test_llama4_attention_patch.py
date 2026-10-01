@@ -34,7 +34,7 @@ def _tiny_llama4_config():
 
 
 def test_llama4_attn_scales_broadcast_scalar_and_vector_offsets():
-    from omlx_runtime.patches.llama4_attention import _llama4_attn_scales
+    from molto_runtime.patches.llama4_attention import _llama4_attn_scales
 
     assert _llama4_attn_scales(0, 3, 8192, 0.1).shape == (1, 1, 3, 1)
     assert _llama4_attn_scales(mx.array(0), 3, 8192, 0.1).shape == (1, 1, 3, 1)
@@ -48,7 +48,7 @@ def test_llama4_attn_scales_broadcast_scalar_and_vector_offsets():
 
 
 def test_llama4_attention_patch_is_idempotent():
-    from omlx_runtime.patches.llama4_attention import apply_llama4_attention_patch
+    from molto_runtime.patches.llama4_attention import apply_llama4_attention_patch
 
     first = apply_llama4_attention_patch()
     second = apply_llama4_attention_patch()
@@ -60,7 +60,7 @@ def test_llama4_attention_patch_is_idempotent():
 def test_llama4_batch_kv_cache_offset_does_not_crash():
     from mlx_lm.models import llama4
     from mlx_lm.models.cache import KVCache
-    from omlx_runtime.patches.llama4_attention import apply_llama4_attention_patch
+    from molto_runtime.patches.llama4_attention import apply_llama4_attention_patch
 
     apply_llama4_attention_patch()
 

@@ -17,7 +17,7 @@ import time
 from contextlib import suppress
 from multiprocessing import resource_tracker, shared_memory
 
-from omlx_runtime.cluster.rdma import layout
+from molto_runtime.cluster.rdma import layout
 
 
 class PythonWordOps:

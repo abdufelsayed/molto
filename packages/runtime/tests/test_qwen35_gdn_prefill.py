@@ -50,21 +50,21 @@ def _install_fake_qwen35(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _fresh_gdn_patch(monkeypatch):
-    import omlx_runtime.patches.qwen35_gdn_chunked as patch
+    import molto_runtime.patches.qwen35_gdn_chunked as patch
 
     monkeypatch.setattr(patch, "_PATCHED", False, raising=False)
-    monkeypatch.delenv("OMLX_GDN_KERNEL", raising=False)
-    monkeypatch.delenv("OMLX_GDN_IMPL", raising=False)
-    monkeypatch.delenv("OMLX_GDN_BLOCK_T", raising=False)
-    monkeypatch.delenv("OMLX_GDN_MIN_T", raising=False)
-    monkeypatch.delenv("OMLX_GDN_STUB", raising=False)
+    monkeypatch.delenv("MOLTO_GDN_KERNEL", raising=False)
+    monkeypatch.delenv("MOLTO_GDN_IMPL", raising=False)
+    monkeypatch.delenv("MOLTO_GDN_BLOCK_T", raising=False)
+    monkeypatch.delenv("MOLTO_GDN_MIN_T", raising=False)
+    monkeypatch.delenv("MOLTO_GDN_STUB", raising=False)
     yield
     monkeypatch.setattr(patch, "_PATCHED", False, raising=False)
 
 
 def test_prefill_patch_routes_default_pipelined(monkeypatch):
-    import omlx_runtime.custom_kernels.qwen35_prefill as kernels
-    import omlx_runtime.patches.qwen35_gdn_chunked as patch
+    import molto_runtime.custom_kernels.qwen35_prefill as kernels
+    import molto_runtime.patches.qwen35_gdn_chunked as patch
 
     gd, lang = _install_fake_qwen35(monkeypatch)
     monkeypatch.setattr(patch.mx.metal, "is_available", lambda: True)
@@ -97,12 +97,12 @@ def test_prefill_patch_routes_default_pipelined(monkeypatch):
 
 
 def test_prefill_patch_blocked_seq_impl_opt_in(monkeypatch):
-    import omlx_runtime.custom_kernels.qwen35_prefill as kernels
-    import omlx_runtime.patches.qwen35_gdn_chunked as patch
+    import molto_runtime.custom_kernels.qwen35_prefill as kernels
+    import molto_runtime.patches.qwen35_gdn_chunked as patch
 
     gd, _ = _install_fake_qwen35(monkeypatch)
     monkeypatch.setattr(patch.mx.metal, "is_available", lambda: True)
-    monkeypatch.setenv("OMLX_GDN_IMPL", "blocked_seq")
+    monkeypatch.setenv("MOLTO_GDN_IMPL", "blocked_seq")
     calls = []
     monkeypatch.setattr(
         kernels,
@@ -126,8 +126,8 @@ def test_prefill_patch_blocked_seq_impl_opt_in(monkeypatch):
 
 
 def test_prefill_patch_passthrough_for_decode_mask_and_unsupported_shape(monkeypatch):
-    import omlx_runtime.custom_kernels.qwen35_prefill as kernels
-    import omlx_runtime.patches.qwen35_gdn_chunked as patch
+    import molto_runtime.custom_kernels.qwen35_prefill as kernels
+    import molto_runtime.patches.qwen35_gdn_chunked as patch
 
     gd, _ = _install_fake_qwen35(monkeypatch)
     monkeypatch.setattr(patch.mx.metal, "is_available", lambda: True)
@@ -164,12 +164,12 @@ def test_prefill_patch_passthrough_for_decode_mask_and_unsupported_shape(monkeyp
 
 
 def test_prefill_patch_chunked_impl_opt_in(monkeypatch):
-    import omlx_runtime.custom_kernels.qwen35_prefill as kernels
-    import omlx_runtime.patches.qwen35_gdn_chunked as patch
+    import molto_runtime.custom_kernels.qwen35_prefill as kernels
+    import molto_runtime.patches.qwen35_gdn_chunked as patch
 
     gd, _ = _install_fake_qwen35(monkeypatch)
     monkeypatch.setattr(patch.mx.metal, "is_available", lambda: True)
-    monkeypatch.setenv("OMLX_GDN_IMPL", "chunked")
+    monkeypatch.setenv("MOLTO_GDN_IMPL", "chunked")
 
     calls = []
     monkeypatch.setattr(
@@ -189,13 +189,13 @@ def test_prefill_patch_chunked_impl_opt_in(monkeypatch):
 
 
 def test_blocked_seq_default_block_size_depends_on_input_dtype(monkeypatch):
-    from omlx_runtime.custom_kernels.qwen35_prefill.gdn import _normalize_block_t
+    from molto_runtime.custom_kernels.qwen35_prefill.gdn import _normalize_block_t
 
     assert _normalize_block_t(None, mx.float32) == 16
     assert _normalize_block_t(None, mx.bfloat16) == 32
     assert _normalize_block_t(None, mx.float16) == 32
 
-    monkeypatch.setenv("OMLX_GDN_BLOCK_T", "48")
+    monkeypatch.setenv("MOLTO_GDN_BLOCK_T", "48")
     assert _normalize_block_t(None, mx.float32) == 48
     assert _normalize_block_t(32, mx.float32) == 32
 
@@ -203,7 +203,7 @@ def test_blocked_seq_default_block_size_depends_on_input_dtype(monkeypatch):
 @pytest.mark.skipif(not mx.metal.is_available(), reason="Metal is required")
 def test_blocked_seq_matches_stock_kernel_small():
     from mlx_lm.models.gated_delta import gated_delta_kernel
-    from omlx_runtime.custom_kernels.qwen35_prefill import gated_delta_blocked_seq
+    from molto_runtime.custom_kernels.qwen35_prefill import gated_delta_blocked_seq
 
     B, T, Hk, Hv, Dk, Dv = 1, 128, 16, 48, 128, 128
     keys = [mx.random.key(i) for i in range(6)]
@@ -230,7 +230,7 @@ def test_blocked_seq_matches_stock_kernel_small():
 @pytest.mark.skipif(not mx.metal.is_available(), reason="Metal is required")
 def test_blocked_seq_float32_default_fits_threadgroup_memory():
     from mlx_lm.models.gated_delta import gated_delta_kernel
-    from omlx_runtime.custom_kernels.qwen35_prefill import gated_delta_blocked_seq
+    from molto_runtime.custom_kernels.qwen35_prefill import gated_delta_blocked_seq
 
     # Exact GDN layout from issue #2162. With float32 inputs, TB=32 requires
     # 40,192 bytes of threadgroup memory and cannot load on a 32 KiB device.
@@ -257,8 +257,8 @@ def test_blocked_seq_float32_default_fits_threadgroup_memory():
 
 
 def test_prefill_patch_preserves_cache_owned_kernel_dispatch(monkeypatch):
-    import omlx_runtime.custom_kernels.qwen35_prefill as kernels
-    import omlx_runtime.patches.qwen35_gdn_chunked as patch
+    import molto_runtime.custom_kernels.qwen35_prefill as kernels
+    import molto_runtime.patches.qwen35_gdn_chunked as patch
     from mlx_vlm.models.cache import ArraysCache
     from mlx_vlm.models.qwen3_5 import gated_delta, language
 
@@ -340,7 +340,7 @@ def _gdn_reference_fp64(q, k, v, g, beta, state):
 @pytest.mark.parametrize("T", [1, 11, 12, 13, 64, 100])
 def test_pipelined_matches_stock_kernel(T):
     from mlx_lm.models.gated_delta import gated_delta_kernel
-    from omlx_runtime.custom_kernels.qwen35_prefill import gated_delta_pipelined
+    from molto_runtime.custom_kernels.qwen35_prefill import gated_delta_pipelined
 
     q, k, v, g, beta, state = _gdn_inputs(1, T, 16, 48, mx.bfloat16, seed=T)
     y_ref, s_ref = gated_delta_kernel(q, k, v, g, beta, state)
@@ -358,7 +358,7 @@ def test_pipelined_matches_stock_kernel(T):
 @pytest.mark.parametrize("Hk,Hv", [(16, 48), (16, 32), (2, 2)])
 def test_pipelined_float32_matches_fp64_reference(Hk, Hv):
     import numpy as np
-    from omlx_runtime.custom_kernels.qwen35_prefill import gated_delta_pipelined
+    from molto_runtime.custom_kernels.qwen35_prefill import gated_delta_pipelined
 
     q, k, v, g, beta, state = _gdn_inputs(2, 29, Hk, Hv, mx.float32, seed=Hv)
     y, s = gated_delta_pipelined(q, k, v, g, beta, state)
@@ -373,7 +373,7 @@ def test_pipelined_float32_matches_fp64_reference(Hk, Hv):
 
 @pytest.mark.skipif(not mx.metal.is_available(), reason="Metal is required")
 def test_pipelined_split_prefill_equals_one_shot():
-    from omlx_runtime.custom_kernels.qwen35_prefill import gated_delta_pipelined
+    from molto_runtime.custom_kernels.qwen35_prefill import gated_delta_pipelined
 
     q, k, v, g, beta, _ = _gdn_inputs(1, 37, 16, 48, mx.bfloat16, seed=7)
     y_all, s_all = gated_delta_pipelined(q, k, v, g, beta, None)
@@ -391,7 +391,7 @@ def test_pipelined_split_prefill_equals_one_shot():
 
 
 def test_pipelined_falls_back_for_unsupported_layouts(monkeypatch):
-    import omlx_runtime.custom_kernels.qwen35_prefill.gdn as gdn
+    import molto_runtime.custom_kernels.qwen35_prefill.gdn as gdn
 
     calls = []
 

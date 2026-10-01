@@ -312,7 +312,7 @@ export function ServerEditor({
       setNotice(result)
       setEdits({})
       setPreview(false)
-      await queryClient.invalidateQueries({ queryKey: ["omlx"] })
+      await queryClient.invalidateQueries({ queryKey: ["molto"] })
     },
   })
   function change(field: ServerField, value: unknown) {

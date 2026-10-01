@@ -14,7 +14,7 @@ import pytest
 
 pytest.importorskip("mlx_lm.models.gemma4")
 
-from omlx_runtime.patches.mlx_lm_mtp import gemma4_text_model
+from molto_runtime.patches.mlx_lm_mtp import gemma4_text_model
 
 
 def _sanitize(weights):

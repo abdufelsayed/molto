@@ -54,8 +54,8 @@ def main() -> None:
     parser.add_argument("--cpu-fractions", nargs="+", type=float, default=(0.0,))
     args = parser.parse_args()
 
-    from omlx_runtime.patches import qwen35_ane_prefill as patch
-    from omlx_runtime.utils.model_loading import load_text_model
+    from molto_runtime.patches import qwen35_ane_prefill as patch
+    from molto_runtime.utils.model_loading import load_text_model
 
     print(f"Loading {args.model}", flush=True)
     model, _ = load_text_model(str(args.model))
@@ -122,9 +122,9 @@ def main() -> None:
             )
             if runtime is None:
                 continue
-            gdn._omlx_ane_gdn_config = config
-            gdn._omlx_ane_gdn_state = runtime
-            gdn._omlx_ane_gdn_failed = False
+            gdn._molto_ane_gdn_config = config
+            gdn._molto_ane_gdn_state = runtime
+            gdn._molto_ane_gdn_failed = False
             seconds, samples, output = _measure(
                 lambda: patch._gdn_backend_exact(gdn, x), args.repeats
             )

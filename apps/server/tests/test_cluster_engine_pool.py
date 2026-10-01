@@ -4,9 +4,9 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from omlx_runtime.cluster.deployment import ClusterDeployment, ClusterHost
-from omlx_runtime.cluster.planner import PipelineAssignment
-from omlx_runtime.engine_pool import EngineEntry, EnginePool
+from molto_runtime.cluster.deployment import ClusterDeployment, ClusterHost
+from molto_runtime.cluster.planner import PipelineAssignment
+from molto_runtime.engine_pool import EngineEntry, EnginePool
 
 
 def _deployment(model_path: str) -> ClusterDeployment:
@@ -226,7 +226,7 @@ async def test_distributed_unload_uses_process_teardown_as_memory_barrier(
     pool._entries["nemotron"] = entry
     pool._current_model_memory = 90
     monkeypatch.setattr(
-        "omlx_runtime.engine_pool.mx.get_active_memory",
+        "molto_runtime.engine_pool.mx.get_active_memory",
         MagicMock(side_effect=AssertionError("main MLX gauge is unrelated")),
     )
 

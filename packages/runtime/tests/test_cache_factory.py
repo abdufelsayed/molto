@@ -10,14 +10,14 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from omlx_runtime.cache.factory import CacheConfig, CacheFactory
-from omlx_runtime.cache.hybrid_cache import (
+from molto_runtime.cache.factory import CacheConfig, CacheFactory
+from molto_runtime.cache.hybrid_cache import (
     LayerCacheConfig,
     ModelCacheConfig,
     create_default_kvcache_config,
 )
-from omlx_runtime.cache.recovery import CacheRecoveryManager
-from omlx_runtime.cache.type_handlers import CacheType
+from molto_runtime.cache.recovery import CacheRecoveryManager
+from molto_runtime.cache.type_handlers import CacheType
 
 
 class TestCacheConfig:

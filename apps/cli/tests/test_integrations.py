@@ -7,20 +7,20 @@ from unittest.mock import patch
 
 import pytest
 import yaml
-from omlx_cli.integrations import get_integration, list_integrations
-from omlx_cli.integrations.base import IntegrationContext
-from omlx_cli.integrations.claude import ClaudeCodeIntegration
-from omlx_cli.integrations.codex import (
+from molto_cli.integrations import get_integration, list_integrations
+from molto_cli.integrations.base import IntegrationContext
+from molto_cli.integrations.claude import ClaudeCodeIntegration
+from molto_cli.integrations.codex import (
     CodexIntegration,
     codex_config_args,
     write_codex_config,
 )
-from omlx_cli.integrations.codex_app import CodexAppIntegration, find_codex_app_bundle
-from omlx_cli.integrations.copilot import CopilotIntegration
-from omlx_cli.integrations.hermes import HermesIntegration
-from omlx_cli.integrations.openclaw import OpenClawIntegration
-from omlx_cli.integrations.opencode import OpenCodeIntegration
-from omlx_cli.integrations.pi import PiIntegration, _get_agent_dir
+from molto_cli.integrations.codex_app import CodexAppIntegration, find_codex_app_bundle
+from molto_cli.integrations.copilot import CopilotIntegration
+from molto_cli.integrations.hermes import HermesIntegration
+from molto_cli.integrations.openclaw import OpenClawIntegration
+from molto_cli.integrations.opencode import OpenCodeIntegration
+from molto_cli.integrations.pi import PiIntegration, _get_agent_dir
 
 
 def ctx(**overrides) -> IntegrationContext:
@@ -65,13 +65,14 @@ class TestIntegrationRegistry:
 class TestIntegrationCommands:
     def test_commands_quote_full_app_cli_prefix(self):
         with patch(
-            "omlx_config.utils.install.get_cli_prefix",
-            return_value="/Users/me/My Apps/oMLX.app/Contents/MacOS/omlx-cli",
+            "molto_config.utils.install.get_cli_prefix",
+            return_value="/Users/me/My Apps/Molto.app/Contents/MacOS/molto-cli",
         ):
             cmd = ClaudeCodeIntegration().get_command(ctx())
 
         assert (
-            cmd == "'/Users/me/My Apps/oMLX.app/Contents/MacOS/omlx-cli' launch claude"
+            cmd
+            == "'/Users/me/My Apps/Molto.app/Contents/MacOS/molto-cli' launch claude"
         )
 
 
@@ -79,7 +80,7 @@ class TestCodexIntegration:
     def test_get_command(self):
         codex = CodexIntegration()
         cmd = codex.get_command(ctx(port=8000, api_key="test-key", model="qwen3.5"))
-        assert "omlx launch codex" in cmd
+        assert "molto launch codex" in cmd
         assert "--model qwen3.5" in cmd
 
     def test_get_command_no_model(self):
@@ -97,12 +98,9 @@ class TestCodexIntegration:
             )
         )
 
-        assert 'model_provider="omlx"' in args
-        assert (
-            'model_providers.omlx_runtime.base_url="http://192.168.1.100:9000/v1"'
-            in args
-        )
-        assert 'model_providers.omlx_runtime.env_key="OMLX_API_KEY"' in args
+        assert 'model_provider="molto"' in args
+        assert 'model_providers.molto.base_url="http://192.168.1.100:9000/v1"' in args
+        assert 'model_providers.molto.env_key="MOLTO_API_KEY"' in args
         assert "model_context_window=240000" in args
         assert not any("model_auto_compact_token_limit" in arg for arg in args)
 
@@ -118,7 +116,7 @@ class TestCodexIntegration:
         assert not any("model_reasoning_effort" in arg for arg in non_reasoning_args)
 
     def test_configure_does_not_write_codex_config(self):
-        with patch("omlx_cli.integrations.codex.write_codex_config") as writer:
+        with patch("molto_cli.integrations.codex.write_codex_config") as writer:
             CodexIntegration().configure(ctx(port=8000, model="new-model"))
 
         writer.assert_not_called()
@@ -143,9 +141,9 @@ class TestCodexIntegration:
             "PYTHONDONTWRITEBYTECODE": "1",
         }
         with (
-            patch("omlx_cli.integrations.codex.write_codex_config") as writer,
-            patch("omlx_cli.integrations.codex.os.environ", base_env),
-            patch("omlx_cli.integrations.codex.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.codex.write_codex_config") as writer,
+            patch("molto_cli.integrations.codex.os.environ", base_env),
+            patch("molto_cli.integrations.codex.os.execvpe", side_effect=fake_execvpe),
         ):
             codex.launch(
                 ctx(
@@ -157,9 +155,9 @@ class TestCodexIntegration:
             )
 
         assert captured["argv"][-3:] == ["-m", "qwen3.5", "--yolo"]
-        assert 'model_provider="omlx"' in captured["argv"]
+        assert 'model_provider="molto"' in captured["argv"]
         assert "model_context_window=240000" not in captured["argv"]
-        assert captured["env"]["OMLX_API_KEY"] == "key"
+        assert captured["env"]["MOLTO_API_KEY"] == "key"
         assert "PYTHONHOME" not in captured["env"]
         assert "PYTHONPATH" not in captured["env"]
         assert "PYTHONDONTWRITEBYTECODE" not in captured["env"]
@@ -184,9 +182,9 @@ class TestCodexConfigWriter:
 
         content = config_path.read_text()
         assert 'model = "qwen3.5"' in content
-        assert 'model_provider = "omlx"' in content
+        assert 'model_provider = "molto"' in content
         assert 'base_url = "http://192.168.1.100:9000/v1"' in content
-        assert 'env_key = "OMLX_API_KEY"' in content
+        assert 'env_key = "MOLTO_API_KEY"' in content
 
     def test_creates_backup(self, tmp_path):
         config_path = tmp_path / "config.toml"
@@ -207,8 +205,8 @@ class TestCodexConfigWriter:
             "[agents]\n"
             "max_concurrent_threads_per_session = 4\n"
             "\n"
-            "[model_providers.omlx]\n"
-            'name = "old-omlx"\n'
+            "[model_providers.molto]\n"
+            'name = "old-molto"\n'
         )
 
         write_codex_config(config_path, ctx(port=8000, model="new-model"))
@@ -218,14 +216,14 @@ class TestCodexConfigWriter:
         assert 'other_key = "value"' in content
         assert "[agents]" in content
         assert "max_concurrent_threads_per_session = 4" in content
-        assert 'name = "oMLX"' in content
-        assert "old-omlx" not in content
+        assert 'name = "Molto"' in content
+        assert "old-molto" not in content
 
     def test_clears_stale_reasoning_effort(self, tmp_path):
         config_path = tmp_path / "config.toml"
         config_path.write_text(
             'model = "old-thinking-model"\n'
-            'model_provider = "omlx"\n'
+            'model_provider = "molto"\n'
             'model_reasoning_effort = "high"\n'
         )
 
@@ -260,7 +258,7 @@ class TestCodexAppIntegration:
     def test_get_command(self):
         codex_app = CodexAppIntegration()
         cmd = codex_app.get_command(ctx(port=8000, api_key="key", model="qwen3.5"))
-        assert "omlx launch codex_app" in cmd
+        assert "molto launch codex_app" in cmd
         assert "--model qwen3.5" in cmd
 
     def test_configure(self, tmp_path):
@@ -272,9 +270,9 @@ class TestCodexAppIntegration:
         assert config_path.exists()
         content = config_path.read_text()
         assert 'model = "qwen3.5"' in content
-        assert 'model_provider = "omlx"' in content
+        assert 'model_provider = "molto"' in content
         assert 'base_url = "http://127.0.0.1:8000/v1"' in content
-        assert 'env_key = "OMLX_API_KEY"' in content
+        assert 'env_key = "MOLTO_API_KEY"' in content
 
     def test_launch_app(self, tmp_path):
         codex_app = CodexAppIntegration()
@@ -293,12 +291,12 @@ class TestCodexAppIntegration:
         }
         with (
             patch.object(CodexAppIntegration, "CONFIG_PATH", config_path),
-            patch("omlx_cli.integrations.codex_app.os.environ", base_env),
+            patch("molto_cli.integrations.codex_app.os.environ", base_env),
             patch(
-                "omlx_cli.integrations.codex_app.os.execvpe", side_effect=fake_execvpe
+                "molto_cli.integrations.codex_app.os.execvpe", side_effect=fake_execvpe
             ),
             patch(
-                "omlx_cli.integrations.codex_app.resolve_codex_binary",
+                "molto_cli.integrations.codex_app.resolve_codex_binary",
                 return_value="/opt/homebrew/bin/codex",
             ),
         ):
@@ -313,7 +311,7 @@ class TestCodexAppIntegration:
 
         # Codex App should launch with "app" subcommand, not "-m <model>"
         assert captured["argv"] == ["/opt/homebrew/bin/codex", "app"]
-        assert captured["env"]["OMLX_API_KEY"] == "key"
+        assert captured["env"]["MOLTO_API_KEY"] == "key"
         assert "PYTHONHOME" not in captured["env"]
         assert "PYTHONPATH" not in captured["env"]
         assert "PYTHONDONTWRITEBYTECODE" not in captured["env"]
@@ -322,8 +320,8 @@ class TestCodexAppIntegration:
         # DMG-only install: no codex CLI on PATH, old bundle folder name
         bundle = make_app_bundle(tmp_path, "Codex.app", "com.openai.codex")
         with (
-            patch("omlx_cli.integrations.codex_app.shutil.which", return_value=None),
-            patch("omlx_cli.integrations.codex_app._APP_BUNDLE_ROOTS", (tmp_path,)),
+            patch("molto_cli.integrations.codex_app.shutil.which", return_value=None),
+            patch("molto_cli.integrations.codex_app._APP_BUNDLE_ROOTS", (tmp_path,)),
         ):
             assert find_codex_app_bundle() == bundle
             assert CodexAppIntegration().is_installed()
@@ -332,8 +330,8 @@ class TestCodexAppIntegration:
         # Post-rename fresh install: ChatGPT.app folder, codex bundle id
         make_app_bundle(tmp_path, "ChatGPT.app", "com.openai.codex")
         with (
-            patch("omlx_cli.integrations.codex_app.shutil.which", return_value=None),
-            patch("omlx_cli.integrations.codex_app._APP_BUNDLE_ROOTS", (tmp_path,)),
+            patch("molto_cli.integrations.codex_app.shutil.which", return_value=None),
+            patch("molto_cli.integrations.codex_app._APP_BUNDLE_ROOTS", (tmp_path,)),
         ):
             assert CodexAppIntegration().is_installed()
 
@@ -341,16 +339,16 @@ class TestCodexAppIntegration:
         # The old ChatGPT chat app has a different bundle id and no codex CLI
         make_app_bundle(tmp_path, "ChatGPT.app", "com.openai.chat")
         with (
-            patch("omlx_cli.integrations.codex_app.shutil.which", return_value=None),
-            patch("omlx_cli.integrations.codex_app._APP_BUNDLE_ROOTS", (tmp_path,)),
+            patch("molto_cli.integrations.codex_app.shutil.which", return_value=None),
+            patch("molto_cli.integrations.codex_app._APP_BUNDLE_ROOTS", (tmp_path,)),
         ):
             assert find_codex_app_bundle() is None
             assert not CodexAppIntegration().is_installed()
 
     def test_not_installed_without_cli_or_bundle(self, tmp_path):
         with (
-            patch("omlx_cli.integrations.codex_app.shutil.which", return_value=None),
-            patch("omlx_cli.integrations.codex_app._APP_BUNDLE_ROOTS", (tmp_path,)),
+            patch("molto_cli.integrations.codex_app.shutil.which", return_value=None),
+            patch("molto_cli.integrations.codex_app._APP_BUNDLE_ROOTS", (tmp_path,)),
         ):
             assert not CodexAppIntegration().is_installed()
 
@@ -365,10 +363,10 @@ class TestCodexAppIntegration:
 
         with (
             patch.object(CodexAppIntegration, "CONFIG_PATH", config_path),
-            patch("omlx_cli.integrations.codex_app.shutil.which", return_value=None),
-            patch("omlx_cli.integrations.codex_app._APP_BUNDLE_ROOTS", (tmp_path,)),
+            patch("molto_cli.integrations.codex_app.shutil.which", return_value=None),
+            patch("molto_cli.integrations.codex_app._APP_BUNDLE_ROOTS", (tmp_path,)),
             patch(
-                "omlx_cli.integrations.codex_app.os.execvpe", side_effect=fake_execvpe
+                "molto_cli.integrations.codex_app.os.execvpe", side_effect=fake_execvpe
             ),
         ):
             CodexAppIntegration().launch(ctx(port=8000, api_key="key", model="q"))
@@ -388,7 +386,7 @@ class TestOpenCodeIntegration:
     def test_get_command(self):
         oc = OpenCodeIntegration()
         cmd = oc.get_command(ctx(port=8000, api_key="key", model="qwen3.5"))
-        assert "omlx launch opencode" in cmd
+        assert "molto launch opencode" in cmd
         assert "--model qwen3.5" in cmd
 
     def test_configure_new_file(self, tmp_path):
@@ -401,17 +399,17 @@ class TestOpenCodeIntegration:
         assert config_path.exists()
         config = json.loads(config_path.read_text())
         assert (
-            config["provider"]["omlx"]["options"]["baseURL"]
+            config["provider"]["molto"]["options"]["baseURL"]
             == "http://127.0.0.1:8000/v1"
         )
-        assert config["provider"]["omlx"]["npm"] == "@ai-sdk/openai-compatible"
-        assert config["provider"]["omlx"]["options"]["apiKey"] == "test-key"
-        assert config["provider"]["omlx"]["models"]["qwen3.5"]["name"] == "qwen3.5"
-        assert config["provider"]["omlx"]["models"]["qwen3.5"]["modalities"] == {
+        assert config["provider"]["molto"]["npm"] == "@ai-sdk/openai-compatible"
+        assert config["provider"]["molto"]["options"]["apiKey"] == "test-key"
+        assert config["provider"]["molto"]["models"]["qwen3.5"]["name"] == "qwen3.5"
+        assert config["provider"]["molto"]["models"]["qwen3.5"]["modalities"] == {
             "input": ["text"],
             "output": ["text"],
         }
-        assert config["model"] == "omlx/qwen3.5"
+        assert config["model"] == "molto/qwen3.5"
 
     def test_configure_custom_host(self, tmp_path):
         oc = OpenCodeIntegration()
@@ -421,7 +419,7 @@ class TestOpenCodeIntegration:
 
         config = json.loads(config_path.read_text())
         assert (
-            config["provider"]["omlx"]["options"]["baseURL"]
+            config["provider"]["molto"]["options"]["baseURL"]
             == "http://10.0.0.5:9000/v1"
         )
 
@@ -451,10 +449,10 @@ class TestOpenCodeIntegration:
             config["provider"]["ollama"]["options"]["baseURL"]
             == "http://localhost:11434/v1"
         )
-        # omlx provider added
-        assert "omlx" in config["provider"]
+        # molto provider added
+        assert "molto" in config["provider"]
         assert (
-            config["provider"]["omlx"]["options"]["baseURL"]
+            config["provider"]["molto"]["options"]["baseURL"]
             == "http://127.0.0.1:9000/v1"
         )
         # Other keys preserved
@@ -484,7 +482,7 @@ class TestOpenCodeIntegration:
 
         # Should create new config despite invalid existing file
         config = json.loads(config_path.read_text())
-        assert "omlx" in config["provider"]
+        assert "molto" in config["provider"]
 
     def test_configure_with_limits(self, tmp_path):
         oc = OpenCodeIntegration()
@@ -502,7 +500,7 @@ class TestOpenCodeIntegration:
             )
 
         config = json.loads(config_path.read_text())
-        model_config = config["provider"]["omlx"]["models"]["qwen3.5"]
+        model_config = config["provider"]["molto"]["models"]["qwen3.5"]
         assert model_config["limit"]["context"] == 32768
         assert model_config["limit"]["output"] == 8192
 
@@ -521,7 +519,7 @@ class TestOpenCodeIntegration:
             )
 
         config = json.loads(config_path.read_text())
-        model_config = config["provider"]["omlx"]["models"]["qwen2.5-vl"]
+        model_config = config["provider"]["molto"]["models"]["qwen2.5-vl"]
         assert model_config["attachment"] is True
         assert model_config["modalities"] == {
             "input": ["text", "image"],
@@ -543,7 +541,7 @@ class TestOpenCodeIntegration:
             )
 
         config = json.loads(config_path.read_text())
-        model_config = config["provider"]["omlx"]["models"]["qwen3.5"]
+        model_config = config["provider"]["molto"]["models"]["qwen3.5"]
         assert model_config["limit"]["context"] == 32768
         assert model_config["limit"]["output"] == 32768
 
@@ -555,7 +553,7 @@ class TestOpenCodeIntegration:
             oc.configure(ctx(port=8000, api_key="key", model="qwen3.5"))
 
         config = json.loads(config_path.read_text())
-        model_config = config["provider"]["omlx"]["models"]["qwen3.5"]
+        model_config = config["provider"]["molto"]["models"]["qwen3.5"]
         assert "limit" not in model_config
 
     def test_launch_scrubs_python_env(self, tmp_path):
@@ -575,9 +573,9 @@ class TestOpenCodeIntegration:
         }
         with (
             patch.object(OpenCodeIntegration, "CONFIG_PATH", config_path),
-            patch("omlx_cli.integrations.opencode.os.environ", base_env),
+            patch("molto_cli.integrations.opencode.os.environ", base_env),
             patch(
-                "omlx_cli.integrations.opencode.os.execvpe", side_effect=fake_execvpe
+                "molto_cli.integrations.opencode.os.execvpe", side_effect=fake_execvpe
             ),
         ):
             oc.launch(ctx(port=8000, api_key="key", model="qwen3.5"))
@@ -597,7 +595,7 @@ class TestOpenClawIntegration:
     def test_get_command(self):
         ocl = OpenClawIntegration()
         cmd = ocl.get_command(ctx(port=8000, api_key="key", model="qwen3.5"))
-        assert "omlx launch openclaw" in cmd
+        assert "molto launch openclaw" in cmd
         assert "--model qwen3.5" in cmd
 
     def test_configure_new_file(self, tmp_path):
@@ -610,12 +608,12 @@ class TestOpenClawIntegration:
         assert config_path.exists()
         config = json.loads(config_path.read_text())
         assert (
-            config["models"]["providers"]["omlx"]["baseUrl"]
+            config["models"]["providers"]["molto"]["baseUrl"]
             == "http://127.0.0.1:8000/v1"
         )
-        assert config["models"]["providers"]["omlx"]["api"] == "openai-completions"
-        assert config["models"]["providers"]["omlx"]["apiKey"] == "test-key"
-        assert config["agents"]["defaults"]["model"]["primary"] == "omlx/qwen3.5"
+        assert config["models"]["providers"]["molto"]["api"] == "openai-completions"
+        assert config["models"]["providers"]["molto"]["apiKey"] == "test-key"
+        assert config["agents"]["defaults"]["model"]["primary"] == "molto/qwen3.5"
         assert config["tools"]["profile"] == "coding"
 
     def test_configure_model_metadata_from_context(self, tmp_path):
@@ -635,7 +633,7 @@ class TestOpenClawIntegration:
             )
 
         model_config = json.loads(config_path.read_text())["models"]["providers"][
-            "omlx"
+            "molto"
         ]["models"][0]
         assert model_config["reasoning"] is True
         assert model_config["input"] == ["text", "image"]
@@ -649,7 +647,7 @@ class TestOpenClawIntegration:
             ocl.configure(ctx(port=8000, api_key="key", model="llama"))
 
         model_config = json.loads(config_path.read_text())["models"]["providers"][
-            "omlx"
+            "molto"
         ]["models"][0]
         assert model_config["reasoning"] is False
         assert model_config["input"] == ["text"]
@@ -666,7 +664,7 @@ class TestOpenClawIntegration:
 
         config = json.loads(config_path.read_text())
         assert (
-            config["models"]["providers"]["omlx"]["baseUrl"]
+            config["models"]["providers"]["molto"]["baseUrl"]
             == "http://192.168.1.100:9000/v1"
         )
 
@@ -686,10 +684,10 @@ class TestOpenClawIntegration:
         # Existing preserved
         assert "ollama" in config["models"]["providers"]
         assert config["channels"]["telegram"]["enabled"] is True
-        # omlx added
-        assert "omlx" in config["models"]["providers"]
+        # molto added
+        assert "molto" in config["models"]["providers"]
         assert (
-            config["models"]["providers"]["omlx"]["baseUrl"]
+            config["models"]["providers"]["molto"]["baseUrl"]
             == "http://127.0.0.1:9000/v1"
         )
 
@@ -773,12 +771,12 @@ class TestOpenClawIntegration:
             # branch and skips gateway start, so execvpe is reached.
             patch.object(OpenClawIntegration, "_port_open", return_value=True),
             patch.object(OpenClawIntegration, "_wait_for_port", return_value=True),
-            patch("omlx_cli.integrations.openclaw.os.environ", base_env),
+            patch("molto_cli.integrations.openclaw.os.environ", base_env),
             patch(
-                "omlx_cli.integrations.openclaw.subprocess.run", side_effect=fake_run
+                "molto_cli.integrations.openclaw.subprocess.run", side_effect=fake_run
             ),
             patch(
-                "omlx_cli.integrations.openclaw.os.execvpe", side_effect=fake_execvpe
+                "molto_cli.integrations.openclaw.os.execvpe", side_effect=fake_execvpe
             ),
         ):
             ocl.launch(ctx(port=8000, api_key="key", model="qwen3.5"))
@@ -799,7 +797,7 @@ class TestHermesIntegration:
     def test_get_command(self):
         hermes = HermesIntegration()
         cmd = hermes.get_command(ctx(port=8000, api_key="key", model="qwen3.5"))
-        assert "omlx launch hermes" in cmd
+        assert "molto launch hermes" in cmd
         assert "--model qwen3.5" in cmd
 
     def test_get_command_no_model(self):
@@ -824,13 +822,13 @@ class TestHermesIntegration:
 
         assert config_path.exists()
         config = yaml.safe_load(config_path.read_text())
-        provider = config["providers"]["omlx"]
-        assert provider["name"] == "oMLX"
+        provider = config["providers"]["molto"]
+        assert provider["name"] == "Molto"
         assert provider["base_url"] == "http://127.0.0.1:8000/v1"
         assert provider["api_key"] == "test-key"
         assert provider["api_mode"] == "chat_completions"
         assert provider["default_model"] == "qwen3.5"
-        assert config["model"]["provider"] == "omlx"
+        assert config["model"]["provider"] == "molto"
         assert config["model"]["default"] == "qwen3.5"
         assert config["model"]["context_length"] == 131072
         assert config["model"]["max_tokens"] == 8192
@@ -842,9 +840,9 @@ class TestHermesIntegration:
         with patch.object(HermesIntegration, "CONFIG_PATH", config_path):
             hermes.configure(ctx(port=9000, api_key="", model="llama", host="10.0.0.5"))
 
-        provider = yaml.safe_load(config_path.read_text())["providers"]["omlx"]
+        provider = yaml.safe_load(config_path.read_text())["providers"]["molto"]
         assert provider["base_url"] == "http://10.0.0.5:9000/v1"
-        assert provider["api_key"] == "omlx"
+        assert provider["api_key"] == "molto"
 
     def test_configure_preserves_existing(self, tmp_path):
         config_path = tmp_path / "config.yaml"
@@ -854,7 +852,7 @@ class TestHermesIntegration:
                     "theme": "dark",
                     "providers": {
                         "anthropic": {"base_url": "https://api.anthropic.com"},
-                        "omlx": {"timeout": 120},
+                        "molto": {"timeout": 120},
                     },
                     "model": {
                         "temperature": 0.2,
@@ -875,10 +873,10 @@ class TestHermesIntegration:
         assert (
             config["providers"]["anthropic"]["base_url"] == "https://api.anthropic.com"
         )
-        assert config["providers"]["omlx"]["timeout"] == 120
-        assert config["providers"]["omlx"]["base_url"] == "http://127.0.0.1:8000/v1"
+        assert config["providers"]["molto"]["timeout"] == 120
+        assert config["providers"]["molto"]["base_url"] == "http://127.0.0.1:8000/v1"
         assert config["model"]["temperature"] == 0.2
-        assert config["model"]["provider"] == "omlx"
+        assert config["model"]["provider"] == "molto"
         assert config["model"]["default"] == "qwen3.5"
         assert "base_url" not in config["model"]
         assert "api_key" not in config["model"]
@@ -901,7 +899,7 @@ class TestHermesIntegration:
             yaml.safe_dump(
                 {
                     "model": {
-                        "provider": "omlx",
+                        "provider": "molto",
                         "default": "old",
                         "context_length": 32768,
                         "max_tokens": 8192,
@@ -961,7 +959,7 @@ class TestHermesIntegration:
         hermes = HermesIntegration()
 
         with (
-            patch("omlx_cli.integrations.base.sys.stdout.isatty", return_value=False),
+            patch("molto_cli.integrations.base.sys.stdout.isatty", return_value=False),
             patch("builtins.input", side_effect=["1", "2"]),
         ):
             selected = hermes.select_model(
@@ -985,7 +983,7 @@ class TestHermesIntegration:
 
         with (
             patch.object(HermesIntegration, "CONFIG_PATH", config_path),
-            patch("omlx_cli.integrations.hermes.os.execvpe") as execvpe,
+            patch("molto_cli.integrations.hermes.os.execvpe") as execvpe,
             pytest.raises(SystemExit) as exc,
         ):
             hermes.launch(
@@ -1025,8 +1023,8 @@ class TestHermesIntegration:
         }
         with (
             patch.object(HermesIntegration, "CONFIG_PATH", config_path),
-            patch("omlx_cli.integrations.hermes.os.environ", base_env),
-            patch("omlx_cli.integrations.hermes.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.hermes.os.environ", base_env),
+            patch("molto_cli.integrations.hermes.os.execvpe", side_effect=fake_execvpe),
         ):
             hermes.launch(
                 ctx(
@@ -1051,7 +1049,7 @@ class TestHermesIntegration:
         assert "PYTHONDONTWRITEBYTECODE" not in captured["env"]
 
         config = yaml.safe_load(config_path.read_text())
-        assert config["providers"]["omlx"]["api_key"] == "secret"
+        assert config["providers"]["molto"]["api_key"] == "secret"
         assert config["model"]["context_length"] == 131072
         assert config["model"]["max_tokens"] == 8192
 
@@ -1065,8 +1063,8 @@ class TestHermesIntegration:
 
         with (
             patch.object(HermesIntegration, "CONFIG_PATH", config_path),
-            patch("omlx_cli.integrations.hermes.os.environ", {"PATH": "/usr/bin"}),
-            patch("omlx_cli.integrations.hermes.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.hermes.os.environ", {"PATH": "/usr/bin"}),
+            patch("molto_cli.integrations.hermes.os.execvpe", side_effect=fake_execvpe),
         ):
             hermes.launch(ctx(port=8000, api_key="", model=""))
 
@@ -1082,8 +1080,8 @@ class TestHermesIntegration:
 
         with (
             patch.object(HermesIntegration, "CONFIG_PATH", config_path),
-            patch("omlx_cli.integrations.hermes.os.environ", {"PATH": "/usr/bin"}),
-            patch("omlx_cli.integrations.hermes.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.hermes.os.environ", {"PATH": "/usr/bin"}),
+            patch("molto_cli.integrations.hermes.os.execvpe", side_effect=fake_execvpe),
         ):
             hermes.launch(
                 ctx(port=8000, api_key="", model="qwen3.5", extra_args=("--continue",))
@@ -1127,7 +1125,7 @@ class TestPiIntegration:
     def test_get_command(self):
         pi = PiIntegration()
         cmd = pi.get_command(ctx(port=8000, api_key="key", model="qwen3.5"))
-        assert "omlx launch pi" in cmd
+        assert "molto launch pi" in cmd
         assert "--model qwen3.5" in cmd
 
     def test_get_command_no_model(self):
@@ -1147,7 +1145,7 @@ class TestPiIntegration:
             pi.configure(ctx(port=8000, api_key="test-key", model="qwen3.5"))
 
         models_config = json.loads(models_path.read_text())
-        provider = models_config["providers"]["omlx"]
+        provider = models_config["providers"]["molto"]
         assert provider["baseUrl"] == "http://127.0.0.1:8000/v1"
         assert provider["api"] == "openai-completions"
         assert provider["apiKey"] == "test-key"
@@ -1156,7 +1154,7 @@ class TestPiIntegration:
         assert provider["models"][0]["input"] == ["text"]
 
         settings_config = json.loads(settings_path.read_text())
-        assert settings_config["defaultProvider"] == "omlx"
+        assert settings_config["defaultProvider"] == "molto"
         assert settings_config["defaultModel"] == "qwen3.5"
 
     def test_configure_custom_host(self, tmp_path):
@@ -1172,7 +1170,7 @@ class TestPiIntegration:
                 ctx(port=9000, api_key="key", model="test", host="192.168.1.100")
             )
 
-        provider = json.loads(models_path.read_text())["providers"]["omlx"]
+        provider = json.loads(models_path.read_text())["providers"]["molto"]
         assert provider["baseUrl"] == "http://192.168.1.100:9000/v1"
 
     def test_configure_creates_backup(self, tmp_path):
@@ -1215,7 +1213,7 @@ class TestPiIntegration:
                 )
             )
 
-        provider = json.loads(models_path.read_text())["providers"]["omlx"]
+        provider = json.loads(models_path.read_text())["providers"]["molto"]
         model_config = provider["models"][0]
         assert model_config["input"] == ["text", "image"]
         assert model_config["contextWindow"] == 32768
@@ -1232,7 +1230,7 @@ class TestPiIntegration:
         ):
             pi.configure(ctx(port=8000, model="qwen3.6", reasoning=True))
 
-        model_config = json.loads(models_path.read_text())["providers"]["omlx"][
+        model_config = json.loads(models_path.read_text())["providers"]["molto"][
             "models"
         ][0]
         assert model_config["reasoning"] is True
@@ -1248,7 +1246,7 @@ class TestPiIntegration:
         ):
             pi.configure(ctx(port=8000, model="some-thinking-model", reasoning=False))
 
-        model_config = json.loads(models_path.read_text())["providers"]["omlx"][
+        model_config = json.loads(models_path.read_text())["providers"]["molto"][
             "models"
         ][0]
         assert model_config["reasoning"] is False
@@ -1264,7 +1262,7 @@ class TestPiIntegration:
         ):
             pi.configure(ctx(port=8000, model="qwen3-thinking"))
 
-        model_config = json.loads(models_path.read_text())["providers"]["omlx"][
+        model_config = json.loads(models_path.read_text())["providers"]["molto"][
             "models"
         ][0]
         assert model_config["reasoning"] is True
@@ -1288,11 +1286,11 @@ class TestPiIntegration:
 
         models_config = json.loads(models_path.read_text())
         assert "anthropic" in models_config["providers"]
-        assert models_config["providers"]["omlx"]["apiKey"] == "omlx"
+        assert models_config["providers"]["molto"]["apiKey"] == "molto"
 
         settings_config = json.loads(settings_path.read_text())
         assert settings_config["theme"] == "dark"
-        assert settings_config["defaultProvider"] == "omlx"
+        assert settings_config["defaultProvider"] == "molto"
         assert settings_config["defaultModel"] == "llama"
 
     def test_launch_scrubs_python_env(self, tmp_path):
@@ -1314,12 +1312,12 @@ class TestPiIntegration:
         with (
             patch.object(PiIntegration, "MODELS_PATH", models_path),
             patch.object(PiIntegration, "SETTINGS_PATH", settings_path),
-            patch("omlx_cli.integrations.pi.os.environ", base_env),
-            patch("omlx_cli.integrations.pi.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.pi.os.environ", base_env),
+            patch("molto_cli.integrations.pi.os.execvpe", side_effect=fake_execvpe),
         ):
             pi.launch(ctx(port=8000, api_key="key", model="qwen3.5"))
 
-        assert captured["argv"] == ["pi", "--model", "omlx/qwen3.5"]
+        assert captured["argv"] == ["pi", "--model", "molto/qwen3.5"]
         assert "PYTHONHOME" not in captured["env"]
         assert "PYTHONPATH" not in captured["env"]
         assert "PYTHONDONTWRITEBYTECODE" not in captured["env"]
@@ -1334,7 +1332,7 @@ class TestClaudeCodeIntegration:
     def test_get_command(self):
         cc = ClaudeCodeIntegration()
         cmd = cc.get_command(ctx(port=8000, api_key="key", model="qwen3.5"))
-        assert "omlx launch claude" in cmd
+        assert "molto launch claude" in cmd
 
     def test_get_command_ignores_model(self):
         # Claude integration uses TUI selection so the rendered command
@@ -1353,7 +1351,7 @@ class TestClaudeCodeIntegration:
     def test_find_claude_binary_in_path(self):
         cc = ClaudeCodeIntegration()
         with patch(
-            "omlx_cli.integrations.claude.shutil.which", return_value="/usr/bin/claude"
+            "molto_cli.integrations.claude.shutil.which", return_value="/usr/bin/claude"
         ):
             assert cc._find_claude_binary() == "claude"
 
@@ -1363,16 +1361,16 @@ class TestClaudeCodeIntegration:
         local_claude.parent.mkdir(parents=True)
         local_claude.write_text("#!/bin/sh\n")
         with (
-            patch("omlx_cli.integrations.claude.shutil.which", return_value=None),
-            patch("omlx_cli.integrations.claude.Path.home", return_value=tmp_path),
+            patch("molto_cli.integrations.claude.shutil.which", return_value=None),
+            patch("molto_cli.integrations.claude.Path.home", return_value=tmp_path),
         ):
             assert cc._find_claude_binary() == str(local_claude)
 
     def test_find_claude_binary_not_found(self, tmp_path):
         cc = ClaudeCodeIntegration()
         with (
-            patch("omlx_cli.integrations.claude.shutil.which", return_value=None),
-            patch("omlx_cli.integrations.claude.Path.home", return_value=tmp_path),
+            patch("molto_cli.integrations.claude.shutil.which", return_value=None),
+            patch("molto_cli.integrations.claude.Path.home", return_value=tmp_path),
         ):
             # Falls back to the bare name so the os.execvpe error surfaces clearly.
             assert cc._find_claude_binary() == "claude"
@@ -1393,8 +1391,8 @@ class TestClaudeCodeIntegration:
             "PYTHONDONTWRITEBYTECODE": "1",
         }
         with (
-            patch("omlx_cli.integrations.claude.os.environ", base_env),
-            patch("omlx_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.claude.os.environ", base_env),
+            patch("molto_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
             patch.object(
                 ClaudeCodeIntegration, "_find_claude_binary", return_value="claude"
             ),
@@ -1450,7 +1448,7 @@ class TestClaudeCodeIntegration:
         cc = ClaudeCodeIntegration()
 
         with (
-            patch("omlx_cli.integrations.base.sys.stdout.isatty", return_value=False),
+            patch("molto_cli.integrations.base.sys.stdout.isatty", return_value=False),
             patch("builtins.input", side_effect=["1", "2"]),
         ):
             selected = cc.select_model(
@@ -1492,7 +1490,7 @@ class TestClaudeCodeIntegration:
             captured["env"] = env
 
         with (
-            patch("omlx_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
             patch.object(
                 ClaudeCodeIntegration, "_find_claude_binary", return_value="claude"
             ),
@@ -1519,7 +1517,7 @@ class TestClaudeCodeIntegration:
             captured["env"] = env
 
         with (
-            patch("omlx_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
             patch.object(
                 ClaudeCodeIntegration, "_find_claude_binary", return_value="claude"
             ),
@@ -1539,12 +1537,12 @@ class TestClaudeCodeIntegration:
         assert env["CLAUDE_CODE_MAX_CONTEXT_TOKENS"] == "65536"
 
     def test_launch_sets_max_context_tokens_for_canonical_claude_alias(self):
-        """oMLX always sets CLAUDE_CODE_MAX_CONTEXT_TOKENS the same way
+        """Molto always sets CLAUDE_CODE_MAX_CONTEXT_TOKENS the same way
         regardless of the configured model name — whether Claude Code's own
         CLI then honors it for a "claude-*"-canonicalized model name is that
         binary's internal behavior (confirmed live: it does not, for names
         that canonicalize to "claude-*"), not something this integration can
-        special-case. This only guards that oMLX's side of the contract is
+        special-case. This only guards that Molto's side of the contract is
         unconditional."""
         cc = ClaudeCodeIntegration()
         captured = {}
@@ -1553,7 +1551,7 @@ class TestClaudeCodeIntegration:
             captured["env"] = env
 
         with (
-            patch("omlx_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
             patch.object(
                 ClaudeCodeIntegration, "_find_claude_binary", return_value="claude"
             ),
@@ -1580,7 +1578,7 @@ class TestClaudeCodeIntegration:
             captured["env"] = env
 
         with (
-            patch("omlx_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
             patch.object(
                 ClaudeCodeIntegration, "_find_claude_binary", return_value="claude"
             ),
@@ -1608,8 +1606,8 @@ class TestClaudeCodeIntegration:
             captured["env"] = env
 
         with (
-            patch("omlx_cli.integrations.claude.os.environ", {"PATH": "/usr/bin"}),
-            patch("omlx_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.claude.os.environ", {"PATH": "/usr/bin"}),
+            patch("molto_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
             patch.object(
                 ClaudeCodeIntegration, "_find_claude_binary", return_value="claude"
             ),
@@ -1634,8 +1632,8 @@ class TestClaudeCodeIntegration:
             captured["env"] = env
 
         with (
-            patch("omlx_cli.integrations.claude.os.environ", {"PATH": "/usr/bin"}),
-            patch("omlx_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.claude.os.environ", {"PATH": "/usr/bin"}),
+            patch("molto_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
             patch.object(
                 ClaudeCodeIntegration, "_find_claude_binary", return_value="claude"
             ),
@@ -1675,10 +1673,10 @@ class TestClaudeCodeIntegration:
 
         with (
             patch(
-                "omlx_cli.integrations.claude.os.environ",
+                "molto_cli.integrations.claude.os.environ",
                 {"PATH": "/usr/bin", name: value},
             ),
-            patch("omlx_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
             patch.object(
                 ClaudeCodeIntegration, "_find_claude_binary", return_value="claude"
             ),
@@ -1713,10 +1711,10 @@ class TestClaudeCodeIntegration:
 
         with (
             patch(
-                "omlx_cli.integrations.claude.os.environ",
+                "molto_cli.integrations.claude.os.environ",
                 {"PATH": "/usr/bin", name: value},
             ),
-            patch("omlx_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
             patch.object(
                 ClaudeCodeIntegration, "_find_claude_binary", return_value="claude"
             ),
@@ -1739,8 +1737,8 @@ class TestClaudeCodeIntegration:
             captured["env"] = env
 
         with (
-            patch("omlx_cli.integrations.claude.os.environ", {"PATH": "/usr/bin"}),
-            patch("omlx_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.claude.os.environ", {"PATH": "/usr/bin"}),
+            patch("molto_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
             patch.object(
                 ClaudeCodeIntegration, "_find_claude_binary", return_value="claude"
             ),
@@ -1762,7 +1760,7 @@ class TestClaudeCodeIntegration:
         assert env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] == "haiku-local"
         assert env["CLAUDE_CODE_SUBAGENT_MODEL"] == "haiku-local"
 
-    def test_launch_open_server_uses_omlx_token(self):
+    def test_launch_open_server_uses_molto_token(self):
         cc = ClaudeCodeIntegration()
         captured = {}
 
@@ -1770,8 +1768,8 @@ class TestClaudeCodeIntegration:
             captured["env"] = env
 
         with (
-            patch("omlx_cli.integrations.claude.os.environ", {"PATH": "/usr/bin"}),
-            patch("omlx_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.claude.os.environ", {"PATH": "/usr/bin"}),
+            patch("molto_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
             patch.object(
                 ClaudeCodeIntegration, "_find_claude_binary", return_value="claude"
             ),
@@ -1780,7 +1778,7 @@ class TestClaudeCodeIntegration:
 
         # Empty api_key means an open server, claude code still needs
         # *some* token so we ship a placeholder.
-        assert captured["env"]["ANTHROPIC_AUTH_TOKEN"] == "omlx"
+        assert captured["env"]["ANTHROPIC_AUTH_TOKEN"] == "molto"
 
     def test_launch_without_model(self):
         cc = ClaudeCodeIntegration()
@@ -1790,8 +1788,8 @@ class TestClaudeCodeIntegration:
             captured["env"] = env
 
         with (
-            patch("omlx_cli.integrations.claude.os.environ", {"PATH": "/usr/bin"}),
-            patch("omlx_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.claude.os.environ", {"PATH": "/usr/bin"}),
+            patch("molto_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
             patch.object(
                 ClaudeCodeIntegration, "_find_claude_binary", return_value="claude"
             ),
@@ -1810,8 +1808,8 @@ class TestClaudeCodeIntegration:
             captured["argv"] = argv
 
         with (
-            patch("omlx_cli.integrations.claude.os.environ", {"PATH": "/usr/bin"}),
-            patch("omlx_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.claude.os.environ", {"PATH": "/usr/bin"}),
+            patch("molto_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
             patch.object(
                 ClaudeCodeIntegration, "_find_claude_binary", return_value="claude"
             ),
@@ -1843,8 +1841,8 @@ class TestClaudeCodeIntegration:
             captured["argv"] = argv
 
         with (
-            patch("omlx_cli.integrations.claude.os.environ", {"PATH": "/usr/bin"}),
-            patch("omlx_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.claude.os.environ", {"PATH": "/usr/bin"}),
+            patch("molto_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
             patch.object(
                 ClaudeCodeIntegration, "_find_claude_binary", return_value="claude"
             ),
@@ -1879,8 +1877,8 @@ class TestClaudeCodeIntegration:
             captured["argv"] = argv
 
         with (
-            patch("omlx_cli.integrations.claude.os.environ", {"PATH": "/usr/bin"}),
-            patch("omlx_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.claude.os.environ", {"PATH": "/usr/bin"}),
+            patch("molto_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
             patch.object(
                 ClaudeCodeIntegration, "_find_claude_binary", return_value="claude"
             ),
@@ -1905,8 +1903,8 @@ class TestClaudeCodeIntegration:
             captured["argv"] = argv
 
         with (
-            patch("omlx_cli.integrations.claude.os.environ", {"PATH": "/usr/bin"}),
-            patch("omlx_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.claude.os.environ", {"PATH": "/usr/bin"}),
+            patch("molto_cli.integrations.claude.os.execvpe", side_effect=fake_execvpe),
             patch.object(
                 ClaudeCodeIntegration, "_find_claude_binary", return_value="claude"
             ),
@@ -1938,7 +1936,7 @@ class TestClaudeCodeIntegration:
     )
     def test_launch_preserves_explicit_settings(self, settings_args):
         with (
-            patch("omlx_cli.integrations.claude.os.execvpe") as execute,
+            patch("molto_cli.integrations.claude.os.execvpe") as execute,
             patch.object(
                 ClaudeCodeIntegration, "_find_claude_binary", return_value="claude"
             ),
@@ -1959,7 +1957,7 @@ class TestCopilotIntegration:
     def test_get_command(self):
         copilot = CopilotIntegration()
         cmd = copilot.get_command(ctx(port=8000, api_key="key", model="qwen3.5"))
-        assert "omlx launch copilot" in cmd
+        assert "molto launch copilot" in cmd
         assert "--model qwen3.5" in cmd
 
     def test_get_command_no_model(self):
@@ -1989,8 +1987,10 @@ class TestCopilotIntegration:
             "PYTHONDONTWRITEBYTECODE": "1",
         }
         with (
-            patch("omlx_cli.integrations.copilot.os.environ", base_env),
-            patch("omlx_cli.integrations.copilot.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.copilot.os.environ", base_env),
+            patch(
+                "molto_cli.integrations.copilot.os.execvpe", side_effect=fake_execvpe
+            ),
         ):
             copilot.launch(
                 ctx(
@@ -2018,7 +2018,7 @@ class TestCopilotIntegration:
         assert "PYTHONPATH" not in env
         assert "PYTHONDONTWRITEBYTECODE" not in env
 
-    def test_launch_open_server_uses_omlx_token(self):
+    def test_launch_open_server_uses_molto_token(self):
         copilot = CopilotIntegration()
         captured = {}
 
@@ -2026,12 +2026,14 @@ class TestCopilotIntegration:
             captured["env"] = env
 
         with (
-            patch("omlx_cli.integrations.copilot.os.environ", {"PATH": "/usr/bin"}),
-            patch("omlx_cli.integrations.copilot.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.copilot.os.environ", {"PATH": "/usr/bin"}),
+            patch(
+                "molto_cli.integrations.copilot.os.execvpe", side_effect=fake_execvpe
+            ),
         ):
             copilot.launch(ctx(port=8000, api_key="", model="qwen3.5"))
 
-        assert captured["env"]["COPILOT_PROVIDER_BEARER_TOKEN"] == "omlx"
+        assert captured["env"]["COPILOT_PROVIDER_BEARER_TOKEN"] == "molto"
 
     def test_launch_without_model_or_limits(self):
         copilot = CopilotIntegration()
@@ -2041,8 +2043,10 @@ class TestCopilotIntegration:
             captured["env"] = env
 
         with (
-            patch("omlx_cli.integrations.copilot.os.environ", {"PATH": "/usr/bin"}),
-            patch("omlx_cli.integrations.copilot.os.execvpe", side_effect=fake_execvpe),
+            patch("molto_cli.integrations.copilot.os.environ", {"PATH": "/usr/bin"}),
+            patch(
+                "molto_cli.integrations.copilot.os.execvpe", side_effect=fake_execvpe
+            ),
         ):
             copilot.launch(ctx(port=8000, api_key="key", model=""))
 
@@ -2056,7 +2060,7 @@ class TestCopilotIntegration:
 
 class TestIntegrationSettings:
     def test_settings_dataclass(self):
-        from omlx_config.settings import IntegrationSettings
+        from molto_config.settings import IntegrationSettings
 
         settings = IntegrationSettings()
         assert settings.copilot_model is None
@@ -2068,7 +2072,7 @@ class TestIntegrationSettings:
         assert settings.openclaw_tools_profile == "coding"
 
     def test_to_dict(self):
-        from omlx_config.settings import IntegrationSettings
+        from molto_config.settings import IntegrationSettings
 
         settings = IntegrationSettings(codex_model="qwen3.5")
         d = settings.to_dict()
@@ -2080,7 +2084,7 @@ class TestIntegrationSettings:
         assert d["openclaw_tools_profile"] == "coding"
 
     def test_from_dict(self):
-        from omlx_config.settings import IntegrationSettings
+        from molto_config.settings import IntegrationSettings
 
         settings = IntegrationSettings.from_dict(
             {
@@ -2098,7 +2102,7 @@ class TestIntegrationSettings:
         assert settings.pi_model is None
 
     def test_from_dict_empty(self):
-        from omlx_config.settings import IntegrationSettings
+        from molto_config.settings import IntegrationSettings
 
         settings = IntegrationSettings.from_dict({})
         assert settings.codex_model is None

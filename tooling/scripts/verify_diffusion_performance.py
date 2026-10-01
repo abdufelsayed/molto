@@ -3,7 +3,7 @@
 Usage: uv run --all-packages python tooling/scripts/verify_diffusion_performance.py MODEL REF.png NEW_OUTPUT [--batch4]
 Runs real inference through an isolated pool/shared executor and ASGI image APIs.
 Uses 256x256, four steps, three alternating trials (override with
-OMLX_DIFFUSION_PROOF_TRIALS=1..10). Timings are exploratory; ratios below one
+MOLTO_DIFFUSION_PROOF_TRIALS=1..10). Timings are exploratory; ratios below one
 mean slower performance. Batch pixels need not match serial pixels.
 Reports survive later failures. Source provenance covers headers/sizes only.
 """
@@ -22,7 +22,7 @@ import time
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
-# Set these before importing any hub, transformer or oMLX modules.
+# Set these before importing any hub, transformer or Molto modules.
 os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
@@ -79,7 +79,9 @@ class Evidence:
             offline=True,
             model=str(source),
             platform=platform.platform(),
-            versions={name: package_version(name) for name in ("mlx", "mflux", "omlx")},
+            versions={
+                name: package_version(name) for name in ("mlx", "mflux", "molto")
+            },
             size=256,
             steps=4,
             trials=trials,
@@ -249,7 +251,7 @@ async def operation(pool, evidence, model_id, pipeline, reference, batch4):
 
 async def api_proof(pool, evidence, model_id, reference):
     from httpx import ASGITransport, AsyncClient
-    from omlx_server.server import create_app
+    from molto_server.server import create_app
     from PIL import Image
 
     app = create_app()
@@ -309,8 +311,8 @@ async def verify(source, reference, output, batch4, trials):
     import gc
 
     import mlx.core as mx
-    from omlx_runtime.diffusion.preparation import _provenance, _source
-    from omlx_runtime.engine_pool import EnginePool
+    from molto_runtime.diffusion.preparation import _provenance, _source
+    from molto_runtime.engine_pool import EnginePool
 
     checkpoint = _source(source)
     require(
@@ -329,7 +331,9 @@ async def verify(source, reference, output, batch4, trials):
     )
     evidence.save()
     error = None
-    with tempfile.TemporaryDirectory(prefix="omlx-performance-discovery-") as directory:
+    with tempfile.TemporaryDirectory(
+        prefix="molto-performance-discovery-"
+    ) as directory:
         model_id = "local-flux2"
         (Path(directory) / model_id).symlink_to(source, target_is_directory=True)
         pool = EnginePool()
@@ -403,8 +407,8 @@ if __name__ == "__main__":
         and reference not in output.parents,
         "Use a new output directory separate from all inputs",
     )
-    trials = int(os.environ.get("OMLX_DIFFUSION_PROOF_TRIALS", "3"))
-    require(1 <= trials <= 10, "OMLX_DIFFUSION_PROOF_TRIALS must be 1..10")
+    trials = int(os.environ.get("MOLTO_DIFFUSION_PROOF_TRIALS", "3"))
+    require(1 <= trials <= 10, "MOLTO_DIFFUSION_PROOF_TRIALS must be 1..10")
     from PIL import Image
 
     require(reference.stat().st_size <= 8 * 1024 * 1024, "Reference PNG exceeds 8 MiB")

@@ -4,7 +4,7 @@
 The test never downloads weights. Run it explicitly with the published local
 checkpoint to exercise strict loading, text generation, and the vision path::
 
-    OMLX_QWEN38_MODELOPT_MODEL_PATH=/absolute/path/to/Qwen3.8-27B-NVFP4 \
+    MOLTO_QWEN38_MODELOPT_MODEL_PATH=/absolute/path/to/Qwen3.8-27B-NVFP4 \
         pytest tests/integration/test_qwen38_modelopt_mixed_real_model.py \
         -m slow -s -q
 """
@@ -31,7 +31,7 @@ pytestmark = [
     ),
 ]
 
-_ENV_VAR = "OMLX_QWEN38_MODELOPT_MODEL_PATH"
+_ENV_VAR = "MOLTO_QWEN38_MODELOPT_MODEL_PATH"
 
 
 @pytest.fixture(scope="module")
@@ -44,7 +44,7 @@ def qwen38_model_path() -> Path:
     if not config_path.is_file():
         pytest.skip(f"Qwen3.8 config.json not found at {config_path}")
 
-    from omlx_runtime.patches.qwen38_modelopt_mixed import is_supported_config
+    from molto_runtime.patches.qwen38_modelopt_mixed import is_supported_config
 
     config = json.loads(config_path.read_text(encoding="utf-8"))
     assert is_supported_config(config), (
@@ -68,8 +68,8 @@ def _red_blue_data_uri() -> str:
 def test_qwen38_modelopt_mixed_text_and_vision(qwen38_model_path: Path):
     import mlx.core as mx
     from mlx.utils import tree_flatten
-    from omlx_runtime.engine.vlm import VLMBatchedEngine
-    from omlx_runtime.patches.qwen38_modelopt_mixed import ScaledQuantizedLinear
+    from molto_runtime.engine.vlm import VLMBatchedEngine
+    from molto_runtime.patches.qwen38_modelopt_mixed import ScaledQuantizedLinear
 
     async def validate() -> None:
         engine = VLMBatchedEngine(model_name=str(qwen38_model_path))

@@ -4,7 +4,7 @@ Date: 2026-07-28
 
 ## Overview
 
-DFlash is a block diffusion speculative decoding technique (arXiv:2602.06036) that accelerates LLM token generation by having a small draft model propose multiple tokens simultaneously, which the target model verifies in a single forward pass. The MLX implementation ([bstnxbt/dflash-mlx](https://github.com/bstnxbt/dflash-mlx)) has been integrated into oMLX as an experimental engine option.
+DFlash is a block diffusion speculative decoding technique (arXiv:2602.06036) that accelerates LLM token generation by having a small draft model propose multiple tokens simultaneously, which the target model verifies in a single forward pass. The MLX implementation ([bstnxbt/dflash-mlx](https://github.com/bstnxbt/dflash-mlx)) has been integrated into Molto as an experimental engine option.
 
 ---
 
@@ -23,7 +23,7 @@ DFlash is a block diffusion speculative decoding technique (arXiv:2602.06036) th
 
 Key distinction from traditional speculative decoding: the draft model uses **block diffusion** (parallel denoising) rather than autoregressive token-by-token drafting, allowing all 16 tokens to be proposed simultaneously.
 
-### oMLX integration
+### Molto integration
 
 ```
 API Request → server.py → engine_pool.py
@@ -52,18 +52,18 @@ DFlashEngine is a `BaseEngine` implementation that:
 
 ### Files
 
-| File                                                          | Role                                                                                                     |
-| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `packages/runtime/src/omlx_runtime/engine/dflash.py`          | DFlashEngine class — BaseEngine impl, event consumer, fallback routing                                   |
-| `packages/runtime/src/omlx_runtime/patches/dflash_laguna.py`  | Laguna target adapter, gated drafter, fused-QKV loader, and mixed-cache rollback                         |
-| `packages/runtime/src/omlx_runtime/patches/dflash_mimo_v2.py` | MiMo V2 target adapter, trained-mask loader, draft attention, and mixed-cache rollback                   |
-| `packages/runtime/src/omlx_runtime/engine/__init__.py`        | DFlashEngine export (required dependency)                                                                |
-| `packages/runtime/src/omlx_runtime/engine_pool.py`            | DFlash routing: checks `dflash_enabled` before engine type switch                                        |
-| `packages/config/src/omlx_config/model_settings.py`           | Per-model settings, including DFlash enablement, draft selection, quantization, caches, and verification |
-| `packages/management/src/omlx_management/management.py`       | Settings validation, persistence, and reload handling                                                    |
-| `apps/server/src/omlx_server/api/management_routes.py`        | Typed management HTTP contract                                                                           |
-| `packages/runtime/tests/test_dflash_engine.py`                | DFlash engine and routing tests                                                                          |
-| `packages/runtime/tests/test_dflash_laguna.py`                | Laguna adapter parity, cache rollback, config, and checkpoint-layout tests                               |
+| File                                                           | Role                                                                                                     |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `packages/runtime/src/molto_runtime/engine/dflash.py`          | DFlashEngine class — BaseEngine impl, event consumer, fallback routing                                   |
+| `packages/runtime/src/molto_runtime/patches/dflash_laguna.py`  | Laguna target adapter, gated drafter, fused-QKV loader, and mixed-cache rollback                         |
+| `packages/runtime/src/molto_runtime/patches/dflash_mimo_v2.py` | MiMo V2 target adapter, trained-mask loader, draft attention, and mixed-cache rollback                   |
+| `packages/runtime/src/molto_runtime/engine/__init__.py`        | DFlashEngine export (required dependency)                                                                |
+| `packages/runtime/src/molto_runtime/engine_pool.py`            | DFlash routing: checks `dflash_enabled` before engine type switch                                        |
+| `packages/config/src/molto_config/model_settings.py`           | Per-model settings, including DFlash enablement, draft selection, quantization, caches, and verification |
+| `packages/management/src/molto_management/management.py`       | Settings validation, persistence, and reload handling                                                    |
+| `apps/server/src/molto_server/api/management_routes.py`        | Typed management HTTP contract                                                                           |
+| `packages/runtime/tests/test_dflash_engine.py`                 | DFlash engine and routing tests                                                                          |
+| `packages/runtime/tests/test_dflash_laguna.py`                 | Laguna adapter parity, cache rollback, config, and checkpoint-layout tests                               |
 
 ### Dependency
 
@@ -72,7 +72,7 @@ DFlashEngine is a `BaseEngine` implementation that:
 
 ### Supported models
 
-DFlash registers `QwenGdnTargetOps`, `Gemma4TargetOps`, and `MuseGlimmerTargetOps`. oMLX also registers a Laguna backend and the `DFlashLagunaForCausalLM` drafter used by Poolside's official checkpoints:
+DFlash registers `QwenGdnTargetOps`, `Gemma4TargetOps`, and `MuseGlimmerTargetOps`. Molto also registers a Laguna backend and the `DFlashLagunaForCausalLM` drafter used by Poolside's official checkpoints:
 
 | Target model                           | Draft checkpoint                       |
 | -------------------------------------- | -------------------------------------- |
@@ -108,7 +108,7 @@ metadata, and exposes the warning through status together with acceptance and
 separate accepted-draft/output tokens-per-cycle counters. A generic `-DFlash`
 suffix is not treated as proof of a BF16-only draft. Poolside also publishes
 INT4/FP8 drafters; their vLLM-format
-targets are not yet validated in oMLX. The adapter validates target
+targets are not yet validated in Molto. The adapter validates target
 depth, hidden size, and capture-layer IDs at load time. It implements Laguna's
 per-head/per-element softplus attention gating, partial RoPE,
 per-captured-layer RMS normalization, Poolside's fused `qkv_proj` checkpoint
@@ -164,7 +164,7 @@ DFlash finds it automatically; an explicitly configured draft path still wins.
    - Target model verification (single forward pass)
    - Greedy/temperature acceptance matching
    - Tape-based cache rollback for hybrid models (RecurrentRollbackCache)
-5. omlx consumes structured events:
+5. molto consumes structured events:
    - `"event": "token"` → decode with `NaiveStreamingDetokenizer` → SSE chunk
    - `"event": "summary"` → log metrics (tok/s, acceptance ratio, cycles)
 6. EOS tokens filtered from output
@@ -174,7 +174,7 @@ DFlash finds it automatically; an explicitly configured draft path still wins.
 1. `DFlashEngine.stream_generate()` detects prompt length exceeds threshold
 2. Delegates entire request to `_fallback_engine.stream_generate()`
 3. DFlash weights are evicted and BatchedEngine or VLMBatchedEngine starts lazily
-4. Full omlx features available: paged cache, SSD cache, prefix cache, continuous batching
+4. Full molto features available: paged cache, SSD cache, prefix cache, continuous batching
 
 ### Non-streaming
 
@@ -244,10 +244,10 @@ DFlashEngine loads both target and draft models simultaneously:
 
 ### 5. Separate prefix cache
 
-DFlashEngine does not use omlx's paged KV block cache. It has a separate
+DFlashEngine does not use molto's paged KV block cache. It has a separate
 dflash-mlx snapshot cache: optional L1 memory entries and L2 SSD spill.
 
-When context fallback is configured, the batched engine provides oMLX's paged
+When context fallback is configured, the batched engine provides Molto's paged
 and SSD block cache after the switch.
 
 ### 6. No batch benchmark
@@ -343,6 +343,6 @@ DFlash context fallback: 5120 >= 4096, evicting dflash models and switching to v
 ## Future work
 
 - **Upstream sync**: merge temperature patch to bstnxbt/dflash-mlx, update pin
-- **Broader model support**: as dflash-mlx adds new model families, omlx gets support automatically
+- **Broader model support**: as dflash-mlx adds new model families, molto gets support automatically
 - **Adaptive fallback**: evaluate switching to plain decoding when measured speculation is consistently unprofitable
 - **Performance coverage**: add real Laguna matched-pair tests across short and long contexts

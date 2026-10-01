@@ -2,8 +2,8 @@
 
 import json
 
-from omlx_config.model_settings import ModelSettings
-from omlx_runtime.model_discovery import (
+from molto_config.model_settings import ModelSettings
+from molto_runtime.model_discovery import (
     detect_preserve_thinking,
     detect_thinking_default,
 )

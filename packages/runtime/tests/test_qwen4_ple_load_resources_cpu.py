@@ -20,7 +20,7 @@ from repo_paths import repository_root
 ROOT = repository_root(__file__)
 RESOURCE_FILE = (
     ROOT
-    / "packages/runtime/src/omlx_runtime/patches/mlx_vlm_qwen4_exp_compat/ple_load_resources.py"
+    / "packages/runtime/src/molto_runtime/patches/mlx_vlm_qwen4_exp_compat/ple_load_resources.py"
 )
 spec = importlib.util.spec_from_file_location("ple_load_scope_tested", RESOURCE_FILE)
 resources = importlib.util.module_from_spec(spec)
@@ -29,7 +29,7 @@ spec.loader.exec_module(resources)
 
 def wrapper():
     tree = ast.parse(
-        (ROOT / "packages/runtime/src/omlx_runtime/engine/vlm.py").read_text()
+        (ROOT / "packages/runtime/src/molto_runtime/engine/vlm.py").read_text()
     )
     node = next(
         n

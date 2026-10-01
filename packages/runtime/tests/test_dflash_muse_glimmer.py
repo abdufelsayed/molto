@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Muse Glimmer DFlash integration tests (oMLX side).
+"""Muse Glimmer DFlash integration tests (Molto side).
 
 The heavy drafter/backend unit tests live in the dflash-mlx fork
 (tests/test_muse_glimmer_draft.py, tests/test_target_muse_glimmer.py).
-This file guards the oMLX-side integration surfaces:
+This file guards the Molto-side integration surfaces:
 
 - cross-implementation drift between dflash-mlx's text-only mlx-lm module
   and the vendored mlx-vlm port (the two must stay numerically identical
   or DFlash verify logits diverge from serving logits),
-- independence from oMLX's DFlashDraftModelArgs.from_dict normalizer
+- independence from Molto's DFlashDraftModelArgs.from_dict normalizer
   wrapper (issue #2317) — the muse drafter does its own root-key
   normalization and must keep working with the wrapper installed,
 - drafter discovery classification (config_model_type payload the
@@ -60,7 +60,7 @@ def _fork_model():
 
 
 def _vendor_language_model():
-    from omlx_runtime.patches.mlx_vlm_muse_glimmer_compat import (
+    from molto_runtime.patches.mlx_vlm_muse_glimmer_compat import (
         apply_mlx_vlm_muse_glimmer_compat_patch,
     )
 
@@ -159,7 +159,7 @@ class TestDraftConfig:
 
 class TestDrafterClassification:
     def test_assistant_is_helper_not_servable(self):
-        from omlx_runtime.model_discovery import (
+        from molto_runtime.model_discovery import (
             is_helper_config_model_type,
             is_helper_model_config,
         )

@@ -44,7 +44,7 @@ jobs:
 
       - name: Build wheel with native custom kernels
         env:
-          OMLX_WITH_CUSTOM_KERNEL: "1"
+          MOLTO_WITH_CUSTOM_KERNEL: "1"
         # --no-isolation with preinstalled build deps: CMake's Python discovery
         # does not reliably resolve pip's isolated build env on the hosted
         # runners (it found the system framework Python without nanobind), so
@@ -61,7 +61,7 @@ jobs:
           unzip -l dist/*.whl | grep -E "_ext|dylib|metallib" || { echo "no native artifacts in wheel"; exit 1; }
           python -m venv /tmp/wheel-smoke
           /tmp/wheel-smoke/bin/pip install --quiet dist/*.whl
-          # run from outside the checkout so `import omlx` resolves to the
+          # run from outside the checkout so `import molto` resolves to the
           # installed wheel, not the source tree in cwd
           cd /tmp
           /tmp/wheel-smoke/bin/python - <<'PY'
@@ -70,9 +70,9 @@ jobs:
           import os
           import subprocess
           from pathlib import Path
-          import omlx_cli
+          import molto_cli
 
-          bundle = Path(omlx_cli.__file__).parent / "_dashboard"
+          bundle = Path(molto_cli.__file__).parent / "_dashboard"
           assert (bundle / "server/index.mjs").is_file()
           assert (bundle / "public").is_dir()
           node = bundle / "runtime/node"
@@ -88,7 +88,7 @@ jobs:
               "minimax_m3",
               "qwen35_prefill",
           ):
-              fast = importlib.import_module(f"omlx_runtime.custom_kernels.{pkg}.fast")
+              fast = importlib.import_module(f"molto_runtime.custom_kernels.{pkg}.fast")
               ok = bool(fast.is_native_available())
               print(f"{pkg}: native_available={ok} import_error={fast.import_error()}")
               if not ok:
@@ -99,7 +99,7 @@ jobs:
           # Exercise a real primitive from the newest native package, not just
           # its nanobind ABI probe, so the wheel also proves dylib/metallib
           # lookup and MLX 0.32.2 runtime dispatch.
-          from omlx_runtime.custom_kernels.decode_fast import fast as decode_fast
+          from molto_runtime.custom_kernels.decode_fast import fast as decode_fast
 
           mx.random.seed(3142)
           q = mx.random.normal((1, 4, 1, 64)).astype(mx.float16)

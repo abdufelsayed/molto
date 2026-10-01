@@ -68,6 +68,6 @@ jobs:
       - name: Check the entire workspace
         run: pnpm check
       - name: Install browser test runtime
-        run: pnpm --filter omlx-dashboard exec playwright install chromium
+        run: pnpm --filter molto-dashboard exec playwright install chromium
       - name: Test dashboard and public proxy
         run: pnpm test:dashboard

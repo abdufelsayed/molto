@@ -3,9 +3,9 @@
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.patches.deepseek_v41 import language
-from omlx_runtime.patches.deepseek_v41.config import ModelConfig
-from omlx_runtime.patches.deepseek_v41.quantization import QuantizedProjection
+from molto_runtime.patches.deepseek_v41 import language
+from molto_runtime.patches.deepseek_v41.config import ModelConfig
+from molto_runtime.patches.deepseek_v41.quantization import QuantizedProjection
 
 
 @pytest.mark.parametrize("length", [1, 32])

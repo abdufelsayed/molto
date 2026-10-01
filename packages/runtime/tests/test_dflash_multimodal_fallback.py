@@ -18,7 +18,7 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from omlx_runtime.engine.dflash import DFlashEngine
+from molto_runtime.engine.dflash import DFlashEngine
 
 # -- Helpers ------------------------------------------------------------------
 
@@ -368,7 +368,7 @@ class TestServerExtractionRouting:
 
     def test_extract_text_content_drops_images(self):
         """BEFORE behavior: extract_text_content silently drops image parts."""
-        from omlx_runtime.generation.utils import extract_text_content
+        from molto_runtime.generation.utils import extract_text_content
 
         messages = [
             MagicMock(
@@ -398,7 +398,7 @@ class TestServerExtractionRouting:
 
     def test_extract_multimodal_content_preserves_images(self):
         """AFTER behavior: extract_multimodal_content keeps image_url parts."""
-        from omlx_runtime.generation.utils import extract_multimodal_content
+        from molto_runtime.generation.utils import extract_multimodal_content
 
         messages = [
             MagicMock(

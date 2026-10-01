@@ -8,7 +8,7 @@ import sys
 
 def test_cluster_help_is_exposed():
     result = subprocess.run(
-        [sys.executable, "-m", "omlx_cli.cli", "cluster", "--help"],
+        [sys.executable, "-m", "molto_cli.cli", "cluster", "--help"],
         capture_output=True,
         text=True,
         timeout=10,
@@ -23,7 +23,7 @@ def test_cluster_help_is_exposed():
 
 def test_cluster_status_json_is_runnable():
     result = subprocess.run(
-        [sys.executable, "-m", "omlx_cli.cli", "cluster", "status", "--json"],
+        [sys.executable, "-m", "molto_cli.cli", "cluster", "status", "--json"],
         capture_output=True,
         text=True,
         timeout=30,
@@ -40,7 +40,7 @@ def test_cluster_worker_smoke_json_is_runnable():
         [
             sys.executable,
             "-m",
-            "omlx_cli.cli",
+            "molto_cli.cli",
             "cluster",
             "worker-smoke",
             "--json",
@@ -62,7 +62,7 @@ def test_cluster_pipeline_smoke_json_is_runnable():
         [
             sys.executable,
             "-m",
-            "omlx_cli.cli",
+            "molto_cli.cli",
             "cluster",
             "pipeline-smoke",
             "--json",
@@ -83,7 +83,7 @@ def test_cluster_status_rejects_hostname_route_target():
         [
             sys.executable,
             "-m",
-            "omlx_cli.cli",
+            "molto_cli.cli",
             "cluster",
             "status",
             "--route-to",
@@ -102,7 +102,7 @@ def test_cluster_unequal_plan_json_is_runnable():
         [
             sys.executable,
             "-m",
-            "omlx_cli.cli",
+            "molto_cli.cli",
             "cluster",
             "plan",
             "--model-size",

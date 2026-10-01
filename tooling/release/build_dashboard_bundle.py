@@ -90,7 +90,7 @@ def main() -> None:
     parser.add_argument("--skip-build", action="store_true")
     parser.add_argument("--output", type=Path, default=ROOT / "apps/dashboard/.output")
     parser.add_argument(
-        "--destination", type=Path, default=ROOT / "apps/cli/src/omlx_cli/_dashboard"
+        "--destination", type=Path, default=ROOT / "apps/cli/src/molto_cli/_dashboard"
     )
     args = parser.parse_args()
     version = args.node_version.removeprefix("v")
@@ -105,7 +105,7 @@ def main() -> None:
             check=True,
         )
         subprocess.run(["pnpm", "build"], cwd=ROOT / "apps/dashboard", check=True)
-    with tempfile.TemporaryDirectory(prefix="omlx-node-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="molto-node-") as temporary:
         temp = Path(temporary)
         archive = args.node_archive
         checksum = args.node_sha256

@@ -1,7 +1,7 @@
 """Unit tests for the shared prefill block-boundary rules."""
 
 import pytest
-from omlx_runtime.prefill_boundaries import (
+from molto_runtime.prefill_boundaries import (
     clamp_prefill_chunk_to_boundary,
     should_emit_prefill_boundary,
 )

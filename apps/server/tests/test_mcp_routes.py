@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx/api/mcp_routes.py — the HTTP layer over MCPClientManager.
+"""Tests for molto/api/mcp_routes.py — the HTTP layer over MCPClientManager.
 
 The manager itself is covered by tests/test_mcp_manager.py; here we only
 verify the route handlers: response shape, alias handling, and the
@@ -13,14 +13,14 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from omlx_server.api import mcp_routes
-from omlx_server.mcp.types import (
+from molto_server.api import mcp_routes
+from molto_server.mcp.types import (
     MCPServerState,
     MCPTool,
     MCPToolResult,
     MCPTransport,
 )
-from omlx_server.state import ServerState
+from molto_server.state import ServerState
 
 
 @pytest.fixture

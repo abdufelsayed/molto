@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import pytest
-from omlx_runtime.specprefill.planning import plan_specprefill_target
+from molto_runtime.specprefill.planning import plan_specprefill_target
 
 
 def _all_tokens(system_token_count: int, conversation_token_count: int) -> list[int]:

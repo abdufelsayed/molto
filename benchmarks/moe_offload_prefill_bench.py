@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """MoE expert offload (common adapter) on one machine: prefill and decode.
 
-Loads a checkpoint lazily through the oMLX loader, wraps its experts with
+Loads a checkpoint lazily through the Molto loader, wraps its experts with
 ``apply_moe_expert_offload`` at each requested resident fraction, then runs
 one prompt twice directly on the model (no scheduler, no chat template):
 cold (first request after load, pays the initial fill) and warm (same prompt
@@ -24,7 +24,7 @@ import time
 from pathlib import Path
 
 import mlx.core as mx
-from omlx_config.utils.proc_memory import get_phys_footprint
+from molto_config.utils.proc_memory import get_phys_footprint
 
 TEXT = (
     "The expert tables of a mixture-of-experts model are mostly idle on any "
@@ -70,7 +70,7 @@ def _first_capacity(model) -> int | None:
 
 def _one_request(model, tok, prompt: list[int], decode_tokens: int) -> dict:
     from mlx_lm import stream_generate
-    from omlx_runtime.patches.moe_expert_offload import moe_offload_stats
+    from molto_runtime.patches.moe_expert_offload import moe_offload_stats
 
     before = moe_offload_stats(model)
     t0 = time.perf_counter()
@@ -101,8 +101,8 @@ def _one_request(model, tok, prompt: list[int], decode_tokens: int) -> dict:
 def run_fraction(
     model_repo: str, fraction: float, prompt_tokens: int, decode_tokens: int
 ) -> dict:
-    from omlx_runtime.patches.moe_expert_offload import apply_moe_expert_offload
-    from omlx_runtime.utils.model_loading import lm_load_compat, materialize_lazy_state
+    from molto_runtime.patches.moe_expert_offload import apply_moe_expert_offload
+    from molto_runtime.utils.model_loading import lm_load_compat, materialize_lazy_state
 
     t0 = time.perf_counter()
     model, tok = lm_load_compat(model_repo, lazy=True)

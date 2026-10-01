@@ -7,14 +7,14 @@ from contextlib import asynccontextmanager
 
 import pytest
 from fastapi import HTTPException
-from omlx_cli.cli import mflux_save_command
-from omlx_contracts.api.image_models import ImageGenerationRequest
-from omlx_runtime.engine import image_generation
-from omlx_runtime.engine.image_generation import MFluxImageEngine
-from omlx_runtime.engine_pool import EnginePool
-from omlx_runtime.model_discovery import discover_models, is_mflux_image_model_dir
-from omlx_server.api import image_routes
-from omlx_server.state import ServerState
+from molto_cli.cli import mflux_save_command
+from molto_contracts.api.image_models import ImageGenerationRequest
+from molto_runtime.engine import image_generation
+from molto_runtime.engine.image_generation import MFluxImageEngine
+from molto_runtime.engine_pool import EnginePool
+from molto_runtime.model_discovery import discover_models, is_mflux_image_model_dir
+from molto_server.api import image_routes
+from molto_server.state import ServerState
 from PIL import Image
 
 
@@ -25,7 +25,7 @@ def _write_mflux_layout(path):
         (component / "0.safetensors").write_bytes(b"weights")
     (path / "tokenizer").mkdir(exist_ok=True)
     (path / "tokenizer" / "tokenizer.json").write_text("{}")
-    (path / "omlx-mflux.json").write_text(
+    (path / "molto-mflux.json").write_text(
         json.dumps(
             {
                 "version": 1,
@@ -67,7 +67,7 @@ def test_engine_pool_path_guard_accepts_mflux_checkpoint_without_root_config(tmp
 def test_manifest_allows_a_custom_mflux_directory_name(tmp_path):
     model_path = tmp_path / "my-image-model"
     _write_mflux_layout(model_path)
-    (model_path / "omlx-mflux.json").write_text(
+    (model_path / "molto-mflux.json").write_text(
         json.dumps(
             {
                 "version": 1,
@@ -197,7 +197,7 @@ def test_image_endpoint_rejects_invalid_sizes(size):
 def test_mflux_save_writes_discovery_manifest(tmp_path, monkeypatch):
     captured = {}
 
-    from omlx_runtime import diffusion
+    from molto_runtime import diffusion
 
     source = tmp_path / "source"
     _write_mflux_layout(source)
@@ -217,7 +217,7 @@ def test_mflux_save_writes_discovery_manifest(tmp_path, monkeypatch):
                     }
                 )
             )
-            (output / "omlx-mflux.json").write_text(
+            (output / "molto-mflux.json").write_text(
                 json.dumps(
                     {
                         "version": 2,
@@ -241,7 +241,7 @@ def test_mflux_save_writes_discovery_manifest(tmp_path, monkeypatch):
         "quantization": 4,
         "pipeline_id": "z-image-turbo",
     }
-    manifest = json.loads((output / "omlx-mflux.json").read_text())
+    manifest = json.loads((output / "molto-mflux.json").read_text())
     assert manifest["backend"] == "mflux"
     assert manifest["base_model"] == "z-image-turbo"
     assert manifest["quantization_bits"] == 4

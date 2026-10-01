@@ -7,9 +7,9 @@ import mlx.core as mx
 import mlx.nn as nn
 import pytest
 from mlx.utils import tree_flatten
-from omlx_runtime.diffusion.backend import MFluxBackend
-from omlx_runtime.diffusion.cache import PromptCache, PromptCacheBinding
-from omlx_runtime.diffusion.registry import get_pipeline
+from molto_runtime.diffusion.backend import MFluxBackend
+from molto_runtime.diffusion.cache import PromptCache, PromptCacheBinding
+from molto_runtime.diffusion.registry import get_pipeline
 
 
 class Tiny(nn.Module):
@@ -205,7 +205,7 @@ def test_calibration_bypasses_cached_factory_and_restores_exact_wrapper(monkeypa
     backend._models[id(model)] = get_pipeline("flux2-klein-4b"), None
     binding = PromptCacheBinding(model, "flux2-klein-4b", "flux2-klein-4b")
     backend._cache_bindings[id(model)] = binding
-    monkeypatch.setattr("omlx_runtime.diffusion.backend._symbol", lambda name: utility)
+    monkeypatch.setattr("molto_runtime.diffusion.backend._symbol", lambda name: utility)
     original_wrapper = model._predict
     assert model._predict(model.transformer)(0) == "compiled"
     model._encode_prompt_pair(prompt="hello")
@@ -228,7 +228,7 @@ def test_stats_snapshot_survives_concurrent_lru_eviction(monkeypatch):
 
     # Isolate the map race from GPU operations. Before the tuple snapshot,
     # ordinary eviction repeatedly invalidated stats' live dictionary iterator.
-    monkeypatch.setattr("omlx_runtime.diffusion.cache._arrays", lambda value: [])
+    monkeypatch.setattr("molto_runtime.diffusion.cache._arrays", lambda value: [])
     binding = PromptCacheBinding(SimpleNamespace(prompt_cache={}), "dev", "dev")
     start = Event()
 

@@ -36,7 +36,7 @@ def strict_math_device():
 
 @pytest.fixture(scope="module")
 def applied():
-    from omlx_runtime.patches.mlx_vlm_inkling_compat import (
+    from molto_runtime.patches.mlx_vlm_inkling_compat import (
         apply_mlx_vlm_inkling_compat_patch,
         is_applied,
     )
@@ -795,7 +795,7 @@ def test_attention_bias_transient_registration():
     """The banded-mask transient must be priced into the SDPA estimate
     when registered, and cleared registrations must restore the base
     estimate (process-wide registry across model swaps)."""
-    from omlx_runtime.memory_monitor import (
+    from molto_runtime.memory_monitor import (
         MemoryMonitor,
         register_attention_bias_transient,
     )

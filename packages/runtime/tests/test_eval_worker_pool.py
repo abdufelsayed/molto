@@ -11,10 +11,10 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-from omlx_runtime.eval.base import BaseBenchmark
-from omlx_runtime.eval.humaneval import HumanEvalBenchmark
-from omlx_runtime.eval.livecodebench import LiveCodeBenchBenchmark
-from omlx_runtime.eval.mbpp import MBPPBenchmark
+from molto_runtime.eval.base import BaseBenchmark
+from molto_runtime.eval.humaneval import HumanEvalBenchmark
+from molto_runtime.eval.livecodebench import LiveCodeBenchBenchmark
+from molto_runtime.eval.mbpp import MBPPBenchmark
 
 WAIT = 1.0
 

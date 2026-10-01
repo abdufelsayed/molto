@@ -22,11 +22,11 @@ from repo_paths import repository_root
 
 SOURCE = (
     repository_root(__file__)
-    / "packages/runtime/src/omlx_runtime/patches/mlx_vlm_qwen4_exp_compat/vendor/mlx_vlm/models/qwen4_exp/language.py"
+    / "packages/runtime/src/molto_runtime/patches/mlx_vlm_qwen4_exp_compat/vendor/mlx_vlm/models/qwen4_exp/language.py"
 )
 
 
-class NoMLX:
+class NMolto:
     def __getattr__(self, name):
         raise AssertionError("MLX touched: " + name)
 
@@ -67,7 +67,7 @@ def load_runtime():
         wait=wait,
         register_ple_resource=lambda *a, **k: None,
         logger=logging.getLogger(__name__),
-        mx=NoMLX(),
+        mx=NMolto(),
         nn=types.SimpleNamespace(Module=object),
     )
     module = ast.Module(

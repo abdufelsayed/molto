@@ -11,11 +11,11 @@ import pytest
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
-from omlx_management.management import ManagementError
-from omlx_management.management_acquisition import AcquisitionService, convert_local
-from omlx_management.management_runtime import ManagementRuntime
-from omlx_server.api.management_acquisition_routes import router
-from omlx_server.auth import AuthContext, require_management_key
+from molto_management.management import ManagementError
+from molto_management.management_acquisition import AcquisitionService, convert_local
+from molto_management.management_runtime import ManagementRuntime
+from molto_server.api.management_acquisition_routes import router
+from molto_server.auth import AuthContext, require_management_key
 
 
 @pytest.fixture
@@ -533,7 +533,7 @@ def test_embedding_conversion_preserves_actual_dtype_and_rejects_mixed(
 
 @pytest.mark.asyncio
 async def test_quantization_cancel_drains_retained_worker_and_paths(runtime):
-    from omlx_management.oq_manager import QuantStatus
+    from molto_management.oq_manager import QuantStatus
 
     model = runtime.roots[0] / "source"
     model.mkdir()

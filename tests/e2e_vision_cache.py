@@ -24,11 +24,11 @@ import numpy as np
 from PIL import Image
 from repo_paths import repository_root
 
-# Add parent to path for omlx imports
+# Add parent to path for molto imports
 sys.path.insert(0, str(repository_root(__file__)))
 
-from omlx_runtime.cache.vision_feature_cache import VisionFeatureSSDCache
-from omlx_runtime.engine.vlm import _QWEN_VISION_MODELS, VLMBatchedEngine
+from molto_runtime.cache.vision_feature_cache import VisionFeatureSSDCache
+from molto_runtime.engine.vlm import _QWEN_VISION_MODELS, VLMBatchedEngine
 
 
 def create_test_image(width: int = 224, height: int = 224) -> Image.Image:
@@ -57,11 +57,11 @@ def test_model(model_path: str, ssd_dir: str | None = None) -> bool:
     """Run all vision cache tests for a single model."""
     from mlx_vlm.utils import load as vlm_load
     from mlx_vlm.utils import prepare_inputs
-    from omlx_runtime.engine.vlm import (
+    from molto_runtime.engine.vlm import (
         _patch_gemma4_vision_tower,
         _patch_video_processor_bug,
     )
-    from omlx_runtime.utils.image import compute_image_hash
+    from molto_runtime.utils.image import compute_image_hash
 
     print(f"\n{'=' * 60}")
     print(f"Testing: {model_path}")

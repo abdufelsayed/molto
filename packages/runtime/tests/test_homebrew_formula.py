@@ -5,7 +5,7 @@ The release workflow must update only the formula's top-level source URL and
 checksum. Resource blocks have independent checksums that must survive version
 bumps (issues #2151 and #2173).
 
-macOS 27 betas broke `brew install omlx` in several ways (issue #2110):
+macOS 27 betas broke `brew install molto` in several ways (issue #2110):
 
 - dyld now requires the LC_SYMTAB string pool in Mach-O libraries to be
   8-byte aligned, so prebuilt Rust wheels (e.g. tokenizers) fail dlopen.
@@ -15,7 +15,7 @@ macOS 27 betas broke `brew install omlx` in several ways (issue #2110):
 - CMake's default Python discovery can pick a newer unlinked system
   Python instead of the formula's venv when building custom kernels.
 - The custom-kernel verification ran from the build directory, where the
-  raw omlx/ source tree shadows the installed package.
+  raw molto/ source tree shadows the installed package.
 - Later pip steps (mlx-audio, python-multipart) ran without --no-binary,
   so a prebuilt wheel could clobber a source-built package, and pip's
   wheel cache could resurrect a dylib built before the strip guards.
@@ -24,13 +24,17 @@ The formula and workflow use Ruby and shell syntax, so these are text-level
 assertions that the guards stay present.
 """
 
+import os
 import re
+import subprocess
+import sys
 
 import pytest
-from omlx_runtime.custom_kernels import NATIVE_KERNEL_PACKAGES
+import yaml
+from molto_runtime.custom_kernels import NATIVE_KERNEL_PACKAGES
 from repo_paths import repository_root
 
-FORMULA_PATH = repository_root(__file__) / "Formula" / "omlx.rb"
+FORMULA_PATH = repository_root(__file__) / "Formula" / "molto.rb"
 WORKFLOW_PATH = (
     repository_root(__file__) / ".github" / "workflows" / "update-formula.yml"
 )
@@ -50,16 +54,50 @@ def formula_update_workflow() -> str:
 
 
 class TestFormulaReleaseUpdate:
-    def test_source_sha_update_is_scoped_to_top_level(self, formula_update_workflow):
+    @pytest.mark.parametrize("existing_release", [False, True])
+    def test_source_sha_update_is_scoped_to_top_level(
+        self, formula_update_workflow, formula, tmp_path, existing_release
+    ):
         """Release bumps must not replace checksums inside resource blocks."""
-        sha_update = next(
-            line.strip()
-            for line in formula_update_workflow.splitlines()
-            if line.lstrip().startswith("sed -i") and "steps.sha.outputs.sha256" in line
+        workflow = yaml.safe_load(formula_update_workflow)
+        step = next(
+            step
+            for step in workflow["jobs"]["update-formula"]["steps"]
+            if step.get("name") == "Update formula"
         )
-
-        assert "s|^  sha256" in sha_update
-        assert '"$|  sha256' in sha_update
+        script = step["run"].partition("python3 - <<'PY'\n")[2].rsplit("\nPY", 1)[0]
+        directory = tmp_path / "Formula"
+        directory.mkdir()
+        path = directory / "molto.rb"
+        if existing_release:
+            formula = formula.replace(
+                '  license "Apache-2.0"',
+                '  url "https://example.test/old.tar.gz"\n  sha256 "'
+                + "1" * 64
+                + '"\n  license "Apache-2.0"',
+            )
+        path.write_text(formula)
+        subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=tmp_path,
+            check=True,
+            env={
+                **os.environ,
+                "GITHUB_REPOSITORY": "abdufelsayed/molto",
+                "GITHUB_REF_NAME": "v0.1.0",
+                "SOURCE_SHA256": "2" * 64,
+            },
+        )
+        updated = path.read_text()
+        assert (
+            '  url "https://github.com/abdufelsayed/molto/archive/refs/tags/v0.1.0.tar.gz"'
+            in updated
+        )
+        assert '  sha256 "' + "2" * 64 + '"' in updated
+        assert "https://example.test/old.tar.gz" not in updated
+        assert re.findall(
+            r"^    (?:url|sha256) .*$", updated, re.MULTILINE
+        ) == re.findall(r"^    (?:url|sha256) .*$", formula, re.MULTILINE)
 
     def test_spacy_model_checksum_is_independent(self, formula):
         """The bundled spaCy wheel checksum must survive source version bumps."""
@@ -132,5 +170,5 @@ class TestCustomKernelBuild:
         assert "-DPython_EXECUTABLE=#{libexec}/bin/python" in formula
 
     def test_kernel_verification_not_shadowed_by_buildpath(self, formula):
-        """Import check must run outside buildpath's raw omlx/ source tree."""
+        """Import check must run outside buildpath's raw molto/ source tree."""
         assert "Dir.chdir(libexec)" in formula

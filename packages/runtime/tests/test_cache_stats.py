@@ -2,13 +2,13 @@
 """
 Tests for cache statistics classes and interface.
 
-This module tests the unified cache statistics for oMLX, including
+This module tests the unified cache statistics for Molto, including
 base classes and implementation-specific metrics.
 """
 
 import pytest
-from omlx_runtime.cache.interface import CacheManager
-from omlx_runtime.cache.stats import (
+from molto_runtime.cache.interface import CacheManager
+from molto_runtime.cache.stats import (
     BaseCacheStats,
     PagedCacheStats,
     PagedSSDCacheStats,

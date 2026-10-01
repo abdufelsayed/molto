@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx_contracts.api.shared_models module."""
+"""Tests for molto_contracts.api.shared_models module."""
 
 import time
 
 import pytest
-from omlx_contracts.api.shared_models import (
+from molto_contracts.api.shared_models import (
     BaseUsage,
     IDPrefix,
     generate_id,

@@ -19,19 +19,19 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-from omlx_runtime.engine_core import (
+from molto_runtime.engine_core import (
     AsyncEngineCore,
     EngineConfig,
     EngineCore,
     _raise_request_output_error,
 )
-from omlx_runtime.exceptions import (
+from molto_runtime.exceptions import (
     PrefillMemoryAbortedError,
     PrefillMemoryExceededError,
 )
-from omlx_runtime.output_collector import RequestOutputCollector
-from omlx_runtime.request import RequestOutput, SamplingParams
-from omlx_runtime.scheduler import SchedulerConfig, SchedulerOutput
+from molto_runtime.output_collector import RequestOutputCollector
+from molto_runtime.request import RequestOutput, SamplingParams
+from molto_runtime.scheduler import SchedulerConfig, SchedulerOutput
 
 
 @pytest.fixture(autouse=True)
@@ -74,7 +74,7 @@ class TestEngineCoreInitialization:
 
     def test_init_with_defaults(self, mock_model, mock_tokenizer):
         """Test EngineCore initializes with default config."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -94,7 +94,7 @@ class TestEngineCoreInitialization:
 
     def test_init_with_custom_config(self, mock_model, mock_tokenizer):
         """Test EngineCore initializes with custom config."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             config = EngineConfig(
@@ -117,7 +117,7 @@ class TestEngineCoreInitialization:
 
     def test_init_generates_engine_id(self, mock_model, mock_tokenizer):
         """Test EngineCore generates unique engine ID."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -130,7 +130,7 @@ class TestEngineCoreInitialization:
 
     def test_init_with_custom_engine_id(self, mock_model, mock_tokenizer):
         """Test EngineCore uses provided engine ID."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(
@@ -151,7 +151,7 @@ class TestEngineCoreStartStop:
     @pytest.mark.asyncio
     async def test_start_sets_running(self, mock_model, mock_tokenizer):
         """Test start() sets engine to running state."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -168,7 +168,7 @@ class TestEngineCoreStartStop:
     @pytest.mark.asyncio
     async def test_stop_clears_running(self, mock_model, mock_tokenizer):
         """Test stop() clears running state."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -185,7 +185,7 @@ class TestEngineCoreStartStop:
     @pytest.mark.asyncio
     async def test_is_running(self, mock_model, mock_tokenizer):
         """Test is_running() returns correct state."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -204,7 +204,7 @@ class TestEngineCoreStartStop:
     @pytest.mark.asyncio
     async def test_double_start_noop(self, mock_model, mock_tokenizer):
         """Test starting already running engine is no-op."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -224,7 +224,7 @@ class TestEngineCoreStartStop:
         self, mock_model, mock_tokenizer
     ):
         """Idle loop should sleep cheaply but wake immediately for new work."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(
@@ -264,7 +264,7 @@ class TestEngineCoreStartStop:
         self, mock_model, mock_tokenizer
     ):
         """Admission backpressure must not spin the engine loop."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(
@@ -309,7 +309,7 @@ class TestEngineCoreAddRequest:
     @pytest.mark.asyncio
     async def test_add_request_returns_id(self, mock_model, mock_tokenizer):
         """Test add_request() returns request ID."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -331,7 +331,7 @@ class TestEngineCoreAddRequest:
     @pytest.mark.asyncio
     async def test_add_request_with_custom_id(self, mock_model, mock_tokenizer):
         """Test add_request() uses provided request ID."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -352,7 +352,7 @@ class TestEngineCoreAddRequest:
     @pytest.mark.asyncio
     async def test_add_request_creates_collector(self, mock_model, mock_tokenizer):
         """Test add_request() creates output collector."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -378,7 +378,7 @@ class TestEngineCoreAddRequest:
         leaks that the reaper can't see — it was never stamped finished
         (#1154). BaseException in the guard also covers the real
         trigger: CancelledError when a client disconnects before streaming."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
             try:
@@ -407,7 +407,7 @@ class TestEngineCoreAddRequest:
         self, mock_model, mock_tokenizer
     ):
         """Test add_request() uses default sampling params when none provided."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -443,7 +443,7 @@ class TestEngineCoreAbortRequest:
     @pytest.mark.asyncio
     async def test_abort_request(self, mock_model, mock_tokenizer):
         """Test abort_request() returns True for existing request."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -462,7 +462,7 @@ class TestEngineCoreAbortRequest:
     @pytest.mark.asyncio
     async def test_abort_request_signals_consumer(self, mock_model, mock_tokenizer):
         """Test abort_request() signals consumer with error output."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -504,7 +504,7 @@ class TestEngineCoreAbortRequest:
         causing _do_abort_request to skip cleanup and leave ghost state in
         scheduler.running / uid mappings / active batch.
         """
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -548,7 +548,7 @@ class TestEngineCoreAbortRequest:
         which reset the collector's asyncio.Event without waking waiters,
         causing stream_outputs to block forever.
         """
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -596,7 +596,7 @@ class TestEngineCoreGetStats:
     @pytest.mark.asyncio
     async def test_get_stats_initial(self, mock_model, mock_tokenizer):
         """Test get_stats() returns initial values."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -621,7 +621,7 @@ class TestEngineCoreGetStats:
     @pytest.mark.asyncio
     async def test_get_stats_includes_scheduler_stats(self, mock_model, mock_tokenizer):
         """Test get_stats() includes scheduler statistics."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -642,7 +642,7 @@ class TestEngineCoreClose:
     def test_close_releases_vlm_drafter_target_with_retained_scheduler(
         self, mock_model, mock_tokenizer
     ):
-        from omlx_runtime.speculative.vlm_mtp import VLMMTPDrafter
+        from molto_runtime.speculative.vlm_mtp import VLMMTPDrafter
 
         class Target:
             def project(self, hidden):
@@ -673,7 +673,7 @@ class TestEngineCoreClose:
 
     def test_close_releases_model(self, mock_model, mock_tokenizer):
         """Test close() releases model ownership."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -684,7 +684,7 @@ class TestEngineCoreClose:
 
     def test_close_idempotent(self, mock_model, mock_tokenizer):
         """Test close() can be called multiple times safely."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -695,7 +695,7 @@ class TestEngineCoreClose:
         self, mock_model, mock_tokenizer
     ):
         """A stuck scheduler teardown is fatal so a supervisor can restart."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -709,7 +709,7 @@ class TestEngineCoreClose:
 
             with (
                 patch(
-                    "omlx_runtime.engine_core.fatal_exit", side_effect=SystemExit
+                    "molto_runtime.engine_core.fatal_exit", side_effect=SystemExit
                 ) as fatal,
                 pytest.raises(SystemExit),
             ):
@@ -724,7 +724,7 @@ class TestEngineCoreGetCacheStats:
 
     def test_get_cache_stats(self, mock_model, mock_tokenizer):
         """Test get_cache_stats() returns None when no cache."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -744,7 +744,7 @@ class TestEngineCoreGenerateCancellation:
     @pytest.mark.asyncio
     async def test_generate_cancel_aborts_request(self, mock_model, mock_tokenizer):
         """Test that cancelling generate() aborts the underlying request."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -784,7 +784,7 @@ class TestEngineCoreGenerateCancellation:
     @pytest.mark.asyncio
     async def test_generate_cancel_multiple_requests(self, mock_model, mock_tokenizer):
         """Test cancelling one generate() does not affect others."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -865,7 +865,7 @@ class TestEngineCoreErrorPropagation:
                     engine.scheduler, "fail_all_requests", side_effect=recover
                 ) as recovery,
                 patch(
-                    "omlx_runtime.utils.fatal.fatal_exit", side_effect=SystemExit
+                    "molto_runtime.utils.fatal.fatal_exit", side_effect=SystemExit
                 ) as fatal,
             ):
                 if terminal:
@@ -886,7 +886,7 @@ class TestEngineCoreErrorPropagation:
         self, mock_model, mock_tokenizer
     ):
         """Test that engine loop errors are sent to request collectors."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -929,7 +929,7 @@ class TestEngineCoreErrorPropagation:
     @pytest.mark.asyncio
     async def test_stream_outputs_raises_on_error(self, mock_model, mock_tokenizer):
         """Test stream_outputs raises RuntimeError when error output received."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -965,7 +965,7 @@ class TestEngineCoreErrorPropagation:
         self, mock_model, mock_tokenizer
     ):
         """Structured capacity errors must survive the RequestOutput boundary."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -1008,7 +1008,7 @@ class TestEngineCoreErrorPropagation:
     @pytest.mark.asyncio
     async def test_generate_raises_on_error(self, mock_model, mock_tokenizer):
         """Test generate() raises RuntimeError when error output received."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -1055,7 +1055,7 @@ class TestEngineCoreErrorPropagation:
     async def test_generate_restores_prefill_memory_error(
         self, mock_model, mock_tokenizer
     ):
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -1108,7 +1108,7 @@ class TestAsyncEngineCore:
     @pytest.mark.asyncio
     async def test_context_manager(self, mock_model, mock_tokenizer):
         """Test AsyncEngineCore as async context manager."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             async with AsyncEngineCore(
@@ -1123,7 +1123,7 @@ class TestAsyncEngineCore:
     @pytest.mark.asyncio
     async def test_add_request(self, mock_model, mock_tokenizer):
         """Test AsyncEngineCore.add_request()."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             async with AsyncEngineCore(
@@ -1137,7 +1137,7 @@ class TestAsyncEngineCore:
     @pytest.mark.asyncio
     async def test_abort_request(self, mock_model, mock_tokenizer):
         """Test AsyncEngineCore.abort_request()."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             async with AsyncEngineCore(
@@ -1186,7 +1186,7 @@ class TestAsyncEngineCore:
     @pytest.mark.asyncio
     async def test_get_stats(self, mock_model, mock_tokenizer):
         """Test AsyncEngineCore.get_stats()."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             async with AsyncEngineCore(
@@ -1201,7 +1201,7 @@ class TestAsyncEngineCore:
     @pytest.mark.asyncio
     async def test_get_cache_stats(self, mock_model, mock_tokenizer):
         """Test AsyncEngineCore.get_cache_stats()."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             async with AsyncEngineCore(
@@ -1219,7 +1219,7 @@ class TestEngineCoreAbortAllRequests:
     @pytest.mark.asyncio
     async def test_abort_all_requests(self, mock_model, mock_tokenizer):
         """Test abort_all_requests() sends errors to all collectors."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -1263,7 +1263,7 @@ class TestEngineCoreAbortAllRequests:
         self, mock_model, mock_tokenizer
     ):
         """Repeated bulk aborts do not report progress or duplicate errors."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -1291,7 +1291,7 @@ class TestEngineCoreAbortAllRequests:
         self, mock_model, mock_tokenizer
     ):
         """Manual unload must not report a fake memory-pressure failure."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
 
@@ -1325,7 +1325,7 @@ class TestEngineCoreAbortAllRequests:
     ):
         """The abort message names the hard watermark that tripped, not just
         the ceiling above it (issue #2321)."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -1355,7 +1355,7 @@ class TestEngineCoreAbortAllRequests:
         """A user already on the most permissive tier needs to know which
         ceiling aborted them; generic "loosen memory_guard_tier" advice
         leaves them with nothing to turn (#2362)."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -1389,7 +1389,7 @@ class TestEngineCoreAbortAllRequests:
     @pytest.mark.asyncio
     async def test_abort_all_requests_empty(self, mock_model, mock_tokenizer):
         """Test abort_all_requests() with no active requests returns 0."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -1407,7 +1407,7 @@ class TestEngineCoreAbortAllRequests:
         self, mock_model, mock_tokenizer
     ):
         """Test engine loop continues after abort_all_requests()."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -1434,7 +1434,7 @@ class TestGlobalMLXExecutor:
     """Tests for the global MLX executor singleton (issue #85)."""
 
     def test_shutdown_reclaims_on_worker_before_executor_exit(self):
-        import omlx_runtime.engine_core as engine_core
+        import molto_runtime.engine_core as engine_core
 
         executor = MagicMock()
         future = MagicMock()
@@ -1452,7 +1452,7 @@ class TestGlobalMLXExecutor:
 
     def test_get_mlx_executor_returns_singleton(self):
         """get_mlx_executor() must always return the same executor instance."""
-        from omlx_runtime.engine_core import get_mlx_executor
+        from molto_runtime.engine_core import get_mlx_executor
 
         executor1 = get_mlx_executor()
         executor2 = get_mlx_executor()
@@ -1460,7 +1460,7 @@ class TestGlobalMLXExecutor:
 
     def test_engines_have_per_engine_executors(self, mock_model, mock_tokenizer):
         """Each EngineCore must have its own executor (#1248)."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine1 = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -1482,7 +1482,7 @@ class TestGlobalMLXExecutor:
         import threading
         import time
 
-        from omlx_runtime.engine_core import get_mlx_executor
+        from molto_runtime.engine_core import get_mlx_executor
 
         executor = get_mlx_executor()
         loop = asyncio.get_running_loop()
@@ -1545,7 +1545,7 @@ class TestGlobalMLXExecutor:
 
         def make_tracked_step():
             """Create a step function that tracks concurrency."""
-            from omlx_runtime.scheduler import SchedulerOutput
+            from molto_runtime.scheduler import SchedulerOutput
 
             def tracked_step():
                 nonlocal active_count, max_concurrent, total_steps
@@ -1561,7 +1561,7 @@ class TestGlobalMLXExecutor:
 
             return tracked_step
 
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine1 = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
@@ -1604,7 +1604,7 @@ class TestEngineCoreCloseReleasesSSDManager:
     """
 
     def test_manager_closed_when_shutdown_raises(self, mock_model, mock_tokenizer):
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
 
@@ -1626,7 +1626,7 @@ class TestEngineCoreCloseReleasesSSDManager:
         scheduler.shutdown = MagicMock()
         engine._mlx_executor.shutdown(wait=True)
         with (
-            patch("omlx_runtime.engine_core.fatal_exit", side_effect=SystemExit),
+            patch("molto_runtime.engine_core.fatal_exit", side_effect=SystemExit),
             pytest.raises(SystemExit),
         ):
             engine.close()
@@ -1634,7 +1634,7 @@ class TestEngineCoreCloseReleasesSSDManager:
         assert not engine._closed
 
     def test_manager_closed_on_normal_close(self, mock_model, mock_tokenizer):
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
 
@@ -1659,7 +1659,7 @@ class TestStepBurst:
     def _make_engine(self, mock_model, mock_tokenizer, max_steps, budget=0.2):
         # Mocked scheduler has empty `running`, so the burst takes the
         # single-stream budget; set both so tests are agnostic to the split.
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
             config = EngineConfig(
                 decode_burst_max_steps=max_steps,
@@ -1938,7 +1938,7 @@ class TestStepBurst:
             engine.scheduler.has_requests = MagicMock(return_value=True)
             # deadline = monotonic()(=100.0) + 0.05; next check (=200.0) exceeds it.
             with patch(
-                "omlx_runtime.engine_core.time.monotonic", side_effect=[100.0, 200.0]
+                "molto_runtime.engine_core.time.monotonic", side_effect=[100.0, 200.0]
             ):
                 outs = engine._step_burst()
             assert len(outs) == 1
@@ -1962,7 +1962,7 @@ class TestStepBurst:
 
     def test_adaptive_single_budget_when_solo(self, mock_model, mock_tokenizer):
         """One active request -> aggressive single-stream budget (bursts)."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
             config = EngineConfig(
                 decode_burst_max_steps=4,
@@ -1985,7 +1985,7 @@ class TestStepBurst:
 
     def test_adaptive_concurrent_budget_when_busy(self, mock_model, mock_tokenizer):
         """Multiple active requests -> tight concurrent budget (here 0 = none)."""
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
             config = EngineConfig(
                 decode_burst_max_steps=8,
@@ -2018,7 +2018,7 @@ class TestOrphanedCollectorReaping:
     """
 
     def test_reaps_only_stale_finished_collectors(self, mock_model, mock_tokenizer):
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
             try:
@@ -2067,7 +2067,7 @@ class TestOrphanedCollectorReaping:
     def test_mark_request_finished_stamps_once_and_signals(
         self, mock_model, mock_tokenizer
     ):
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
             try:
@@ -2087,7 +2087,7 @@ class TestOrphanedCollectorReaping:
                 engine.close()
 
     def test_cleanup_request_removes_finished_stamp(self, mock_model, mock_tokenizer):
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
             try:
@@ -2114,7 +2114,7 @@ class TestOrphanedCollectorReaping:
         Without the early capture, the post-await re-fetch would return None and
         raise — the streaming path was already safe; this extends it to generate().
         """
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
             engine = EngineCore(model=mock_model, tokenizer=mock_tokenizer)
             try:

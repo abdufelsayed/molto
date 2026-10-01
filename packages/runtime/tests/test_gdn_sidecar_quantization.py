@@ -24,8 +24,8 @@ except ImportError:
 
 pytestmark = pytest.mark.skipif(not HAS_MLX, reason="MLX not available")
 
-from omlx_runtime.cache.boundary_snapshot_store import BoundarySnapshotSSDStore
-from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+from molto_runtime.cache.boundary_snapshot_store import BoundarySnapshotSSDStore
+from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
 
 
 def _extracted() -> list[dict]:
@@ -363,7 +363,7 @@ def test_legacy_fp32_metadata_remains_readable(tmp_path):
         info = json.loads(metadata["layer_info"])
         # Rebuild the historical fp32 representation with no format/codec keys.
         recurrent = _extracted()[0]["state"][1]
-        from omlx_runtime.cache.paged_ssd_cache import _extract_tensor_bytes
+        from molto_runtime.cache.paged_ssd_cache import _extract_tensor_bytes
 
         tensors["layer_0_state_1"] = _extract_tensor_bytes(recurrent)
         tensors.pop("layer_0_state_1__scale")
@@ -951,7 +951,7 @@ def test_zero_dim_recurrent_state_never_reaches_the_codec(tmp_path):
 
 
 def test_rht_sign_cache_is_bounded(tmp_path):
-    from omlx_runtime.cache.boundary_snapshot_store import _gdn_rht_sign_values
+    from molto_runtime.cache.boundary_snapshot_store import _gdn_rht_sign_values
 
     assert _gdn_rht_sign_values.cache_info().maxsize is not None
     # A power-of-two width yields a deterministic +/-1 diagonal of that length.
@@ -1290,14 +1290,14 @@ _GOLDEN_SIGN_DIGEST_DIM128_SEED0 = (
 
 
 def _sign_digest(dim: int, seed: int) -> str:
-    from omlx_runtime.cache.boundary_snapshot_store import _gdn_rht_sign_values
+    from molto_runtime.cache.boundary_snapshot_store import _gdn_rht_sign_values
 
     signs = _gdn_rht_sign_values(dim, seed)
     return hashlib.sha256(struct.pack(f"<{len(signs)}f", *signs)).hexdigest()
 
 
 def test_golden_sign_diagonal_for_the_production_width():
-    from omlx_runtime.cache.boundary_snapshot_store import _gdn_rht_sign_values
+    from molto_runtime.cache.boundary_snapshot_store import _gdn_rht_sign_values
 
     signs = _gdn_rht_sign_values(128, 0)
     assert len(signs) == 128
@@ -1330,7 +1330,7 @@ def test_golden_forward_and_inverse_on_a_known_vector():
 
     signs = [-1, 1, 1, -1]; H4 @ [-1, 2, 3, -4] / sqrt(4) = [0, 2, 1, -5].
     """
-    from omlx_runtime.cache.boundary_snapshot_store import _gdn_rht_sign_values
+    from molto_runtime.cache.boundary_snapshot_store import _gdn_rht_sign_values
 
     assert [int(s) for s in _gdn_rht_sign_values(4, 0)] == [-1, 1, 1, -1]
     source = mx.array([[1.0, 2.0, 3.0, 4.0]], dtype=mx.float32)
@@ -1361,7 +1361,7 @@ def test_encoded_sidecar_bytes_are_identical_across_processes(tmp_path):
         "import hashlib, json, sys, tempfile\n"
         "from pathlib import Path\n"
         "import mlx.core as mx\n"
-        "from omlx_runtime.cache.boundary_snapshot_store import BoundarySnapshotSSDStore\n"
+        "from molto_runtime.cache.boundary_snapshot_store import BoundarySnapshotSSDStore\n"
         "base = mx.arange(1, 1 + 1 * 2 * 4 * 16, dtype=mx.float32).reshape(1, 2, 4, 16)\n"
         "recurrent = (base - 64.5) * 0.125\n"
         "extracted = [{\n"

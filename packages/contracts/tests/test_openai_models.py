@@ -9,7 +9,7 @@ text completions, tool calling, and structured output.
 import json
 
 import pytest
-from omlx_contracts.api.openai_models import (
+from molto_contracts.api.openai_models import (
     AssistantMessage,
     ChatCompletionChoice,
     ChatCompletionChunk,
@@ -886,7 +886,7 @@ class TestModelInfo:
 
         assert info.id == "gpt-4"
         assert info.object == "model"
-        assert info.owned_by == "omlx"
+        assert info.owned_by == "molto"
 
     def test_models_response(self):
         """Test creating models list response."""

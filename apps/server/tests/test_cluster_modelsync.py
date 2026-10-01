@@ -19,15 +19,15 @@ from types import SimpleNamespace
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from omlx_runtime.cluster import modelsync
-from omlx_runtime.cluster.deployment import (
+from molto_runtime.cluster import modelsync
+from molto_runtime.cluster.deployment import (
     ClusterDeployment,
     ClusterHost,
     decode_worker_contract,
     decode_worker_path_map,
     validate_model_path_map,
 )
-from omlx_runtime.cluster.modelsync import (
+from molto_runtime.cluster.modelsync import (
     AUTO_RSYNC_THRESHOLD_BYTES,
     ModelSyncError,
     ModelSyncManager,
@@ -37,13 +37,13 @@ from omlx_runtime.cluster.modelsync import (
     compare_manifests,
     parse_rsync_progress,
 )
-from omlx_runtime.cluster.planner import (
+from molto_runtime.cluster.planner import (
     PipelineAssignment,
     ShardPlan,
     synthetic_model_layout,
 )
-from omlx_runtime.cluster.registry import ClusterRegistry
-from omlx_server.cluster import modelsync_routes
+from molto_runtime.cluster.registry import ClusterRegistry
+from molto_server.cluster import modelsync_routes
 
 
 def _write_shard(directory, name, tensors, payload=b"\x00" * 32):
@@ -349,7 +349,7 @@ def test_plan_to_dict_carries_path_map_without_changing_hash():
 
 
 def test_placement_signature_covers_path_map_only_when_present():
-    from omlx_server.cluster import routes
+    from molto_server.cluster import routes
 
     plan = ShardPlan(
         model=synthetic_model_layout(total_weight_bytes=1024, layer_count=4),
@@ -577,7 +577,7 @@ def test_sync_auto_selects_rsync_for_large_models(tmp_path):
         ssh_trust=lambda target: True,
         rsync_run=lambda argv, on_line: runs.append(argv) or 0,
     )
-    import omlx_runtime.cluster.modelsync as ms
+    import molto_runtime.cluster.modelsync as ms
 
     original = ms.AUTO_RSYNC_THRESHOLD_BYTES
     ms.AUTO_RSYNC_THRESHOLD_BYTES = 1
@@ -596,7 +596,7 @@ def test_build_rsync_argv_is_resumable_and_noninteractive():
         "/models/src",
         "user@peer.local",
         "/Volumes/models/dst",
-        ssh_identity="~/.ssh/omlx_cluster",
+        ssh_identity="~/.ssh/molto_cluster",
     )
 
     assert argv[0] == "rsync"
@@ -604,7 +604,7 @@ def test_build_rsync_argv_is_resumable_and_noninteractive():
     assert "--append-verify" in argv
     assert "--info=progress2" in argv
     ssh = argv[argv.index("-e") + 1]
-    assert "BatchMode=yes" in ssh and "omlx_cluster" in ssh
+    assert "BatchMode=yes" in ssh and "molto_cluster" in ssh
     assert argv[-2] == "/models/src/"
     assert argv[-1] == "user@peer.local:/Volumes/models/dst"
 
@@ -660,11 +660,11 @@ def test_allow_patterns_reject_inverted_range(tmp_path):
 
 
 def test_preflight_uses_per_node_model_paths(monkeypatch):
-    from omlx_runtime.cluster.launch import (
+    from molto_runtime.cluster.launch import (
         _local_runtime_versions,
         preflight_remote_hosts,
     )
-    from omlx_runtime.cluster.models import CLUSTER_PROTOCOL_VERSION
+    from molto_runtime.cluster.models import CLUSTER_PROTOCOL_VERSION
 
     versions = _local_runtime_versions()
     calls = []
@@ -692,7 +692,7 @@ def test_preflight_uses_per_node_model_paths(monkeypatch):
     )
     result = preflight_remote_hosts(
         deployment,
-        python_executable="/opt/omlx/bin/python",
+        python_executable="/opt/molto/bin/python",
         runner=runner,
     )
 

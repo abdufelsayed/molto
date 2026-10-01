@@ -14,11 +14,11 @@ try:
 except ImportError:
     HAS_MLX = False
 
-from omlx_config.model_settings import ModelSettings
-from omlx_runtime.adapter.output_parser import OutputParserFactory
-from omlx_runtime.generation.thinking import ThinkingBudgetProcessor
-from omlx_runtime.request import Request, SamplingParams
-from omlx_runtime.scheduler import Scheduler
+from molto_config.model_settings import ModelSettings
+from molto_runtime.adapter.output_parser import OutputParserFactory
+from molto_runtime.generation.thinking import ThinkingBudgetProcessor
+from molto_runtime.request import Request, SamplingParams
+from molto_runtime.scheduler import Scheduler
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -456,7 +456,7 @@ class TestResolveThinkingBudget:
     """Test the _resolve_thinking_budget helper function."""
 
     def _import_resolve(self):
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         _resolve_thinking_budget = (
             create_app().state.controller._resolve_thinking_budget
@@ -490,20 +490,20 @@ class TestCompletionsThinkingBudget:
     """The /v1/completions surface carries thinking_budget like chat."""
 
     def test_completion_request_accepts_thinking_budget(self):
-        from omlx_contracts.api.openai_models import CompletionRequest
+        from molto_contracts.api.openai_models import CompletionRequest
 
         req = CompletionRequest(model="m", prompt="<think>\n", thinking_budget=300)
         assert req.thinking_budget == 300
 
     def test_completion_request_thinking_budget_defaults_to_none(self):
-        from omlx_contracts.api.openai_models import CompletionRequest
+        from molto_contracts.api.openai_models import CompletionRequest
 
         req = CompletionRequest(model="m", prompt="p")
         assert req.thinking_budget is None
 
     def test_resolve_thinking_budget_reads_completion_request(self):
-        from omlx_contracts.api.openai_models import CompletionRequest
-        from omlx_server.server import create_app
+        from molto_contracts.api.openai_models import CompletionRequest
+        from molto_server.server import create_app
 
         _resolve_thinking_budget = (
             create_app().state.controller._resolve_thinking_budget
@@ -528,7 +528,7 @@ class TestCompletionsThinkingBudget:
 
         source = (
             repository_root(__file__)
-            / "apps/server/src/omlx_server"
+            / "apps/server/src/molto_server"
             / (
                 "openai_streaming.py"
                 if handler_name == "stream_completion"
@@ -628,7 +628,7 @@ class TestCompletionsThinkingBudget:
         chain; reject it at the API boundary instead of accepting it
         silently."""
         import pytest
-        from omlx_contracts.api.openai_models import CompletionRequest
+        from molto_contracts.api.openai_models import CompletionRequest
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
@@ -636,7 +636,7 @@ class TestCompletionsThinkingBudget:
 
     def test_negative_thinking_budget_is_rejected_on_chat(self):
         import pytest
-        from omlx_contracts.api.openai_models import ChatCompletionRequest
+        from molto_contracts.api.openai_models import ChatCompletionRequest
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
@@ -648,7 +648,7 @@ class TestCompletionsThinkingBudget:
 
     def test_zero_thinking_budget_is_accepted(self):
         """Zero is meaningful (thinking off), keep it valid."""
-        from omlx_contracts.api.openai_models import CompletionRequest
+        from molto_contracts.api.openai_models import CompletionRequest
 
         req = CompletionRequest(model="m", prompt="p", thinking_budget=0)
         assert req.thinking_budget == 0
@@ -661,7 +661,7 @@ class TestCompletionsStreamThinkPrefixParity:
     stream — the non-streaming path never returns it."""
 
     def test_synthetic_prefix_is_stripped(self):
-        from omlx_server.engine_requests import _strip_synthetic_think_prefix
+        from molto_server.engine_requests import _strip_synthetic_think_prefix
 
         assert (
             _strip_synthetic_think_prefix("<think>\n</think>\n\nHi", "<think>")
@@ -669,21 +669,21 @@ class TestCompletionsStreamThinkPrefixParity:
         )
 
     def test_chunk_without_prefix_is_untouched(self):
-        from omlx_server.engine_requests import _strip_synthetic_think_prefix
+        from molto_server.engine_requests import _strip_synthetic_think_prefix
 
         assert _strip_synthetic_think_prefix("Hello", "<think>") == "Hello"
 
     def test_bare_tag_without_newline_is_untouched(self):
         """Only the exact synthetic shape (tag + newline) is synthetic;
         anything else is model output and must pass through."""
-        from omlx_server.engine_requests import _strip_synthetic_think_prefix
+        from molto_server.engine_requests import _strip_synthetic_think_prefix
 
         assert _strip_synthetic_think_prefix("<think>data", "<think>") == "<think>data"
 
     def test_prompt_detection_uses_tokenizer_over_text_suffix(self):
         """A textual ``<think>`` suffix is not enough: completions should only
         strip when the engine would actually add the synthetic opener."""
-        from omlx_runtime.generation.thinking import prompt_opens_thinking
+        from molto_runtime.generation.thinking import prompt_opens_thinking
 
         class Tokenizer:
             think_start = "<think>"
@@ -701,7 +701,7 @@ class TestCompletionsStreamThinkPrefixParity:
         """Mirror Scheduler._detect_needs_think_prefix: a prompt can need the
         synthetic opener when the think-start token is in the final token tail,
         even if the raw text does not literally end with the tag string."""
-        from omlx_runtime.generation.thinking import prompt_opens_thinking
+        from molto_runtime.generation.thinking import prompt_opens_thinking
 
         class Tokenizer:
             think_start = "<think>"
@@ -719,7 +719,7 @@ class TestCompletionsStreamThinkPrefixParity:
         """The streaming presentation guard should use the same prompt ids as
         context validation instead of re-encoding with different tokenizer
         options."""
-        from omlx_runtime.generation.thinking import prompt_opens_thinking
+        from molto_runtime.generation.thinking import prompt_opens_thinking
 
         class Tokenizer:
             think_start = "<think>"
@@ -736,7 +736,7 @@ class TestCompletionsStreamThinkPrefixParity:
         assert (opens, tag) == (True, "<think>")
 
     def test_prompt_detection_rejects_disabled_thinking_pattern(self):
-        from omlx_runtime.generation.thinking import prompt_opens_thinking
+        from molto_runtime.generation.thinking import prompt_opens_thinking
 
         class Tokenizer:
             think_start = "<think>"
@@ -754,7 +754,7 @@ class TestCompletionsStreamThinkPrefixParity:
         """Mirror the scheduler's encode(think_end) fallback: when the close
         marker is multi-token, seeing its first token after <think> still means
         the prompt disabled thinking."""
-        from omlx_runtime.generation.thinking import prompt_opens_thinking
+        from molto_runtime.generation.thinking import prompt_opens_thinking
 
         class Tokenizer:
             think_start = "<think>"
@@ -777,7 +777,7 @@ class TestCompletionsStreamThinkPrefixParity:
     def test_prompt_detection_rejects_text_suffix_when_think_id_is_unavailable(self):
         """If a tokenizer is present but cannot resolve the think-start id,
         mirror the scheduler and do not assume a synthetic opener exists."""
-        from omlx_runtime.generation.thinking import prompt_opens_thinking
+        from molto_runtime.generation.thinking import prompt_opens_thinking
 
         class Tokenizer:
             think_start = "<think>"
@@ -794,7 +794,7 @@ class TestCompletionsStreamThinkPrefixParity:
         assert (opens, tag) == (False, "<think>")
 
     def test_prompt_detection_keeps_text_fallback_without_tokenizer(self):
-        from omlx_runtime.generation.thinking import prompt_opens_thinking
+        from molto_runtime.generation.thinking import prompt_opens_thinking
 
         assert prompt_opens_thinking(None, "literal <think>\n") == (True, "<think>")
 
@@ -805,7 +805,7 @@ class TestCompletionsStreamThinkPrefixParity:
 
         source = (
             repository_root(__file__)
-            / "apps/server/src/omlx_server/openai_streaming.py"
+            / "apps/server/src/molto_server/openai_streaming.py"
         ).read_text()
         for node in ast.walk(ast.parse(source)):
             if (
@@ -854,7 +854,7 @@ class TestCompletionsStreamThinkPrefixParity:
         import ast
 
         source = (
-            repository_root(__file__) / "apps/server/src/omlx_server/openai.py"
+            repository_root(__file__) / "apps/server/src/molto_server/openai.py"
         ).read_text()
         for node in ast.walk(ast.parse(source)):
             if (

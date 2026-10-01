@@ -16,7 +16,7 @@ from unittest.mock import patch
 
 import mlx_vlm.utils as _vu
 import pytest
-from omlx_runtime.engine.vlm import (
+from molto_runtime.engine.vlm import (
     _AUDIO_CONFIG_KEYS,
     _drop_gemma4_mlx_shared_kv_extras_on_load,
     _has_audio_weights,

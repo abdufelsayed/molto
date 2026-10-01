@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import type { components } from "@omlx/contracts"
+import type { components } from "@molto/contracts"
 import { managementQuery } from "@/features/management/request"
 import {
   Card,

@@ -13,7 +13,7 @@ export async function managementRequest<T>(
 ): Promise<T> {
   const method = options.method ?? "GET"
   const timeout = AbortSignal.timeout(method === "GET" ? 30_000 : 180_000)
-  const response = await fetch(`/api/omlx/${path.replace(/^\//, "")}`, {
+  const response = await fetch(`/api/molto/${path.replace(/^\//, "")}`, {
     method,
     credentials: "same-origin",
     cache: "no-store",
@@ -38,7 +38,7 @@ export function managementQuery<T>(
   poll?: number
 ) {
   return queryOptions({
-    queryKey: ["omlx", ...key],
+    queryKey: ["molto", ...key],
     queryFn: ({ signal }) => managementRequest<T>(path, { signal }),
     retry: (attempt, error) =>
       !(error instanceof ApiError && error.status < 500) && attempt < 1,

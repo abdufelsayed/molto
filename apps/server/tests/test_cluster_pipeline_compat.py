@@ -2,11 +2,11 @@
 
 import json
 
-from omlx_runtime.cluster.pipeline_compat import (
+from molto_runtime.cluster.pipeline_compat import (
     install_pipeline_compatibility,
     pipeline_assignment_is_honored,
 )
-from omlx_runtime.cluster.planner import PipelineAssignment
+from molto_runtime.cluster.planner import PipelineAssignment
 
 
 def _assignment():
@@ -63,7 +63,7 @@ def test_deepseek_v32_inherits_the_pipeline_contract(tmp_path):
 
 
 def test_minimax_declares_its_wrapped_assigned_stage_contract(tmp_path):
-    from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+    from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
     model = _model_config(tmp_path, "minimax_m3_vl")
     maybe_apply_pre_load_patches(str(model))

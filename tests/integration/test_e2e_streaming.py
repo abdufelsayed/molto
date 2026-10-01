@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """
-End-to-end streaming tests for oMLX server.
+End-to-end streaming tests for Molto server.
 
 Tests streaming response formats for OpenAI and Anthropic APIs
 using mock AsyncIterator without loading actual models.
@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import pytest
-from omlx_runtime.engine.base import BaseEngine
+from molto_runtime.engine.base import BaseEngine
 
 
 @dataclass
@@ -508,7 +508,7 @@ class TestStreamingHelperFunctions:
     async def test_stream_completion_yields_sse(self):
         """Test stream_completion yields SSE formatted strings."""
         stream_completion = _test_app.state.controller.stream_completion
-        from omlx_contracts.api.openai_models import CompletionRequest
+        from molto_contracts.api.openai_models import CompletionRequest
 
         engine = MockBaseEngine()
         request = CompletionRequest(model="test-model", prompt="Hello", stream=True)
@@ -530,7 +530,7 @@ class TestStreamingHelperFunctions:
     async def test_stream_completion_json_content(self):
         """Test stream_completion events contain valid JSON."""
         stream_completion = _test_app.state.controller.stream_completion
-        from omlx_contracts.api.openai_models import CompletionRequest
+        from molto_contracts.api.openai_models import CompletionRequest
 
         engine = MockBaseEngine()
         request = CompletionRequest(
@@ -556,7 +556,7 @@ class TestStreamingHelperFunctions:
     async def test_stream_chat_completion_yields_sse(self):
         """Test stream_chat_completion yields SSE formatted strings."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         request = ChatCompletionRequest(
@@ -585,7 +585,7 @@ class TestStreamingHelperFunctions:
     async def test_stream_chat_completion_first_chunk_has_role(self):
         """Test first streaming chunk has assistant role."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         request = ChatCompletionRequest(
@@ -621,14 +621,14 @@ class TestStreamingHelperFunctions:
         With several models loaded, interleaved summaries are otherwise
         unattributable.
         """
-        from omlx_contracts.api.openai_models import CompletionRequest
+        from molto_contracts.api.openai_models import CompletionRequest
 
         stream_completion = _test_app.state.controller.stream_completion
 
         engine = MockBaseEngine()
         request = CompletionRequest(model="my-alias", prompt="Hello", stream=True)
 
-        with caplog.at_level("INFO", logger="omlx_server.openai_streaming"):
+        with caplog.at_level("INFO", logger="molto_server.openai_streaming"):
             async for _ in stream_completion(
                 engine,
                 "Hello",
@@ -645,7 +645,7 @@ class TestStreamingHelperFunctions:
     @pytest.mark.asyncio
     async def test_stream_chat_summary_log_names_resolved_model(self, caplog):
         """The summary reports the resolved model, not the requested alias."""
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
 
@@ -657,7 +657,7 @@ class TestStreamingHelperFunctions:
         )
 
         messages = [{"role": "user", "content": "Hi"}]
-        with caplog.at_level("INFO", logger="omlx_server.openai_streaming"):
+        with caplog.at_level("INFO", logger="molto_server.openai_streaming"):
             async for _ in stream_chat_completion(
                 engine,
                 messages,
@@ -682,7 +682,7 @@ class TestStreamingHelperFunctions:
         self,
     ):
         """If the rendered prompt opens <think>, initial deltas are reasoning."""
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
 
@@ -769,7 +769,7 @@ class TestStreamingHelperFunctions:
     @pytest.mark.asyncio
     async def test_stream_chat_completion_partial_prompt_opened_thinking(self):
         """Partial-mode prompt detection must mirror continue_final_message."""
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
 
@@ -880,7 +880,7 @@ class TestStreamingHelperFunctions:
     ):
         """Tool availability must not force full buffering of normal text deltas."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         engine.set_stream_outputs(
@@ -957,7 +957,7 @@ class TestStreamingHelperFunctions:
     ):
         """Reasoning deltas should keep prose while suppressing tool-call markup."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         engine.set_stream_outputs(
@@ -1067,7 +1067,7 @@ class TestStreamingHelperFunctions:
     ):
         """Fragmented tool-call tags inside reasoning should never leak to the client."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         engine.set_stream_outputs(
@@ -1177,7 +1177,7 @@ class TestStreamingHelperFunctions:
     ):
         """Anthropic thinking blocks should hide raw tool-call markup and emit tool_use."""
         stream_anthropic_messages = _test_app.state.controller.stream_anthropic_messages
-        from omlx_contracts.api.anthropic_models import MessagesRequest
+        from molto_contracts.api.anthropic_models import MessagesRequest
 
         engine = MockBaseEngine()
         engine.set_stream_outputs(
@@ -1296,7 +1296,7 @@ class TestStreamingHelperFunctions:
     ):
         """Prompt-opened thinking must stream as thinking, not public text."""
         stream_anthropic_messages = _test_app.state.controller.stream_anthropic_messages
-        from omlx_contracts.api.anthropic_models import MessagesRequest
+        from molto_contracts.api.anthropic_models import MessagesRequest
 
         class PromptOpenedThinkingTokenizer(MockTokenizer):
             think_start = "<think>"
@@ -1383,7 +1383,7 @@ class TestStreamingHelperFunctions:
     async def test_anthropic_tool_only_stream_starts_with_tool_use_block(self):
         """A tool-only response should not emit an empty text block before tool_use."""
         stream_anthropic_messages = _test_app.state.controller.stream_anthropic_messages
-        from omlx_contracts.api.anthropic_models import MessagesRequest
+        from molto_contracts.api.anthropic_models import MessagesRequest
 
         engine = MockBaseEngine()
         engine.set_stream_outputs(
@@ -1467,7 +1467,7 @@ class TestStreamingHelperFunctions:
     ):
         """A tool_call finish should end the turn, not suppress already-generated text."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         engine.set_stream_outputs(
@@ -1562,7 +1562,7 @@ class TestStreamingHelperFunctions:
     ):
         """Parsed-from-text tool calls must not appear in streamed content deltas."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         # Non-Harmony path: no output.tool_calls; tool calls parsed from inline text.
@@ -1677,7 +1677,7 @@ class TestStreamingHelperFunctions:
     ):
         """Split <tool_call> markup across chunks must not leak raw fragments in content deltas."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         # Non-Harmony path with fragmented tool-call markup across chunks.
@@ -1801,7 +1801,7 @@ class TestStreamingHelperFunctions:
     async def test_complete_qwen_tool_envelope_streams_once_before_engine_finish(self):
         """A validated XML call need not wait for a later terminal output."""
         from mlx_lm.tool_parsers.qwen3_coder import parse_tool_call
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
 
@@ -1928,7 +1928,7 @@ class TestStreamingHelperFunctions:
     @pytest.mark.asyncio
     async def test_coalesced_content_tool_content_preserves_raw_fifo(self):
         from mlx_lm.tool_parsers.qwen3_coder import parse_tool_call
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
 
@@ -1996,7 +1996,7 @@ class TestStreamingHelperFunctions:
     @pytest.mark.asyncio
     async def test_seventeen_call_overflow_keeps_eighteenth_terminal_ordered(self):
         from mlx_lm.tool_parsers.qwen3_coder import parse_tool_call
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
 
@@ -2074,7 +2074,7 @@ class TestStreamingHelperFunctions:
     @pytest.mark.asyncio
     async def test_same_output_structured_call_beats_enabled_raw_candidate(self):
         from mlx_lm.tool_parsers.qwen3_coder import parse_tool_call
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
 
@@ -2137,7 +2137,7 @@ class TestStreamingHelperFunctions:
     async def test_scheduler_structured_tool_call_disables_raw_early_candidate(self):
         """Default-false capability keeps scheduler structure authoritative."""
         from mlx_lm.tool_parsers.qwen3_coder import parse_tool_call
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
 
@@ -2212,7 +2212,7 @@ class TestStreamingHelperFunctions:
     async def test_disabled_early_capability_preserves_terminal_parser_semantics(self):
         """The Qwen early gate must not tighten unrelated terminal parsing."""
         from mlx_lm.tool_parsers.qwen3_coder import parse_tool_call
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
 
@@ -2276,7 +2276,7 @@ class TestStreamingHelperFunctions:
     async def test_unknown_envelope_is_delivered_before_later_registered_call(self):
         """Clients receive unknown calls so they can return a tool error."""
         from mlx_lm.tool_parsers.qwen3_coder import parse_tool_call
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
 
@@ -2351,8 +2351,8 @@ class TestStreamingHelperFunctions:
         ]
 
     def test_semantic_tool_dedupe_preserves_duplicate_occurrences(self):
-        from omlx_contracts.api.openai_models import FunctionCall, ToolCall
-        from omlx_server.openai_streaming import _merge_streamed_tool_call_prefix
+        from molto_contracts.api.openai_models import FunctionCall, ToolCall
+        from molto_server.openai_streaming import _merge_streamed_tool_call_prefix
 
         early = ToolCall(
             id="call_early",
@@ -2378,7 +2378,7 @@ class TestStreamingHelperFunctions:
         self,
         monkeypatch,
     ):
-        from omlx_contracts.api.openai_models import (
+        from molto_contracts.api.openai_models import (
             ChatCompletionChunk,
             ChatCompletionRequest,
             Message,
@@ -2406,7 +2406,7 @@ class TestStreamingHelperFunctions:
             return value
 
         monkeypatch.setattr(
-            "omlx_server.openai_streaming.time.perf_counter", perf_counter
+            "molto_server.openai_streaming.time.perf_counter", perf_counter
         )
         engine = MockBaseEngine()
         engine.set_stream_outputs(
@@ -2446,8 +2446,8 @@ class TestStreamingHelperFunctions:
     def test_local_engine_capability_requires_explicit_parser_absence(self):
         from types import SimpleNamespace
 
-        from omlx_runtime.engine.batched import BatchedEngine
-        from omlx_runtime.engine.vlm import VLMBatchedEngine
+        from molto_runtime.engine.batched import BatchedEngine
+        from molto_runtime.engine.vlm import VLMBatchedEngine
 
         for engine_type in (BatchedEngine, VLMBatchedEngine):
             engine = engine_type.__new__(engine_type)
@@ -2463,7 +2463,7 @@ class TestStreamingHelperFunctions:
 
     def test_early_tool_gate_requires_exact_qwen3_coder_parser(self):
         from mlx_lm.tool_parsers.qwen3_coder import parse_tool_call
-        from omlx_server.openai_streaming import _chat_can_stream_qwen_tool_envelopes
+        from molto_server.openai_streaming import _chat_can_stream_qwen_tool_envelopes
 
         engine = MockBaseEngine()
         engine._supports_early_tool_call_streaming = True
@@ -2487,7 +2487,7 @@ class TestStreamingHelperFunctions:
     ):
         """Supported namespaced tags must not leak into streamed content deltas."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         engine.set_stream_outputs(
@@ -2611,7 +2611,7 @@ class TestStreamingHelperFunctions:
     ):
         """Split tokenizer delimiters must not leak into streamed content deltas."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         engine.tokenizer.has_tool_calling = True
@@ -2744,7 +2744,7 @@ class TestStreamingHelperFunctions:
     ):
         """Clean-output strict contract suppresses unmatched tool-like suffixes."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         engine.set_stream_outputs(
@@ -2830,7 +2830,7 @@ class TestStreamingHelperFunctions:
     ):
         """Literal bracket marker text should not be truncated when no tool call parses."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         engine.set_stream_outputs(
@@ -2923,7 +2923,7 @@ class TestStreamingHelperFunctions:
     ):
         """Valid bracket tool-call envelopes should not leak into streamed content."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         engine.set_stream_outputs(
@@ -3021,7 +3021,7 @@ class TestStreamingHelperFunctions:
     ):
         """Tool envelope suppression must not truncate ordinary prose that follows it."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         engine.set_stream_outputs(
@@ -3121,7 +3121,7 @@ class TestStreamingHelperFunctions:
     ):
         """Bracket parser/filter should accept common hyphenated tool names."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         engine.set_stream_outputs(
@@ -3219,7 +3219,7 @@ class TestStreamingHelperFunctions:
     ):
         """Long bracket envelopes should remain suppressed until complete."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         long_note = "x" * 320
@@ -3323,7 +3323,7 @@ class TestStreamingHelperFunctions:
     ):
         """Unclosed bracket control fragments should not leak at stream end."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         engine.set_stream_outputs(
@@ -3409,7 +3409,7 @@ class TestStreamingHelperFunctions:
     ):
         """A literal early bracket marker must not block later valid bracket suppression."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         mixed = (
@@ -3504,7 +3504,7 @@ class TestStreamingHelperFunctions:
     ):
         """Unresolved early bracket prefixes should not leak even when a later bracket call parses."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         mixed = (
@@ -3598,7 +3598,7 @@ class TestStreamingHelperFunctions:
     ):
         """Hyphenated namespaced tool_call tags should parse into structured tool_calls."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         engine.set_stream_outputs(
@@ -3703,7 +3703,7 @@ class TestStreamingHelperFunctions:
     ):
         """Trailing namespaced-looking literals that are not tool_call tags should be preserved."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         engine.set_stream_outputs(
@@ -3788,7 +3788,7 @@ class TestStreamingHelperFunctions:
     ):
         """Trailing '<identifier' literal should not be dropped as tool-control markup."""
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         engine = MockBaseEngine()
         engine.set_stream_outputs(
@@ -3872,7 +3872,7 @@ class TestStreamingHelperFunctions:
         self, caplog
     ):
         """OpenAI streaming should recover only the withheld malformed suffix."""
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
 
@@ -3918,7 +3918,7 @@ class TestStreamingHelperFunctions:
         )
 
         with caplog.at_level(
-            logging.WARNING, logger="omlx_runtime.generation.tool_calling"
+            logging.WARNING, logger="molto_runtime.generation.tool_calling"
         ):
             events = [
                 event
@@ -3963,7 +3963,7 @@ class TestStreamingHelperFunctions:
         self, caplog
     ):
         """A structured call must win over raw malformed-envelope recovery."""
-        from omlx_contracts.api.openai_models import ChatCompletionRequest, Message
+        from molto_contracts.api.openai_models import ChatCompletionRequest, Message
 
         stream_chat_completion = _test_app.state.controller.stream_chat_completion
 
@@ -3998,7 +3998,7 @@ class TestStreamingHelperFunctions:
         )
 
         with caplog.at_level(
-            logging.WARNING, logger="omlx_runtime.generation.tool_calling"
+            logging.WARNING, logger="molto_runtime.generation.tool_calling"
         ):
             events = [
                 event
@@ -4038,7 +4038,7 @@ class TestStreamingHelperFunctions:
         self, caplog
     ):
         """Anthropic streaming should emit recovered text instead of an empty block."""
-        from omlx_contracts.api.anthropic_models import MessagesRequest
+        from molto_contracts.api.anthropic_models import MessagesRequest
 
         stream_anthropic_messages = _test_app.state.controller.stream_anthropic_messages
 
@@ -4085,7 +4085,7 @@ class TestStreamingHelperFunctions:
         )
 
         with caplog.at_level(
-            logging.WARNING, logger="omlx_runtime.generation.tool_calling"
+            logging.WARNING, logger="molto_runtime.generation.tool_calling"
         ):
             events = [
                 event
@@ -4121,7 +4121,7 @@ class TestStreamingHelperFunctions:
     @pytest.mark.asyncio
     async def test_stream_responses_api_recovers_unclosed_paired_envelope(self, caplog):
         """Responses deltas and terminal text should agree after recovery."""
-        from omlx_contracts.api.responses_models import ResponsesRequest
+        from molto_contracts.api.responses_models import ResponsesRequest
 
         stream_responses_api = _test_app.state.controller.stream_responses_api
 
@@ -4154,7 +4154,7 @@ class TestStreamingHelperFunctions:
         request = ResponsesRequest(model="test-model", input="Hi", stream=True)
 
         with caplog.at_level(
-            logging.WARNING, logger="omlx_runtime.generation.tool_calling"
+            logging.WARNING, logger="molto_runtime.generation.tool_calling"
         ):
             events = [
                 event
@@ -4193,7 +4193,7 @@ class TestStreamingHelperFunctions:
         self,
     ):
         """If the rendered prompt opens <think>, initial deltas are reasoning."""
-        from omlx_contracts.api.responses_models import ResponsesRequest
+        from molto_contracts.api.responses_models import ResponsesRequest
 
         stream_responses_api = _test_app.state.controller.stream_responses_api
 
@@ -4442,9 +4442,9 @@ class TestK2OptionalToolGrammar:
     @pytest.fixture
     def k2_client(self, monkeypatch):
         from fastapi.testclient import TestClient
-        from omlx_runtime.engine.batched import BatchedEngine
-        from omlx_runtime.generation import grammar
-        from omlx_runtime.patches.k2_horizon.tool_parser import parse_tool_call
+        from molto_runtime.engine.batched import BatchedEngine
+        from molto_runtime.generation import grammar
+        from molto_runtime.patches.k2_horizon.tool_parser import parse_tool_call
 
         app = _test_app
         _server_state = _test_app.state.server_state
@@ -4615,7 +4615,7 @@ def test_k2_responses_normalizes_assistant_history(monkeypatch, stream, tool_his
 
     from fastapi.testclient import TestClient
     from jinja2 import TemplateError
-    from omlx_runtime.engine.batched import BatchedEngine
+    from molto_runtime.engine.batched import BatchedEngine
 
     _server_state = _test_app.state.server_state
     app = _test_app
@@ -4690,9 +4690,9 @@ async def test_naked_qwen_calls_preserve_arguments_without_streamed_xml(
     api, chunk_size, value
 ):
     from mlx_lm.tool_parsers.qwen3_coder import parse_tool_call
-    from omlx_contracts.api.anthropic_models import MessagesRequest
-    from omlx_contracts.api.openai_models import ChatCompletionRequest
-    from omlx_contracts.api.responses_models import ResponsesRequest
+    from molto_contracts.api.anthropic_models import MessagesRequest
+    from molto_contracts.api.openai_models import ChatCompletionRequest
+    from molto_contracts.api.responses_models import ResponsesRequest
 
     stream_anthropic_messages = _test_app.state.controller.stream_anthropic_messages
     stream_chat_completion = _test_app.state.controller.stream_chat_completion
@@ -4823,9 +4823,9 @@ async def _recovery_stream(
     raw, api="chat", chunk_size=7, finish_reason="stop", closed=None, cancel=False
 ):
     from mlx_lm.tool_parsers.qwen3_coder import parse_tool_call
-    from omlx_contracts.api.anthropic_models import MessagesRequest
-    from omlx_contracts.api.openai_models import ChatCompletionRequest
-    from omlx_contracts.api.responses_models import ResponsesRequest
+    from molto_contracts.api.anthropic_models import MessagesRequest
+    from molto_contracts.api.openai_models import ChatCompletionRequest
+    from molto_contracts.api.responses_models import ResponsesRequest
 
     stream_anthropic_messages = _test_app.state.controller.stream_anthropic_messages
     stream_chat_completion = _test_app.state.controller.stream_chat_completion
@@ -5057,8 +5057,8 @@ async def test_tool_generation_error_code_survives_json_keepalive(delayed):
     import asyncio
     from types import SimpleNamespace
 
-    from omlx_server.shared import _ToolCallGenerationError
-    from omlx_server.transport import _with_json_keepalive
+    from molto_server.shared import _ToolCallGenerationError
+    from molto_server.transport import _with_json_keepalive
 
     http_exception_handler = _test_app.state.controller.http_exception_handler
 
@@ -5119,9 +5119,9 @@ async def test_qwen_malformed_first_call_does_not_consume_later_valid_call():
 async def test_attribute_cdata_preserves_write_call_in_stream(
     api, chunk_size, value, wrapped
 ):
-    from omlx_contracts.api.anthropic_models import MessagesRequest
-    from omlx_contracts.api.openai_models import ChatCompletionRequest
-    from omlx_contracts.api.responses_models import ResponsesRequest
+    from molto_contracts.api.anthropic_models import MessagesRequest
+    from molto_contracts.api.openai_models import ChatCompletionRequest
+    from molto_contracts.api.responses_models import ResponsesRequest
 
     stream_chat_completion = _test_app.state.controller.stream_chat_completion
     stream_anthropic_messages = _test_app.state.controller.stream_anthropic_messages
@@ -5187,7 +5187,7 @@ def _responses_tool_call_client(monkeypatch, body: str):
     from unittest.mock import AsyncMock
 
     from fastapi.testclient import TestClient
-    from omlx_runtime.engine.batched import BatchedEngine
+    from molto_runtime.engine.batched import BatchedEngine
 
     _server_state = _test_app.state.server_state
     app = _test_app
@@ -5319,7 +5319,7 @@ def test_responses_namespace_tool_continuation(
 ):
     import copy
 
-    from omlx_server.api.responses_utils import ResponseStore
+    from molto_server.api.responses_utils import ResponseStore
 
     _server_state = _test_app.state.server_state
 
@@ -5420,11 +5420,11 @@ def test_responses_namespace_tool_continuation(
 @pytest.mark.parametrize("with_tools", [False, True])
 @pytest.mark.parametrize("api", ["chat", "anthropic", "responses"])
 async def test_stream_thinking_length_channels(api, with_tools):
-    from omlx_contracts.api.anthropic_models import (
+    from molto_contracts.api.anthropic_models import (
         MessagesRequest as AnthropicMessagesRequest,
     )
-    from omlx_contracts.api.openai_models import ChatCompletionRequest
-    from omlx_contracts.api.responses_models import ResponsesRequest
+    from molto_contracts.api.openai_models import ChatCompletionRequest
+    from molto_contracts.api.responses_models import ResponsesRequest
 
     stream_anthropic_messages = _test_app.state.controller.stream_anthropic_messages
     stream_chat_completion = _test_app.state.controller.stream_chat_completion
@@ -5501,7 +5501,7 @@ async def test_stream_thinking_length_channels(api, with_tools):
 @pytest.fixture(autouse=True)
 def _isolated_application():
     global _test_app
-    from omlx_server.server import create_app
+    from molto_server.server import create_app
 
     _test_app = create_app()
     yield

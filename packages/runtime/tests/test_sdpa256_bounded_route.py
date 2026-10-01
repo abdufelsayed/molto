@@ -5,10 +5,10 @@ import logging
 
 import mlx.core as mx
 import pytest
-from omlx_runtime import memory_monitor as mm
-from omlx_runtime.memory_monitor import MemoryMonitor, estimate_unfused_sdpa_call_bytes
-from omlx_runtime.patches import sdpa256_attention as sdpa256
-from omlx_runtime.scheduler import Scheduler
+from molto_runtime import memory_monitor as mm
+from molto_runtime.memory_monitor import MemoryMonitor, estimate_unfused_sdpa_call_bytes
+from molto_runtime.patches import sdpa256_attention as sdpa256
+from molto_runtime.scheduler import Scheduler
 
 GIB = 1024**3
 HEAD_DIM = sdpa256.HEAD_DIM
@@ -127,7 +127,7 @@ def test_vlm_prefill_profile_prices_the_bounded_route():
     it must reach the same conclusion as the generic estimator."""
     from types import SimpleNamespace
 
-    from omlx_runtime.memory_monitor import make_prefill_memory_profile
+    from molto_runtime.memory_monitor import make_prefill_memory_profile
 
     assert sdpa256._register_bounded_route(sdpa256._SDPA256_MIN_KV_LEN)
     config = SimpleNamespace(
@@ -207,7 +207,7 @@ def test_explicit_override_still_forces_and_disables_the_route():
 
 
 def test_opting_out_withdraws_the_o_l_admission_promise():
-    """OMLX_SDPA256_TILED=0 restores the unfused path, so the estimator must
+    """MOLTO_SDPA256_TILED=0 restores the unfused path, so the estimator must
     not go on charging the bounded route's transient."""
     sdpa256._FORCE_TILED = False
     assert sdpa256._register_bounded_route(sdpa256._SDPA256_MIN_KV_LEN) is False

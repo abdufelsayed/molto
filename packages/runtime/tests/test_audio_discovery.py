@@ -11,7 +11,7 @@ All tests run without mlx-audio installed — only config.json parsing is tested
 import json
 from pathlib import Path
 
-from omlx_runtime.model_discovery import (
+from molto_runtime.model_discovery import (
     AUDIO_STS_ARCHITECTURES,
     AUDIO_STS_MODEL_TYPES,
     _is_unsupported_model,

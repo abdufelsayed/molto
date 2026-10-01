@@ -19,7 +19,7 @@ async function setupModule() {
   )
   const targetUrl = compile(
     (await readFile("src/server/management-target.server.ts", "utf8")).replace(
-      'import openapi from "@omlx/contracts/openapi.json"',
+      'import openapi from "@molto/contracts/openapi.json"',
       () => `const openapi = ${schema}`
     )
   )
@@ -334,7 +334,7 @@ test("first-run dialog generates, reveals, copies, confirms, and creates the mai
     .first()
     .click()
   await expect(
-    page.getByRole("dialog", { name: "Set up oMLX access" })
+    page.getByRole("dialog", { name: "Set up Molto access" })
   ).toBeVisible()
   await page
     .getByLabel("New main API key", { exact: true })
@@ -354,7 +354,7 @@ test("first-run dialog generates, reveals, copies, confirms, and creates the mai
   const key = await page
     .getByLabel("New main API key", { exact: true })
     .inputValue()
-  expect(key).toMatch(/^omlx_[0-9a-f]{64}$/)
+  expect(key).toMatch(/^molto_[0-9a-f]{64}$/)
   await expect(
     page.getByLabel("New main API key", { exact: true })
   ).toHaveAttribute("type", "password")
@@ -410,7 +410,7 @@ test("configured servers retain the existing main-key connection flow", async ({
     .first()
     .click()
   await expect(
-    page.getByRole("dialog", { name: "Connect to oMLX" })
+    page.getByRole("dialog", { name: "Connect to Molto" })
   ).toBeVisible()
   await expect(page.getByLabel("API key", { exact: true })).toBeVisible()
   await expect(
@@ -428,7 +428,7 @@ test("setup failure preserves the key draft and allows an explicit retry", async
     .first()
     .click()
   await expect(
-    page.getByRole("dialog", { name: "Set up oMLX access" })
+    page.getByRole("dialog", { name: "Set up Molto access" })
   ).toBeVisible()
   await page
     .getByLabel("New main API key", { exact: true })
@@ -476,7 +476,7 @@ test("local first-run setup persists the real fixture key and connects the norma
       .first()
       .click()
     await expect(
-      page.getByRole("dialog", { name: "Set up oMLX access" })
+      page.getByRole("dialog", { name: "Set up Molto access" })
     ).toBeVisible()
     await page.getByLabel("New main API key", { exact: true }).fill(key)
     await page.getByLabel("Confirm main API key", { exact: true }).fill(key)
@@ -493,7 +493,7 @@ test("local first-run setup persists the real fixture key and connects the norma
       ).json()
     ).toEqual({ api_key: key })
     const cookie = (await context.cookies()).find(
-      (value) => value.name === "omlx_dashboard_session"
+      (value) => value.name === "molto_dashboard_session"
     )
     expect(cookie?.httpOnly).toBe(true)
     expect(cookie?.sameSite).toBe("Strict")
@@ -552,7 +552,7 @@ test("real fixture setup persistence failure leaves first-run state and the draf
       .first()
       .click()
     await expect(
-      page.getByRole("dialog", { name: "Set up oMLX access" })
+      page.getByRole("dialog", { name: "Set up Molto access" })
     ).toBeVisible()
     await page
       .getByLabel("New main API key", { exact: true })
@@ -609,7 +609,7 @@ test("a created key with failed connection recovers through ordinary login witho
     .first()
     .click()
   await expect(
-    page.getByRole("dialog", { name: "Set up oMLX access" })
+    page.getByRole("dialog", { name: "Set up Molto access" })
   ).toBeVisible()
   await page
     .getByLabel("New main API key", { exact: true })
@@ -626,7 +626,7 @@ test("a created key with failed connection recovers through ordinary login witho
     )
   ).toBeVisible()
   await expect(
-    page.getByRole("dialog", { name: "Connect to oMLX" })
+    page.getByRole("dialog", { name: "Connect to Molto" })
   ).toBeVisible()
   await expect(page.getByLabel("API key", { exact: true })).toHaveValue(
     "created-main-key"

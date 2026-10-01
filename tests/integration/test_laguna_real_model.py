@@ -1,19 +1,19 @@
 # SPDX-License-Identifier: Apache-2.0
 """Opt-in real-model integration coverage for Laguna XS.2.
 
-This test never downloads a checkpoint or contacts a running oMLX server. It
+This test never downloads a checkpoint or contacts a running Molto server. It
 loads the caller-supplied local model through ``BatchedEngine``, then verifies
 that a deterministic repeated prompt reuses a temporary paged-SSD prefix cache.
 
 Run explicitly after downloading a supported checkpoint:
 
-    OMLX_LAGUNA_MODEL_PATH=/absolute/path/to/Laguna-XS.2-4bit \
+    MOLTO_LAGUNA_MODEL_PATH=/absolute/path/to/Laguna-XS.2-4bit \
         uv run pytest tests/integration/test_laguna_real_model.py -m slow -k 4bit -s -q
 
-    OMLX_LAGUNA_5BIT_MODEL_PATH=/absolute/path/to/Laguna-XS.2-5bit \
+    MOLTO_LAGUNA_5BIT_MODEL_PATH=/absolute/path/to/Laguna-XS.2-5bit \
         uv run pytest tests/integration/test_laguna_real_model.py -m slow -k 5bit -s -q
 
-    OMLX_LAGUNA_NVFP4_MODEL_PATH=/absolute/path/to/Laguna-XS.2-nvfp4 \
+    MOLTO_LAGUNA_NVFP4_MODEL_PATH=/absolute/path/to/Laguna-XS.2-nvfp4 \
         uv run pytest tests/integration/test_laguna_real_model.py -m slow -k nvfp4 -s -q
 
 The ``slow`` marker excludes these tests from default pytest runs and repository
@@ -81,20 +81,20 @@ def _model_path_from_environment(
 @pytest.fixture(scope="module")
 def laguna_4bit_model_path() -> Path:
     """Return the explicitly requested downloaded 4-bit checkpoint."""
-    return _model_path_from_environment("OMLX_LAGUNA_MODEL_PATH", 4, "affine")
+    return _model_path_from_environment("MOLTO_LAGUNA_MODEL_PATH", 4, "affine")
 
 
 @pytest.fixture(scope="module")
 def laguna_5bit_model_path() -> Path:
     """Return the exact 5-bit checkpoint reported in issue #2073."""
-    return _model_path_from_environment("OMLX_LAGUNA_5BIT_MODEL_PATH", 5, "affine")
+    return _model_path_from_environment("MOLTO_LAGUNA_5BIT_MODEL_PATH", 5, "affine")
 
 
 @pytest.fixture(scope="module")
 def laguna_nvfp4_model_path() -> Path:
     """Return the primary NVFP4 checkpoint reported in issue #2073."""
     return _model_path_from_environment(
-        "OMLX_LAGUNA_NVFP4_MODEL_PATH",
+        "MOLTO_LAGUNA_NVFP4_MODEL_PATH",
         4,
         "nvfp4",
     )
@@ -124,11 +124,11 @@ def _run_laguna_real_model_validation(
     import httpx
     import mlx.core as mx
     from mlx_lm.models.cache import KVCache, RotatingKVCache
-    from omlx_runtime.engine.batched import BatchedEngine
-    from omlx_runtime.engine_pool import EngineEntry
-    from omlx_runtime.model_discovery import detect_thinking_default
-    from omlx_runtime.scheduler import SchedulerConfig
-    from omlx_server.server import create_app
+    from molto_runtime.engine.batched import BatchedEngine
+    from molto_runtime.engine_pool import EngineEntry
+    from molto_runtime.model_discovery import detect_thinking_default
+    from molto_runtime.scheduler import SchedulerConfig
+    from molto_server.server import create_app
 
     app = create_app()
     _server_state = app.state.server_state

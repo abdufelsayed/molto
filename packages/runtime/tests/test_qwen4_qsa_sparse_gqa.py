@@ -6,9 +6,9 @@ from __future__ import annotations
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.custom_kernels.glm_moe_dsa import fast
-from omlx_runtime.custom_kernels.nax import is_nax_available
-from omlx_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
+from molto_runtime.custom_kernels.glm_moe_dsa import fast
+from molto_runtime.custom_kernels.nax import is_nax_available
+from molto_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
 
 compat.apply_mlx_vlm_qwen4_exp_compat_patch()
 from mlx_vlm.models.qwen4_exp import qsa_fast, qsa_nax  # noqa: E402
@@ -25,7 +25,7 @@ def test_qwen4_sparse_gqa_symbol_is_part_of_extension_abi():
 
 
 def test_qwen4_sparse_gqa_route_forwards_compact_blocks_and_transposes(monkeypatch):
-    monkeypatch.setenv("OMLX_QWEN4_QSA_NATIVE_MAIN_MIN_ROWS", "0")
+    monkeypatch.setenv("MOLTO_QWEN4_QSA_NATIVE_MAIN_MIN_ROWS", "0")
     queries = mx.zeros((1, 24, 3, 256), dtype=mx.bfloat16)
     keys = mx.zeros((1, 2, 20, 256), dtype=mx.bfloat16)
     values = mx.zeros_like(keys)
@@ -465,7 +465,7 @@ def test_nax_route_fails_closed(monkeypatch):
     sel = mx.zeros((1, 32, 512), dtype=mx.int32)
     monkeypatch.setattr(qsa_fast, "_NAX_QSA_MAIN_DISABLED", False)
     monkeypatch.setattr(qsa_nax, "nax_available", lambda: True)
-    monkeypatch.setenv("OMLX_QWEN4_QSA_NATIVE_MAIN_MIN_ROWS", "0")
+    monkeypatch.setenv("MOLTO_QWEN4_QSA_NATIVE_MAIN_MIN_ROWS", "0")
     qsa_fast._native_main_min_rows.cache_clear()
     try:
         # Other geometry or dtype: not handled.
@@ -484,9 +484,9 @@ def test_nax_route_fails_closed(monkeypatch):
             is None
         )
         # Disabled by environment.
-        monkeypatch.setenv("OMLX_QWEN4_QSA_NAX", "0")
+        monkeypatch.setenv("MOLTO_QWEN4_QSA_NAX", "0")
         assert qsa_fast._nax_sparse_gqa_attention(q, k, k, sel, q_offset=4000) is None
-        monkeypatch.delenv("OMLX_QWEN4_QSA_NAX")
+        monkeypatch.delenv("MOLTO_QWEN4_QSA_NAX")
 
         # A failing kernel disables the route instead of raising.
         def boom(*args, **kwargs):

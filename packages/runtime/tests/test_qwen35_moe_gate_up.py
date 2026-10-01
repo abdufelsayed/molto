@@ -4,10 +4,10 @@
 from __future__ import annotations
 
 import mlx.core as mx
-import omlx_runtime.patches.qwen35_moe_gate_up as patch_mod
+import molto_runtime.patches.qwen35_moe_gate_up as patch_mod
 import pytest
 from mlx_lm.models.switch_layers import SwitchGLU
-from omlx_runtime.patches.qwen35_moe_gate_up import apply_qwen35_moe_gate_up_fusion
+from molto_runtime.patches.qwen35_moe_gate_up import apply_qwen35_moe_gate_up_fusion
 
 E, TOPK, HIDDEN, INTER = 8, 2, 64, 32
 
@@ -67,8 +67,8 @@ def _make_model(
 def _restore_call(monkeypatch):
     from mlx_vlm.models.qwen3_5.speculative_verifier import Qwen3_5BatchInvariantForward
 
-    monkeypatch.delenv("OMLX_QWEN35_MOE_GATE_UP", raising=False)
-    orig = getattr(SwitchGLU, "_omlx_gate_up_original_call", SwitchGLU.__call__)
+    monkeypatch.delenv("MOLTO_QWEN35_MOE_GATE_UP", raising=False)
+    orig = getattr(SwitchGLU, "_molto_gate_up_original_call", SwitchGLU.__call__)
     monkeypatch.setattr(
         Qwen3_5BatchInvariantForward,
         "_switch_glu",
@@ -76,7 +76,7 @@ def _restore_call(monkeypatch):
     )
     yield
     SwitchGLU.__call__ = orig
-    for attr in ("_omlx_gate_up_fused_call", "_omlx_gate_up_original_call"):
+    for attr in ("_molto_gate_up_fused_call", "_molto_gate_up_original_call"):
         if hasattr(SwitchGLU, attr):
             delattr(SwitchGLU, attr)
     patch_mod._CALL_PATCHED = False
@@ -118,7 +118,7 @@ def test_fused_output_bit_exact(quantize):
 
 def test_laguna_family_fused_bit_exact():
     """The vendored laguna model fuses its nvfp4 SwitchGLU experts."""
-    from omlx_runtime.patches.laguna import apply_laguna_patch
+    from molto_runtime.patches.laguna import apply_laguna_patch
 
     apply_laguna_patch()
 
@@ -190,7 +190,7 @@ def test_qwen4_exp_family_is_eligible_for_gate_up_fusion():
 
 
 def test_env_kill_switch(monkeypatch):
-    monkeypatch.setenv("OMLX_QWEN35_MOE_GATE_UP", "0")
+    monkeypatch.setenv("MOLTO_QWEN35_MOE_GATE_UP", "0")
     model = _make_model()
     assert apply_qwen35_moe_gate_up_fusion(model) == 0
     assert hasattr(model.blocks[0], "gate_proj")
@@ -256,7 +256,7 @@ def test_vlm_fused_experts_preserve_decode_verify_and_prefill(length):
 
 
 def test_weighted_sum_route_accepts_fused_layout():
-    from omlx_runtime.patches.qwen35_moe_weighted_sum import _should_route
+    from molto_runtime.patches.qwen35_moe_weighted_sum import _should_route
 
     model = _make_model(n_blocks=1)
     apply_qwen35_moe_gate_up_fusion(model)
@@ -340,7 +340,7 @@ def test_vlm_fused_short_block_matches_verifier_without_copying_views(
 @pytest.mark.parametrize("bits", [4, 5, 6, 8])
 def test_expert_ordered_verify_gather_matches_gather_qmm(bits):
     from mlx_vlm.models.switch_layers import SwitchLinear as VLMSwitchLinear
-    from omlx_runtime.patches import moe_verify_gather
+    from molto_runtime.patches import moe_verify_gather
 
     mx.random.seed(bits)
     experts, top_k = 16, 10

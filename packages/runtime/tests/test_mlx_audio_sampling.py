@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx_runtime.patches.mlx_audio_sampling (#2312).
+"""Tests for molto_runtime.patches.mlx_audio_sampling (#2312).
 
 mlx-audio TTS backends import the mx.compile'd samplers from
-mlx_lm.sample_utils, so they bypass the compile-free omlx sampler that the
+mlx_lm.sample_utils, so they bypass the compile-free molto sampler that the
 LLM path already uses. The patch rebinds the four affected names on
 mlx_lm.sample_utils and on any already-imported mlx_audio.tts modules, so a
 TTS engine start reroutes every backend to the RNG-advancing versions.
@@ -15,13 +15,13 @@ import types
 
 import mlx_lm.sample_utils as sample_utils
 import pytest
-from omlx_runtime.patches import mlx_audio_sampling
-from omlx_runtime.patches.mlx_audio_sampling import (
+from molto_runtime.patches import mlx_audio_sampling
+from molto_runtime.patches.mlx_audio_sampling import (
     _ORIGINALS,
     _PATCHED_NAMES,
     ensure_uncompiled_tts_samplers,
 )
-from omlx_runtime.utils import sampling as omlx_sampling
+from molto_runtime.utils import sampling as molto_sampling
 
 
 @pytest.fixture(autouse=True)
@@ -33,13 +33,13 @@ def _restore_sample_utils():
         setattr(sample_utils, name, fn)
 
 
-def test_rebinds_sample_utils_to_omlx_versions():
+def test_rebinds_sample_utils_to_molto_versions():
     for name in _PATCHED_NAMES:
         setattr(sample_utils, name, _ORIGINALS[name])
 
     assert ensure_uncompiled_tts_samplers() is True
     for name in _PATCHED_NAMES:
-        assert getattr(sample_utils, name) is getattr(omlx_sampling, name)
+        assert getattr(sample_utils, name) is getattr(molto_sampling, name)
 
 
 def test_idempotent_second_call_changes_nothing():
@@ -49,7 +49,7 @@ def test_idempotent_second_call_changes_nothing():
 
 def test_rebinds_already_imported_tts_backend_module():
     """A backend imported before the patch must be rebound in place."""
-    mod_name = "mlx_audio.tts.models._omlx_fake_backend"
+    mod_name = "mlx_audio.tts.models._molto_fake_backend"
     fake = types.ModuleType(mod_name)
     for name in _PATCHED_NAMES:
         setattr(fake, name, _ORIGINALS[name])
@@ -57,7 +57,7 @@ def test_rebinds_already_imported_tts_backend_module():
     try:
         ensure_uncompiled_tts_samplers()
         for name in _PATCHED_NAMES:
-            assert getattr(fake, name) is getattr(omlx_sampling, name)
+            assert getattr(fake, name) is getattr(molto_sampling, name)
     finally:
         del sys.modules[mod_name]
 
@@ -65,15 +65,15 @@ def test_rebinds_already_imported_tts_backend_module():
 def test_rebinds_aliased_imports_in_backend_module():
     """higgs_audio_v3 / moss_tts alias the import (apply_top_k as
     _apply_top_k_logprobs) — the identity scan must catch those too."""
-    mod_name = "mlx_audio.tts.models._omlx_fake_alias_backend"
+    mod_name = "mlx_audio.tts.models._molto_fake_alias_backend"
     fake = types.ModuleType(mod_name)
     fake._apply_top_k_logprobs = _ORIGINALS["apply_top_k"]
     fake._apply_top_p_logprobs = _ORIGINALS["apply_top_p"]
     sys.modules[mod_name] = fake
     try:
         ensure_uncompiled_tts_samplers()
-        assert fake._apply_top_k_logprobs is omlx_sampling.apply_top_k
-        assert fake._apply_top_p_logprobs is omlx_sampling.apply_top_p
+        assert fake._apply_top_k_logprobs is molto_sampling.apply_top_k
+        assert fake._apply_top_p_logprobs is molto_sampling.apply_top_p
     finally:
         del sys.modules[mod_name]
 
@@ -81,7 +81,7 @@ def test_rebinds_aliased_imports_in_backend_module():
 def test_leaves_backend_local_samplers_untouched():
     """moss_tts-style backends define their own apply_* — identity guard
     must keep those bindings as-is."""
-    mod_name = "mlx_audio.tts.models._omlx_fake_moss"
+    mod_name = "mlx_audio.tts.models._molto_fake_moss"
     fake = types.ModuleType(mod_name)
 
     def local_apply_top_k(logits, top_k):
@@ -109,7 +109,7 @@ def test_installed_flag_survives_manual_unpatch():
     ensure_uncompiled_tts_samplers()
     sample_utils.categorical_sampling = _ORIGINALS["categorical_sampling"]
     assert ensure_uncompiled_tts_samplers() is True
-    assert sample_utils.categorical_sampling is omlx_sampling.categorical_sampling
+    assert sample_utils.categorical_sampling is molto_sampling.categorical_sampling
 
 
 def test_module_state_reset():

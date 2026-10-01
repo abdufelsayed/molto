@@ -8,9 +8,9 @@ import sys
 import types
 from types import SimpleNamespace
 
-from omlx_runtime.adapter.gemma4 import Gemma4OutputParserSession
-from omlx_runtime.adapter.harmony import load_harmony_gpt_oss_encoding
-from omlx_runtime.adapter.output_parser import detect_output_parser
+from molto_runtime.adapter.gemma4 import Gemma4OutputParserSession
+from molto_runtime.adapter.harmony import load_harmony_gpt_oss_encoding
+from molto_runtime.adapter.output_parser import detect_output_parser
 
 
 class FakeDetokenizer:
@@ -69,8 +69,8 @@ class CohereTokenizer:
 
 
 def test_k2_reasoning_modes_and_tool_envelopes():
-    from omlx_runtime.generation.tool_calling import parse_tool_calls
-    from omlx_runtime.patches.k2_horizon.tool_parser import parse_tool_call
+    from molto_runtime.generation.tool_calling import parse_tool_calls
+    from molto_runtime.patches.k2_horizon.tool_parser import parse_tool_call
 
     markers = [
         f"{prefix}ifm|{name}>"
@@ -131,7 +131,7 @@ class DeepSeekV4Tokenizer(CohereTokenizer):
     tool_call_end = "</｜DSML｜tool_calls>"
 
     def tool_parser(self, text: str, tools=None):
-        from omlx_runtime.patches.deepseek_v4.tool_parser_v4 import parse_tool_call
+        from molto_runtime.patches.deepseek_v4.tool_parser_v4 import parse_tool_call
 
         return parse_tool_call(text, tools)
 
@@ -505,7 +505,7 @@ class TestCohere2MoeOutputParserSession:
         monkeypatch.setitem(__import__("sys").modules, "cohere_melody", module)
 
         tokenizer = CohereTokenizer({"TC": "TC"})
-        from omlx_runtime.adapter.output_parser import Cohere2MoeOutputParserSession
+        from molto_runtime.adapter.output_parser import Cohere2MoeOutputParserSession
 
         session = Cohere2MoeOutputParserSession.__new__(Cohere2MoeOutputParserSession)
         session._tokenizer = tokenizer
@@ -952,7 +952,7 @@ class TestOutputParserFactory:
     def test_session_receives_model_path_when_provided(self, monkeypatch):
         """Since #2178 the scheduler's model_name is a display id, so the
         filesystem path must reach parser sessions via model_path."""
-        import omlx_runtime.adapter.output_parser as output_parser_module
+        import molto_runtime.adapter.output_parser as output_parser_module
 
         seen = {}
 
@@ -979,7 +979,7 @@ class TestOutputParserFactory:
     def test_session_falls_back_to_model_name_without_model_path(self, monkeypatch):
         """dflash/vlm engines pass their filesystem path as model_name and no
         model_path, so the session fallback must keep using model_name."""
-        import omlx_runtime.adapter.output_parser as output_parser_module
+        import molto_runtime.adapter.output_parser as output_parser_module
 
         seen = {}
 
@@ -1051,7 +1051,7 @@ class TestOutputParserFactory:
 
     def test_harmony_non_streaming_preserves_reasoning(self):
         """Non-streaming output_text retains analysis-channel reasoning."""
-        from omlx_runtime.generation.thinking import extract_thinking
+        from molto_runtime.generation.thinking import extract_thinking
 
         encoding = load_harmony_gpt_oss_encoding()
         tokenizer = HarmonyTokenizer(encoding)

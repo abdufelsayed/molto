@@ -25,8 +25,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import mlx.core as mx
-from omlx_runtime.generation.thinking import ThinkingBudgetProcessor
-from omlx_runtime.patches.mlx_lm_mtp import batch_generator as bg
+from molto_runtime.generation.thinking import ThinkingBudgetProcessor
+from molto_runtime.patches.mlx_lm_mtp import batch_generator as bg
 
 VOCAB = 32
 CLOSE = 21  # single-token close-think
@@ -101,8 +101,8 @@ def _make_batch(proc, emitted: int, k: int):
         return _logits_for([FILL] * n), mx.zeros((1, n, 8), dtype=mx.float32)
 
     model = SimpleNamespace(
-        _omlx_mtp_commit_align=0,
-        _omlx_mtp_head_prenorm=True,  # skip trunk-norm path in draft-gen
+        _molto_mtp_commit_align=0,
+        _molto_mtp_head_prenorm=True,  # skip trunk-norm path in draft-gen
         mtp_forward=mtp_forward,
     )
     buf = _Counter()

@@ -3,11 +3,11 @@
 import importlib
 
 import mlx.core as mx
-import omlx_runtime.scheduler  # noqa: F401  (applies BatchGenerator cache patches)
+import molto_runtime.scheduler  # noqa: F401  (applies BatchGenerator cache patches)
 from mlx_lm.generate import PromptProcessingBatch, StopSequences
 from mlx_lm.models.cache import ArraysCache, BatchKVCache, CacheList, KVCache
 from mlx_vlm.turboquant import TurboQuantKVCache
-from omlx_runtime.turboquant_kv import BatchTurboQuantKVCache
+from molto_runtime.turboquant_kv import BatchTurboQuantKVCache
 
 
 def _kv_cache(length: int) -> KVCache:
@@ -106,7 +106,7 @@ def test_join_finds_nested_model_owned_batch_conversion():
             return [CacheList(CacheList(CustomCache()))]
 
     caches = [
-        omlx_runtime.scheduler._to_batched_cache_layer(c) for c in Model().make_cache()
+        molto_runtime.scheduler._to_batched_cache_layer(c) for c in Model().make_cache()
     ]
 
     nested = caches[0].caches[0].caches[0]
@@ -114,7 +114,7 @@ def test_join_finds_nested_model_owned_batch_conversion():
 
 
 def test_join_converts_vendored_qwen4_exp_linear_cache():
-    from omlx_runtime.patches.mlx_vlm_qwen4_exp_compat import (
+    from molto_runtime.patches.mlx_vlm_qwen4_exp_compat import (
         apply_mlx_vlm_qwen4_exp_compat_patch,
     )
 
@@ -126,7 +126,7 @@ def test_join_converts_vendored_qwen4_exp_linear_cache():
             return [Qwen4ArraysCache(size=2)]
 
     caches = [
-        omlx_runtime.scheduler._to_batched_cache_layer(c) for c in Model().make_cache()
+        molto_runtime.scheduler._to_batched_cache_layer(c) for c in Model().make_cache()
     ]
 
     assert isinstance(caches[0], Qwen4ArraysCache)
@@ -134,7 +134,7 @@ def test_join_converts_vendored_qwen4_exp_linear_cache():
 
 
 def test_join_leaves_running_qwen4_exp_linear_cache_unpadded():
-    from omlx_runtime.patches.mlx_vlm_qwen4_exp_compat import (
+    from molto_runtime.patches.mlx_vlm_qwen4_exp_compat import (
         apply_mlx_vlm_qwen4_exp_compat_patch,
     )
 
@@ -150,7 +150,7 @@ def test_join_leaves_running_qwen4_exp_linear_cache_unpadded():
             return [warm]
 
     caches = [
-        omlx_runtime.scheduler._to_batched_cache_layer(c) for c in Model().make_cache()
+        molto_runtime.scheduler._to_batched_cache_layer(c) for c in Model().make_cache()
     ]
 
     assert caches[0] is warm

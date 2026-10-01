@@ -10,11 +10,11 @@ import sys
 
 import mlx.core as mx
 from mlx_lm.models import qwen2
-from omlx_runtime.cluster.performance import ExecutionSettings
-from omlx_runtime.cluster.rdma.mailbox import ServiceMailbox
-from omlx_runtime.cluster.rdma.stage_plan import StageLink
-from omlx_runtime.cluster.rdma.stage_transport import install_stage_links
-from omlx_runtime.cluster.runtime_optimizations import install_runtime_optimizations
+from molto_runtime.cluster.performance import ExecutionSettings
+from molto_runtime.cluster.rdma.mailbox import ServiceMailbox
+from molto_runtime.cluster.rdma.stage_plan import StageLink
+from molto_runtime.cluster.rdma.stage_transport import install_stage_links
+from molto_runtime.cluster.runtime_optimizations import install_runtime_optimizations
 from rdma_loopback import PythonWordOps
 
 mlx_generate = importlib.import_module("mlx_lm.generate")

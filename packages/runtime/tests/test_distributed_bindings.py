@@ -2,10 +2,10 @@
 
 from types import SimpleNamespace
 
-from omlx_runtime.cluster.deployment import ClusterDeployment, ClusterHost
-from omlx_runtime.cluster.planner import PipelineAssignment
-from omlx_runtime.cluster.rdma.launch_links import enrolled_node_addresses
-from omlx_runtime.engine.distributed import DistributedBatchedEngine
+from molto_runtime.cluster.deployment import ClusterDeployment, ClusterHost
+from molto_runtime.cluster.planner import PipelineAssignment
+from molto_runtime.cluster.rdma.launch_links import enrolled_node_addresses
+from molto_runtime.engine.distributed import DistributedBatchedEngine
 
 
 def test_engine_forwards_launch_binding_without_global_configuration():

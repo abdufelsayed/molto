@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import pytest
-from omlx_runtime.specprefill.policy import plan_specprefill_scoring
+from molto_runtime.specprefill.policy import plan_specprefill_scoring
 
 DEFAULT_THRESHOLD = 8
 DEFAULT_KEEP_PCT = 0.20

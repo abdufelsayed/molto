@@ -105,6 +105,6 @@ export function useAction<T = unknown>() {
       method?: "POST" | "DELETE" | "PATCH"
     }) => managementRequest<T>(path, { method, body }),
     retry: false,
-    onSuccess: () => client.invalidateQueries({ queryKey: ["omlx"] }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["molto"] }),
   })
 }

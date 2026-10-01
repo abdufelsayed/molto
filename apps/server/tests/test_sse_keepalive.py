@@ -7,8 +7,8 @@ import socket
 
 import pytest
 from fastapi import HTTPException
-from omlx_server.shared import ClientDisconnectTrackingMiddleware
-from omlx_server.transport import (
+from molto_server.shared import ClientDisconnectTrackingMiddleware
+from molto_server.transport import (
     _with_json_keepalive,
     _with_request_disconnect_abort,
     _with_sse_keepalive,
@@ -214,7 +214,7 @@ class TestKeepaliveChunkFormats:
 
     @pytest.mark.asyncio
     async def test_chat_chunk_format_is_valid_chat_completion_chunk(self):
-        from omlx_server.shared import _KEEPALIVE_CHAT_CHUNK
+        from molto_server.shared import _KEEPALIVE_CHAT_CHUNK
 
         async def gen():
             yield "data: real\n\n"
@@ -232,7 +232,7 @@ class TestKeepaliveChunkFormats:
 
     @pytest.mark.asyncio
     async def test_completion_chunk_format_is_valid_text_completion(self):
-        from omlx_server.shared import _KEEPALIVE_COMPLETION_CHUNK
+        from molto_server.shared import _KEEPALIVE_COMPLETION_CHUNK
 
         async def gen():
             yield "data: real\n\n"
@@ -248,7 +248,7 @@ class TestKeepaliveChunkFormats:
 
     @pytest.mark.asyncio
     async def test_anthropic_ping_event_format(self):
-        from omlx_server.shared import _KEEPALIVE_ANTHROPIC_PING
+        from molto_server.shared import _KEEPALIVE_ANTHROPIC_PING
 
         async def gen():
             yield "event: message_start\ndata: {}\n\n"
@@ -271,7 +271,7 @@ class TestKeepaliveChunkFormats:
 
 class TestCompletionKeepaliveSharesStreamId:
     def test_frame_uses_given_response_id(self):
-        from omlx_server.transport import _completion_keepalive_chunk
+        from molto_server.transport import _completion_keepalive_chunk
 
         frame = _completion_keepalive_chunk("cmpl-abc123")
         assert frame.startswith("data: ")
@@ -283,7 +283,7 @@ class TestCompletionKeepaliveSharesStreamId:
         assert payload["choices"][0]["finish_reason"] is None
 
     def test_frame_does_not_use_sentinel_id(self):
-        from omlx_server.transport import _completion_keepalive_chunk
+        from molto_server.transport import _completion_keepalive_chunk
 
         payload = json.loads(
             _completion_keepalive_chunk("cmpl-real").removeprefix("data: ").strip()
@@ -302,7 +302,7 @@ class TestChatKeepaliveSharesStreamId:
     """
 
     def test_frame_uses_given_response_id(self):
-        from omlx_server.transport import _chat_keepalive_chunk
+        from molto_server.transport import _chat_keepalive_chunk
 
         frame = _chat_keepalive_chunk("chatcmpl-abc123")
         assert frame.startswith("data: ")
@@ -315,7 +315,7 @@ class TestChatKeepaliveSharesStreamId:
         assert payload["choices"][0]["finish_reason"] is None
 
     def test_frame_does_not_use_sentinel_id(self):
-        from omlx_server.transport import _chat_keepalive_chunk
+        from molto_server.transport import _chat_keepalive_chunk
 
         payload = json.loads(
             _chat_keepalive_chunk("chatcmpl-real").removeprefix("data: ").strip()
@@ -340,12 +340,12 @@ class TestChatKeepaliveCarriesRole:
         return payload["choices"][0]["delta"].get("role")
 
     def test_static_sentinel_frame_carries_assistant_role(self):
-        from omlx_server.shared import _KEEPALIVE_CHAT_CHUNK
+        from molto_server.shared import _KEEPALIVE_CHAT_CHUNK
 
         assert self._first_chunk_role(_KEEPALIVE_CHAT_CHUNK) == "assistant"
 
     def test_id_sharing_frame_carries_assistant_role(self):
-        from omlx_server.transport import _chat_keepalive_chunk
+        from molto_server.transport import _chat_keepalive_chunk
 
         assert (
             self._first_chunk_role(_chat_keepalive_chunk("chatcmpl-x")) == "assistant"
@@ -359,7 +359,7 @@ class TestResolveKeepalive:
     def settings(self, monkeypatch):
         from types import SimpleNamespace
 
-        from omlx_server.server import app
+        from molto_server.server import app
 
         monkeypatch.setattr(
             app.state.controller.state,
@@ -368,20 +368,20 @@ class TestResolveKeepalive:
         )
 
     def _set_mode(self, mode: str):
-        from omlx_server.server import app
+        from molto_server.server import app
 
         _server_state = app.state.controller.state
 
         _server_state.global_settings.server.sse_keepalive_mode = mode
 
     def test_chunk_mode_returns_protocol_specific_frames(self):
-        from omlx_server.server import app
+        from molto_server.server import app
 
         _resolve_keepalive = app.state.controller._resolve_keepalive
-        from omlx_server.server import app
+        from molto_server.server import app
 
         _server_state = app.state.controller.state
-        from omlx_server.shared import (
+        from molto_server.shared import (
             _KEEPALIVE_ANTHROPIC_PING,
             _KEEPALIVE_CHAT_CHUNK,
             _KEEPALIVE_COMPLETION_CHUNK,
@@ -401,13 +401,13 @@ class TestResolveKeepalive:
             _server_state.global_settings.server.sse_keepalive_mode = original
 
     def test_comment_mode_returns_legacy_comment(self):
-        from omlx_server.server import app
+        from molto_server.server import app
 
         _resolve_keepalive = app.state.controller._resolve_keepalive
-        from omlx_server.server import app
+        from molto_server.server import app
 
         _server_state = app.state.controller.state
-        from omlx_server.shared import _KEEPALIVE_COMMENT
+        from molto_server.shared import _KEEPALIVE_COMMENT
 
         original = _server_state.global_settings.server.sse_keepalive_mode
         try:
@@ -423,10 +423,10 @@ class TestResolveKeepalive:
             _server_state.global_settings.server.sse_keepalive_mode = original
 
     def test_off_mode_returns_none(self):
-        from omlx_server.server import app
+        from molto_server.server import app
 
         _resolve_keepalive = app.state.controller._resolve_keepalive
-        from omlx_server.server import app
+        from molto_server.server import app
 
         _server_state = app.state.controller.state
 

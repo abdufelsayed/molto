@@ -109,7 +109,7 @@ function Choice({
 export function ClusterPage() {
   const client = useQueryClient()
   const devices = useQuery({
-    queryKey: ["omlx", "cluster", "devices"],
+    queryKey: ["molto", "cluster", "devices"],
     queryFn: ({ signal }) =>
       clusterRequest("devices", devicesSchema, { signal }),
     retry: false,
@@ -117,7 +117,7 @@ export function ClusterPage() {
   })
   const available = devices.isSuccess
   const deployments = useQuery({
-    queryKey: ["omlx", "cluster", "deployments"],
+    queryKey: ["molto", "cluster", "deployments"],
     queryFn: ({ signal }) =>
       clusterRequest("deployments", deploymentsSchema, { signal }),
     enabled: available,
@@ -125,7 +125,7 @@ export function ClusterPage() {
     refetchInterval: 5000,
   })
   const runtime = useQuery({
-    queryKey: ["omlx", "cluster", "runtime"],
+    queryKey: ["molto", "cluster", "runtime"],
     queryFn: ({ signal }) =>
       clusterRequest("runtime", evidenceSchema, { signal }),
     enabled: available,
@@ -133,7 +133,7 @@ export function ClusterPage() {
     refetchInterval: 5000,
   })
   const joining = useQuery({
-    queryKey: ["omlx", "cluster", "join"],
+    queryKey: ["molto", "cluster", "join"],
     queryFn: ({ signal }) =>
       clusterRequest("pair/join", evidenceSchema, { signal }),
     enabled: available,
@@ -141,14 +141,14 @@ export function ClusterPage() {
     refetchInterval: 5000,
   })
   const enrollment = useQuery({
-    queryKey: ["omlx", "cluster", "enrollment"],
+    queryKey: ["molto", "cluster", "enrollment"],
     queryFn: ({ signal }) =>
       clusterRequest("join-status", joinStatusSchema, { signal }),
     enabled: available,
     retry: false,
   })
   const rdma = useQuery({
-    queryKey: ["omlx", "cluster", "rdma"],
+    queryKey: ["molto", "cluster", "rdma"],
     queryFn: ({ signal }) =>
       clusterRequest("rdma-links", rdmaSchema, { signal }),
     enabled: available,
@@ -189,7 +189,7 @@ export function ClusterPage() {
     result: z.infer<typeof replanPreviewSchema>
   } | null>(null)
   const stage = useQuery({
-    queryKey: ["omlx", "cluster", "stage", jobId],
+    queryKey: ["molto", "cluster", "stage", jobId],
     queryFn: ({ signal }) =>
       clusterRequest(`stage/${encodeURIComponent(jobId)}`, stageSchema, {
         signal,
@@ -202,7 +202,7 @@ export function ClusterPage() {
         : 2000,
   })
   const membershipStage = useQuery({
-    queryKey: ["omlx", "cluster", "stage", replanStageJob],
+    queryKey: ["molto", "cluster", "stage", replanStageJob],
     queryFn: ({ signal }) =>
       clusterRequest(
         `stage/${encodeURIComponent(replanStageJob)}`,
@@ -221,7 +221,7 @@ export function ClusterPage() {
     retry: false,
     onSuccess: async () => {
       toast.success("Cluster request completed.")
-      await client.invalidateQueries({ queryKey: ["omlx"] })
+      await client.invalidateQueries({ queryKey: ["molto"] })
     },
   })
   function run(work: () => Promise<void>) {
@@ -1133,7 +1133,7 @@ export function ClusterPage() {
                   )
                   const link = document.createElement("a")
                   link.href = url
-                  link.download = "omlx-cluster-diagnostics.json"
+                  link.download = "molto-cluster-diagnostics.json"
                   link.click()
                   URL.revokeObjectURL(url)
                 })

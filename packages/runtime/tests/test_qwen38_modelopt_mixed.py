@@ -9,8 +9,8 @@ from unittest.mock import MagicMock
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.patches import qwen38_modelopt_mixed as bridge
-from omlx_runtime.utils import model_loading
+from molto_runtime.patches import qwen38_modelopt_mixed as bridge
+from molto_runtime.utils import model_loading
 
 
 def _config() -> dict:

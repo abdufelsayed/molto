@@ -12,13 +12,13 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "omlx-cli",
-    "omlx-config",
-    "omlx-contracts",
-    "omlx-management",
-    "omlx-runtime",
-    "omlx-server",
-    "omlx-workspace",
+    "molto-cli",
+    "molto-config",
+    "molto-contracts",
+    "molto-management",
+    "molto-runtime",
+    "molto-server",
+    "molto-workspace",
 ]
 overrides = [
     { name = "mlx", specifier = "==0.32.2" },
@@ -1968,6 +1968,310 @@ wheels = [
 ]
 
 [[package]]
+name = "molto-cli"
+version = "0.1.0.dev0"
+source = { editable = "apps/cli" }
+dependencies = [
+    { name = "httpx" },
+    { name = "molto-config" },
+    { name = "molto-runtime" },
+    { name = "molto-server" },
+    { name = "psutil" },
+    { name = "pyyaml" },
+    { name = "requests" },
+    { name = "rich" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = ">=0.27,<1" },
+    { name = "molto-config", editable = "packages/config" },
+    { name = "molto-runtime", editable = "packages/runtime" },
+    { name = "molto-server", editable = "apps/server" },
+    { name = "psutil", specifier = ">=5.9" },
+    { name = "pyyaml", specifier = ">=6" },
+    { name = "requests", specifier = ">=2.28" },
+    { name = "rich", specifier = ">=13" },
+]
+
+[[package]]
+name = "molto-config"
+version = "0.1.0.dev0"
+source = { editable = "packages/config" }
+dependencies = [
+    { name = "psutil" },
+    { name = "setproctitle" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "psutil", specifier = ">=5.9" },
+    { name = "setproctitle", specifier = ">=1.3.3" },
+]
+
+[[package]]
+name = "molto-contracts"
+version = "0.1.0.dev0"
+source = { editable = "packages/contracts" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2" }]
+
+[[package]]
+name = "molto-management"
+version = "0.1.0.dev0"
+source = { editable = "packages/management" }
+dependencies = [
+    { name = "ddgs" },
+    { name = "httpx" },
+    { name = "huggingface-hub" },
+    { name = "mlx" },
+    { name = "molto-config" },
+    { name = "molto-contracts" },
+    { name = "molto-runtime" },
+    { name = "packaging" },
+    { name = "psutil" },
+    { name = "pydantic" },
+    { name = "requests" },
+    { name = "rich" },
+    { name = "safetensors" },
+]
+
+[package.optional-dependencies]
+modelscope = [
+    { name = "modelscope" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "ddgs", specifier = "==9.16.0" },
+    { name = "httpx", specifier = ">=0.27,<1" },
+    { name = "huggingface-hub", specifier = ">=1.19" },
+    { name = "mlx", specifier = "==0.32.2" },
+    { name = "modelscope", marker = "extra == 'modelscope'", specifier = ">=1.10.0" },
+    { name = "molto-config", editable = "packages/config" },
+    { name = "molto-contracts", editable = "packages/contracts" },
+    { name = "molto-runtime", editable = "packages/runtime" },
+    { name = "packaging", specifier = ">=24" },
+    { name = "psutil", specifier = ">=5.9" },
+    { name = "pydantic", specifier = ">=2" },
+    { name = "requests", specifier = ">=2.28" },
+    { name = "rich", specifier = ">=13" },
+    { name = "safetensors", specifier = ">=0.4" },
+]
+provides-extras = ["modelscope"]
+
+[[package]]
+name = "molto-runtime"
+version = "0.1.0.dev0"
+source = { editable = "packages/runtime" }
+dependencies = [
+    { name = "cohere-melody" },
+    { name = "dflash-mlx" },
+    { name = "httpx" },
+    { name = "huggingface-hub" },
+    { name = "jsonschema" },
+    { name = "markitdown", extra = ["docx", "pdf", "pptx"] },
+    { name = "mistral-common" },
+    { name = "mlx" },
+    { name = "mlx-audio" },
+    { name = "mlx-embeddings" },
+    { name = "mlx-lm" },
+    { name = "mlx-vlm" },
+    { name = "molto-config" },
+    { name = "molto-contracts" },
+    { name = "numpy" },
+    { name = "openai-harmony" },
+    { name = "pdfplumber" },
+    { name = "pillow" },
+    { name = "protobuf" },
+    { name = "psutil" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+    { name = "regex" },
+    { name = "requests" },
+    { name = "rich" },
+    { name = "safetensors" },
+    { name = "sentencepiece" },
+    { name = "setproctitle" },
+    { name = "socksio" },
+    { name = "tabulate" },
+    { name = "tiktoken" },
+    { name = "tokenizers" },
+    { name = "tqdm" },
+    { name = "transformers" },
+]
+
+[package.optional-dependencies]
+audio = [
+    { name = "espeakng-loader" },
+    { name = "librosa" },
+    { name = "misaki" },
+    { name = "mlx-audio", extra = ["sts", "stt", "tts"] },
+    { name = "num2words" },
+    { name = "numba" },
+    { name = "phonemizer-fork" },
+    { name = "pyloudnorm" },
+    { name = "spacy" },
+    { name = "wsproto" },
+]
+cluster = [
+    { name = "zeroconf" },
+]
+grammar = [
+    { name = "apache-tvm-ffi" },
+    { name = "xgrammar" },
+]
+image = [
+    { name = "mflux" },
+]
+paroquant = [
+    { name = "paroquant" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apache-tvm-ffi", marker = "extra == 'grammar'", specifier = "==0.1.11" },
+    { name = "cohere-melody", specifier = ">=0.9.0" },
+    { name = "dflash-mlx", git = "https://github.com/jundot/dflash-mlx?rev=c55324c86540c369f6818a0f47eae544d405475b" },
+    { name = "espeakng-loader", marker = "extra == 'audio'", specifier = ">=0.2.4" },
+    { name = "httpx", specifier = ">=0.27.0,<1" },
+    { name = "huggingface-hub", specifier = ">=1.19.0" },
+    { name = "jsonschema", specifier = ">=4.0.0" },
+    { name = "librosa", marker = "extra == 'audio'", specifier = "==0.11.0" },
+    { name = "markitdown", extras = ["pdf", "docx", "pptx"], specifier = "==0.1.7" },
+    { name = "mflux", marker = "extra == 'image'", specifier = ">=0.20.0,<0.21" },
+    { name = "misaki", marker = "extra == 'audio'", specifier = ">=0.9.4" },
+    { name = "mistral-common", specifier = ">=1.10" },
+    { name = "mlx", specifier = "==0.32.2" },
+    { name = "mlx-audio", git = "https://github.com/Blaizzy/mlx-audio?rev=49596ac8b69b9ed377db311a73df838795f38a3d" },
+    { name = "mlx-audio", extras = ["tts", "stt", "sts"], marker = "extra == 'audio'", git = "https://github.com/Blaizzy/mlx-audio?rev=49596ac8b69b9ed377db311a73df838795f38a3d" },
+    { name = "mlx-embeddings", git = "https://github.com/Blaizzy/mlx-embeddings?rev=32981fa4e8064ed664b52071789dd18271fe4206" },
+    { name = "mlx-lm", git = "https://github.com/ml-explore/mlx-lm?rev=872ae88d1fac77350db23c8c04fe8dd372a9e3e8" },
+    { name = "mlx-vlm", git = "https://github.com/Blaizzy/mlx-vlm?rev=ea79808ce1e9a19fcb915a96b0c70e37ad393a99" },
+    { name = "molto-config", editable = "packages/config" },
+    { name = "molto-contracts", editable = "packages/contracts" },
+    { name = "num2words", marker = "extra == 'audio'", specifier = ">=0.5.14" },
+    { name = "numba", marker = "extra == 'audio'", specifier = ">=0.60.0" },
+    { name = "numpy", specifier = ">=1.24.0,<2.4" },
+    { name = "openai-harmony" },
+    { name = "paroquant", marker = "python_full_version >= '3.11' and extra == 'paroquant'", specifier = "==0.1.16" },
+    { name = "pdfplumber", specifier = ">=0.11" },
+    { name = "phonemizer-fork", marker = "extra == 'audio'", specifier = ">=3.3.2" },
+    { name = "pillow", specifier = ">=9.0.0" },
+    { name = "protobuf" },
+    { name = "psutil", specifier = ">=5.9.0" },
+    { name = "pydantic", specifier = ">=2" },
+    { name = "pyloudnorm", marker = "extra == 'audio'", specifier = ">=0.2.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "regex" },
+    { name = "requests", specifier = ">=2.28.0" },
+    { name = "rich", specifier = ">=13.0.0" },
+    { name = "safetensors", specifier = ">=0.4" },
+    { name = "sentencepiece" },
+    { name = "setproctitle", specifier = ">=1.3.3" },
+    { name = "socksio", specifier = ">=1.0.0" },
+    { name = "spacy", marker = "extra == 'audio'", specifier = ">=3.8.4" },
+    { name = "tabulate", specifier = ">=0.9.0" },
+    { name = "tiktoken" },
+    { name = "tokenizers", specifier = ">=0.19.0" },
+    { name = "tqdm", specifier = ">=4.66.0" },
+    { name = "transformers", specifier = ">=5.14.0,<5.18" },
+    { name = "wsproto", marker = "extra == 'audio'", specifier = "==1.2.0" },
+    { name = "xgrammar", marker = "extra == 'grammar'", specifier = "==0.2.3" },
+    { name = "zeroconf", marker = "extra == 'cluster'", specifier = ">=0.131.0" },
+]
+provides-extras = ["grammar", "cluster", "audio", "image", "paroquant"]
+
+[[package]]
+name = "molto-server"
+version = "0.1.0.dev0"
+source = { editable = "apps/server" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "mlx" },
+    { name = "mlx-audio" },
+    { name = "mlx-lm" },
+    { name = "molto-config" },
+    { name = "molto-contracts" },
+    { name = "molto-management" },
+    { name = "molto-runtime" },
+    { name = "pillow" },
+    { name = "pydantic" },
+    { name = "python-multipart" },
+    { name = "pyyaml" },
+    { name = "soundfile" },
+    { name = "starlette" },
+    { name = "uvicorn" },
+]
+
+[package.optional-dependencies]
+mcp = [
+    { name = "mcp" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi", specifier = ">=0.108" },
+    { name = "httpx", specifier = ">=0.27,<1" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=2.0.0,<3" },
+    { name = "mlx", specifier = "==0.32.2" },
+    { name = "mlx-audio", git = "https://github.com/Blaizzy/mlx-audio?rev=49596ac8b69b9ed377db311a73df838795f38a3d" },
+    { name = "mlx-lm", git = "https://github.com/ml-explore/mlx-lm?rev=872ae88d1fac77350db23c8c04fe8dd372a9e3e8" },
+    { name = "molto-config", editable = "packages/config" },
+    { name = "molto-contracts", editable = "packages/contracts" },
+    { name = "molto-management", editable = "packages/management" },
+    { name = "molto-runtime", editable = "packages/runtime" },
+    { name = "pillow", specifier = ">=9" },
+    { name = "pydantic", specifier = ">=2" },
+    { name = "python-multipart", specifier = ">=0.0.5" },
+    { name = "pyyaml", specifier = ">=6" },
+    { name = "soundfile", specifier = ">=0.12" },
+    { name = "starlette", specifier = ">=0.40" },
+    { name = "uvicorn", specifier = ">=0.23" },
+]
+provides-extras = ["mcp"]
+
+[[package]]
+name = "molto-workspace"
+version = "0.1.0.dev0"
+source = { virtual = "." }
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-tvm-ffi" },
+    { name = "build" },
+    { name = "mcp" },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "ruff" },
+    { name = "setuptools" },
+    { name = "wheel" },
+    { name = "xgrammar" },
+]
+
+[package.metadata]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-tvm-ffi", specifier = "==0.1.11" },
+    { name = "build" },
+    { name = "mcp", specifier = ">=2.0.0,<3" },
+    { name = "mypy", specifier = ">=1.0.0" },
+    { name = "pytest", specifier = ">=7.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.21.0" },
+    { name = "ruff", specifier = ">=0.1.0" },
+    { name = "setuptools", specifier = ">=77" },
+    { name = "wheel" },
+    { name = "xgrammar", specifier = "==0.2.3" },
+]
+
+[[package]]
 name = "mpmath"
 version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2383,310 +2687,6 @@ source = { registry = "https://pypi.org/simple" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c2/f3/d86c845465a2723ad7e1e5c36dcd75ddb82898b3f53be47ebd429fb2fa5d/nvidia_nvtx-13.0.85-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:4936d1d6780fbe68db454f5e72a42ff64d1fd6397df9f363ae786930fd5c1cd4", size = 148047, upload-time = "2025-09-04T08:29:01.761Z" },
     { url = "https://files.pythonhosted.org/packages/a8/64/3708a90d1ebe202ffdeb7185f878a3c84d15c2b2c31858da2ce0583e2def/nvidia_nvtx-13.0.85-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:cb7780edb6b14107373c835bf8b72e7a178bac7367e23da7acb108f973f157a6", size = 148878, upload-time = "2025-09-04T08:28:53.627Z" },
-]
-
-[[package]]
-name = "omlx-cli"
-version = "0.7.0rc1"
-source = { editable = "apps/cli" }
-dependencies = [
-    { name = "httpx" },
-    { name = "omlx-config" },
-    { name = "omlx-runtime" },
-    { name = "omlx-server" },
-    { name = "psutil" },
-    { name = "pyyaml" },
-    { name = "requests" },
-    { name = "rich" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "httpx", specifier = ">=0.27,<1" },
-    { name = "omlx-config", editable = "packages/config" },
-    { name = "omlx-runtime", editable = "packages/runtime" },
-    { name = "omlx-server", editable = "apps/server" },
-    { name = "psutil", specifier = ">=5.9" },
-    { name = "pyyaml", specifier = ">=6" },
-    { name = "requests", specifier = ">=2.28" },
-    { name = "rich", specifier = ">=13" },
-]
-
-[[package]]
-name = "omlx-config"
-version = "0.7.0rc1"
-source = { editable = "packages/config" }
-dependencies = [
-    { name = "psutil" },
-    { name = "setproctitle" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "psutil", specifier = ">=5.9" },
-    { name = "setproctitle", specifier = ">=1.3.3" },
-]
-
-[[package]]
-name = "omlx-contracts"
-version = "0.7.0rc1"
-source = { editable = "packages/contracts" }
-dependencies = [
-    { name = "pydantic" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "pydantic", specifier = ">=2" }]
-
-[[package]]
-name = "omlx-management"
-version = "0.7.0rc1"
-source = { editable = "packages/management" }
-dependencies = [
-    { name = "ddgs" },
-    { name = "httpx" },
-    { name = "huggingface-hub" },
-    { name = "mlx" },
-    { name = "omlx-config" },
-    { name = "omlx-contracts" },
-    { name = "omlx-runtime" },
-    { name = "packaging" },
-    { name = "psutil" },
-    { name = "pydantic" },
-    { name = "requests" },
-    { name = "rich" },
-    { name = "safetensors" },
-]
-
-[package.optional-dependencies]
-modelscope = [
-    { name = "modelscope" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "ddgs", specifier = "==9.16.0" },
-    { name = "httpx", specifier = ">=0.27,<1" },
-    { name = "huggingface-hub", specifier = ">=1.19" },
-    { name = "mlx", specifier = "==0.32.2" },
-    { name = "modelscope", marker = "extra == 'modelscope'", specifier = ">=1.10.0" },
-    { name = "omlx-config", editable = "packages/config" },
-    { name = "omlx-contracts", editable = "packages/contracts" },
-    { name = "omlx-runtime", editable = "packages/runtime" },
-    { name = "packaging", specifier = ">=24" },
-    { name = "psutil", specifier = ">=5.9" },
-    { name = "pydantic", specifier = ">=2" },
-    { name = "requests", specifier = ">=2.28" },
-    { name = "rich", specifier = ">=13" },
-    { name = "safetensors", specifier = ">=0.4" },
-]
-provides-extras = ["modelscope"]
-
-[[package]]
-name = "omlx-runtime"
-version = "0.7.0rc1"
-source = { editable = "packages/runtime" }
-dependencies = [
-    { name = "cohere-melody" },
-    { name = "dflash-mlx" },
-    { name = "httpx" },
-    { name = "huggingface-hub" },
-    { name = "jsonschema" },
-    { name = "markitdown", extra = ["docx", "pdf", "pptx"] },
-    { name = "mistral-common" },
-    { name = "mlx" },
-    { name = "mlx-audio" },
-    { name = "mlx-embeddings" },
-    { name = "mlx-lm" },
-    { name = "mlx-vlm" },
-    { name = "numpy" },
-    { name = "omlx-config" },
-    { name = "omlx-contracts" },
-    { name = "openai-harmony" },
-    { name = "pdfplumber" },
-    { name = "pillow" },
-    { name = "protobuf" },
-    { name = "psutil" },
-    { name = "pydantic" },
-    { name = "pyyaml" },
-    { name = "regex" },
-    { name = "requests" },
-    { name = "rich" },
-    { name = "safetensors" },
-    { name = "sentencepiece" },
-    { name = "setproctitle" },
-    { name = "socksio" },
-    { name = "tabulate" },
-    { name = "tiktoken" },
-    { name = "tokenizers" },
-    { name = "tqdm" },
-    { name = "transformers" },
-]
-
-[package.optional-dependencies]
-audio = [
-    { name = "espeakng-loader" },
-    { name = "librosa" },
-    { name = "misaki" },
-    { name = "mlx-audio", extra = ["sts", "stt", "tts"] },
-    { name = "num2words" },
-    { name = "numba" },
-    { name = "phonemizer-fork" },
-    { name = "pyloudnorm" },
-    { name = "spacy" },
-    { name = "wsproto" },
-]
-cluster = [
-    { name = "zeroconf" },
-]
-grammar = [
-    { name = "apache-tvm-ffi" },
-    { name = "xgrammar" },
-]
-image = [
-    { name = "mflux" },
-]
-paroquant = [
-    { name = "paroquant" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "apache-tvm-ffi", marker = "extra == 'grammar'", specifier = "==0.1.11" },
-    { name = "cohere-melody", specifier = ">=0.9.0" },
-    { name = "dflash-mlx", git = "https://github.com/jundot/dflash-mlx?rev=c55324c86540c369f6818a0f47eae544d405475b" },
-    { name = "espeakng-loader", marker = "extra == 'audio'", specifier = ">=0.2.4" },
-    { name = "httpx", specifier = ">=0.27.0,<1" },
-    { name = "huggingface-hub", specifier = ">=1.19.0" },
-    { name = "jsonschema", specifier = ">=4.0.0" },
-    { name = "librosa", marker = "extra == 'audio'", specifier = "==0.11.0" },
-    { name = "markitdown", extras = ["pdf", "docx", "pptx"], specifier = "==0.1.7" },
-    { name = "mflux", marker = "extra == 'image'", specifier = ">=0.20.0,<0.21" },
-    { name = "misaki", marker = "extra == 'audio'", specifier = ">=0.9.4" },
-    { name = "mistral-common", specifier = ">=1.10" },
-    { name = "mlx", specifier = "==0.32.2" },
-    { name = "mlx-audio", git = "https://github.com/Blaizzy/mlx-audio?rev=49596ac8b69b9ed377db311a73df838795f38a3d" },
-    { name = "mlx-audio", extras = ["tts", "stt", "sts"], marker = "extra == 'audio'", git = "https://github.com/Blaizzy/mlx-audio?rev=49596ac8b69b9ed377db311a73df838795f38a3d" },
-    { name = "mlx-embeddings", git = "https://github.com/Blaizzy/mlx-embeddings?rev=32981fa4e8064ed664b52071789dd18271fe4206" },
-    { name = "mlx-lm", git = "https://github.com/ml-explore/mlx-lm?rev=872ae88d1fac77350db23c8c04fe8dd372a9e3e8" },
-    { name = "mlx-vlm", git = "https://github.com/Blaizzy/mlx-vlm?rev=ea79808ce1e9a19fcb915a96b0c70e37ad393a99" },
-    { name = "num2words", marker = "extra == 'audio'", specifier = ">=0.5.14" },
-    { name = "numba", marker = "extra == 'audio'", specifier = ">=0.60.0" },
-    { name = "numpy", specifier = ">=1.24.0,<2.4" },
-    { name = "omlx-config", editable = "packages/config" },
-    { name = "omlx-contracts", editable = "packages/contracts" },
-    { name = "openai-harmony" },
-    { name = "paroquant", marker = "python_full_version >= '3.11' and extra == 'paroquant'", specifier = "==0.1.16" },
-    { name = "pdfplumber", specifier = ">=0.11" },
-    { name = "phonemizer-fork", marker = "extra == 'audio'", specifier = ">=3.3.2" },
-    { name = "pillow", specifier = ">=9.0.0" },
-    { name = "protobuf" },
-    { name = "psutil", specifier = ">=5.9.0" },
-    { name = "pydantic", specifier = ">=2" },
-    { name = "pyloudnorm", marker = "extra == 'audio'", specifier = ">=0.2.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "regex" },
-    { name = "requests", specifier = ">=2.28.0" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "safetensors", specifier = ">=0.4" },
-    { name = "sentencepiece" },
-    { name = "setproctitle", specifier = ">=1.3.3" },
-    { name = "socksio", specifier = ">=1.0.0" },
-    { name = "spacy", marker = "extra == 'audio'", specifier = ">=3.8.4" },
-    { name = "tabulate", specifier = ">=0.9.0" },
-    { name = "tiktoken" },
-    { name = "tokenizers", specifier = ">=0.19.0" },
-    { name = "tqdm", specifier = ">=4.66.0" },
-    { name = "transformers", specifier = ">=5.14.0,<5.18" },
-    { name = "wsproto", marker = "extra == 'audio'", specifier = "==1.2.0" },
-    { name = "xgrammar", marker = "extra == 'grammar'", specifier = "==0.2.3" },
-    { name = "zeroconf", marker = "extra == 'cluster'", specifier = ">=0.131.0" },
-]
-provides-extras = ["grammar", "cluster", "audio", "image", "paroquant"]
-
-[[package]]
-name = "omlx-server"
-version = "0.7.0rc1"
-source = { editable = "apps/server" }
-dependencies = [
-    { name = "fastapi" },
-    { name = "httpx" },
-    { name = "mlx" },
-    { name = "mlx-audio" },
-    { name = "mlx-lm" },
-    { name = "omlx-config" },
-    { name = "omlx-contracts" },
-    { name = "omlx-management" },
-    { name = "omlx-runtime" },
-    { name = "pillow" },
-    { name = "pydantic" },
-    { name = "python-multipart" },
-    { name = "pyyaml" },
-    { name = "soundfile" },
-    { name = "starlette" },
-    { name = "uvicorn" },
-]
-
-[package.optional-dependencies]
-mcp = [
-    { name = "mcp" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "fastapi", specifier = ">=0.108" },
-    { name = "httpx", specifier = ">=0.27,<1" },
-    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=2.0.0,<3" },
-    { name = "mlx", specifier = "==0.32.2" },
-    { name = "mlx-audio", git = "https://github.com/Blaizzy/mlx-audio?rev=49596ac8b69b9ed377db311a73df838795f38a3d" },
-    { name = "mlx-lm", git = "https://github.com/ml-explore/mlx-lm?rev=872ae88d1fac77350db23c8c04fe8dd372a9e3e8" },
-    { name = "omlx-config", editable = "packages/config" },
-    { name = "omlx-contracts", editable = "packages/contracts" },
-    { name = "omlx-management", editable = "packages/management" },
-    { name = "omlx-runtime", editable = "packages/runtime" },
-    { name = "pillow", specifier = ">=9" },
-    { name = "pydantic", specifier = ">=2" },
-    { name = "python-multipart", specifier = ">=0.0.5" },
-    { name = "pyyaml", specifier = ">=6" },
-    { name = "soundfile", specifier = ">=0.12" },
-    { name = "starlette", specifier = ">=0.40" },
-    { name = "uvicorn", specifier = ">=0.23" },
-]
-provides-extras = ["mcp"]
-
-[[package]]
-name = "omlx-workspace"
-version = "0.7.0rc1"
-source = { virtual = "." }
-
-[package.dev-dependencies]
-dev = [
-    { name = "apache-tvm-ffi" },
-    { name = "build" },
-    { name = "mcp" },
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "ruff" },
-    { name = "setuptools" },
-    { name = "wheel" },
-    { name = "xgrammar" },
-]
-
-[package.metadata]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "apache-tvm-ffi", specifier = "==0.1.11" },
-    { name = "build" },
-    { name = "mcp", specifier = ">=2.0.0,<3" },
-    { name = "mypy", specifier = ">=1.0.0" },
-    { name = "pytest", specifier = ">=7.0.0" },
-    { name = "pytest-asyncio", specifier = ">=0.21.0" },
-    { name = "ruff", specifier = ">=0.1.0" },
-    { name = "setuptools", specifier = ">=77" },
-    { name = "wheel" },
-    { name = "xgrammar", specifier = "==0.2.3" },
 ]
 
 [[package]]

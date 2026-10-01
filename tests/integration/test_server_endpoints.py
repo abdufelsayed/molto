@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """
-Integration tests for oMLX server endpoints.
+Integration tests for Molto server endpoints.
 
 Tests the FastAPI endpoints using TestClient with mocked EnginePool and Engine
 to verify request/response formats without loading actual models.
@@ -14,11 +14,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
-from omlx_runtime.engine.base import BaseEngine
-from omlx_runtime.engine.embedding import EmbeddingEngine
-from omlx_runtime.engine.reranker import RerankerEngine
-from omlx_server.api.responses_utils import ResponseStore
-from omlx_server.mcp.types import MCPToolResult
+from molto_runtime.engine.base import BaseEngine
+from molto_runtime.engine.embedding import EmbeddingEngine
+from molto_runtime.engine.reranker import RerankerEngine
+from molto_server.api.responses_utils import ResponseStore
+from molto_server.mcp.types import MCPToolResult
 
 
 @dataclass
@@ -374,7 +374,7 @@ def mock_engine_pool(mock_llm_engine, mock_embedding_engine, mock_reranker_engin
 @pytest.fixture
 def client(mock_engine_pool):
     """Create a test client with mocked server state."""
-    from omlx_server.server import create_app
+    from molto_server.server import create_app
 
     app = create_app()
     _server_state = app.state.server_state
@@ -639,7 +639,7 @@ class TestResponsesEndpoint:
         }
 
     def test_response_stream_summary_log_names_model(self, client, caplog):
-        with caplog.at_level("INFO", logger="omlx_server"):
+        with caplog.at_level("INFO", logger="molto_server"):
             response = client.post(
                 "/v1/responses",
                 json={"model": "test-model", "input": "Hello", "stream": True},
@@ -655,7 +655,7 @@ class TestResponsesEndpoint:
         assert "model=test-model" in summaries[-1]
 
     def test_response_endpoint_recovers_tool_call_from_thinking(self, tmp_path):
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         app = create_app()
         _server_state = app.state.server_state
@@ -731,7 +731,7 @@ class TestResponsesEndpoint:
             _server_state.responses_store = original_store
 
     def test_previous_response_id_persists_across_store_restart(self, tmp_path):
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         app = create_app()
         _server_state = app.state.server_state
@@ -805,7 +805,7 @@ class TestResponsesEndpoint:
             _server_state.responses_store = original_store
 
     def test_missing_previous_response_id_returns_404(self, tmp_path):
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         app = create_app()
         _server_state = app.state.server_state
@@ -1032,7 +1032,7 @@ class TestCompletionEndpoint:
         """A model-level thinking budget (admin settings) applies to
         /v1/completions even when the request omits the parameter, matching
         /v1/chat/completions."""
-        from omlx_config.model_settings import ModelSettings
+        from molto_config.model_settings import ModelSettings
 
         _server_state = client.app.state.server_state
 
@@ -1087,7 +1087,7 @@ class TestChatCompletionEndpoint:
         With several models loaded, interleaved summaries are otherwise
         unattributable.
         """
-        with caplog.at_level("INFO", logger="omlx_server"):
+        with caplog.at_level("INFO", logger="molto_server"):
             response = client.post(
                 "/v1/chat/completions",
                 json={
@@ -1110,10 +1110,10 @@ class TestChatCompletionEndpoint:
         mock_engine_pool,
         monkeypatch,
     ):
-        from omlx_runtime.exceptions import ModelNotFoundError
+        from molto_runtime.exceptions import ModelNotFoundError
 
         _server_state = client.app.state.server_state
-        from omlx_config.settings import GlobalSettings
+        from molto_config.settings import GlobalSettings
 
         settings = GlobalSettings()
         settings.model.model_fallback = True
@@ -1132,7 +1132,7 @@ class TestChatCompletionEndpoint:
 
         monkeypatch.setattr(mock_engine_pool, "get_engine", get_engine)
 
-        with caplog.at_level("INFO", logger="omlx_server"):
+        with caplog.at_level("INFO", logger="molto_server"):
             response = client.post(
                 "/v1/chat/completions",
                 json={
@@ -1450,7 +1450,7 @@ class TestAnthropicMessagesEndpoint:
         assert data["role"] == "assistant"
 
     def test_anthropic_stream_summary_log_names_model(self, client, caplog):
-        with caplog.at_level("INFO", logger="omlx_server"):
+        with caplog.at_level("INFO", logger="molto_server"):
             response = client.post(
                 "/v1/messages",
                 json={
@@ -1562,7 +1562,7 @@ class TestAnthropicMessagesEndpoint:
         self, client, mock_llm_engine, mock_engine_pool, tmp_path
     ):
         """A model:profile id resolves and overlays profile settings on /v1/messages."""
-        from omlx_config.model_settings import ModelSettings, ModelSettingsManager
+        from molto_config.model_settings import ModelSettings, ModelSettingsManager
 
         _server_state = client.app.state.server_state
 
@@ -2139,7 +2139,7 @@ class TestMCPExposeToolsToggle:
     def _install(self, client, expose_tools, manager):
         """Install manager + toggle into server state; returns restore fn."""
         _server_state = client.app.state.server_state
-        from omlx_config.settings import GlobalSettings, MCPSettings
+        from molto_config.settings import GlobalSettings, MCPSettings
 
         original_manager = _server_state.mcp_manager
         original_settings = _server_state.global_settings

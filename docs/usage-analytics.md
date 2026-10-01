@@ -5,7 +5,7 @@ separate dashboard reads it through authenticated
 `GET /management/v1/monitoring/usage`. History starts when recording is enabled;
 existing all-time totals cannot be backfilled.
 
-Usage stays on this server. No telemetry is sent. Only the canonical oMLX model
+Usage stays on this server. No telemetry is sent. Only the canonical Molto model
 ID, hourly bucket, request/token counts, and accumulated durations are stored.
 There are no prompts, responses, messages, token IDs, API keys, headers, client
 IPs, upload names, or document contents. Model IDs are the same identifiers used
@@ -49,7 +49,7 @@ GPU busy time. Missing speed measurements return `null`, not invented throughput
 ## Storage and retention
 
 `<base_path>/usage.sqlite3` lives alongside `stats.json` (normally
-`~/.omlx/usage.sqlite3`; follows `OMLX_BASE_PATH` and an existing app
+`~/.molto/usage.sqlite3`; follows `MOLTO_BASE_PATH` and an existing app
 base-path pointer). Python's built-in SQLite stores one row per active
 model/hour with schema version 1 (`PRAGMA user_version`). Cumulative
 `stats.json` counters remain independent. No new dependency is required.
@@ -76,9 +76,9 @@ recovery backup (plus any
 SQLite sidecars) and a fresh database is created. Future schema versions are left
 untouched. Runtime corruption can require a server restart.
 
-To reset history, stop oMLX and remove `usage.sqlite3`, `usage.sqlite3-wal`, and
+To reset history, stop Molto and remove `usage.sqlite3`, `usage.sqlite3-wal`, and
 `usage.sqlite3-shm` from the configured base directory, if present. Remove the
-`.corrupt` backup and its sidecars too if desired. Restart oMLX to begin fresh.
+`.corrupt` backup and its sidecars too if desired. Restart Molto to begin fresh.
 The management `GET /stats` endpoint reads a separate counter store; it does
 not erase or return hourly history.
 
@@ -86,7 +86,7 @@ not erase or return hourly history.
 
 Usage history is on by default. To disable it, stop the server and set
 `usage.usage_history` to `false` in `settings.json`, then restart. The
-`OMLX_USAGE_HISTORY` environment variable (`0`/`false`/`off` or `1`/`true`/`on`)
+`MOLTO_USAGE_HISTORY` environment variable (`0`/`false`/`off` or `1`/`true`/`on`)
 overrides the saved value at startup.
 
 Disabling recording does not erase `usage.sqlite3`. A server started with
@@ -112,7 +112,7 @@ path. Schema version 1 has the
 For example, with `DB` set to the actual database path:
 
 ```bash
-DB="$HOME/.omlx/usage.sqlite3"
+DB="$HOME/.molto/usage.sqlite3"
 python3 - "$DB" <<'PY'
 import sqlite3
 import sys

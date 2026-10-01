@@ -24,11 +24,11 @@ import sys
 import types
 
 import mlx.core as mx
-import omlx_runtime.patches.deepseek_v41.language as v41_lang
-from omlx_runtime.memory_monitor import MemoryMonitor, make_prefill_memory_profile
-from omlx_runtime.patches.deepseek_v41 import apply_patch
-from omlx_runtime.patches.deepseek_v41.config import ModelConfig
-from omlx_runtime.scheduler import Scheduler
+import molto_runtime.patches.deepseek_v41.language as v41_lang
+from molto_runtime.memory_monitor import MemoryMonitor, make_prefill_memory_profile
+from molto_runtime.patches.deepseek_v41 import apply_patch
+from molto_runtime.patches.deepseek_v41.config import ModelConfig
+from molto_runtime.scheduler import Scheduler
 
 
 def _tiny_model():
@@ -95,7 +95,7 @@ def test_apply_patch_replaces_foreign_vendor_alias_and_warns(caplog):
     fork). An alias that is not the vendor tree must be replaced and the
     event logged at least at WARNING level."""
     pkg = "mlx_vlm.models.deepseek_v41"
-    import omlx_runtime.patches.deepseek_v41.model as vendor_model
+    import molto_runtime.patches.deepseek_v41.model as vendor_model
 
     saved = sys.modules.get(pkg)
     foreign = types.ModuleType(pkg)
@@ -153,7 +153,7 @@ def test_set_model_info_wires_v41_profile_through_scheduler():
     was skipped, and the guard priced chunks from the footprint-delta EWMA
     alone. The vendor naming must resolve and land a static prefill profile
     on the monitor with flat-overhead accounting enabled."""
-    from omlx_runtime.patches.deepseek_v41.model import Model as V41Model
+    from molto_runtime.patches.deepseek_v41.model import Model as V41Model
 
     config = ModelConfig.from_dict(
         {"model_type": "deepseek_v41", "text_config": _v41_release_text_dict()}

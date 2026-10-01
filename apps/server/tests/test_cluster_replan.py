@@ -11,18 +11,18 @@ from types import SimpleNamespace
 import pytest
 from cluster_app import cluster_app
 from fastapi.testclient import TestClient
-from omlx_runtime.cluster import registry as runtime_registry
-from omlx_runtime.cluster.deployment import ClusterDeployment
-from omlx_runtime.cluster.performance import NodePerformanceProfile
-from omlx_runtime.cluster.planner import ModelLayout
-from omlx_runtime.cluster.registry import configure_cluster_registry
-from omlx_runtime.cluster.replan import (
+from molto_runtime.cluster import registry as runtime_registry
+from molto_runtime.cluster.deployment import ClusterDeployment
+from molto_runtime.cluster.performance import NodePerformanceProfile
+from molto_runtime.cluster.planner import ModelLayout
+from molto_runtime.cluster.registry import configure_cluster_registry
+from molto_runtime.cluster.replan import (
     hosts_from_deployment,
     nodes_from_deployment,
     placement_view,
     summarize_deployment,
 )
-from omlx_server.cluster import routes
+from molto_server.cluster import routes
 
 GIB = 1024**3
 
@@ -147,7 +147,7 @@ class _BusyPool(_RecordingPool):
 
     async def prepare_cluster_reload(self, model_id):
         if self.busy:
-            from omlx_runtime.exceptions import ModelBusyError
+            from molto_runtime.exceptions import ModelBusyError
 
             raise ModelBusyError(self.model_id, "replan the distributed cluster")
         await super().prepare_cluster_reload(model_id)

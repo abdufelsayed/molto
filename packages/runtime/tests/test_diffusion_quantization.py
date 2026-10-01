@@ -9,12 +9,12 @@ import pytest
 mx = pytest.importorskip("mlx.core")
 nn = pytest.importorskip("mlx.nn")
 from mlx.utils import tree_flatten
-from omlx_runtime.diffusion.quantization import (
+from molto_runtime.diffusion.quantization import (
     ActivationCollector,
     affine_bytes,
     quantize_transformer,
 )
-from omlx_runtime.quantization.affine import weighted_affine_quantize
+from molto_runtime.quantization.affine import weighted_affine_quantize
 
 
 class TinyTransformer(nn.Module):

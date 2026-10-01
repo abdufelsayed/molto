@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for the cross-engine decode-activity registry."""
 
-from omlx_runtime.decode_activity import DecodeActivityRegistry, get_decode_activity
+from molto_runtime.decode_activity import DecodeActivityRegistry, get_decode_activity
 
 
 class TestDecodeActivityRegistry:

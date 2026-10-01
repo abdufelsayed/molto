@@ -16,8 +16,8 @@ def test_source_affine_checkpoint_loads_whatever_the_index_order(
     tmp_path, index_order, bits
 ):
     """Load packed rows with metadata before or after their weights."""
-    from omlx_runtime.patches.deepseek_v41.loading import load
-    from omlx_runtime.patches.deepseek_v41.quantization import QuantizedProjection
+    from molto_runtime.patches.deepseek_v41.loading import load
+    from molto_runtime.patches.deepseek_v41.quantization import QuantizedProjection
 
     source, _ = write_affine_checkpoint(
         tmp_path, vision=False, bits=bits, index_order=index_order
@@ -43,8 +43,8 @@ def test_sorted_index_puts_metadata_before_its_weight(tmp_path):
 
 def test_source_affine_checkpoint_loads_packed_and_declared_dense(tmp_path):
     """Packed projections become QuantizedProjection, declared-dense ones do not."""
-    from omlx_runtime.patches.deepseek_v41.loading import load
-    from omlx_runtime.patches.deepseek_v41.quantization import QuantizedProjection
+    from molto_runtime.patches.deepseek_v41.loading import load
+    from molto_runtime.patches.deepseek_v41.quantization import QuantizedProjection
 
     source, _ = write_affine_checkpoint(tmp_path, vision=False)
     model, _ = load(source)
@@ -68,8 +68,8 @@ def test_source_affine_checkpoint_loads_packed_and_declared_dense(tmp_path):
 
 def test_source_affine_biased_projection_stays_dense_with_its_bias(tmp_path):
     """A packed projection that carries a dense bias has to materialize."""
-    from omlx_runtime.patches.deepseek_v41.loading import load
-    from omlx_runtime.patches.deepseek_v41.quantization import QuantizedProjection
+    from molto_runtime.patches.deepseek_v41.loading import load
+    from molto_runtime.patches.deepseek_v41.quantization import QuantizedProjection
 
     source, _ = write_affine_checkpoint(tmp_path, vision=True)
     tensors = dict(mx.load(str(source / "model.safetensors")))
@@ -99,7 +99,7 @@ def test_source_affine_biased_projection_stays_dense_with_its_bias(tmp_path):
 
 def test_source_affine_forced_dense_projection_dequantizes_exactly(tmp_path):
     """head/embed have to stay dense, so they must dequantize exactly."""
-    from omlx_runtime.patches.deepseek_v41.loading import load
+    from molto_runtime.patches.deepseek_v41.loading import load
 
     source, _ = write_affine_checkpoint(tmp_path, vision=False)
     tensors = dict(mx.load(str(source / "model.safetensors")))
@@ -125,12 +125,12 @@ def test_source_affine_forced_dense_projection_dequantizes_exactly(tmp_path):
 
 def test_source_affine_experts_are_offload_eligible(tmp_path):
     """The offload plan accepts affine source experts and their metadata."""
-    from omlx_runtime.patches.deepseek_v41.config import ModelConfig
-    from omlx_runtime.patches.deepseek_v41.moe_offload import (
+    from molto_runtime.patches.deepseek_v41.config import ModelConfig
+    from molto_runtime.patches.deepseek_v41.moe_offload import (
         ExpertOffloadPlan,
         estimate_expert_savings,
     )
-    from omlx_runtime.patches.moe_offload_compat import moe_offload_compatibility
+    from molto_runtime.patches.moe_offload_compat import moe_offload_compatibility
 
     source, _ = write_affine_checkpoint(tmp_path, vision=False)
     assert moe_offload_compatibility(source) == (True, "")
@@ -156,14 +156,14 @@ def test_source_affine_experts_are_offload_eligible(tmp_path):
 
 def test_source_affine_convert_round_trip_matches_direct_load(tmp_path):
     """convert() publishes the same affine spec the loader reads directly."""
-    from omlx_runtime.patches.deepseek_v41.convert import convert
-    from omlx_runtime.patches.deepseek_v41.loading import load
+    from molto_runtime.patches.deepseek_v41.convert import convert
+    from molto_runtime.patches.deepseek_v41.loading import load
 
     source, _ = write_affine_checkpoint(tmp_path, vision=False)
     target = tmp_path / "converted"
     convert(source, target)
 
-    specs = json.loads((target / "config.json").read_text())["omlx_deepseek_v41"][
+    specs = json.loads((target / "config.json").read_text())["molto_deepseek_v41"][
         "quantized_modules"
     ]
     for name in (
@@ -199,7 +199,7 @@ def test_source_affine_convert_round_trip_matches_direct_load(tmp_path):
 
 def test_source_quantization_spec_reads_declarations():
     """The declared format decides bits/group/mode; unreadable ones raise."""
-    from omlx_runtime.patches.deepseek_v41.convert import source_quantization_spec
+    from molto_runtime.patches.deepseek_v41.convert import source_quantization_spec
 
     base = {"bits": 2, "group_size": 64, "mode": "affine"}
     resolved = {
@@ -240,7 +240,7 @@ def test_source_quantization_spec_reads_declarations():
 
 def test_source_engram_table_reports_affine_metadata():
     """Affine Engram tables carry their format and stay on one shard."""
-    from omlx_runtime.patches.deepseek_v41.convert import source_engram_tables
+    from molto_runtime.patches.deepseek_v41.convert import source_engram_tables
 
     config = {"quantization": {"bits": 2, "group_size": 64, "mode": "affine"}}
     mapping = {

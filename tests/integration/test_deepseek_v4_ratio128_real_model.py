@@ -2,17 +2,17 @@
 """Opt-in real-checkpoint coverage for DeepSeek V4 ratio-128 attention.
 
 These tests never download models. They load explicitly selected local
-checkpoints through oMLX's public text-model loader and execute a 257-token
+checkpoints through Molto's public text-model loader and execute a 257-token
 prefill plus a 17-token cached continuation so every ratio-128 layer exercises
 pooled KV masks at both zero and nonzero offsets.
 
 Run each checkpoint in its own process to keep the memory boundary explicit:
 
-    OMLX_DEEPSEEK_V4_HIGH_BIT_MODEL_PATH=/path/to/DeepSeek-V4-Flash-0731 \
+    MOLTO_DEEPSEEK_V4_HIGH_BIT_MODEL_PATH=/path/to/DeepSeek-V4-Flash-0731 \
         uv run pytest tests/integration/test_deepseek_v4_ratio128_real_model.py \
         -m slow -k high-bit -s -q
 
-    OMLX_DEEPSEEK_V4_SUB4_MODEL_PATH=/path/to/DeepSeek-V4-Flash-0731-oQ2.5e \
+    MOLTO_DEEPSEEK_V4_SUB4_MODEL_PATH=/path/to/DeepSeek-V4-Flash-0731-oQ2.5e \
         uv run pytest tests/integration/test_deepseek_v4_ratio128_real_model.py \
         -m slow -k sub-four-bit -s -q
 """
@@ -81,8 +81,8 @@ def _configured_checkpoint(environment_variable: str, *, expect_sub4: bool) -> P
 @pytest.mark.parametrize(
     ("environment_variable", "expect_native"),
     (
-        ("OMLX_DEEPSEEK_V4_HIGH_BIT_MODEL_PATH", True),
-        ("OMLX_DEEPSEEK_V4_SUB4_MODEL_PATH", False),
+        ("MOLTO_DEEPSEEK_V4_HIGH_BIT_MODEL_PATH", True),
+        ("MOLTO_DEEPSEEK_V4_SUB4_MODEL_PATH", False),
     ),
     ids=("high-bit-native", "sub-four-bit-reference"),
 )
@@ -90,8 +90,8 @@ def test_real_checkpoint_prefill_selects_ratio128_attention_policy(
     monkeypatch, environment_variable, expect_native
 ):
     import mlx.core as mx
-    from omlx_runtime.custom_kernels.glm_moe_dsa import fast
-    from omlx_runtime.utils.model_loading import load_text_model
+    from molto_runtime.custom_kernels.glm_moe_dsa import fast
+    from molto_runtime.utils.model_loading import load_text_model
 
     model_path = _configured_checkpoint(
         environment_variable,

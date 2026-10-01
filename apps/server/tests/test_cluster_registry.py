@@ -5,9 +5,9 @@ import re
 import stat
 
 import pytest
-from omlx_runtime.cluster.deployment import ClusterDeployment, ClusterHost
-from omlx_runtime.cluster.planner import PipelineAssignment
-from omlx_runtime.cluster.registry import ClusterRegistry
+from molto_runtime.cluster.deployment import ClusterDeployment, ClusterHost
+from molto_runtime.cluster.planner import PipelineAssignment
+from molto_runtime.cluster.registry import ClusterRegistry
 
 
 def _deployment(model: str, deployment_id: str = "test-cluster") -> ClusterDeployment:

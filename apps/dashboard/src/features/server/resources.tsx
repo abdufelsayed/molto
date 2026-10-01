@@ -215,7 +215,7 @@ export function ResourcePanel({ memory }: { memory: Record<string, unknown> }) {
             </Table>
             <p className="text-xs text-muted-foreground">
               Changing a field updates this preview only. Save your memory
-              settings and restart oMLX to apply them. Available memory can
+              settings and restart Molto to apply them. Available memory can
               change as other apps allocate memory.
             </p>
             {!guard && (

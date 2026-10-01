@@ -12,7 +12,7 @@ import shutil
 import sys
 from pathlib import Path
 
-import omlx_runtime.custom_kernels as custom_kernels
+import molto_runtime.custom_kernels as custom_kernels
 import pytest
 
 KERNELS = ["glm_moe_dsa", "minimax_m3", "qwen35_prefill"]

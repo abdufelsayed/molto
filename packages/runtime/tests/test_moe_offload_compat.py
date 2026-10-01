@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.patches.moe_offload_compat import moe_offload_compatibility
+from molto_runtime.patches.moe_offload_compat import moe_offload_compatibility
 
 
 def _checkpoint(path, kind="qwen4_exp", per_expert=False):
@@ -91,8 +91,8 @@ def test_supported_layouts_use_headers_only(tmp_path, monkeypatch, kind, per_exp
     "change", ["missing_expert", "wrong_shape", "wrong_dtype", "bias"]
 )
 def test_incompatible_checkpoint_is_rejected_by_management(tmp_path, change):
-    from omlx_config.model_settings import ModelSettings
-    from omlx_management.management import ManagementService
+    from molto_config.model_settings import ModelSettings
+    from molto_management.management import ManagementService
 
     tensors = _checkpoint(tmp_path, "olmoe", per_expert=True)
     key = "model.layers.1.mlp.experts.15.down_proj.weight"
@@ -173,8 +173,8 @@ def test_checkpoint_replacement_invalidates_eligibility(tmp_path):
 
 
 def test_unsupported_saved_setting_rejected_before_load(tmp_path):
-    from omlx_config.model_settings import ModelSettings
-    from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+    from molto_config.model_settings import ModelSettings
+    from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
     _checkpoint(tmp_path, "mixtral")
     with pytest.raises(ValueError, match="not supported for this model type"):
@@ -192,8 +192,8 @@ def test_glm_loader_paths_match_offload_admission(tmp_path, layout):
     import mlx.nn as nn
     from mlx.utils import tree_flatten
     from mlx_lm.utils import load_model
-    from omlx_runtime.patches.glm_moe_dsa import apply_glm_moe_dsa_patch
-    from omlx_runtime.patches.moe_expert_offload import (
+    from molto_runtime.patches.glm_moe_dsa import apply_glm_moe_dsa_patch
+    from molto_runtime.patches.moe_expert_offload import (
         apply_moe_expert_offload,
         estimate_offload_admission_bytes,
     )
@@ -292,7 +292,7 @@ def test_qwen35_loader_paths_match_offload_admission(tmp_path, flat):
     from mlx.utils import tree_flatten
     from mlx_lm.models.qwen3_5_moe import Model, ModelArgs
     from mlx_lm.utils import load_model
-    from omlx_runtime.patches.moe_expert_offload import (
+    from molto_runtime.patches.moe_expert_offload import (
         apply_moe_expert_offload,
         estimate_offload_admission_bytes,
     )

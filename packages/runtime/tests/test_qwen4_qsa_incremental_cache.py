@@ -9,7 +9,7 @@ import math
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
+from molto_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
 
 compat.apply_mlx_vlm_qwen4_exp_compat_patch()
 language = importlib.import_module("mlx_vlm.models.qwen4_exp.language")

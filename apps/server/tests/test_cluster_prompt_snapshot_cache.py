@@ -5,12 +5,12 @@ requests."""
 
 import mlx.core as mx
 from mlx_lm.models.cache import ArraysCache, CacheList, KVCache, RotatingKVCache
-from omlx_runtime.cluster.prompt_snapshot_cache import (
+from molto_runtime.cluster.prompt_snapshot_cache import (
     SSDPromptSnapshotStore,
     agreed_boundary,
     candidate_boundaries,
 )
-from omlx_runtime.patches.deepseek_v4.cache_extras import PoolingCache
+from molto_runtime.patches.deepseek_v4.cache_extras import PoolingCache
 
 MODEL = ("model-path", None, None)
 STEP = 2048
@@ -456,7 +456,7 @@ def test_an_unserialisable_cache_disables_the_store(tmp_path, monkeypatch):
         raise ValueError("Metadata must be a dictionary with string keys")
 
     monkeypatch.setattr(
-        "omlx_runtime.cluster.prompt_snapshot_cache._save_prompt_snapshot",
+        "molto_runtime.cluster.prompt_snapshot_cache._save_prompt_snapshot",
         _unserialisable,
         raising=True,
     )
@@ -477,7 +477,7 @@ def test_a_disk_error_keeps_the_store_live(tmp_path, monkeypatch):
         raise OSError("no space left on device")
 
     monkeypatch.setattr(
-        "omlx_runtime.cluster.prompt_snapshot_cache._save_prompt_snapshot",
+        "molto_runtime.cluster.prompt_snapshot_cache._save_prompt_snapshot",
         _flaky,
         raising=True,
     )
@@ -493,7 +493,7 @@ def test_a_failed_write_leaves_the_index_unchanged(tmp_path, monkeypatch):
         raise OSError("disk full")
 
     monkeypatch.setattr(
-        "omlx_runtime.cluster.prompt_snapshot_cache._save_prompt_snapshot",
+        "molto_runtime.cluster.prompt_snapshot_cache._save_prompt_snapshot",
         _boom,
         raising=True,
     )
@@ -519,7 +519,7 @@ def test_clear_removes_live_files_without_a_write_behind_flush(tmp_path):
 def test_core_batch_and_quantized_wire_states_round_trip(tmp_path):
     from mlx.utils import tree_flatten
     from mlx_lm.models.cache import BatchKVCache, BatchRotatingKVCache, QuantizedKVCache
-    from omlx_runtime.cluster.prompt_snapshot_cache import (
+    from molto_runtime.cluster.prompt_snapshot_cache import (
         _load_prompt_snapshot,
         _save_prompt_snapshot,
     )

@@ -9,10 +9,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-from omlx_runtime.models.embedding import EmbeddingOutput
-from omlx_server.api.embedding_utils import find_non_finite_embeddings
-from omlx_server.server import create_app
-from omlx_server.state import ServerState
+from molto_runtime.models.embedding import EmbeddingOutput
+from molto_server.api.embedding_utils import find_non_finite_embeddings
+from molto_server.server import create_app
+from molto_server.state import ServerState
 
 
 def test_find_non_finite_embeddings_reports_bad_items_only():
@@ -62,7 +62,7 @@ def _post_embeddings(
     app = create_app(ServerState())
     controller = app.state.controller
     with (
-        patch("omlx_server.transport._JSON_KEEPALIVE_GRACE_S", 0 if keepalive else 2),
+        patch("molto_server.transport._JSON_KEEPALIVE_GRACE_S", 0 if keepalive else 2),
         patch.object(
             controller, "get_embedding_engine", AsyncMock(return_value=engine)
         ),

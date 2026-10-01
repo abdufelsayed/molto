@@ -4,7 +4,7 @@
 import json
 
 import pytest
-from omlx_contracts.api.responses_models import (
+from molto_contracts.api.responses_models import (
     InputItem,
     ResponseObject,
     ResponsesRequest,
@@ -13,8 +13,8 @@ from omlx_contracts.api.responses_models import (
     TextConfig,
     TextFormatConfig,
 )
-from omlx_contracts.api.shared_models import IDPrefix, generate_id
-from omlx_server.api.responses_utils import (
+from molto_contracts.api.shared_models import IDPrefix, generate_id
+from molto_server.api.responses_utils import (
     ResponseStateCorruptError,
     ResponseStateNotFoundError,
     ResponseStore,

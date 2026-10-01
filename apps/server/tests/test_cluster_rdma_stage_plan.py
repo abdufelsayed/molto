@@ -9,22 +9,22 @@ import zlib
 from dataclasses import replace
 
 import pytest
-from omlx_runtime.cluster.deployment import (
+from molto_runtime.cluster.deployment import (
     ClusterDeployment,
     ClusterHost,
     decode_worker_contract,
     decode_worker_stage_links,
 )
-from omlx_runtime.cluster.planner import PipelineAssignment
-from omlx_runtime.cluster.rdma import launch_links
-from omlx_runtime.cluster.rdma.daemon import DaemonStatus, PeerStatus
-from omlx_runtime.cluster.rdma.links import NodeAddress
-from omlx_runtime.cluster.rdma.stage_plan import (
+from molto_runtime.cluster.planner import PipelineAssignment
+from molto_runtime.cluster.rdma import launch_links
+from molto_runtime.cluster.rdma.daemon import DaemonStatus, PeerStatus
+from molto_runtime.cluster.rdma.links import NodeAddress
+from molto_runtime.cluster.rdma.stage_plan import (
     StageLink,
     links_for_rank,
     validate_stage_links,
 )
-from omlx_runtime.cluster.rdma.verification import LinkVerification
+from molto_runtime.cluster.rdma.verification import LinkVerification
 
 _LINK = StageLink(1, 0, "linka", "/tmp/mcdma-rpcd.linka.sock")
 

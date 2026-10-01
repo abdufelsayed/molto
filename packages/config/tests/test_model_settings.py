@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx_config.model_settings module."""
+"""Tests for molto_config.model_settings module."""
 
 import json
 import tempfile
 from pathlib import Path
 
 import pytest
-from omlx_config.model_settings import (
+from molto_config.model_settings import (
     SETTINGS_VERSION,
     ModelSettings,
     ModelSettingsManager,
@@ -96,7 +96,7 @@ class TestModelSettings:
 
     def test_trust_remote_code_excluded_from_profiles(self):
         """Security flag must never propagate via profiles or templates."""
-        from omlx_config.model_profiles import EXCLUDED_FROM_PROFILES
+        from molto_config.model_profiles import EXCLUDED_FROM_PROFILES
 
         assert "trust_remote_code" in EXCLUDED_FROM_PROFILES
 
@@ -627,7 +627,7 @@ class TestModelSettingsManager:
 
     def test_merge_chat_template_request_kwargs_request_overrides_model(self):
         """Request kwargs override model chat-template defaults."""
-        from omlx_config.model_settings import merge_chat_template_request_kwargs
+        from molto_config.model_settings import merge_chat_template_request_kwargs
 
         settings = ModelSettings(
             chat_template_kwargs={
@@ -645,7 +645,7 @@ class TestModelSettingsManager:
 
     def test_merge_chat_template_request_kwargs_dedicated_overrides_raw(self):
         """Dedicated model fields override model raw chat-template kwargs."""
-        from omlx_config.model_settings import merge_chat_template_request_kwargs
+        from molto_config.model_settings import merge_chat_template_request_kwargs
 
         settings = ModelSettings(
             chat_template_kwargs={"enable_thinking": False},
@@ -656,7 +656,7 @@ class TestModelSettingsManager:
 
     def test_merge_chat_template_request_kwargs_respects_forced_keys(self):
         """Forced keys block request-level chat-template overrides."""
-        from omlx_config.model_settings import merge_chat_template_request_kwargs
+        from molto_config.model_settings import merge_chat_template_request_kwargs
 
         settings = ModelSettings(
             chat_template_kwargs={
@@ -676,7 +676,7 @@ class TestModelSettingsManager:
     @pytest.mark.parametrize("budget", [None, 0, 1])
     @pytest.mark.parametrize("enabled", [None, True, False])
     def test_budget_respects_explicit_thinking_mode(self, budget, enabled):
-        from omlx_config.model_settings import merge_chat_template_kwargs
+        from molto_config.model_settings import merge_chat_template_kwargs
 
         kwargs = {} if enabled is None else {"enable_thinking": enabled}
         expected = {"enable_thinking": True} if not kwargs and budget == 1 else kwargs
@@ -686,7 +686,7 @@ class TestModelSettingsManager:
 
     def test_zero_thinking_budget_does_not_enable_thinking(self):
         """Zero means no thinking budget activation at template-render time."""
-        from omlx_config.model_settings import merge_chat_template_kwargs
+        from molto_config.model_settings import merge_chat_template_kwargs
 
         assert merge_chat_template_kwargs(None, thinking_budget=0) == {}
 
@@ -938,7 +938,7 @@ def test_oq_a8_round_trips_through_dict():
 
 def test_oq_a8_is_a_model_specific_profile_field():
     """Never a template field: it is tied to one checkpoint's quantization."""
-    from omlx_config.model_profiles import (
+    from molto_config.model_profiles import (
         MODEL_SPECIFIC_PROFILE_FIELDS,
         UNIVERSAL_FIELDS_SET,
     )

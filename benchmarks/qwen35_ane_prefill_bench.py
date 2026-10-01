@@ -14,13 +14,13 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-os.environ.setdefault("OMLX_QWEN35_Q4_MLP_ALLOW_GS128", "1")
+os.environ.setdefault("MOLTO_QWEN35_Q4_MLP_ALLOW_GS128", "1")
 
 import mlx.core as mx
 
 
 def inject_extension(path: Path):
-    name = "omlx_runtime.custom_kernels.qwen35_prefill._ext"
+    name = "molto_runtime.custom_kernels.qwen35_prefill._ext"
     spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Could not load native extension at {path}")
@@ -68,7 +68,7 @@ def accuracy(model: Any, reference: mx.array, candidate: mx.array) -> dict[str, 
 
 
 def run_body(model: Any, tokens: mx.array) -> mx.array:
-    if getattr(model, "_omlx_benchmark_force_lm", False):
+    if getattr(model, "_molto_benchmark_force_lm", False):
         return hidden_tensor(model.language_model.model(tokens))
     return hidden_tensor(
         model.language_model(tokens, skip_logits=True, return_hidden=True)
@@ -84,11 +84,11 @@ def benchmark_mode(
     mx.eval(output)
     mx.synchronize()
 
-    profile = os.environ.get("OMLX_ANE_PROFILE") == "1" and bool(
-        getattr(model, "_omlx_ane_resident_program_count", 0)
+    profile = os.environ.get("MOLTO_ANE_PROFILE") == "1" and bool(
+        getattr(model, "_molto_ane_resident_program_count", 0)
     )
     if profile:
-        from omlx_runtime.custom_kernels.qwen35_prefill import fast
+        from molto_runtime.custom_kernels.qwen35_prefill import fast
 
         fast.qwen35_ane_profile_reset()
 
@@ -183,7 +183,7 @@ def main() -> None:
     parser.add_argument(
         "--force-lm",
         action="store_true",
-        help="load through oMLX's text-model path, matching the app benchmark",
+        help="load through Molto's text-model path, matching the app benchmark",
     )
     parser.add_argument(
         "--cpu-threads",
@@ -289,9 +289,9 @@ def main() -> None:
         parser.error("CPU down fractions must be between 0 and 0.50")
 
     native_ext = inject_extension(args.extension) if args.extension else None
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
-    from omlx_runtime.patches.qwen35_ane_prefill import enable_qwen35_ane_prefill
-    from omlx_runtime.patches.qwen35_q4_mlp import (
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
+    from molto_runtime.patches.qwen35_ane_prefill import enable_qwen35_ane_prefill
+    from molto_runtime.patches.qwen35_q4_mlp import (
         apply_qwen35_q4_lm_prefill_linear_patch,
         apply_qwen35_q4_mlp_patch,
     )
@@ -302,10 +302,10 @@ def main() -> None:
 
     print(f"Loading {args.model}", flush=True)
     if args.force_lm:
-        from omlx_runtime.utils.model_loading import load_text_model
+        from molto_runtime.utils.model_loading import load_text_model
 
         model, _ = load_text_model(str(args.model))
-        model._omlx_benchmark_force_lm = True
+        model._molto_benchmark_force_lm = True
     else:
         from mlx_vlm.utils import load_model
 
@@ -387,22 +387,22 @@ def main() -> None:
         for result_key, cpu_threads, cpu_gdn_fraction, cpu_down_fraction in variants:
             if cpu_threads is not None:
                 for module in model.modules():
-                    config = getattr(module, "_omlx_ane_prefill_config", None)
+                    config = getattr(module, "_molto_ane_prefill_config", None)
                     if config is not None:
-                        module._omlx_ane_prefill_config = replace(
+                        module._molto_ane_prefill_config = replace(
                             config, cpu_threads=cpu_threads
                         )
-                    gdn_config = getattr(module, "_omlx_ane_gdn_config", None)
+                    gdn_config = getattr(module, "_molto_ane_gdn_config", None)
                     if gdn_config is not None:
-                        module._omlx_ane_gdn_config = replace(
+                        module._molto_ane_gdn_config = replace(
                             gdn_config, cpu_threads=cpu_threads
                         )
             if cpu_gdn_fraction is not None:
-                from omlx_runtime.patches import qwen35_ane_prefill as ane_patch
+                from molto_runtime.patches import qwen35_ane_prefill as ane_patch
 
                 for module in model.modules():
-                    gdn_config = getattr(module, "_omlx_ane_gdn_config", None)
-                    gdn_state = getattr(module, "_omlx_ane_gdn_state", None)
+                    gdn_config = getattr(module, "_molto_ane_gdn_config", None)
+                    gdn_state = getattr(module, "_molto_ane_gdn_state", None)
                     if gdn_config is None or gdn_state is None:
                         continue
                     updated_config = replace(gdn_config, cpu_fraction=cpu_gdn_fraction)
@@ -416,17 +416,17 @@ def main() -> None:
                         raise RuntimeError(
                             f"CPU GDN fraction {cpu_gdn_fraction:.3f} is ineligible"
                         )
-                    module._omlx_ane_gdn_config = updated_config
-                    module._omlx_ane_gdn_state = updated_state
+                    module._molto_ane_gdn_config = updated_config
+                    module._molto_ane_gdn_state = updated_state
                 mx.clear_cache()
             if cpu_down_fraction is not None:
-                from omlx_runtime.patches import qwen35_ane_prefill as ane_patch
+                from molto_runtime.patches import qwen35_ane_prefill as ane_patch
 
                 for module in model.modules():
-                    state = getattr(module, "_omlx_ane_prefill_state", None)
+                    state = getattr(module, "_molto_ane_prefill_state", None)
                     if state is None or not hasattr(module, "down_proj"):
                         continue
-                    module._omlx_ane_prefill_state = replace(
+                    module._molto_ane_prefill_state = replace(
                         state,
                         down_cpu=ane_patch._prepare_cpu_linear(
                             module.down_proj, cpu_down_fraction
@@ -454,23 +454,23 @@ def main() -> None:
                         else args.cpu_gdn_fraction
                     ),
                     "dual_mlp_layers": int(
-                        getattr(model, "_omlx_ane_dual_prefill_count", 0)
+                        getattr(model, "_molto_ane_dual_prefill_count", 0)
                     )
                     if mode != "gpu"
                     else 0,
                     "resident_programs": int(
-                        getattr(model, "_omlx_ane_resident_program_count", 0)
+                        getattr(model, "_molto_ane_resident_program_count", 0)
                     )
                     if mode != "gpu"
                     else 0,
-                    "procedures": int(getattr(model, "_omlx_ane_procedure_count", 0))
+                    "procedures": int(getattr(model, "_molto_ane_procedure_count", 0))
                     if mode != "gpu"
                     else 0,
-                    "gdn_layers": int(getattr(model, "_omlx_ane_gdn_prefill_count", 0))
+                    "gdn_layers": int(getattr(model, "_molto_ane_gdn_prefill_count", 0))
                     if mode != "gpu"
                     else 0,
                     "down_layers": int(
-                        getattr(model, "_omlx_ane_down_prefill_count", 0)
+                        getattr(model, "_molto_ane_down_prefill_count", 0)
                     )
                     if mode != "gpu"
                     else 0,

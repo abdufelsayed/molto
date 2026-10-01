@@ -9,10 +9,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from omlx_runtime.cluster import probe
-from omlx_runtime.cluster.models import TransportState
-from omlx_runtime.cluster.probe import CommandResult
-from omlx_runtime.utils.hardware import HardwareInfo
+from molto_runtime.cluster import probe
+from molto_runtime.cluster.models import TransportState
+from molto_runtime.cluster.probe import CommandResult
+from molto_runtime.utils.hardware import HardwareInfo
 
 
 class FakeRunner:
@@ -108,7 +108,7 @@ def _patch_hardware(monkeypatch) -> None:
     monkeypatch.setattr(probe.platform, "python_version", lambda: "3.11.14")
     monkeypatch.setattr(probe.platform, "mac_ver", lambda: ("26.5.2", (), "arm64"))
     monkeypatch.setattr(
-        "omlx_runtime.cluster.memory_guard.ceiling_breakdown",
+        "molto_runtime.cluster.memory_guard.ceiling_breakdown",
         lambda *_a, **_k: {"hard_limit": 100 * 1024**3},
     )
 
@@ -245,7 +245,7 @@ def test_cuda_status_falls_back_to_safe_budget_when_the_guard_is_absent(monkeypa
         raise RuntimeError("memory guard machinery is not installed")
 
     monkeypatch.setattr(
-        "omlx_runtime.cluster.memory_guard.ceiling_breakdown", _guard_unavailable
+        "molto_runtime.cluster.memory_guard.ceiling_breakdown", _guard_unavailable
     )
     runner = FakeRunner(
         {
@@ -285,7 +285,7 @@ def test_cuda_measured_zero_free_is_not_inflated_to_installed_size(monkeypatch):
     _patch_hardware(monkeypatch)
     monkeypatch.setattr(probe, "detect_accelerator_hardware", _cuda_gb10)
     monkeypatch.setattr(
-        "omlx_runtime.cluster.memory_guard.ceiling_breakdown",
+        "molto_runtime.cluster.memory_guard.ceiling_breakdown",
         lambda *_a, **_k: {"hard_limit": 0},
     )
 
@@ -301,7 +301,7 @@ def test_cuda_measured_ceiling_is_used_verbatim(monkeypatch):
     _patch_hardware(monkeypatch)
     monkeypatch.setattr(probe, "detect_accelerator_hardware", _cuda_gb10)
     monkeypatch.setattr(
-        "omlx_runtime.cluster.memory_guard.ceiling_breakdown",
+        "molto_runtime.cluster.memory_guard.ceiling_breakdown",
         lambda *_a, **_k: {"hard_limit": 40 * 1024**3},
     )
 

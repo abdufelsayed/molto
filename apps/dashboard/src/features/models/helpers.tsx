@@ -284,7 +284,7 @@ export function ModelHelpers({ modelId }: { modelId: string }) {
                     <span className="text-sm">
                       {row.benchmark_id} · Prefill {row.pp_tps ?? "unreported"}{" "}
                       tok/s · Generation {row.tg_tps ?? "unreported"} tok/s ·{" "}
-                      {row.quantization ?? "unreported"} · oMLX{" "}
+                      {row.quantization ?? "unreported"} · Molto{" "}
                       {row.omlx_version ?? "unreported"}
                     </span>
                     <Button
@@ -317,7 +317,7 @@ export function ModelHelpers({ modelId }: { modelId: string }) {
                 id="settings-recipe"
                 value={recipe}
                 onChange={(event) => setRecipe(event.target.value)}
-                placeholder="Paste an oMLX recipe code"
+                placeholder="Paste a Molto recipe code"
               />
               <Button
                 className="w-fit"

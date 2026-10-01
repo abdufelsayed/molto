@@ -16,7 +16,7 @@ import pytest
 # should skip these, not error collecting them.
 pytest.importorskip("mlx_vlm")
 from mlx.utils import tree_flatten
-from omlx_runtime.patches.minimax_m3_mlx_lm import apply_minimax_m3_mlx_lm_patch
+from molto_runtime.patches.minimax_m3_mlx_lm import apply_minimax_m3_mlx_lm_patch
 
 CONFIG = {
     "model_type": "minimax_m3_vl",
@@ -81,7 +81,7 @@ class _Group:
 def _no_stage_pin_leaks_between_tests():
     """A pin is a process global; one test's must never reach the next."""
 
-    from omlx_runtime.patches.minimax_m3_mlx_lm.pipeline_patch import (
+    from molto_runtime.patches.minimax_m3_mlx_lm.pipeline_patch import (
         clear_assigned_stage,
     )
 
@@ -237,7 +237,7 @@ def test_no_collective_is_attempted_on_one_node(monkeypatch):
 
 
 def test_the_patch_is_idempotent():
-    from omlx_runtime.patches.minimax_m3_mlx_lm.pipeline_patch import (
+    from molto_runtime.patches.minimax_m3_mlx_lm.pipeline_patch import (
         apply_minimax_m3_pipeline_patch,
     )
 
@@ -256,7 +256,7 @@ def test_the_planners_uneven_split_is_honoured_not_recomputed():
     limit. Pinning the range is what makes a Workstation reserve mean anything.
     """
 
-    from omlx_runtime.patches.minimax_m3_mlx_lm.pipeline_patch import (
+    from molto_runtime.patches.minimax_m3_mlx_lm.pipeline_patch import (
         clear_assigned_stage,
         set_assigned_stage,
     )
@@ -274,9 +274,9 @@ def test_the_planners_uneven_split_is_honoured_not_recomputed():
 
 
 def test_without_an_assignment_the_even_split_is_unchanged():
-    """Outside oMLX's launcher nothing is pinned; behaviour must not change."""
+    """Outside Molto's launcher nothing is pinned; behaviour must not change."""
 
-    from omlx_runtime.patches.minimax_m3_mlx_lm.pipeline_patch import (
+    from molto_runtime.patches.minimax_m3_mlx_lm.pipeline_patch import (
         clear_assigned_stage,
     )
 
@@ -289,7 +289,7 @@ def test_without_an_assignment_the_even_split_is_unchanged():
 def test_the_effective_stage_reports_what_will_load_not_what_was_planned():
     """What the memory guard must consult."""
 
-    from omlx_runtime.patches.minimax_m3_mlx_lm.pipeline_patch import (
+    from molto_runtime.patches.minimax_m3_mlx_lm.pipeline_patch import (
         clear_assigned_stage,
         effective_stage,
         set_assigned_stage,

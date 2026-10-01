@@ -12,8 +12,8 @@ pytest.importorskip("mlx_vlm.utils")
 
 import mlx.core as mx  # noqa: E402
 import mlx_vlm.utils as _vu  # noqa: E402
-from omlx_runtime.engine.vlm import _strip_vision_config_if_orphaned  # noqa: E402
-from omlx_runtime.model_discovery import discover_models  # noqa: E402
+from molto_runtime.engine.vlm import _strip_vision_config_if_orphaned  # noqa: E402
+from molto_runtime.model_discovery import discover_models  # noqa: E402
 
 MERGED_HEAD = {"mtp_assistant_config": {"num_hidden_layers": 4}}
 
@@ -117,7 +117,7 @@ def test_unified_sanitize_keeps_mtp_head():
     from types import SimpleNamespace
 
     from mlx_vlm.models.gemma4_unified import Model
-    from omlx_runtime.patches.mlx_vlm_mtp import gemma4_vlm_runtime
+    from molto_runtime.patches.mlx_vlm_mtp import gemma4_vlm_runtime
 
     assert gemma4_vlm_runtime.apply()
     head_key = "language_model.mtp.pre_projection.weight"

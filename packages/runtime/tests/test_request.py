@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx_runtime.request module."""
+"""Tests for molto_runtime.request module."""
 
 import time
 
-from omlx_runtime.request import (
+from molto_runtime.request import (
     Request,
     RequestOutput,
     RequestStatus,

@@ -10,7 +10,7 @@ chunked-prefill mask offsets.
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.custom_kernels.glm_moe_dsa import fast as glm_fast
+from molto_runtime.custom_kernels.glm_moe_dsa import fast as glm_fast
 
 _MASK_FOLD_AVAILABLE = (
     glm_fast.is_native_available()

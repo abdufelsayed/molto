@@ -4,17 +4,17 @@
 from unittest.mock import MagicMock
 
 import pytest
-from omlx_runtime.eval.base import BaseBenchmark
-from omlx_runtime.eval.datasets import deterministic_sample, stratified_sample
-from omlx_runtime.eval.gsm8k import (
+from molto_runtime.eval.base import BaseBenchmark
+from molto_runtime.eval.datasets import deterministic_sample, stratified_sample
+from molto_runtime.eval.gsm8k import (
     GSM8KBenchmark,
     _extract_numeric_answer,
     _normalize_number,
 )
-from omlx_runtime.eval.hellaswag import HellaSwagBenchmark
-from omlx_runtime.eval.livecodebench import _extract_code
-from omlx_runtime.eval.mmlu import MMLUBenchmark
-from omlx_runtime.eval.truthfulqa import TruthfulQABenchmark
+from molto_runtime.eval.hellaswag import HellaSwagBenchmark
+from molto_runtime.eval.livecodebench import _extract_code
+from molto_runtime.eval.mmlu import MMLUBenchmark
+from molto_runtime.eval.truthfulqa import TruthfulQABenchmark
 
 # --- MMLU Tests ---
 
@@ -276,7 +276,7 @@ class TestLiveCodeBench:
 
 class TestHumanEval:
     def test_extract_code_with_block(self):
-        from omlx_runtime.eval.humaneval import _extract_code
+        from molto_runtime.eval.humaneval import _extract_code
 
         prompt = "def add(a, b):\n    "
         response = "```python\ndef add(a, b):\n    return a + b\n```"
@@ -284,7 +284,7 @@ class TestHumanEval:
         assert "return a + b" in code
 
     def test_extract_code_body_only(self):
-        from omlx_runtime.eval.humaneval import _extract_code
+        from molto_runtime.eval.humaneval import _extract_code
 
         prompt = "def add(a, b):\n    "
         response = "return a + b"
@@ -294,7 +294,7 @@ class TestHumanEval:
 
     def test_extract_code_preserves_imports(self):
         """Model returns def only — imports from prompt must be prepended."""
-        from omlx_runtime.eval.humaneval import _extract_code
+        from molto_runtime.eval.humaneval import _extract_code
 
         prompt = "from typing import List\n\ndef foo(x: List[int]) -> int:\n    "
         response = "def foo(x: List[int]) -> int:\n    return sum(x)"
@@ -303,7 +303,7 @@ class TestHumanEval:
         assert "return sum(x)" in code
 
     def test_execute_with_tests(self):
-        from omlx_runtime.eval.humaneval import _execute_with_tests
+        from molto_runtime.eval.humaneval import _execute_with_tests
 
         code = "def add(a, b):\n    return a + b"
         test = "def check(candidate):\n    assert candidate(1, 2) == 3\n    assert candidate(0, 0) == 0"
@@ -311,7 +311,7 @@ class TestHumanEval:
         assert passed is True
 
     def test_execute_with_tests_fail(self):
-        from omlx_runtime.eval.humaneval import _execute_with_tests
+        from molto_runtime.eval.humaneval import _execute_with_tests
 
         code = "def add(a, b):\n    return a - b"  # wrong
         test = "def check(candidate):\n    assert candidate(1, 2) == 3"
@@ -319,7 +319,7 @@ class TestHumanEval:
         assert passed is False
 
     def test_close_only_thinking_draft_does_not_pollute_answer(self):
-        from omlx_runtime.eval.humaneval import HumanEvalBenchmark
+        from molto_runtime.eval.humaneval import HumanEvalBenchmark
 
         benchmark = HumanEvalBenchmark()
         item = {
@@ -348,7 +348,7 @@ class TestHumanEval:
 
 class TestStripThinkTags:
     def test_strip_think_block(self):
-        from omlx_runtime.eval.base import BaseBenchmark
+        from molto_runtime.eval.base import BaseBenchmark
 
         text = (
             "<think>\nLet me think about this...\nThe answer should be A.\n</think>\nA"
@@ -356,23 +356,23 @@ class TestStripThinkTags:
         assert BaseBenchmark._strip_think_tags(text) == "A"
 
     def test_strip_empty_think(self):
-        from omlx_runtime.eval.base import BaseBenchmark
+        from molto_runtime.eval.base import BaseBenchmark
 
         assert BaseBenchmark._strip_think_tags("<think></think>B") == "B"
 
     def test_strip_think_block_with_open_tag_in_prompt(self):
-        from omlx_runtime.eval.base import BaseBenchmark
+        from molto_runtime.eval.base import BaseBenchmark
 
         text = "reasoning draft\n</think>\nfinal answer"
         assert BaseBenchmark._strip_think_tags(text) == "final answer"
 
     def test_no_think_tags(self):
-        from omlx_runtime.eval.base import BaseBenchmark
+        from molto_runtime.eval.base import BaseBenchmark
 
         assert BaseBenchmark._strip_think_tags("A") == "A"
 
     def test_incomplete_think_tag(self):
-        from omlx_runtime.eval.base import BaseBenchmark
+        from molto_runtime.eval.base import BaseBenchmark
 
         # Incomplete think tag (no closing) — should be left as-is
         assert (
@@ -386,7 +386,7 @@ class TestStripThinkTags:
 
 class TestThinkingMode:
     def test_benchmark_result_thinking_used_default(self):
-        from omlx_runtime.eval.base import BenchmarkResult
+        from molto_runtime.eval.base import BenchmarkResult
 
         result = BenchmarkResult(
             benchmark_name="test",
@@ -398,7 +398,7 @@ class TestThinkingMode:
         assert result.thinking_used is False
 
     def test_benchmark_result_thinking_used_true(self):
-        from omlx_runtime.eval.base import BenchmarkResult
+        from molto_runtime.eval.base import BenchmarkResult
 
         result = BenchmarkResult(
             benchmark_name="test",
@@ -411,7 +411,7 @@ class TestThinkingMode:
         assert result.thinking_used is True
 
     def test_thinking_token_constants(self):
-        from omlx_runtime.eval.base import THINKING_MAX_TOKENS, THINKING_MIN_TOKENS
+        from molto_runtime.eval.base import THINKING_MAX_TOKENS, THINKING_MIN_TOKENS
 
         assert THINKING_MIN_TOKENS == 8192
         assert THINKING_MAX_TOKENS == 32768
@@ -419,7 +419,7 @@ class TestThinkingMode:
 
     def test_strip_think_tags_with_answer(self):
         """Thinking content is stripped, leaving only the answer."""
-        from omlx_runtime.eval.base import BaseBenchmark
+        from molto_runtime.eval.base import BaseBenchmark
 
         text = "<think>\nLet me analyze option A vs B.\nA seems correct.\n</think>\nThe answer is A"
         result = BaseBenchmark._strip_think_tags(text)
@@ -439,7 +439,7 @@ class TestLocalStopReason:
         model_type = None
 
         async def chat(self, messages, **kwargs):
-            from omlx_runtime.engine.base import GenerationOutput
+            from molto_runtime.engine.base import GenerationOutput
 
             if messages[0]["content"] == "cut":
                 return GenerationOutput(
@@ -570,14 +570,14 @@ class TestBenchmarkRegistry:
 
     def test_instantiate_all(self):
         """Every registered class instantiates without error."""
-        from omlx_runtime.eval import BENCHMARKS
+        from molto_runtime.eval import BENCHMARKS
 
         for cls in BENCHMARKS.values():
             cls()
 
 
 def _registered_benchmark_names():
-    from omlx_runtime.eval import BENCHMARKS
+    from molto_runtime.eval import BENCHMARKS
 
     return sorted(BENCHMARKS.keys())
 
@@ -585,7 +585,7 @@ def _registered_benchmark_names():
 @pytest.mark.parametrize("name", _registered_benchmark_names())
 async def test_load_sample_per_benchmark(name):
     """Each registered benchmark loads a 10-row sample without crashing."""
-    from omlx_runtime.eval import BENCHMARKS
+    from molto_runtime.eval import BENCHMARKS
 
     bench = BENCHMARKS[name]()
     items = await bench.load_dataset(sample_size=10)
@@ -655,7 +655,7 @@ class TestExternalEvalDiagnostics:
     async def _run(self, output):
         from unittest.mock import AsyncMock
 
-        from omlx_runtime.eval.cmmlu import CMMLUBenchmark
+        from molto_runtime.eval.cmmlu import CMMLUBenchmark
 
         engine = MagicMock(is_external_api=True, model_type=None)
         engine.chat = AsyncMock(return_value=output)
@@ -713,7 +713,7 @@ class TestExternalEvalDiagnostics:
         assert engine.chat.await_count == 1
 
     def test_missing_extracted_answer_is_parse_error(self):
-        from omlx_runtime.eval.cmmlu import CMMLUBenchmark
+        from molto_runtime.eval.cmmlu import CMMLUBenchmark
 
         benchmark = CMMLUBenchmark()
         benchmark.extract_answer = MagicMock(return_value=None)
@@ -736,9 +736,9 @@ async def test_code_benchmark_custom_runners_accept_diagnostic_result(
 ):
     from unittest.mock import AsyncMock
 
-    from omlx_runtime.eval.humaneval import HumanEvalBenchmark
-    from omlx_runtime.eval.livecodebench import LiveCodeBenchBenchmark
-    from omlx_runtime.eval.mbpp import MBPPBenchmark
+    from molto_runtime.eval.humaneval import HumanEvalBenchmark
+    from molto_runtime.eval.livecodebench import LiveCodeBenchBenchmark
+    from molto_runtime.eval.mbpp import MBPPBenchmark
 
     benchmark_classes = {
         "humaneval": HumanEvalBenchmark,

@@ -11,7 +11,7 @@ between a usable model and an unusable one.
 from __future__ import annotations
 
 import pytest
-from omlx_runtime.cluster.planner import (
+from molto_runtime.cluster.planner import (
     ModelLayout,
     NodeBudget,
     PlanningError,

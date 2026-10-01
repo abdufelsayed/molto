@@ -3,8 +3,8 @@ requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "omlx-contracts"
-version = "0.7.0rc1"
+name = "molto-contracts"
+version = "0.1.0.dev0"
 requires-python = ">=3.11,<3.14"
 dependencies = ["pydantic>=2"]
 

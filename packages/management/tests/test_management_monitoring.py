@@ -6,11 +6,11 @@ import pytest
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
-from omlx_management.management import ManagementError
-from omlx_management.management_monitoring import MonitoringService
-from omlx_runtime.usage_history import UsageHistory
-from omlx_server.api.management_monitoring_routes import router
-from omlx_server.auth import AuthContext
+from molto_management.management import ManagementError
+from molto_management.management_monitoring import MonitoringService
+from molto_runtime.usage_history import UsageHistory
+from molto_server.api.management_monitoring_routes import router
+from molto_server.auth import AuthContext
 
 
 @pytest.fixture
@@ -30,7 +30,7 @@ def setup(tmp_path):
             "final_ceiling": 64,
         },
     )
-    from omlx_runtime.cache_operations import activity, probe
+    from molto_runtime.cache_operations import activity, probe
 
     pool.probe_cache = lambda request, settings: probe(pool, request, settings)
     pool.activity_snapshot = lambda supplied_metrics: activity(pool, supplied_metrics)
@@ -138,13 +138,13 @@ def test_usage_disabled_error_filters_and_details(setup):
 def test_rotated_logs_filter_and_traversal(setup):
     client, _, _, path = setup
     (path / "server.log").write_text(
-        "2026-10-01 10:00:00,001 - omlx_server.server - INFO - first\n2026-10-01 10:00:00,002 - omlx_server.server - ERROR - second\n2026-10-01 10:00:00,003 - omlx_server.server - INFO - third\n2026-10-01 10:00:00,004 - omlx_server.server - ERROR - fourth\n"
+        "2026-10-01 10:00:00,001 - molto_server.server - INFO - first\n2026-10-01 10:00:00,002 - molto_server.server - ERROR - second\n2026-10-01 10:00:00,003 - molto_server.server - INFO - third\n2026-10-01 10:00:00,004 - molto_server.server - ERROR - fourth\n"
     )
     (path / "server.log.1").write_text("WARNING rotated\n")
     result = client.get("/management/v1/monitoring/logs?lines=1&level=ERROR").json()
     assert (
         result["logs"]
-        == "2026-10-01 10:00:00,004 - omlx_server.server - ERROR - fourth\n"
+        == "2026-10-01 10:00:00,004 - molto_server.server - ERROR - fourth\n"
     )
     assert result["matched_lines"] == 2 and result["total_lines"] == 4
     assert "server.log.1" in result["available_files"]
@@ -263,7 +263,7 @@ def test_probe_boundaries_and_reset(setup):
         client.post("/management/v1/monitoring/cache/probe", json=payload).status_code
         == 400
     )
-    from omlx_runtime.cache.paged_cache import compute_block_hash
+    from molto_runtime.cache.paged_cache import compute_block_hash
 
     block_hash = compute_block_hash(b"", [1, 2], extra_keys=None, model_name="x")
     scheduler = SimpleNamespace(
@@ -375,7 +375,7 @@ def test_unknown_mutation_fields_rejected(setup):
 def test_log_severity_field_minimum_and_continuations(setup):
     client, _, _, path = setup
     (path / "server.log").write_text(
-        "2026-10-01 10:00:00,001 - omlx_server.server - INFO - message containing ERROR\n2026-10-01 10:00:00,002 - omlx_server.server - ERROR - actual error\nTraceback continuation\n2026-10-01 10:00:00,003 - omlx_server.server - CRITICAL - worse\n"
+        "2026-10-01 10:00:00,001 - molto_server.server - INFO - message containing ERROR\n2026-10-01 10:00:00,002 - molto_server.server - ERROR - actual error\nTraceback continuation\n2026-10-01 10:00:00,003 - molto_server.server - CRITICAL - worse\n"
     )
     result = client.get("/management/v1/monitoring/logs?level=ERROR").json()
     assert "containing ERROR" not in result["logs"]
@@ -392,12 +392,12 @@ def test_log_scan_large_history_and_long_physical_line(setup):
     (path / "server.log").write_bytes(
         b"ERROR older unsearched\n"
         + b"x" * (2 * 1024 * 1024)
-        + b"\n2026-10-01 10:00:00,001 - omlx_server.server - INFO - ERROR in message\n2026-10-01 10:00:00,002 - omlx_server.server - ERROR - newest\n"
+        + b"\n2026-10-01 10:00:00,001 - molto_server.server - INFO - ERROR in message\n2026-10-01 10:00:00,002 - molto_server.server - ERROR - newest\n"
     )
     result = client.get("/management/v1/monitoring/logs?level=ERROR").json()
     assert (
         result["logs"]
-        == "2026-10-01 10:00:00,002 - omlx_server.server - ERROR - newest\n"
+        == "2026-10-01 10:00:00,002 - molto_server.server - ERROR - newest\n"
     )
     assert result["total_lines"] is None
     assert result["scan_truncated"] and result["scan_message"]
@@ -411,10 +411,10 @@ def test_log_scan_large_history_and_long_physical_line(setup):
 def test_spoofed_severity_continuation_keeps_record_level(setup):
     client, _, _, path = setup
     (path / "server.log").write_text(
-        "2026-10-01 10:00:00,001 - omlx_server.server - INFO - ordinary record\n"
+        "2026-10-01 10:00:00,001 - molto_server.server - INFO - ordinary record\n"
         "ERROR this is message content\n"
         "still info content\n"
-        "2026-10-01 10:00:00,002 - omlx_server.server - ERROR - real failure\n"
+        "2026-10-01 10:00:00,002 - molto_server.server - ERROR - real failure\n"
         "real failure continuation\n"
         '{"level":"INFO","message":"JSON INFO mentioning ERROR"}\n'
         '{"level":"CRITICAL","message":"JSON critical"}\n'
@@ -441,7 +441,7 @@ def test_versions_bundle_provenance_without_internal_distribution(
 ):
     import importlib.metadata
 
-    import omlx_runtime.version_sources as sources
+    import molto_runtime.version_sources as sources
 
     client, *_ = setup
     resources = tmp_path / "runtime"

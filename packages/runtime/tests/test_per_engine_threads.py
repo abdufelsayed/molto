@@ -6,9 +6,9 @@ from unittest.mock import MagicMock, call, patch
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.engine_core import EngineCore
-from omlx_runtime.request import Request, SamplingParams
-from omlx_runtime.scheduler import Scheduler, SchedulerConfig
+from molto_runtime.engine_core import EngineCore
+from molto_runtime.request import Request, SamplingParams
+from molto_runtime.scheduler import Scheduler, SchedulerConfig
 
 
 class TestSchedulerStreamParam:
@@ -30,7 +30,7 @@ class TestSchedulerStreamParam:
         assert scheduler._stream is stream
 
     def test_scheduler_defaults_to_generation_stream(self):
-        from omlx_runtime.scheduler import _default_generation_stream
+        from molto_runtime.scheduler import _default_generation_stream
 
         mock_model = MagicMock()
         mock_model.model_type = "test"
@@ -55,7 +55,7 @@ class TestSchedulerStreamIsolation:
         import inspect
         import re
 
-        import omlx_runtime.scheduler as sched_mod
+        import molto_runtime.scheduler as sched_mod
 
         source = inspect.getsource(sched_mod.Scheduler)
 
@@ -173,7 +173,7 @@ class TestSchedulerStreamIsolation:
 
         with (
             patch(
-                "omlx_runtime.patches.specprefill.score_tokens",
+                "molto_runtime.patches.specprefill.score_tokens",
                 side_effect=record_specprefill_stream,
             ),
             concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor,
@@ -197,7 +197,7 @@ class TestMtpStreamIsolation:
     def test_mtp_patch_no_get_generation_stream(self):
         """_get_generation_stream must not exist — MTP inherits the stream
         from the enclosing BatchGenerator context."""
-        import omlx_runtime.patches.mlx_lm_mtp.batch_generator as mtp_mod
+        import molto_runtime.patches.mlx_lm_mtp.batch_generator as mtp_mod
 
         assert not hasattr(mtp_mod, "_get_generation_stream"), (
             "_get_generation_stream still exists in MTP patch; "
@@ -208,7 +208,7 @@ class TestMtpStreamIsolation:
         """MTP patch source must not read sys.modules generation_stream."""
         import inspect
 
-        import omlx_runtime.patches.mlx_lm_mtp.batch_generator as mtp_mod
+        import molto_runtime.patches.mlx_lm_mtp.batch_generator as mtp_mod
 
         source = inspect.getsource(mtp_mod)
         assert "generation_stream" not in source, (
@@ -229,7 +229,7 @@ class TestPerEngineExecutor:
         mock_tokenizer = MagicMock()
         mock_tokenizer.eos_token_id = 0
 
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine_a = EngineCore(mock_model_a, mock_tokenizer)
@@ -247,7 +247,7 @@ class TestPerEngineExecutor:
         mock_tokenizer = MagicMock()
         mock_tokenizer.eos_token_id = 0
 
-        with patch("omlx_runtime.engine_core.get_registry") as mock_registry:
+        with patch("molto_runtime.engine_core.get_registry") as mock_registry:
             mock_registry.return_value.acquire.return_value = True
 
             engine = EngineCore(mock_model, mock_tokenizer)
@@ -263,9 +263,9 @@ class TestPerEngineExecutor:
         mock_tokenizer.eos_token_id = 0
 
         with (
-            patch("omlx_runtime.engine_core.get_registry") as mock_registry,
+            patch("molto_runtime.engine_core.get_registry") as mock_registry,
             patch(
-                "omlx_runtime.engine_core._final_engine_thread_reclaim"
+                "molto_runtime.engine_core._final_engine_thread_reclaim"
             ) as mock_reclaim,
         ):
             mock_registry.return_value.acquire.return_value = True
@@ -294,20 +294,20 @@ class TestPerEngineExecutor:
 
     def test_final_reclaim_clears_worker_thread_streams(self):
         """The last operation on an MLX worker must release its stream registry."""
-        from omlx_runtime.engine_core import _final_engine_thread_reclaim
+        from molto_runtime.engine_core import _final_engine_thread_reclaim
 
         order = []
         with (
             patch(
-                "omlx_runtime.engine_core.gc.collect",
+                "molto_runtime.engine_core.gc.collect",
                 side_effect=lambda: order.append("gc"),
             ),
             patch(
-                "omlx_runtime.engine_core._sync_and_clear_cache",
+                "molto_runtime.engine_core._sync_and_clear_cache",
                 side_effect=lambda _stream: order.append("cache"),
             ),
             patch(
-                "omlx_runtime.engine_core.clear_thread_streams",
+                "molto_runtime.engine_core.clear_thread_streams",
                 side_effect=lambda: order.append("streams"),
             ),
         ):
@@ -316,17 +316,17 @@ class TestPerEngineExecutor:
         assert order == ["gc", "cache", "gc", "streams"]
 
     def test_stream_cleanup_synchronizes_before_registry_clear(self):
-        from omlx_runtime.utils.metal_sync import clear_thread_streams
+        from molto_runtime.utils.metal_sync import clear_thread_streams
 
-        with patch("omlx_runtime.utils.metal_sync.mx") as mock_mx:
+        with patch("molto_runtime.utils.metal_sync.mx") as mock_mx:
             clear_thread_streams()
 
         assert mock_mx.method_calls == [call.synchronize(), call.clear_streams()]
 
     def test_stream_cleanup_handles_an_unused_worker(self):
-        from omlx_runtime.utils.metal_sync import clear_thread_streams
+        from molto_runtime.utils.metal_sync import clear_thread_streams
 
-        with patch("omlx_runtime.utils.metal_sync.mx") as mock_mx:
+        with patch("molto_runtime.utils.metal_sync.mx") as mock_mx:
             mock_mx.synchronize.side_effect = RuntimeError("no stream")
             clear_thread_streams()
 
@@ -369,7 +369,7 @@ class TestConcurrentStreamIsolation:
     def test_module_level_generation_stream_unchanged(self):
         """Creating schedulers with explicit streams must not modify the
         module-level _default_generation_stream."""
-        from omlx_runtime.scheduler import _default_generation_stream
+        from molto_runtime.scheduler import _default_generation_stream
 
         original_id = id(_default_generation_stream)
         stream = mx.new_thread_local_stream(mx.default_device())
@@ -385,7 +385,7 @@ class TestConcurrentStreamIsolation:
             stream=stream,
         )
 
-        from omlx_runtime.scheduler import _default_generation_stream as current
+        from molto_runtime.scheduler import _default_generation_stream as current
 
         assert id(current) == original_id
 

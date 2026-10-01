@@ -10,8 +10,8 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-from omlx_runtime.utils import model_loading
-from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+from molto_runtime.utils import model_loading
+from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
 
 def _write_config(tmp_path, body: str) -> str:
@@ -20,7 +20,7 @@ def _write_config(tmp_path, body: str) -> str:
 
 
 def _load_patched_glm_module():
-    from omlx_runtime.patches.glm_moe_dsa import apply_glm_moe_dsa_patch
+    from molto_runtime.patches.glm_moe_dsa import apply_glm_moe_dsa_patch
 
     apply_glm_moe_dsa_patch()
     from mlx_lm.models import glm_moe_dsa
@@ -81,13 +81,13 @@ def test_pre_load_dispatch_applies_glm_patch(tmp_path, monkeypatch):
     monkeypatch.setattr(model_loading, "_patch_mlx_lm_load_config", lambda: None)
     monkeypatch.setitem(
         sys.modules,
-        "omlx_runtime.patches.mlx_lm_mtp",
+        "molto_runtime.patches.mlx_lm_mtp",
         MagicMock(set_mtp_active=MagicMock()),
     )
     apply_mock = MagicMock(return_value=True)
     monkeypatch.setitem(
         sys.modules,
-        "omlx_runtime.patches.glm_moe_dsa",
+        "molto_runtime.patches.glm_moe_dsa",
         MagicMock(apply_glm_moe_dsa_patch=apply_mock),
     )
 
@@ -197,7 +197,7 @@ def test_glm_mxfp4_fused_gate_up_quant_spec_avoids_bias_parameter():
 
 
 def test_glm_adaptive_prefill_config_defaults_and_gates(monkeypatch):
-    from omlx_runtime.patches.glm_moe_dsa.generate_patch import (
+    from molto_runtime.patches.glm_moe_dsa.generate_patch import (
         _glm_dsa_adaptive_prefill_config,
         _prefill_step_size_for_progress,
     )
@@ -232,7 +232,7 @@ def test_glm_adaptive_prefill_config_defaults_and_gates(monkeypatch):
 
 
 def test_glm_adaptive_prefill_config_env_overrides(monkeypatch):
-    from omlx_runtime.patches.glm_moe_dsa.generate_patch import (
+    from molto_runtime.patches.glm_moe_dsa.generate_patch import (
         _glm_dsa_adaptive_prefill_config,
         _prefill_step_size_for_progress,
     )
@@ -258,9 +258,9 @@ def test_glm_patch_keeps_vendored_helpers_private():
     glm_moe_dsa = _load_patched_glm_module()
 
     from mlx_lm.models import deepseek_v32 as upstream_deepseek_v32
-    from omlx_runtime.patches.glm_moe_dsa import deepseek_v32 as vendored_deepseek_v32
+    from molto_runtime.patches.glm_moe_dsa import deepseek_v32 as vendored_deepseek_v32
 
-    assert getattr(glm_moe_dsa, "_OMLX_GLM_DSA_OPTIMIZED", False)
+    assert getattr(glm_moe_dsa, "_MOLTO_GLM_DSA_OPTIMIZED", False)
     assert sys.modules["mlx_lm.models.glm_moe_dsa"] is glm_moe_dsa
     assert glm_moe_dsa.DeepseekV32Model is vendored_deepseek_v32.DeepseekV32Model
     assert upstream_deepseek_v32 is not vendored_deepseek_v32
@@ -298,7 +298,7 @@ def test_glm_patch_installs_native_indexer_schedule():
 def test_glm_indexer_rope_interleave_matches_upstream_contract(monkeypatch):
     glm_moe_dsa = _load_patched_glm_module()
 
-    from omlx_runtime.patches.glm_moe_dsa import deepseek_v32 as vendored_deepseek_v32
+    from molto_runtime.patches.glm_moe_dsa import deepseek_v32 as vendored_deepseek_v32
 
     glm_fields = glm_moe_dsa.ModelArgs.__dataclass_fields__
     dsv32_fields = vendored_deepseek_v32.ModelArgs.__dataclass_fields__
@@ -322,7 +322,7 @@ def test_glm_indexer_rope_interleave_matches_upstream_contract(monkeypatch):
 
 
 def test_glm_direct_sparse_mla_uses_fork_default_threshold(monkeypatch):
-    from omlx_runtime.patches.glm_moe_dsa import glm_moe_dsa_model
+    from molto_runtime.patches.glm_moe_dsa import glm_moe_dsa_model
 
     monkeypatch.setattr(
         glm_moe_dsa_model.glm_fast,
@@ -337,9 +337,9 @@ def test_glm_native_fused_kernels_match_reference(monkeypatch):
     mx = pytest.importorskip("mlx.core")
 
     try:
-        from omlx_runtime.custom_kernels.glm_moe_dsa import fast
+        from molto_runtime.custom_kernels.glm_moe_dsa import fast
     except Exception as exc:  # pragma: no cover - depends on local native build
-        pytest.skip(f"omlx_runtime.custom_kernels.glm_moe_dsa is unavailable: {exc}")
+        pytest.skip(f"molto_runtime.custom_kernels.glm_moe_dsa is unavailable: {exc}")
 
     if not fast.is_native_available():
         pytest.skip("GLM MoE DSA native extension is unavailable")
@@ -387,7 +387,7 @@ def test_glm_native_fused_kernels_match_reference(monkeypatch):
     mx.eval(y_native, y_ref)
     assert float(mx.max(mx.abs(y_native - y_ref)).item()) <= 0.125
 
-    from omlx_runtime.patches.glm_moe_dsa.sparse_mla import fused_indexer_scores
+    from molto_runtime.patches.glm_moe_dsa.sparse_mla import fused_indexer_scores
 
     def assert_padded_indexer_scores_match(L, K, offset_view=False):
         B, H, D = 1, 32, 128
@@ -572,7 +572,7 @@ def test_glm_native_fused_kernels_match_reference(monkeypatch):
     if not fast.has_symbol("glm_dsa_exact_block_attention"):
         pytest.skip("GLM exact block-token attention native kernel is unavailable")
 
-    from omlx_runtime.patches.glm_moe_dsa.sparse_mla import topk_indices_to_block_masks
+    from molto_runtime.patches.glm_moe_dsa.sparse_mla import topk_indices_to_block_masks
 
     batch, heads, q_len, k_len, dims, topk = 1, 2, 32, 32, 256, 8
     scale = dims**-0.5
@@ -633,23 +633,23 @@ def test_deepseek_affine_block_moe_kernels_match_gather_qmm():
     mx = pytest.importorskip("mlx.core")
 
     try:
-        from omlx_runtime.custom_kernels.glm_moe_dsa import fast
+        from molto_runtime.custom_kernels.glm_moe_dsa import fast
     except Exception as exc:  # pragma: no cover - depends on local native build
-        pytest.skip(f"omlx_runtime.custom_kernels.glm_moe_dsa is unavailable: {exc}")
+        pytest.skip(f"molto_runtime.custom_kernels.glm_moe_dsa is unavailable: {exc}")
 
     if not fast.is_native_available():
         pytest.skip("GLM MoE DSA native extension is unavailable")
     if not fast.has_symbol("deepseek_affine_gather_qmm_blocks"):
         pytest.skip("DeepSeek affine block-list kernels are unavailable")
 
-    from omlx_runtime.custom_kernels.nax import is_nax_available
+    from molto_runtime.custom_kernels.nax import is_nax_available
 
     if is_nax_available():
         # Stock gather_qmm runs the NAX kernels here, whose accumulation
         # order differs from the simdgroup block kernels.
         pytest.skip("reference gather_qmm is not bit-comparable on NAX GPUs")
 
-    from omlx_runtime.patches.deepseek_v4.switch_layers import (
+    from molto_runtime.patches.deepseek_v4.switch_layers import (
         _block_config,
         _build_mxfp4_blocks,
     )
@@ -761,7 +761,7 @@ def test_deepseek_block_thresholds_are_scoped_by_native_kind(
 ):
     pytest.importorskip("mlx.core")
 
-    from omlx_runtime.patches.deepseek_v4 import switch_layers
+    from molto_runtime.patches.deepseek_v4 import switch_layers
 
     monkeypatch.setattr(
         switch_layers,
@@ -776,17 +776,17 @@ def test_deepseek_switchglu_uses_affine_block_kernels(monkeypatch):
     mx = pytest.importorskip("mlx.core")
 
     try:
-        from omlx_runtime.custom_kernels.glm_moe_dsa import fast
+        from molto_runtime.custom_kernels.glm_moe_dsa import fast
     except Exception as exc:  # pragma: no cover - depends on local native build
-        pytest.skip(f"omlx_runtime.custom_kernels.glm_moe_dsa is unavailable: {exc}")
+        pytest.skip(f"molto_runtime.custom_kernels.glm_moe_dsa is unavailable: {exc}")
 
     if not fast.is_native_available():
         pytest.skip("GLM MoE DSA native extension is unavailable")
     if not fast.has_symbol("deepseek_affine_gather_qmm_pair_concat_blocks"):
         pytest.skip("DeepSeek affine block-list kernels are unavailable")
 
-    from omlx_runtime.patches.deepseek_v4 import switch_layers
-    from omlx_runtime.patches.deepseek_v4.switch_layers import SwitchGLU
+    from molto_runtime.patches.deepseek_v4 import switch_layers
+    from molto_runtime.patches.deepseek_v4.switch_layers import SwitchGLU
 
     # NAX GPUs send prefill-sized calls to stock gather_qmm instead.
     monkeypatch.setattr(switch_layers, "_nax_prefers_stock", lambda num_routes: False)
@@ -840,17 +840,17 @@ def test_deepseek_switchglu_uses_fp16_affine_blocks_for_bf16_inputs(monkeypatch)
     mx = pytest.importorskip("mlx.core")
 
     try:
-        from omlx_runtime.custom_kernels.glm_moe_dsa import fast
+        from molto_runtime.custom_kernels.glm_moe_dsa import fast
     except Exception as exc:  # pragma: no cover - depends on local native build
-        pytest.skip(f"omlx_runtime.custom_kernels.glm_moe_dsa is unavailable: {exc}")
+        pytest.skip(f"molto_runtime.custom_kernels.glm_moe_dsa is unavailable: {exc}")
 
     if not fast.is_native_available():
         pytest.skip("GLM MoE DSA native extension is unavailable")
     if not fast.has_symbol("deepseek_affine_gather_qmm_pair_concat_blocks"):
         pytest.skip("DeepSeek affine block-list kernels are unavailable")
 
-    from omlx_runtime.patches.deepseek_v4 import switch_layers
-    from omlx_runtime.patches.deepseek_v4.switch_layers import SwitchGLU
+    from molto_runtime.patches.deepseek_v4 import switch_layers
+    from molto_runtime.patches.deepseek_v4.switch_layers import SwitchGLU
 
     # NAX GPUs send prefill-sized calls to stock gather_qmm instead.
     monkeypatch.setattr(switch_layers, "_nax_prefers_stock", lambda num_routes: False)
@@ -911,8 +911,8 @@ def test_deepseek_switchglu_uses_fp16_affine_blocks_for_bf16_inputs(monkeypatch)
 def test_deepseek_switchglu_does_not_use_native_weighted_sum(monkeypatch):
     mx = pytest.importorskip("mlx.core")
 
-    from omlx_runtime.custom_kernels.glm_moe_dsa import fast
-    from omlx_runtime.patches.deepseek_v4.switch_layers import SwitchGLU
+    from molto_runtime.custom_kernels.glm_moe_dsa import fast
+    from molto_runtime.patches.deepseek_v4.switch_layers import SwitchGLU
 
     orig_has_symbol = fast.has_symbol
     calls = {"weighted_sum": 0}
@@ -952,7 +952,7 @@ def test_glm_moe_sums_routes_when_weighted_sum_declines(monkeypatch):
     """The SwitchGLU returns unsummed routes when the kernel rejects a shape."""
     mx = pytest.importorskip("mlx.core")
 
-    from omlx_runtime.patches.glm_moe_dsa import deepseek_v32
+    from molto_runtime.patches.glm_moe_dsa import deepseek_v32
 
     B, L, K, D = 1, 64, 8, 16
     x = mx.random.normal((B, L, D), dtype=mx.bfloat16)
@@ -1085,10 +1085,10 @@ def test_glm_cachelist_hot_and_cold_round_trip(tmp_path):
     mx = pytest.importorskip("mlx.core")
     glm_moe_dsa = _load_patched_glm_module()
 
-    from omlx_runtime.cache.paged_cache import PagedCacheManager
-    from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
-    from omlx_runtime.cache.prefix_cache import BlockAwarePrefixCache
-    from omlx_runtime.scheduler import Scheduler
+    from molto_runtime.cache.paged_cache import PagedCacheManager
+    from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+    from molto_runtime.cache.prefix_cache import BlockAwarePrefixCache
+    from molto_runtime.scheduler import Scheduler
 
     args = _small_glm_args(glm_moe_dsa)
     model = glm_moe_dsa.Model(args)
@@ -1184,7 +1184,7 @@ def test_glm_indexer_decode_rows_skip_fused_scores_kernel(monkeypatch):
     glm_moe_dsa = _load_patched_glm_module()
 
     from mlx_lm.models.cache import KVCache
-    from omlx_runtime.patches.glm_moe_dsa import deepseek_v32 as dsv32
+    from molto_runtime.patches.glm_moe_dsa import deepseek_v32 as dsv32
 
     assert dsv32._FUSED_SCORES_MIN_S == 16
 
@@ -1245,7 +1245,7 @@ def _glm_generate_patch_installed():
     out of other tests. Re-entry is safe: when the patch is already installed
     the apply call is a no-op and the saved originals are the patched ones.
     """
-    from omlx_runtime.patches.glm_moe_dsa import generate_patch as patch_mod
+    from molto_runtime.patches.glm_moe_dsa import generate_patch as patch_mod
 
     gen = importlib.import_module("mlx_lm.generate")
     saved_methods = {
@@ -1258,7 +1258,7 @@ def _glm_generate_patch_installed():
     }
     saved_step = gen.generate_step
     saved_applied = patch_mod._APPLIED
-    marker = "_omlx_glm_dsa_adaptive_patched"
+    marker = "_molto_glm_dsa_adaptive_patched"
     had_marker = {
         cls: marker in cls.__dict__
         for cls in (gen.PromptProcessingBatch, gen.BatchGenerator)
@@ -1295,10 +1295,10 @@ def _decode_only_batch_generator(stream) -> SimpleNamespace:
             return ["generation"]
 
     from mlx_lm.generate import BatchCounters
-    from omlx_runtime.patches.glm_moe_dsa.generate_patch import _AdaptivePrefillConfig
+    from molto_runtime.patches.glm_moe_dsa.generate_patch import _AdaptivePrefillConfig
 
     return SimpleNamespace(
-        _omlx_glm_dsa_adaptive_prefill=_AdaptivePrefillConfig(
+        _molto_glm_dsa_adaptive_prefill=_AdaptivePrefillConfig(
             step_size=8192, after=0, min_remaining=0
         ),
         _generation_batch=_GenerationBatch(),
@@ -1316,12 +1316,12 @@ def test_glm_adaptive_decode_periodic_clear_drains_generator_stream():
     mx.clear_cache() can release Metal buffers an in-flight command buffer
     still references (issue #300). ``self._stream`` is the stream that work
     rode: BatchGenerator runs ``_next`` inside ``with mx.stream(self._stream)``
-    and oMLX constructs the generator with the per-engine stream, which
+    and Molto constructs the generator with the per-engine stream, which
     resolves to a different concrete mx.Stream than mlx-lm's module-level
     generation_stream.
     """
     mx = pytest.importorskip("mlx.core")
-    from omlx_runtime.patches.glm_moe_dsa import generate_patch as patch_mod
+    from molto_runtime.patches.glm_moe_dsa import generate_patch as patch_mod
 
     engine_stream = mx.new_thread_local_stream(mx.default_device())
     bg = _decode_only_batch_generator(engine_stream)
@@ -1351,7 +1351,7 @@ def test_glm_adaptive_decode_clears_only_on_the_512_step_cadence():
     """Off-cadence steps must not clear at all — the fix keeps the cadence the
     memory-bounding commit chose, it only adds the drain."""
     mx = pytest.importorskip("mlx.core")
-    from omlx_runtime.patches.glm_moe_dsa import generate_patch as patch_mod
+    from molto_runtime.patches.glm_moe_dsa import generate_patch as patch_mod
 
     bg = _decode_only_batch_generator(mx.new_thread_local_stream(mx.default_device()))
     bg._counters.generation_steps = 0
@@ -1375,9 +1375,9 @@ def test_deepseek_switchglu_keeps_small_windows_off_the_block_kernels(monkeypatc
     """Small affine windows use stock gather_qmm after sorting."""
     mx = pytest.importorskip("mlx.core")
     pytest.importorskip("mlx.nn")
-    from omlx_runtime.custom_kernels.glm_moe_dsa import fast
-    from omlx_runtime.patches.deepseek_v4 import switch_layers as sl
-    from omlx_runtime.patches.deepseek_v4.switch_layers import SwitchGLU
+    from molto_runtime.custom_kernels.glm_moe_dsa import fast
+    from molto_runtime.patches.deepseek_v4 import switch_layers as sl
+    from molto_runtime.patches.deepseek_v4.switch_layers import SwitchGLU
 
     if not fast.is_native_available() or not fast.has_symbol(
         "deepseek_affine_gather_qmm_blocks"

@@ -4,8 +4,8 @@
 from types import SimpleNamespace
 
 import pytest
-from omlx_config.settings import GlobalSettings, MCPSettings
-from omlx_server.server import create_app
+from molto_config.settings import GlobalSettings, MCPSettings
+from molto_server.server import create_app
 
 
 @pytest.fixture
@@ -14,7 +14,7 @@ def controller():
 
 
 class TestMcpToolsExposedHelper:
-    """Unit tests for ``omlx_server.server.mcp_tools_exposed``."""
+    """Unit tests for ``molto_server.server.mcp_tools_exposed``."""
 
     def test_true_when_global_settings_unavailable(self, monkeypatch, controller):
         """No global settings (e.g. MCP via env var) -> keep exposing."""

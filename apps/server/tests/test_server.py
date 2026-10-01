@@ -1,24 +1,24 @@
-"""Tests for omlx_server.server module - sampling parameter resolution and exception handlers."""
+"""Tests for molto_server.server module - sampling parameter resolution and exception handlers."""
 
 # SPDX-License-Identifier: Apache-2.0
 import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import omlx_server.server as srv
+import molto_server.server as srv
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
-from omlx_config.model_settings import ModelSettings, ModelSettingsManager
-from omlx_runtime.engine import BaseEngine
-from omlx_runtime.engine_pool import EngineEntry
-from omlx_runtime.exceptions import (
+from molto_config.model_settings import ModelSettings, ModelSettingsManager
+from molto_runtime.engine import BaseEngine
+from molto_runtime.engine_pool import EngineEntry
+from molto_runtime.exceptions import (
     InvalidRequestError,
     ModelNotFoundError,
     ModelUnavailableError,
 )
-from omlx_server.dependencies import verify_inference_api_key
-from omlx_server.server import app
+from molto_server.dependencies import verify_inference_api_key
+from molto_server.server import app
 
 _reset_boundary_snapshots_for_server = (
     app.state.controller._reset_boundary_snapshots_for_server
@@ -26,13 +26,13 @@ _reset_boundary_snapshots_for_server = (
 get_engine = app.state.controller.get_engine
 get_max_context_window = app.state.controller.get_max_context_window
 get_sampling_params = app.state.controller.get_sampling_params
-from omlx_config.settings import GlobalSettings
-from omlx_server.engine_requests import (
+from molto_config.settings import GlobalSettings
+from molto_server.engine_requests import (
     _format_generation_speed_for_log,
     _resolve_metric_durations,
 )
-from omlx_server.state import EngineType, SamplingDefaults, ServerState
-from omlx_server.structured_output import _reject_diffusion_structured_outputs
+from molto_server.state import EngineType, SamplingDefaults, ServerState
+from molto_server.structured_output import _reject_diffusion_structured_outputs
 
 
 class TestBoundarySnapshotLifecycle:
@@ -48,7 +48,7 @@ class TestBoundarySnapshotLifecycle:
             _scheduler_config=SimpleNamespace(paged_ssd_cache_dir=tmp_path)
         )
 
-        with patch("omlx_server.server.app.state.controller.state", state):
+        with patch("molto_server.server.app.state.controller.state", state):
             _reset_boundary_snapshots_for_server()
 
         assert (tmp_path / "_boundary_snapshots").exists()
@@ -66,7 +66,7 @@ class TestBoundarySnapshotLifecycle:
             _scheduler_config=SimpleNamespace(paged_ssd_cache_dir=None)
         )
 
-        with patch("omlx_server.server.app.state.controller.state", state):
+        with patch("molto_server.server.app.state.controller.state", state):
             _reset_boundary_snapshots_for_server()
 
         assert stale_dir.exists()
@@ -74,8 +74,8 @@ class TestBoundarySnapshotLifecycle:
 
 @pytest.mark.asyncio
 async def test_text_completion_stream_forwards_transport_request_id():
-    from omlx_contracts.api.openai_models import CompletionRequest
-    from omlx_server.server import app
+    from molto_contracts.api.openai_models import CompletionRequest
+    from molto_server.server import app
 
     stream_completion = app.state.controller.stream_completion
 
@@ -213,7 +213,7 @@ class TestGetSamplingParams:
     def setup_server_state(self):
         """Set up a clean server state for each test."""
         state = ServerState()
-        with patch("omlx_server.server.app.state.controller.state", state):
+        with patch("molto_server.server.app.state.controller.state", state):
             self._state = state
             yield
 
@@ -479,7 +479,7 @@ class TestExceptionHandlers:
     @pytest.fixture
     def client(self):
         """Create a test client for the FastAPI app."""
-        from omlx_server.server import app
+        from molto_server.server import app
 
         _server_state = app.state.controller.state
 
@@ -547,7 +547,7 @@ class TestExceptionHandlers:
         import json
 
         from fastapi.exceptions import RequestValidationError
-        from omlx_server.server import app
+        from molto_server.server import app
         from pydantic import BaseModel, ValidationError, field_validator
 
         validation_exception_handler = app.state.controller.validation_exception_handler
@@ -586,7 +586,7 @@ class TestModelFallback:
     def setup_server_state(self):
         """Set up a clean server state for each test."""
         state = ServerState()
-        with patch("omlx_server.server.app.state.controller.state", state):
+        with patch("molto_server.server.app.state.controller.state", state):
             self._state = state
             yield
 
@@ -691,7 +691,7 @@ class TestGetEngineLLMTypeValidation:
     @pytest.fixture(autouse=True)
     def setup_server_state(self):
         state = ServerState()
-        with patch("omlx_server.server.app.state.controller.state", state):
+        with patch("molto_server.server.app.state.controller.state", state):
             self._state = state
             yield
 
@@ -705,7 +705,7 @@ class TestGetEngineLLMTypeValidation:
     @pytest.mark.asyncio
     async def test_llm_rejects_stt_engine(self):
         """Requesting an STT model on an LLM endpoint returns HTTP 400, not 500."""
-        from omlx_runtime.engine.stt import STTEngine
+        from molto_runtime.engine.stt import STTEngine
 
         stt = MagicMock(spec=STTEngine)
         self._pool_returning(stt)
@@ -721,7 +721,7 @@ class TestGetEngineLLMTypeValidation:
     @pytest.mark.asyncio
     async def test_llm_rejects_tts_engine(self):
         """Requesting a TTS model on an LLM endpoint returns HTTP 400."""
-        from omlx_runtime.engine.tts import TTSEngine
+        from molto_runtime.engine.tts import TTSEngine
 
         tts = MagicMock(spec=TTSEngine)
         self._pool_returning(tts)
@@ -733,7 +733,7 @@ class TestGetEngineLLMTypeValidation:
     @pytest.mark.asyncio
     async def test_llm_rejects_sts_engine(self):
         """Requesting an STS model on an LLM endpoint returns HTTP 400."""
-        from omlx_runtime.engine.sts import STSEngine
+        from molto_runtime.engine.sts import STSEngine
 
         sts = MagicMock(spec=STSEngine)
         self._pool_returning(sts)
@@ -745,7 +745,7 @@ class TestGetEngineLLMTypeValidation:
     @pytest.mark.asyncio
     async def test_llm_rejects_embedding_engine(self):
         """Requesting an embedding model on an LLM endpoint returns HTTP 400."""
-        from omlx_runtime.engine.embedding import EmbeddingEngine
+        from molto_runtime.engine.embedding import EmbeddingEngine
 
         emb = MagicMock(spec=EmbeddingEngine)
         self._pool_returning(emb)
@@ -757,7 +757,7 @@ class TestGetEngineLLMTypeValidation:
     @pytest.mark.asyncio
     async def test_llm_rejects_reranker_engine(self):
         """Requesting a reranker model on an LLM endpoint returns HTTP 400."""
-        from omlx_runtime.engine.reranker import RerankerEngine
+        from molto_runtime.engine.reranker import RerankerEngine
 
         rr = MagicMock(spec=RerankerEngine)
         self._pool_returning(rr)
@@ -769,7 +769,7 @@ class TestGetEngineLLMTypeValidation:
     @pytest.mark.asyncio
     async def test_llm_accepts_llm_engine(self):
         """A genuine LLM engine passes validation and is returned as-is."""
-        from omlx_runtime.engine.base import BaseEngine
+        from molto_runtime.engine.base import BaseEngine
 
         llm = MagicMock(spec=BaseEngine)
         self._pool_returning(llm)
@@ -791,7 +791,7 @@ class TestGetMaxContextWindow:
     @pytest.fixture(autouse=True)
     def setup_server_state(self):
         state = ServerState()
-        with patch("omlx_server.server.app.state.controller.state", state):
+        with patch("molto_server.server.app.state.controller.state", state):
             self._state = state
             yield
 
@@ -898,7 +898,7 @@ class TestExposedProfileModels:
     @pytest.fixture
     def manager(self, tmp_path):
         """Swap a real ModelSettingsManager into the live server state."""
-        import omlx_server.server as server_module
+        import molto_server.server as server_module
 
         original_pool = server_module.app.state.controller.state.engine_pool
         original_settings_manager = (
@@ -916,7 +916,7 @@ class TestExposedProfileModels:
 
     @pytest.mark.asyncio
     async def test_v1_models_includes_exposed_profile_models(self, manager):
-        import omlx_server.server as server_module
+        import molto_server.server as server_module
 
         manager.set_settings("qwen-base", ModelSettings(max_context_window=100000))
         self._save_exposed_profile(
@@ -935,7 +935,7 @@ class TestExposedProfileModels:
     async def test_v1_models_status_includes_exposed_profile_capabilities(
         self, manager
     ):
-        import omlx_server.server as server_module
+        import molto_server.server as server_module
 
         manager.set_settings(
             "qwen-base",
@@ -967,7 +967,7 @@ class TestExposedProfileModels:
     async def test_v1_models_advertises_alias_form_for_exposed_profiles(self, manager):
         """With a base-model alias set, the catalog lists <alias>:<profile> —
         consistent with the base model being listed under its alias."""
-        import omlx_server.server as server_module
+        import molto_server.server as server_module
 
         manager.set_settings(
             "qwen-base", ModelSettings(model_alias="gpt-4", max_context_window=100000)
@@ -986,8 +986,8 @@ class TestExposedProfileModels:
 
     def test_sampling_params_use_exposed_profile_settings(self, manager):
         """Runtime settings come from the requested profile model, not its source."""
-        import omlx_server.server as server_module
-        from omlx_runtime.engine_pool import EnginePool
+        import molto_server.server as server_module
+        from molto_runtime.engine_pool import EnginePool
 
         pool = EnginePool()
         pool._entries["qwen-base"] = object()
@@ -1001,7 +1001,7 @@ class TestExposedProfileModels:
 
     @pytest.mark.asyncio
     async def test_get_engine_passes_exposed_profile_runtime_settings(self, manager):
-        import omlx_server.server as server_module
+        import molto_server.server as server_module
 
         class RuntimePool:
             def __init__(self):
@@ -1032,8 +1032,8 @@ class TestExposedProfileModels:
         assert manager.get_settings("qwen-base").mtp_enabled is False
 
     def test_thinking_budget_uses_exposed_profile_settings(self, manager):
-        import omlx_server.server as server_module
-        from omlx_runtime.engine_pool import EnginePool
+        import molto_server.server as server_module
+        from molto_runtime.engine_pool import EnginePool
 
         pool = EnginePool()
         pool._entries["qwen-base"] = object()
@@ -1054,8 +1054,8 @@ class TestExposedProfileModels:
         assert budget == 512
 
     def test_max_context_window_uses_exposed_profile_settings(self, manager):
-        import omlx_server.server as server_module
-        from omlx_runtime.engine_pool import EnginePool
+        import molto_server.server as server_module
+        from molto_runtime.engine_pool import EnginePool
 
         pool = EnginePool()
         pool._entries["qwen-base"] = object()
@@ -1076,7 +1076,7 @@ class TestHealthPreloadReadiness:
     @pytest.mark.asyncio
     async def test_health_503_while_preloading(self):
         from fastapi import Response
-        from omlx_server import server as server_mod
+        from molto_server import server as server_mod
 
         old = server_mod.app.state.controller.state.pinned_preload_complete
         try:
@@ -1091,7 +1091,7 @@ class TestHealthPreloadReadiness:
     @pytest.mark.asyncio
     async def test_health_200_after_preload(self):
         from fastapi import Response
-        from omlx_server import server as server_mod
+        from molto_server import server as server_mod
 
         old = server_mod.app.state.controller.state.pinned_preload_complete
         try:

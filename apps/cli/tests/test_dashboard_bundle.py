@@ -41,7 +41,7 @@ def fixture_bundle(tmp_path):
 
 def test_stage_includes_assets_runtime_and_license(tmp_path):
     output, archive, checksum = fixture_bundle(tmp_path)
-    destination = tmp_path / "omlx/_dashboard"
+    destination = tmp_path / "molto/_dashboard"
     bundle.stage_bundle(output, archive, checksum, "24.21.0", destination)
     assert (destination / "public/assets/app.js").read_text() == "asset"
     assert (destination / "runtime/LICENSE").read_text() == "Node license"
@@ -60,10 +60,10 @@ def test_checksum_failure_preserves_previous_bundle(tmp_path):
 
 def test_minimal_wheel_includes_bundle_with_executable_mode(tmp_path):
     # Build an isolated tiny package with the production packaging declarations.
-    # This deliberately does not build or install the active oMLX checkout.
+    # This deliberately does not build or install the active Molto checkout.
     output, archive, checksum = fixture_bundle(tmp_path)
     project = tmp_path / "project"
-    package = project / "omlx"
+    package = project / "molto"
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("")
     bundle.stage_bundle(output, archive, checksum, "24.21.0", package / "_dashboard")
@@ -76,11 +76,11 @@ def test_minimal_wheel_includes_bundle_with_executable_mode(tmp_path):
     workspace = tmp_path / "workspace"
     (workspace / "apps/cli/src").mkdir(parents=True)
     (workspace / "apps/server/src").mkdir(parents=True)
-    runtime = workspace / "packages/runtime/src/omlx_runtime"
+    runtime = workspace / "packages/runtime/src/molto_runtime"
     runtime.mkdir(parents=True)
     (runtime / "__init__.py").write_text("")
     (workspace / "packages/runtime/pyproject.toml").write_text(
-        '[project]\nname="omlx-runtime"\nversion="1"\n'
+        '[project]\nname="molto-runtime"\nversion="1"\n'
         'dependencies=["mlx-lm @ git+https://github.com/ml-explore/mlx-lm@872ae88d1fac77350db23c8c04fe8dd372a9e3e8"]\n'
     )
     (workspace / "pyproject.toml").write_text(
@@ -88,16 +88,16 @@ def test_minimal_wheel_includes_bundle_with_executable_mode(tmp_path):
         'description="Product description"\nreadme="README.md"\n'
         'authors=[{name="Product authors"}]\nkeywords=["mlx"]\n'
         'classifiers=["Operating System :: MacOS"]\n'
-        '[project.urls]\nHomepage="https://example.org/omlx"\n'
+        '[project.urls]\nHomepage="https://example.org/molto"\n'
     )
     (workspace / "apps/cli/pyproject.toml").write_text(
-        '[project]\nname="omlx-cli"\nversion="1"\ndependencies=["omlx-cli>=1", "httpx>=0.27"]\n'
+        '[project]\nname="molto-cli"\nversion="1"\ndependencies=["molto-cli>=1", "httpx>=0.27"]\n'
     )
     (workspace / "LICENSE").write_text("license")
     (workspace / "README.md").write_text("# Product readme")
     import shutil
 
-    shutil.copytree(package, workspace / "apps/cli/src/omlx_cli")
+    shutil.copytree(package, workspace / "apps/cli/src/molto_cli")
     shutil.copy2(
         ROOT / "packages/runtime/setup.py", workspace / "packages/runtime/setup.py"
     )
@@ -118,15 +118,15 @@ def test_minimal_wheel_includes_bundle_with_executable_mode(tmp_path):
         metadata = zipped.read(
             next(name for name in names if name.endswith("METADATA"))
         ).decode()
-        assert "Name: omlx\n" in metadata
+        assert "Name: molto\n" in metadata
         assert "Summary: Product description" in metadata
         assert "Author: Product authors" in metadata
         assert "Keywords: mlx" in metadata
         assert "Classifier: Operating System :: MacOS" in metadata
-        assert "Project-URL: Homepage, https://example.org/omlx" in metadata
+        assert "Project-URL: Homepage, https://example.org/molto" in metadata
         assert "Description-Content-Type: text/markdown" in metadata
         assert "# Product readme" in metadata
-        assert "Requires-Dist: omlx-" not in metadata
+        assert "Requires-Dist: molto-" not in metadata
         assert "Requires-Dist: httpx>=0.27" in metadata
         assert any(name.endswith("entry_points.txt") for name in names)
         import json
@@ -136,7 +136,7 @@ def test_minimal_wheel_includes_bundle_with_executable_mode(tmp_path):
                 next(
                     name
                     for name in names
-                    if name.endswith("omlx_runtime/_version_sources.json")
+                    if name.endswith("molto_runtime/_version_sources.json")
                 )
             )
         )

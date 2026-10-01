@@ -1,20 +1,20 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Live integration test for TTS HTTP streaming against a running oMLX server.
+"""Live integration test for TTS HTTP streaming against a running Molto server.
 
 This test verifies the real transport path using httpx streaming against a
 server process started separately (for example in tmux). It is intended for
 real-model validation of the Phase 1 TTS streaming implementation.
 
 Required environment variables:
-- OMLX_TTS_MODEL: model ID exposed by /v1/models
+- MOLTO_TTS_MODEL: model ID exposed by /v1/models
 
 Optional environment variables:
-- OMLX_BASE_URL: server base URL (default: http://127.0.0.1:8000)
-- OMLX_TTS_VOICE: voice to use (default: Chelsie)
-- OMLX_API_KEY: API key if auth is enabled
+- MOLTO_BASE_URL: server base URL (default: http://127.0.0.1:8000)
+- MOLTO_TTS_VOICE: voice to use (default: Chelsie)
+- MOLTO_API_KEY: API key if auth is enabled
 
 Run with:
-  OMLX_TTS_MODEL=Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit \
+  MOLTO_TTS_MODEL=Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit \
   pytest tests/integration/test_audio_tts_streaming_integration.py -m "integration or slow" -s -v
 """
 
@@ -26,10 +26,10 @@ import pytest
 
 pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
-BASE_URL = os.environ.get("OMLX_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
-TTS_MODEL = os.environ.get("OMLX_TTS_MODEL")
-TTS_VOICE = os.environ.get("OMLX_TTS_VOICE", "Chelsie")
-API_KEY = os.environ.get("OMLX_API_KEY")
+BASE_URL = os.environ.get("MOLTO_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
+TTS_MODEL = os.environ.get("MOLTO_TTS_MODEL")
+TTS_VOICE = os.environ.get("MOLTO_TTS_VOICE", "Chelsie")
+API_KEY = os.environ.get("MOLTO_API_KEY")
 
 
 def _headers() -> dict[str, str]:
@@ -42,7 +42,7 @@ def _headers() -> dict[str, str]:
 def _streaming_test_text() -> str:
     """Return a long, multi-sentence text that should force multiple TTS segments."""
     part1 = (
-        "Hello, this is a long-form streaming verification for oMLX. "
+        "Hello, this is a long-form streaming verification for Molto. "
         "We want the first audio bytes to arrive before the complete response has finished generating. "
         "The phrasing is intentionally a little longer than a short demo sentence so that the server must work through meaningful content."
     )
@@ -59,9 +59,9 @@ def _streaming_test_text() -> str:
 
 @pytest.mark.asyncio
 async def test_live_tts_streaming_emits_multiple_http_chunks():
-    """Verify that a running oMLX server emits incremental audio over HTTP streaming."""
+    """Verify that a running Molto server emits incremental audio over HTTP streaming."""
     if not TTS_MODEL:
-        pytest.skip("Set OMLX_TTS_MODEL to run live TTS streaming integration test")
+        pytest.skip("Set MOLTO_TTS_MODEL to run live TTS streaming integration test")
 
     timeout = httpx.Timeout(connect=10.0, read=None, write=60.0, pool=60.0)
     async with httpx.AsyncClient(

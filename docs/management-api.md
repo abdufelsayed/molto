@@ -1,10 +1,10 @@
 # Management API
 
 This is the HTTP contract for a script or separate dashboard that controls a
-running oMLX server. The public application defaults to `http://127.0.0.1:8000`;
+running Molto server. The public application defaults to `http://127.0.0.1:8000`;
 route names below describe the private `/management/v1` contract. The management API controls the
 same engine pool used by inference requests. It can request a restart only when a supported supervisor is active. Start and
-configure the process with `omlx start`, `omlx serve`, or the Homebrew service.
+configure the process with `molto start`, `molto serve`, or the Homebrew service.
 
 ## Public transport
 
@@ -15,7 +15,7 @@ application exposes authenticated native clients through
 bearer key even when local inference verification is bypassed, and rejects
 browser Origin-bearing requests. Raw `/management/v1` and `/admin` paths stay
 blocked by the public proxy. Dashboard browsers use opaque sessions through
-`/api/omlx`; their session flow is separate. Use the [CLI](cli.md) for public
+`/api/molto`; their session flow is separate. Use the [CLI](cli.md) for public
 management commands. Direct private-route examples below apply only when
 accessing the backend listener itself.
 
@@ -30,7 +30,7 @@ token:
 
 ```bash
 curl http://127.0.0.1:8000/api/management/v1/models \
-  -H "Authorization: Bearer $OMLX_API_KEY"
+  -H "Authorization: Bearer $MOLTO_API_KEY"
 ```
 
 The main key grants all management routes, including model load. Inference
@@ -39,7 +39,7 @@ subkeys cannot use `/management/v1/*`; the retained
 compatibility. The retained `POST /v1/models/{model_id}/unload` endpoint now
 requires the main key. A browser cookie from the former admin UI is not a
 management credential. Configure a main key through
-`OMLX_API_KEY`, `omlx serve --api-key`, or saved settings. The management API
+`MOLTO_API_KEY`, `molto serve --api-key`, or saved settings. The management API
 requires that key even on loopback. An explicit `skip_api_key_verification`
 setting permits keyless management only on a loopback bind. Non-loopback
 binding requires a main key and does not allow that bypass. A missing or
@@ -86,10 +86,10 @@ BASE=http://127.0.0.1:8000/management/v1
 MODEL=my-model
 
 curl -X POST "$BASE/models/$MODEL/load" \
-  -H "Authorization: Bearer $OMLX_API_KEY"
+  -H "Authorization: Bearer $MOLTO_API_KEY"
 
 curl -X PATCH "$BASE/models/$MODEL/settings" \
-  -H "Authorization: Bearer $OMLX_API_KEY" \
+  -H "Authorization: Bearer $MOLTO_API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"temperature":0.7,"ttl_seconds":300}'
 ```
@@ -112,7 +112,7 @@ name. For example:
 
 ```bash
 curl -X POST "$BASE/models/$MODEL/profiles" \
-  -H "Authorization: Bearer $OMLX_API_KEY" \
+  -H "Authorization: Bearer $MOLTO_API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"name":"focused","settings":{"temperature":0.2}}'
 ```
@@ -125,7 +125,7 @@ additive overlay. Check `/state` after a deferred transition before loading
 the model again.
 
 The accepted fields and validation bounds come from
-`packages/management/src/omlx_management/model_control.py`. Inspect `GET /settings` or
+`packages/management/src/molto_management/model_control.py`. Inspect `GET /settings` or
 `GET /models/{model_id}/settings` for the current values before patching.
 
 ## Cache and metrics
@@ -256,7 +256,7 @@ Start calibration with 1–32 text-to-image tasks:
 
 ```bash
 curl -X POST "$BASE/diffusion/calibrations" \
-  -H "Authorization: Bearer $OMLX_API_KEY" \
+  -H "Authorization: Bearer $MOLTO_API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"model_id":"local-flux2-klein-4b","tasks":[{"prompt":"A red teapot on a table","width":256,"height":256,"steps":4,"seed":17}],"max_rows":64}'
 ```
@@ -279,7 +279,7 @@ completed calibration job:
 
 ```bash
 curl -X POST "$BASE/diffusion/quantizations" \
-  -H "Authorization: Bearer $OMLX_API_KEY" \
+  -H "Authorization: Bearer $MOLTO_API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"model_id":"local-flux2-klein-4b-float","calibration_job_id":"CALIBRATION_JOB_ID","bits":4,"group_size":64,"budget_ratio":1.10}'
 ```

@@ -21,18 +21,18 @@ import mlx.core as mx
 import mlx.nn as nn
 import numpy as np
 import pytest
-from omlx_runtime.memory_monitor import estimate_mla_kv_bytes_per_token
-from omlx_runtime.model_discovery import detect_model_type
-from omlx_runtime.oq import (
+from molto_runtime.memory_monitor import estimate_mla_kv_bytes_per_token
+from molto_runtime.model_discovery import detect_model_type
+from molto_runtime.oq import (
     _build_model_sanitizer,
     _is_vlm_load,
     universal_quant_predicate,
 )
-from omlx_runtime.patches import mlx_vlm_glm5_next_compat as compat
-from omlx_runtime.patches import qwen35_verify_qmm
-from omlx_runtime.patches.glm_moe_dsa import indexer_nax, sparse_mla, sparse_mla_nax
-from omlx_runtime.patches.mlx_vlm_glm5_next_compat import decode_kernels as dk
-from omlx_runtime.utils.layer_pipeline import LayerPipeline
+from molto_runtime.patches import mlx_vlm_glm5_next_compat as compat
+from molto_runtime.patches import qwen35_verify_qmm
+from molto_runtime.patches.glm_moe_dsa import indexer_nax, sparse_mla, sparse_mla_nax
+from molto_runtime.patches.mlx_vlm_glm5_next_compat import decode_kernels as dk
+from molto_runtime.utils.layer_pipeline import LayerPipeline
 from PIL import Image
 from repo_paths import repository_root
 
@@ -245,7 +245,7 @@ def test_torch_free_processor_expands_image_tokens_and_runs_vision_path():
 
 def test_glm_image_budget_uses_8k_limit_and_exact_resize_count():
     from mlx_vlm.models.glm5_next import Glm5NextImageProcessor
-    from omlx_runtime.engine.vlm import (
+    from molto_runtime.engine.vlm import (
         _count_image_tokens_real,
         _derive_image_token_upper_bound,
     )
@@ -346,7 +346,7 @@ def test_short_verify_keeps_latent_kv_and_matches_decode(
 def test_variable_length_batch_matches_single_request_greedy_tokens():
     from mlx_lm.generate import BatchGenerator
     from mlx_vlm.models.glm5_next import Model
-    from omlx_runtime.models.vlm import VLMModelAdapter
+    from molto_runtime.models.vlm import VLMModelAdapter
 
     mx.random.seed(17)
     config = _tiny_config()
@@ -381,7 +381,7 @@ def test_variable_length_batch_matches_single_request_greedy_tokens():
 def test_variable_length_batch_logits_match_single_requests():
     from mlx_lm.generate import BatchGenerator
     from mlx_vlm.models.glm5_next import Model
-    from omlx_runtime.models.vlm import VLMModelAdapter
+    from molto_runtime.models.vlm import VLMModelAdapter
 
     mx.random.seed(3184)
     model = VLMModelAdapter(Model(_tiny_config()))
@@ -422,7 +422,7 @@ def test_variable_length_batch_logits_match_single_requests():
 def test_late_join_batch_matches_single_request_greedy_tokens():
     from mlx_lm.generate import BatchGenerator
     from mlx_vlm.models.glm5_next import Model
-    from omlx_runtime.models.vlm import VLMModelAdapter
+    from molto_runtime.models.vlm import VLMModelAdapter
 
     mx.random.seed(31)
     model = VLMModelAdapter(Model(_tiny_config()))
@@ -539,7 +539,7 @@ def test_sanitize_and_oq_keep_sensitive_parameters_in_fp32():
         "language_model.model.layers.1.self_attn.unembed_out.weight"
     ].shape == (2, 8, 8)
     assert not any("mtp" in key for key in sanitized)
-    assert sanitizer._omlx_cast_predicate(a_log) is False
+    assert sanitizer._molto_cast_predicate(a_log) is False
     assert universal_quant_predicate(
         "model.layers.1.self_attn.indexer.wk",
         None,
@@ -581,8 +581,8 @@ def test_oq_roundtrip_with_nextn_weights(
     from mlx.utils import tree_flatten
     from mlx_vlm.models import glm5_next
     from mlx_vlm.utils import load_model
-    from omlx_runtime.oq import quantize_oq_streaming
-    from omlx_runtime.patches.mlx_vlm_mtp import glm5_next_vlm_runtime
+    from molto_runtime.oq import quantize_oq_streaming
+    from molto_runtime.patches.mlx_vlm_mtp import glm5_next_vlm_runtime
     from test_glm5_next_mtp import TINY_TEXT_CONFIG
 
     glm5_next_vlm_runtime.apply()
@@ -632,7 +632,7 @@ def test_oq_roundtrip_with_nextn_weights(
     mx.save_safetensors(str(source / "model.safetensors"), raw)
     tokens = mx.array([[1, 3, 4, 5, 6, 7, 8, 9]], dtype=mx.int32)
     monkeypatch.setattr(
-        "omlx_runtime.oq._load_calibration_data", lambda *a, **kw: tokens
+        "molto_runtime.oq._load_calibration_data", lambda *a, **kw: tokens
     )
     monkeypatch.setattr("mlx_lm.tokenizer_utils.load", lambda *a, **kw: object())
     output = tmp_path / "output"
@@ -705,7 +705,7 @@ def test_vector_gate_kernel_matches_reference_with_padding_mask():
 
 def test_native_glm_indexer_scores_match_mlx_reference_when_available():
     from mlx_vlm.models.glm5_next.language import Glm5NextIndexer
-    from omlx_runtime.custom_kernels.glm_moe_dsa import fast
+    from molto_runtime.custom_kernels.glm_moe_dsa import fast
 
     if not fast.has_symbol("dsa_indexer_scores"):
         pytest.skip("GLM DSA native indexer extension is not built")
@@ -730,8 +730,8 @@ def test_native_glm_indexer_scores_match_mlx_reference_when_available():
 
 
 def test_glm5_next_switch_moe_uses_opt_in_native_weighted_sum():
-    from omlx_runtime.custom_kernels.glm_moe_dsa import fast
-    from omlx_runtime.patches.deepseek_v4.switch_layers import SwitchGLU
+    from molto_runtime.custom_kernels.glm_moe_dsa import fast
+    from molto_runtime.patches.deepseek_v4.switch_layers import SwitchGLU
 
     if not fast.has_symbol("glm_moe_weighted_sum"):
         pytest.skip("GLM native MoE weighted-sum extension is not built")
@@ -758,7 +758,7 @@ def test_glm5_next_switch_moe_uses_opt_in_native_weighted_sum():
 def test_glm5_next_affine_prefill_uses_shared_qmm_kernel(monkeypatch):
     import mlx.nn as nn
     from mlx_vlm.models.glm5_next.linear import linear_forward
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
 
     if not fast.has_symbol("qwen35_q4_affine_qmm_t"):
         pytest.skip("Qwen affine prefill QMM extension is not built")
@@ -788,7 +788,7 @@ def test_glm5_next_affine_prefill_uses_shared_qmm_kernel(monkeypatch):
 def test_glm5_next_q8_indexer_prefill_uses_shared_qmm_kernel(monkeypatch):
     import mlx.nn as nn
     from mlx_vlm.models.glm5_next.linear import linear_forward
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
 
     if not fast.has_symbol("qwen35_q8_affine_qmm_t"):
         pytest.skip("Qwen Q8 affine prefill QMM extension is not built")
@@ -820,7 +820,7 @@ def test_glm5_next_q8_indexer_prefill_uses_shared_qmm_kernel(monkeypatch):
 def test_glm5_next_prefill_qmm_handles_strided_input(bits, tokens):
     import mlx.nn as nn
     from mlx_vlm.models.glm5_next.linear import linear_forward
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
 
     name = f"qwen35_q{bits}_affine_qmm_t"
     if not fast.has_symbol(name):
@@ -847,7 +847,7 @@ def test_glm5_next_prefill_qmm_handles_strided_input(bits, tokens):
 def test_glm5_next_fused_qmm_handles_strided_input(bits, tokens):
     import mlx.nn as nn
     from mlx_vlm.models.glm5_next.linear import fused_quantized_matmul
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
 
     name = f"qwen35_q{bits}_affine_qmm_t"
     if not fast.has_symbol(name):
@@ -976,8 +976,8 @@ def test_sparse_attention_native_routes_get_fp16_despite_fp32_activations(monkey
 
 def test_q8_vup_flat_gates_dtype_mismatch_and_preserves_projection_contract():
     """Use fused v-up only for matching dtypes and preserve FP32 scales otherwise."""
-    from omlx_runtime.custom_kernels.glm_moe_dsa import fast
-    from omlx_runtime.patches.glm_moe_dsa.sparse_mla import q8_vup_flat
+    from molto_runtime.custom_kernels.glm_moe_dsa import fast
+    from molto_runtime.patches.glm_moe_dsa.sparse_mla import q8_vup_flat
 
     if not fast.is_native_available():
         pytest.skip("GLM MoE DSA native extension is unavailable")
@@ -1013,8 +1013,8 @@ def test_q8_vup_flat_gates_dtype_mismatch_and_preserves_projection_contract():
 
 def test_sparse_attention_completes_at_32k_with_fp32_scale_projection(monkeypatch):
     """Verify native sparse MLA output can feed an FP32-scale projection at 32K."""
-    from omlx_runtime.custom_kernels.glm_moe_dsa import fast
-    from omlx_runtime.patches.glm_moe_dsa.sparse_mla import (
+    from molto_runtime.custom_kernels.glm_moe_dsa import fast
+    from molto_runtime.patches.glm_moe_dsa.sparse_mla import (
         q8_vup_flat,
         sparse_mla_attention,
     )
@@ -1350,7 +1350,7 @@ def _kda_reference_prework(mixed, conv_state, conv_w, heads, dim, q_scale):
 
 @pytest.mark.parametrize("seq", [1, 2, 3, 5, 130])
 def test_kda_prework_kernel_matches_stock(seq):
-    from omlx_runtime.patches.glm53_kda_prework import kda_prework_fused
+    from molto_runtime.patches.glm53_kda_prework import kda_prework_fused
 
     mx.random.seed(41)
     heads, dim = 2, 128
@@ -1375,7 +1375,7 @@ def test_kda_prework_kernel_matches_stock(seq):
 
 def test_kda_norm_gate_kernel_matches_o_norm():
     from mlx_vlm.models.glm5_next.language import Glm5NextRMSNormGated
-    from omlx_runtime.patches.glm53_kda_prework import kda_norm_gate_fused
+    from molto_runtime.patches.glm53_kda_prework import kda_norm_gate_fused
 
     mx.random.seed(42)
     heads, dim, seq = 2, 128, 40
@@ -1410,7 +1410,7 @@ def _kda_model(seed: int):
 
 
 def test_kda_fused_prefill_matches_stock(monkeypatch):
-    from omlx_runtime.patches import glm53_kda_prework as kda
+    from molto_runtime.patches import glm53_kda_prework as kda
 
     model = _kda_model(77)[0]
     prompt = mx.arange(70, dtype=mx.int32)[None] + 1
@@ -1473,7 +1473,7 @@ def test_kda_fused_chunked_prefill_matches_single_pass(monkeypatch):
 
 def test_kda_prefill_eligibility_gating(monkeypatch):
     from mlx_vlm.models.glm5_next import language
-    from omlx_runtime.patches.glm53_kda_prework import (
+    from molto_runtime.patches.glm53_kda_prework import (
         glm53_kda_prefill,
         glm53_kda_prefill_eligible,
     )
@@ -1495,7 +1495,7 @@ def test_kda_prefill_eligibility_gating(monkeypatch):
     assert not glm53_kda_prefill_eligible(layer, inputs, None, padded)
 
     monkeypatch.setattr(
-        "omlx_runtime.patches.glm53_kda_prework._GLM53_KDA_PREFILL_ENABLED", False
+        "molto_runtime.patches.glm53_kda_prework._GLM53_KDA_PREFILL_ENABLED", False
     )
     assert not glm53_kda_prefill_eligible(layer, inputs, None, cache)
     monkeypatch.undo()
@@ -1505,7 +1505,7 @@ def test_kda_prefill_eligibility_gating(monkeypatch):
     out_fused = glm53_kda_prefill(layer, inputs, fused_cache)
     stock_cache = model.make_cache()[0]
     monkeypatch.setattr(
-        "omlx_runtime.patches.glm53_kda_prework._GLM53_KDA_PREFILL_ENABLED", False
+        "molto_runtime.patches.glm53_kda_prework._GLM53_KDA_PREFILL_ENABLED", False
     )
     out_stock = layer(inputs, None, stock_cache)
     mx.eval(out_fused, out_stock)
@@ -1521,11 +1521,13 @@ def test_kda_fused_prefill_survives_mtp_runtime_patch(monkeypatch):
     prefill for every later forward.
     """
     from mlx_vlm.models.glm5_next import language
-    from omlx_runtime.patches import glm53_kda_prework as kda
-    from omlx_runtime.patches.mlx_vlm_mtp import glm5_next_vlm_runtime
+    from molto_runtime.patches import glm53_kda_prework as kda
+    from molto_runtime.patches.mlx_vlm_mtp import glm5_next_vlm_runtime
 
     assert glm5_next_vlm_runtime.apply()
-    assert getattr(language.Glm5NextLinearAttention, "_omlx_mtp_capture_patched", False)
+    assert getattr(
+        language.Glm5NextLinearAttention, "_molto_mtp_capture_patched", False
+    )
 
     model = _kda_model(80)[0]
     prompt = mx.arange(70, dtype=mx.int32)[None] + 1
@@ -1824,7 +1826,7 @@ def test_bitwise_equal_to_canonical_path_without_tf32():
     fp32; the fused kernels then reproduce it bit for bit on this data."""
     script = textwrap.dedent("""
         import mlx.core as mx
-        from omlx_runtime.patches import mlx_vlm_glm5_next_compat as compat
+        from molto_runtime.patches import mlx_vlm_glm5_next_compat as compat
         compat.apply_mlx_vlm_glm5_next_compat_patch()
         from mlx_vlm.models.deepseek_v4 import hyper_connection as dsv4_hc
         from mlx_vlm.models.glm5_next import hc_prefill
@@ -1982,7 +1984,7 @@ def _kda_stock(q, k, v, a, beta, a_log, dt_bias, state, mask=None, ops=False):
     "cfg", [(16, 64, 2, True), (16, 32, 1, False), (8, 16, 2, True), (8, 128, 2, False)]
 )
 def test_recurrence_matches_stock_kernel_and_fp32_reference(cfg):
-    from omlx_runtime.patches.glm53_kda_recurrence import (
+    from molto_runtime.patches.glm53_kda_recurrence import (
         RecurrenceConfig,
         kda_recurrence,
     )
@@ -2005,7 +2007,7 @@ def test_recurrence_matches_stock_kernel_and_fp32_reference(cfg):
 
 @pytest.mark.parametrize("threadgroups", [None, 7])
 def test_recurrence_chunked_equals_one_shot(threadgroups):
-    from omlx_runtime.patches.glm53_kda_recurrence import PerCoreConfig, kda_recurrence
+    from molto_runtime.patches.glm53_kda_recurrence import PerCoreConfig, kda_recurrence
 
     cfg = PerCoreConfig(threadgroups=threadgroups)
     q, k, v, a, beta, a_log, dt_bias, state = _kda_inputs(1, 100, 2, 7)
@@ -2047,7 +2049,7 @@ def test_recurrence_chunked_equals_one_shot(threadgroups):
 )
 def test_percore_recurrence_is_bitwise_the_blocked_kernel(B, T, H, threadgroups):
     """Same per-row arithmetic and summation order -> identical bits."""
-    from omlx_runtime.patches.glm53_kda_recurrence import (
+    from molto_runtime.patches.glm53_kda_recurrence import (
         PerCoreConfig,
         RecurrenceConfig,
         _percore_threadgroups,
@@ -2072,7 +2074,7 @@ def test_percore_recurrence_is_bitwise_the_blocked_kernel(B, T, H, threadgroups)
 
 
 def _kda_skip_unless_launchable(cfg, H, ntg):
-    from omlx_runtime.patches.glm53_kda_recurrence import _percore_launchable
+    from molto_runtime.patches.glm53_kda_recurrence import _percore_launchable
 
     max_rows = 2 * -(-(H * 128 // 2) // ntg)
     if not _percore_launchable(cfg.tb, max_rows, mx.bfloat16, 128, 128, H, ntg):
@@ -2083,7 +2085,7 @@ def _kda_skip_unless_launchable(cfg, H, ntg):
 
 
 def test_percore_recurrence_matches_stock_kernel_and_fp32_reference():
-    from omlx_runtime.patches.glm53_kda_recurrence import (
+    from molto_runtime.patches.glm53_kda_recurrence import (
         PerCoreConfig,
         _percore_threadgroups,
         kda_recurrence,
@@ -2104,7 +2106,7 @@ def test_percore_recurrence_matches_stock_kernel_and_fp32_reference():
 
 
 def test_percore_recurrence_falls_back_to_blocked(monkeypatch):
-    from omlx_runtime.patches import glm53_kda_recurrence as R
+    from molto_runtime.patches import glm53_kda_recurrence as R
 
     # More than 128 rows per threadgroup (would span three heads): blocked kernel.
     assert R._percore_threadgroups(5 * 128, R.PerCoreConfig(threadgroups=3)) is None
@@ -2199,7 +2201,7 @@ def _kda_attention(num_heads=4, hidden=256, seed=0, bits=None):
 
 def _kda_run(attn, x, conv0, state0, fused, chunks=None):
     from mlx_vlm.models.cache import ArraysCache
-    from omlx_runtime.patches import glm53_kda_prework as kda
+    from molto_runtime.patches import glm53_kda_prework as kda
 
     enabled = kda._GLM53_KDA_PREFILL_ENABLED
     kda._GLM53_KDA_PREFILL_ENABLED = fused
@@ -2220,7 +2222,7 @@ def _kda_run(attn, x, conv0, state0, fused, chunks=None):
 
 def test_fused_prefill_runs_blocked_recurrence(monkeypatch):
     from mlx_vlm.models.glm5_next import gated_delta as G
-    from omlx_runtime.patches import glm53_kda_prework as kda
+    from molto_runtime.patches import glm53_kda_prework as kda
 
     config, attn = _kda_attention()
     H, D = attn.num_heads, attn.head_dim
@@ -2263,7 +2265,7 @@ def test_fused_prefill_runs_blocked_recurrence(monkeypatch):
 
 
 def test_fused_prefill_keeps_stock_recurrence_for_non_fp32_gate(monkeypatch):
-    from omlx_runtime.patches import glm53_kda_prework as kda
+    from molto_runtime.patches import glm53_kda_prework as kda
 
     config, attn = _kda_attention(seed=4)
     attn.forget_gate.dt_bias = attn.forget_gate.dt_bias.astype(mx.bfloat16)
@@ -2291,7 +2293,7 @@ def test_fused_prefill_leaves_stock_shaped_caches():
 
 def test_prework_reads_qkv_in_place_from_the_fused_projection():
     """A wider input (the whole fused projection) gives the concat's bits."""
-    from omlx_runtime.patches.glm53_kda_prework import kda_prework_fused
+    from molto_runtime.patches.glm53_kda_prework import kda_prework_fused
 
     mx.random.seed(11)
     heads, dim, length = 4, 128, 37
@@ -2311,7 +2313,7 @@ def test_prework_reads_qkv_in_place_from_the_fused_projection():
 
 def test_percore_recurrence_falls_back_when_the_launch_is_rejected(monkeypatch):
     """A GPU that rejects the per-core threadgroup size keeps the blocked kernel."""
-    import omlx_runtime.patches.glm53_kda_recurrence as rec
+    import molto_runtime.patches.glm53_kda_recurrence as rec
 
     monkeypatch.setattr(rec, "_percore_launchable", lambda *a: False)
     B, T, H = 1, 30, 2
@@ -2341,7 +2343,7 @@ def test_kda_default_recurrence_uses_percore_only_on_nax_hosts(
 ):
     """Without NAX the default is the blocked kernel (per-core is slower on an
     80-core M3 Ultra); on NAX hosts the per-core kernel runs when it covers."""
-    from omlx_runtime.patches import glm53_kda_recurrence as R
+    from molto_runtime.patches import glm53_kda_recurrence as R
 
     monkeypatch.setattr(R, "_PERCORE_DEFAULT", percore_default)
     monkeypatch.setattr(R, "gpu_core_count", lambda: 80)
@@ -2432,7 +2434,7 @@ def test_nax_indexer_scores_match_fp32_reference_and_mask(S, P, before):
 
 @_needs_nax_indexer
 def test_nax_indexer_scores_match_native_kernel_within_rounding():
-    from omlx_runtime.custom_kernels.glm_moe_dsa import fast
+    from molto_runtime.custom_kernels.glm_moe_dsa import fast
 
     if not fast.has_symbol("dsa_indexer_scores"):
         pytest.skip("native DSA indexer kernel unavailable")
@@ -2539,7 +2541,7 @@ def _require_native_scores():
     native kernel; without it that path falls back to MLX ops, which round
     the scores differently, so the exactness and near-tie bounds do not
     apply."""
-    from omlx_runtime.custom_kernels.glm_moe_dsa import fast
+    from molto_runtime.custom_kernels.glm_moe_dsa import fast
 
     if not fast.has_symbol("dsa_indexer_scores"):
         pytest.skip("native DSA indexer kernel unavailable")
@@ -2627,7 +2629,7 @@ def test_topk_differences_are_threshold_near_ties():
     scores differ only by pools whose native scores sit within one bf16 ulp
     of that row's top-k threshold (fp32 summation order at a near-tie)."""
     from mlx_vlm.models.glm5_next import language
-    from omlx_runtime.custom_kernels.glm_moe_dsa import fast
+    from molto_runtime.custom_kernels.glm_moe_dsa import fast
 
     if not fast.has_symbol("dsa_topk_indices"):
         pytest.skip("native top-k kernel unavailable")
@@ -3082,7 +3084,7 @@ def _quantized_linear(out_dims, in_dims, bits, group_size=64):
 
 
 def _switch_linear(experts, out_dims, in_dims, bits, group_size=64):
-    from omlx_runtime.patches.deepseek_v4.switch_layers import QuantizedSwitchLinear
+    from molto_runtime.patches.deepseek_v4.switch_layers import QuantizedSwitchLinear
 
     layer = QuantizedSwitchLinear(64, 64, 2, False, group_size, bits)
     layer.weight, layer.scales, layer.biases = _rand_affine(
@@ -3178,7 +3180,7 @@ def _run_with_tf32(snippet: str) -> str:
     here = Path(__file__).resolve().parent
     code = (
         "import sys; sys.path[:0] = [%r, %r]\n"
-        "from omlx_runtime.patches import mlx_vlm_glm5_next_compat as compat\n"
+        "from molto_runtime.patches import mlx_vlm_glm5_next_compat as compat\n"
         "compat.apply_mlx_vlm_glm5_next_compat_patch()\n"
         "import test_mlx_vlm_glm5_next_compat as t\n" % (str(here), str(here.parent))
     ) + snippet
@@ -3205,7 +3207,7 @@ def test_one_token_hc_expand_declines_without_nax_tf32(hidden):
 @pytest.mark.usefixtures("glm5_fused_decode")
 def test_one_token_hc_expand_is_bitwise_reference_with_nax_tf32():
     out = _run_with_tf32(
-        "from omlx_runtime.patches.mlx_vlm_glm5_next_compat import decode_kernels as dk\n"
+        "from molto_runtime.patches.mlx_vlm_glm5_next_compat import decode_kernels as dk\n"
         "if dk.nax_relaxed_fp32_matmul():\n"
         "    for hidden in (4096, 1024):\n"
         "        assert t._check_one_token_hc_expand(hidden) == 8\n"
@@ -3263,7 +3265,7 @@ def test_hc_deferred_chain_declines_without_nax_tf32():
 @pytest.mark.usefixtures("glm5_fused_decode")
 def test_hc_deferred_chain_is_bitwise_reference_with_nax_tf32():
     out = _run_with_tf32(
-        "from omlx_runtime.patches.mlx_vlm_glm5_next_compat import decode_kernels as dk\n"
+        "from molto_runtime.patches.mlx_vlm_glm5_next_compat import decode_kernels as dk\n"
         "if dk.nax_relaxed_fp32_matmul():\n"
         "    for hidden in (4096, 1024, 2048):\n"
         "        assert t._check_hc_deferred_chain(hidden) == 24\n"
@@ -3567,7 +3569,7 @@ def _indexer(hidden=256, seed=0):
 
 
 def _native_indexer_available():
-    from omlx_runtime.custom_kernels.glm_moe_dsa import fast
+    from molto_runtime.custom_kernels.glm_moe_dsa import fast
 
     return fast.has_symbol("dsa_indexer_scores") and fast.has_symbol("dsa_topk_indices")
 
@@ -3596,7 +3598,7 @@ def test_dsa_decode_scores_match_native_steel_tile(length):
 
 
 def _make_pool_caches():
-    from omlx_runtime.patches.deepseek_v4 import apply_pooling_cache_support
+    from molto_runtime.patches.deepseek_v4 import apply_pooling_cache_support
 
     apply_pooling_cache_support()
     from mlx_lm.models.cache import KVCache, PoolingCache
@@ -3612,7 +3614,7 @@ def test_dsa_topk_rows_matches_native_topk(pool):
     ties, -1e30 masked blocks and a NaN."""
     if not _native_indexer_available():
         pytest.skip("GLM DSA native indexer extension is not built")
-    from omlx_runtime.custom_kernels.glm_moe_dsa import fast
+    from molto_runtime.custom_kernels.glm_moe_dsa import fast
 
     for rows in (1, 4, 8):
         for trial in range(4):
@@ -3689,7 +3691,7 @@ def test_indexer_fast_selection_matches_general_path(monkeypatch):
 def _fused_shape_model(seed, heads=16, quantize_mla=False):
     from mlx_lm.models.mla import MultiLinear
     from mlx_vlm.models import glm5_next
-    from omlx_runtime.patches.deepseek_v4.switch_layers import SwitchLinear
+    from molto_runtime.patches.deepseek_v4.switch_layers import SwitchLinear
 
     quantized = (nn.Linear, SwitchLinear) + ((MultiLinear,) if quantize_mla else ())
 
@@ -3844,7 +3846,7 @@ def test_small_model_bitwise_reference_with_nax_tf32():
         # Only acceptable where MLX itself would not use NAX relaxed fp32.
         assert (
             not _run_with_tf32(
-                "from omlx_runtime.patches.mlx_vlm_glm5_next_compat import decode_kernels as dk\n"
+                "from molto_runtime.patches.mlx_vlm_glm5_next_compat import decode_kernels as dk\n"
                 "print(dk.nax_relaxed_fp32_matmul())\n"
             )
             .strip()
@@ -3860,12 +3862,12 @@ def test_small_model_mtp_runtime_loop_defers_hc_bitwise():
     if not _native_indexer_available():
         pytest.skip("GLM DSA native indexer extension is not built")
     out = _run_with_tf32(
-        "from omlx_runtime.patches.mlx_vlm_mtp import glm5_next_vlm_runtime as rt\n"
+        "from molto_runtime.patches.mlx_vlm_mtp import glm5_next_vlm_runtime as rt\n"
         "assert rt.apply()\n"
         "from mlx_vlm.models.glm5_next import language as g5\n"
-        "assert g5.Glm5NextModel._omlx_mtp_call_patched\n"
-        "assert g5.Glm5NextLinearAttention._omlx_mtp_capture_patched\n"
-        "from omlx_runtime.patches.mlx_vlm_glm5_next_compat import decode_kernels as dk\n"
+        "assert g5.Glm5NextModel._molto_mtp_call_patched\n"
+        "assert g5.Glm5NextLinearAttention._molto_mtp_capture_patched\n"
+        "from molto_runtime.patches.mlx_vlm_glm5_next_compat import decode_kernels as dk\n"
         "used = t._check_small_model(43, 300) | t._check_small_model()\n"
         "print(dk.nax_relaxed_fp32_matmul(), sorted(used))\n"
     )
@@ -4181,7 +4183,7 @@ def test_router_rows_declines_without_nax_tf32():
 @pytest.mark.usefixtures("glm5_fused_decode")
 def test_router_rows_bitwise_reference_with_nax_tf32():
     out = _run_with_tf32(
-        "from omlx_runtime.patches.mlx_vlm_glm5_next_compat import decode_kernels as dk\n"
+        "from molto_runtime.patches.mlx_vlm_glm5_next_compat import decode_kernels as dk\n"
         "if dk.nax_relaxed_fp32_matmul():\n"
         "    for args in ((), (128, 1024)):\n"
         "        n = t._check_router_rows(*args)\n"
@@ -4267,7 +4269,7 @@ def test_multi_linear_groups_projections_by_quantization():
 def test_router_rows_first_use_check_rejects_wrong_kernels():
     out = _run_with_tf32(
         "import mlx.core as mx\n"
-        "from omlx_runtime.patches.mlx_vlm_glm5_next_compat import decode_kernels as dk\n"
+        "from molto_runtime.patches.mlx_vlm_glm5_next_compat import decode_kernels as dk\n"
         "if not dk.nax_relaxed_fp32_matmul():\n"
         "    print('no-nax')\n"
         "else:\n"
@@ -4324,7 +4326,7 @@ def test_small_model_seed_sweep_is_bitwise_reference(seed, prompt_len):
 
 def _fuse_gate_up(switch_mlp):
     """The MoE gate/up fusion's layout: gate_up_proj = [gate; up] rows per
-    expert (omlx_runtime.patches.moe_gate_up_fusion._fuse_one)."""
+    expert (molto_runtime.patches.moe_gate_up_fusion._fuse_one)."""
     gate, up = switch_mlp.gate_proj, switch_mlp.up_proj
     fused = {
         f: mx.concatenate([gate[f], up[f]], axis=1)
@@ -4371,7 +4373,7 @@ def test_decode_experts_read_fused_gate_up_layout(length, monkeypatch):
 def test_router_rows_first_use_check_inside_compile_uses_reference():
     out = _run_with_tf32(
         "import mlx.core as mx\n"
-        "from omlx_runtime.patches.mlx_vlm_glm5_next_compat import decode_kernels as dk\n"
+        "from molto_runtime.patches.mlx_vlm_glm5_next_compat import decode_kernels as dk\n"
         "if not dk.nax_relaxed_fp32_matmul():\n"
         "    print('no-nax')\n"
         "else:\n"
@@ -4400,7 +4402,7 @@ def test_upstream_kda_prefill_then_fused_decode_is_bitwise_reference(monkeypatch
     >= 64-row chunks; the test prompts' 512-token chunks) feed the fused
     decode and verify paths exactly like the stock prefill's."""
     try:
-        from omlx_runtime.patches import glm53_kda_prework as prework
+        from molto_runtime.patches import glm53_kda_prework as prework
     except ImportError:
         pytest.skip("this build has no glm53 fused KDA prefill")
     _language()

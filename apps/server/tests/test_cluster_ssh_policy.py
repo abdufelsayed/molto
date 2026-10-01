@@ -6,11 +6,11 @@ from __future__ import annotations
 import subprocess
 
 import pytest
-from omlx_runtime.cluster.ssh_policy import (
+from molto_runtime.cluster.ssh_policy import (
     apply_cluster_ssh_policy,
     cluster_ssh_options,
 )
-from omlx_runtime.cluster.transport import _mlx_config_ssh_policy
+from molto_runtime.cluster.transport import _mlx_config_ssh_policy
 
 
 def test_new_aliases_are_accepted_without_weakening_changed_key_checks():
@@ -22,7 +22,7 @@ def test_new_aliases_are_accepted_without_weakening_changed_key_checks():
     assert "AddressFamily=inet" in options
     assert "StrictHostKeyChecking=accept-new" in options
     assert "CheckHostIP=no" in options
-    assert "IdentityFile=~/.ssh/omlx_cluster" in options
+    assert "IdentityFile=~/.ssh/molto_cluster" in options
     assert "LogLevel=ERROR" in options
     assert "StrictHostKeyChecking=no" not in options
     assert "ConnectTimeout=5" in options

@@ -11,8 +11,8 @@ from unittest.mock import Mock, patch
 from zoneinfo import ZoneInfo
 
 import pytest
-from omlx_runtime.server_metrics import ServerMetrics
-from omlx_runtime.usage_history import UsageHistory, _bounds, _hour
+from molto_runtime.server_metrics import ServerMetrics
+from molto_runtime.usage_history import UsageHistory, _bounds, _hour
 
 
 @pytest.fixture
@@ -127,7 +127,7 @@ def test_concurrent_records_and_flushes(history):
 
 
 def test_background_writer(tmp_path, monkeypatch):
-    monkeypatch.setattr("omlx_runtime.usage_history.FLUSH_SECONDS", 0.02)
+    monkeypatch.setattr("molto_runtime.usage_history.FLUSH_SECONDS", 0.02)
     history = UsageHistory(tmp_path / "usage.sqlite3")
     try:
         record(history)
@@ -221,7 +221,7 @@ def test_failed_transaction_retried_once(history):
 
 
 def test_pending_buffer_bounded(history, monkeypatch):
-    monkeypatch.setattr("omlx_runtime.usage_history._MAX_PENDING_BUCKETS", 2)
+    monkeypatch.setattr("molto_runtime.usage_history._MAX_PENDING_BUCKETS", 2)
     for i in range(10):
         record(history, f"model-{i}")
     assert len(history._pending) == 2
@@ -347,7 +347,7 @@ def test_locked_sqlite_does_not_hold_recording_lock(history):
 
 
 def test_server_metrics_initializes_and_closes_history(tmp_path):
-    from omlx_runtime.server_metrics import get_server_metrics, reset_server_metrics
+    from molto_runtime.server_metrics import get_server_metrics, reset_server_metrics
 
     path = tmp_path / "stats.json"
     try:
@@ -404,7 +404,7 @@ def test_disabled_startup_leaves_storage_untouched(tmp_path, storage):
     elif storage == "corrupt":
         path.write_bytes(b"not a sqlite database")
     before = {p.name: p.read_bytes() for p in tmp_path.iterdir()}
-    with patch("omlx_runtime.usage_history.sqlite3.connect") as connect:
+    with patch("molto_runtime.usage_history.sqlite3.connect") as connect:
         history = UsageHistory(path, enabled=False)
         try:
             record(history)

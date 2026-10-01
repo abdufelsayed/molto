@@ -3,26 +3,26 @@
 Tests for OpenAI API adapter.
 
 Tests the OpenAIAdapter class and base adapter data structures for converting
-between OpenAI API format and internal oMLX format.
+between OpenAI API format and internal Molto format.
 """
 
 import json
 
 import pytest
-from omlx_contracts.api.openai_models import (
+from molto_contracts.api.openai_models import (
     ChatCompletionRequest,
     ChatCompletionResponse,
     Message,
     ToolDefinition,
 )
-from omlx_server.api.adapters.base import (
+from molto_server.api.adapters.base import (
     BaseAdapter,
     InternalMessage,
     InternalRequest,
     InternalResponse,
     StreamChunk,
 )
-from omlx_server.api.adapters.openai import OpenAIAdapter
+from molto_server.api.adapters.openai import OpenAIAdapter
 
 
 class TestInternalDataClasses:
@@ -455,7 +455,7 @@ class TestOpenAIAdapter:
 
     def test_parse_request_with_response_format(self, adapter):
         """Test parsing request with response_format."""
-        from omlx_contracts.api.openai_models import ResponseFormat
+        from molto_contracts.api.openai_models import ResponseFormat
 
         request = ChatCompletionRequest(
             model="test-model",
@@ -531,7 +531,7 @@ class TestOpenAIAdapter:
 
     def test_format_response_with_tool_calls(self, adapter):
         """Test formatting response with tool calls."""
-        from omlx_contracts.api.openai_models import FunctionCall, ToolCall
+        from molto_contracts.api.openai_models import FunctionCall, ToolCall
 
         request = ChatCompletionRequest(
             model="test-model",

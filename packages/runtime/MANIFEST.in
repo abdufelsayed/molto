@@ -1,1 +1,1 @@
-recursive-include src/omlx_runtime/custom_kernels *.cpp *.h *.metal *.mm *.txt
+recursive-include src/molto_runtime/custom_kernels *.cpp *.h *.metal *.mm *.txt

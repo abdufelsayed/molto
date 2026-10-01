@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """The peer-discoverable interpreter shim (#2680).
 
-``discover_remote_python_executable`` probes ``~/.omlx/bin/omlx-cluster-python``
+``discover_remote_python_executable`` probes ``~/.molto/bin/molto-cluster-python``
 before anything else, but nothing ever created that file.  A packaged-app peer
 therefore failed every candidate and was reported as "worker runtime is not
 installed" while the app sat in /Applications.  These tests pin the contract of
@@ -14,7 +14,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from omlx_runtime.cluster.worker_shim import (
+from molto_runtime.cluster.worker_shim import (
     CLUSTER_PYTHON_SHIM,
     ensure_cluster_python_shim,
 )
@@ -23,40 +23,40 @@ from omlx_runtime.cluster.worker_shim import (
 def test_shim_is_written_executable_at_the_probed_candidate_path(tmp_path):
     written = ensure_cluster_python_shim(home=tmp_path)
 
-    assert written == tmp_path / ".omlx" / "bin" / "omlx-cluster-python"
+    assert written == tmp_path / ".molto" / "bin" / "molto-cluster-python"
     assert written.is_file()
     assert os.access(written, os.X_OK)
     # The discovery candidate list spells this exact path.
-    assert CLUSTER_PYTHON_SHIM == "~/.omlx/bin/omlx-cluster-python"
+    assert CLUSTER_PYTHON_SHIM == "~/.molto/bin/molto-cluster-python"
 
 
 def test_shim_reproduces_the_bundled_interpreter_environment(tmp_path):
-    """The bundled app's env is what makes ``import omlx`` work at all."""
+    """The bundled app's env is what makes ``import molto`` work at all."""
 
     written = ensure_cluster_python_shim(
         home=tmp_path,
-        executable="/Applications/oMLX.app/Contents/Resources/Python/"
+        executable="/Applications/Molto.app/Contents/Resources/Python/"
         "cpython-3.11/bin/python3.11",
         environ={
-            "PYTHONHOME": "/Applications/oMLX.app/Contents/Resources/Python/cpython-3.11",
-            "PYTHONPATH": "/Applications/oMLX.app/Contents/Resources",
+            "PYTHONHOME": "/Applications/Molto.app/Contents/Resources/Python/cpython-3.11",
+            "PYTHONPATH": "/Applications/Molto.app/Contents/Resources",
             "PYTHONDONTWRITEBYTECODE": "1",
-            "OMLX_BASE_PATH": "/tmp/custom omlx",
+            "MOLTO_BASE_PATH": "/tmp/custom molto",
         },
     )
     script = written.read_text(encoding="utf-8")
 
     assert script.startswith("#!/bin/sh\n")
     assert (
-        "export PYTHONHOME=/Applications/oMLX.app/Contents/Resources/Python/cpython-3.11"
+        "export PYTHONHOME=/Applications/Molto.app/Contents/Resources/Python/cpython-3.11"
         in script
     )
-    assert "export PYTHONPATH=/Applications/oMLX.app/Contents/Resources" in script
+    assert "export PYTHONPATH=/Applications/Molto.app/Contents/Resources" in script
     assert "export PYTHONDONTWRITEBYTECODE=1" in script
     # A path with a space must survive the shell, so this one is quoted.
-    assert "export OMLX_BASE_PATH='/tmp/custom omlx'" in script
+    assert "export MOLTO_BASE_PATH='/tmp/custom molto'" in script
     assert script.rstrip().endswith(
-        "exec /Applications/oMLX.app/Contents/Resources/Python/"
+        "exec /Applications/Molto.app/Contents/Resources/Python/"
         'cpython-3.11/bin/python3.11 "$@"'
     )
 
@@ -77,7 +77,7 @@ def test_shim_forwards_arguments_to_the_interpreter_verbatim(tmp_path):
         environ={"PYTHONHOME": "/opt/py home"},
     )
     completed = subprocess.run(
-        [str(written), "-m", "omlx_cli.cli", "cluster", "status", "--json"],
+        [str(written), "-m", "molto_cli.cli", "cluster", "status", "--json"],
         capture_output=True,
         text=True,
         check=True,
@@ -86,7 +86,7 @@ def test_shim_forwards_arguments_to_the_interpreter_verbatim(tmp_path):
 
     assert completed.stdout.splitlines() == [
         "HOME=/opt/py home",
-        "ARGS=-m omlx_cli.cli cluster status --json",
+        "ARGS=-m molto_cli.cli cluster status --json",
     ]
 
 
@@ -128,7 +128,7 @@ def test_writer_never_raises_when_the_home_directory_is_unwritable(tmp_path, cap
     blocked = tmp_path / "blocked"
     blocked.write_text("not a directory", encoding="utf-8")
 
-    with caplog.at_level(logging.WARNING, logger="omlx_runtime.cluster.worker_shim"):
+    with caplog.at_level(logging.WARNING, logger="molto_runtime.cluster.worker_shim"):
         assert ensure_cluster_python_shim(home=blocked) is None
 
     assert any(
@@ -138,7 +138,7 @@ def test_writer_never_raises_when_the_home_directory_is_unwritable(tmp_path, cap
 
 
 def test_a_refused_executable_says_why(tmp_path, caplog):
-    with caplog.at_level(logging.DEBUG, logger="omlx_runtime.cluster.worker_shim"):
+    with caplog.at_level(logging.DEBUG, logger="molto_runtime.cluster.worker_shim"):
         assert ensure_cluster_python_shim(home=tmp_path, executable="python3") is None
 
     assert any("not absolute" in record.message for record in caplog.records), (
@@ -147,7 +147,7 @@ def test_a_refused_executable_says_why(tmp_path, caplog):
 
 
 def test_a_successful_publish_records_what_it_pointed_at(tmp_path, caplog):
-    with caplog.at_level(logging.INFO, logger="omlx_runtime.cluster.worker_shim"):
+    with caplog.at_level(logging.INFO, logger="molto_runtime.cluster.worker_shim"):
         ensure_cluster_python_shim(home=tmp_path, executable="/usr/bin/python3")
 
     assert any("/usr/bin/python3" in record.message for record in caplog.records), (
@@ -157,13 +157,13 @@ def test_a_successful_publish_records_what_it_pointed_at(tmp_path, caplog):
 
 def test_executable_that_is_not_an_absolute_path_is_refused(tmp_path):
     assert ensure_cluster_python_shim(home=tmp_path, executable="python3") is None
-    assert not (tmp_path / ".omlx" / "bin").exists()
+    assert not (tmp_path / ".molto" / "bin").exists()
 
 
 def test_shim_survives_a_stale_file_at_the_target_path(tmp_path):
-    bin_dir = tmp_path / ".omlx" / "bin"
+    bin_dir = tmp_path / ".molto" / "bin"
     bin_dir.mkdir(parents=True)
-    stale = bin_dir / "omlx-cluster-python"
+    stale = bin_dir / "molto-cluster-python"
     stale.write_text('#!/bin/sh\nexec /gone/python "$@"\n', encoding="utf-8")
     stale.chmod(0o644)
 
@@ -182,5 +182,5 @@ def test_default_home_and_environment_come_from_the_running_server(
 
     written = ensure_cluster_python_shim()
 
-    assert written == tmp_path / ".omlx" / "bin" / "omlx-cluster-python"
+    assert written == tmp_path / ".molto" / "bin" / "molto-cluster-python"
     assert sys.executable in written.read_text(encoding="utf-8")

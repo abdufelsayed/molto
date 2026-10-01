@@ -25,7 +25,7 @@ const targetSource = (
   )
 )
   .replace(
-    'import openapi from "@omlx/contracts/openapi.json"',
+    'import openapi from "@molto/contracts/openapi.json"',
     `const openapi = ${schema}`
   )
   .replace("export function operationTarget", "function operationTarget")
@@ -93,8 +93,8 @@ await test("native realtime proxy preserves early auth frame, binary audio, and 
   })
   upstream.listen(0, "127.0.0.1")
   await once(upstream, "listening")
-  const previous = process.env.OMLX_API_URL
-  process.env.OMLX_API_URL = `http://127.0.0.1:${upstream.address().port}`
+  const previous = process.env.MOLTO_API_URL
+  process.env.MOLTO_API_URL = `http://127.0.0.1:${upstream.address().port}`
   const publicServer = createServer()
   const publicAdapter = nodeAdapter({ hooks: route.realtimeHooks })
   publicServer.on("upgrade", (...args) => {
@@ -162,8 +162,8 @@ await test("native realtime proxy preserves early auth frame, binary audio, and 
     assert.equal(closeEvent.reason, "fixture rejection")
   } finally {
     client.close()
-    if (previous === undefined) delete process.env.OMLX_API_URL
-    else process.env.OMLX_API_URL = previous
+    if (previous === undefined) delete process.env.MOLTO_API_URL
+    else process.env.MOLTO_API_URL = previous
     publicServer.closeAllConnections()
     upstream.closeAllConnections()
     await Promise.all([

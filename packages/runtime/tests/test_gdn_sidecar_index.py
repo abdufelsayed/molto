@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 import pytest
-from omlx_runtime.cache.paged_ssd_cache import (
+from molto_runtime.cache.paged_ssd_cache import (
     _READABLE_CACHE_FORMAT_VERSIONS,
     PagedSSDBlockMetadata,
     PagedSSDCacheManager,
@@ -571,7 +571,7 @@ def test_split_save_writes_format_five_and_payload_layout_metadata(tmp_path):
             time.sleep(0.01)
         assert file_path.exists()
         _, metadata = mx.load(str(file_path), return_metadata=True)
-        assert metadata["omlx_cache_format_version"] == "5"
+        assert metadata["molto_cache_format_version"] == "5"
         assert metadata["payload_layout"] == "split_recurrent_v1"
         signature_payload = json.loads(metadata["cache_signature"])
         assert signature_payload["payload_layout"] == "split_recurrent_v1"

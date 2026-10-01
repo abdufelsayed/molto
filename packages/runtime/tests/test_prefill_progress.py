@@ -5,7 +5,7 @@ import threading
 import time
 from unittest.mock import patch
 
-from omlx_runtime.prefill_progress import PrefillProgressTracker
+from molto_runtime.prefill_progress import PrefillProgressTracker
 
 
 def test_prefill_progress_resets_elapsed_when_phase_changes(monkeypatch):
@@ -114,7 +114,7 @@ class TestPrefillProgressTracker:
 
     def test_speed_and_eta_calculation(self):
         t = 100.0
-        with patch("omlx_runtime.prefill_progress.time") as mock_time:
+        with patch("molto_runtime.prefill_progress.time") as mock_time:
             mock_time.monotonic.return_value = t
             self.tracker.update("req-1", 0, 8192, "llama-3b")
 

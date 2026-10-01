@@ -13,7 +13,7 @@ import threading
 import time
 
 import pytest
-from omlx_runtime.scheduler import Scheduler, _StoreCacheGate
+from molto_runtime.scheduler import Scheduler, _StoreCacheGate
 
 
 class TestCounter:

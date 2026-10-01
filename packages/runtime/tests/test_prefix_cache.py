@@ -14,14 +14,14 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from omlx_runtime.cache.paged_cache import (
+from molto_runtime.cache.paged_cache import (
     BlockTable,
     PagedCacheManager,
     compute_block_hash,
 )
-from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
-from omlx_runtime.cache.prefix_cache import BlockAwarePrefixCache, BlockCacheEntry
-from omlx_runtime.cache.stats import PrefixCacheStats
+from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+from molto_runtime.cache.prefix_cache import BlockAwarePrefixCache, BlockCacheEntry
+from molto_runtime.cache.stats import PrefixCacheStats
 
 
 class MockModel:
@@ -313,7 +313,7 @@ class TestBlockAwarePrefixCache:
     def test_aligned_exact_prefix_does_not_reuse_placeholder_terminal(self, tmp_path):
         """An aligned static tip must not collide with an ordinary chain block."""
         import mlx.core as mx
-        from omlx_runtime.cache.hybrid_cache import ModelCacheConfig
+        from molto_runtime.cache.hybrid_cache import ModelCacheConfig
 
         prefix_cache, _, ssd_manager = self._make_ssd_prefix_cache(
             tmp_path / "aligned-exact-prefix",
@@ -1519,7 +1519,7 @@ class TestArraysCacheLastBlockOnly:
         self, prefix_cache, mx
     ):
         """Hybrid model: KVCache sliced normally, ArraysCache last-block-only."""
-        from omlx_runtime.cache.hybrid_cache import ModelCacheConfig
+        from molto_runtime.cache.hybrid_cache import ModelCacheConfig
 
         kv_keys = mx.ones((1, 8, 8, 64))
         kv_values = mx.ones((1, 8, 8, 64))
@@ -1578,7 +1578,7 @@ class TestArraysCacheLastBlockOnly:
         self, prefix_cache, mx
     ):
         """Partial match (placeholder in last block) should return None."""
-        from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+        from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
 
         # Create mock SSD cache
         mock_ssd = MagicMock(spec=PagedSSDCacheManager)
@@ -1648,7 +1648,7 @@ class TestArraysCacheLastBlockOnly:
 
     def test_reconstruct_arrays_cache_exact_match_succeeds(self, prefix_cache, mx):
         """Exact match (full state in last block) should reconstruct successfully."""
-        from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+        from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
 
         mock_ssd = MagicMock(spec=PagedSSDCacheManager)
 
@@ -1766,7 +1766,7 @@ class TestArraysCacheLastBlockOnly:
         already seen them (silent GDN corruption). Without a boundary
         snapshot, this must store a placeholder instead.
         See docs/qwen35-hardening-and-optimization.md A1."""
-        from omlx_runtime.cache.hybrid_cache import ModelCacheConfig
+        from molto_runtime.cache.hybrid_cache import ModelCacheConfig
 
         block_size = 4
         paged_cache = PagedCacheManager(
@@ -1824,7 +1824,7 @@ class TestArraysCacheLastBlockOnly:
         lets it be stored directly instead of a placeholder. Distinguishes
         this safe case from the unsafe partial-trailing case above.
         See docs/qwen35-hardening-and-optimization.md A1."""
-        from omlx_runtime.cache.hybrid_cache import ModelCacheConfig
+        from molto_runtime.cache.hybrid_cache import ModelCacheConfig
 
         block_size = 4
         paged_cache = PagedCacheManager(
@@ -1882,7 +1882,7 @@ class TestArraysCacheLastBlockOnly:
 
     def _tail_fixture(self, mx):
         """Hybrid KVCache + ArraysCache prefix cache with a mocked SSD tier."""
-        from omlx_runtime.cache.hybrid_cache import ModelCacheConfig
+        from molto_runtime.cache.hybrid_cache import ModelCacheConfig
 
         paged_cache = PagedCacheManager(
             block_size=4,
@@ -1927,7 +1927,7 @@ class TestArraysCacheLastBlockOnly:
 
         The tail carries the snapshot taken at its end (7) and is indexed under
         its parent block."""
-        from omlx_runtime.cache.paged_cache import compute_block_hash
+        from molto_runtime.cache.paged_cache import compute_block_hash
 
         cache, paged_cache, mock_ssd, config = self._tail_fixture(mx)
         tokens = list(range(7))
@@ -1982,7 +1982,7 @@ class TestArraysCacheLastBlockOnly:
         The fetched tail is released from the table before the new blocks
         are laid out, so the next full block chains to the last full block
         and the old tail stays cached for other requests."""
-        from omlx_runtime.cache.paged_cache import compute_block_hash
+        from molto_runtime.cache.paged_cache import compute_block_hash
 
         cache, paged_cache, mock_ssd, config = self._tail_fixture(mx)
         first = cache.store_cache(
@@ -2556,7 +2556,7 @@ class TestArraysCacheLastBlockOnly:
         aligned block size is a MULTIPLE of the rotating window (e.g.
         window 128 -> block 512), so a rotating layer's last-block window
         state is shorter than the block's token span by design."""
-        from omlx_runtime.cache.hybrid_cache import ModelCacheConfig
+        from molto_runtime.cache.hybrid_cache import ModelCacheConfig
 
         block_size = 4
         paged_cache = PagedCacheManager(
@@ -2875,7 +2875,7 @@ class TestPrefixCacheCacheList:
 
     def test_extract_block_tensor_slice_cache_list_last_block(self, prefix_cache, mx):
         """Test _extract_block_tensor_slice for CacheList on last block."""
-        from omlx_runtime.cache.hybrid_cache import ModelCacheConfig
+        from molto_runtime.cache.hybrid_cache import ModelCacheConfig
 
         sub_keys = mx.zeros((1, 8, 32, 64))
         sub_values = mx.ones((1, 8, 32, 64))
@@ -2912,7 +2912,7 @@ class TestPrefixCacheCacheList:
         When all sub-caches are 4D KVCache tensors, they should be sliced
         per-block instead of using last-block-only placeholder storage.
         """
-        from omlx_runtime.cache.hybrid_cache import ModelCacheConfig
+        from molto_runtime.cache.hybrid_cache import ModelCacheConfig
 
         sub_keys = mx.zeros((1, 8, 32, 64))
         sub_values = mx.ones((1, 8, 32, 64))
@@ -2946,7 +2946,7 @@ class TestPrefixCacheCacheList:
         self, prefix_cache, mx
     ):
         """Test per-block slicing for CacheList with zero-dim values (DSA indexer)."""
-        from omlx_runtime.cache.hybrid_cache import ModelCacheConfig
+        from molto_runtime.cache.hybrid_cache import ModelCacheConfig
 
         # GLM-5 style: main attention + indexer with zero head_dim
         sub_keys1 = mx.zeros((1, 1, 64, 512))
@@ -3026,7 +3026,7 @@ class TestPrefixCacheCacheList:
 
     def test_reconstruct_cache_list_partial_match_reject(self, mx):
         """Test reconstruct_cache rejects CacheList with placeholder (partial match)."""
-        from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+        from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
 
         mock_ssd = MagicMock(spec=PagedSSDCacheManager)
 
@@ -3257,7 +3257,7 @@ class TestWalkBackTruncation:
         3 blocks: block0[p] block1[real] block2[p]
         Should truncate to blocks 0-1, returning valid cache.
         """
-        from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+        from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
 
         mock_ssd = MagicMock(spec=PagedSSDCacheManager)
 
@@ -3323,7 +3323,7 @@ class TestWalkBackTruncation:
 
     def test_reconstruct_rotating_cache_walks_back_to_valid_block(self, mx):
         """Rotating partial match should walk back to latest valid block."""
-        from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+        from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
 
         mock_ssd = MagicMock(spec=PagedSSDCacheManager)
 
@@ -3388,7 +3388,7 @@ class TestWalkBackTruncation:
     def test_reconstruct_all_placeholders_still_rejects(self, mx):
         """When no block has valid state, walk-back finds nothing and
         the existing per-layer rejection returns None."""
-        from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+        from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
 
         mock_ssd = MagicMock(spec=PagedSSDCacheManager)
 
@@ -3441,7 +3441,7 @@ class TestWalkBackTruncation:
     def test_partial_reconstruction_frees_dropped_blocks(self, mx):
         """Blocks dropped during partial reconstruction should have
         their ref_counts decremented."""
-        from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+        from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
 
         mock_ssd = MagicMock(spec=PagedSSDCacheManager)
 
@@ -3518,7 +3518,7 @@ class TestTurboQuantFormatMismatchRecovery:
         """A pre-fix fp16 tail after TQ blocks should heal by truncation."""
         from mlx_lm.models.cache import KVCache
         from mlx_vlm.turboquant import TurboQuantKVCache
-        from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+        from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
 
         mock_ssd = MagicMock(spec=PagedSSDCacheManager)
         mock_ssd.forget_block.return_value = True
@@ -3601,7 +3601,7 @@ class TestTurboQuantFormatMismatchRecovery:
 
     def test_reconstruct_rejects_stale_first_block_with_manager_signature(self, mx):
         """A live manager signature must make stale block 0 fail its own check."""
-        from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+        from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
 
         mock_ssd = MagicMock(spec=PagedSSDCacheManager)
         mock_ssd._expected_layer_cache_types = ["TurboQuantKVCache"]
@@ -3658,8 +3658,8 @@ class TestTurboQuantFormatMismatchRecovery:
         """SizedArraysCache is a restored ArraysCache wrapper, not a mismatch."""
         from mlx_lm.models.cache import KVCache
         from mlx_vlm.turboquant import TurboQuantKVCache
-        from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
-        from omlx_runtime.cache.type_handlers import SizedArraysCache
+        from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+        from molto_runtime.cache.type_handlers import SizedArraysCache
 
         mock_ssd = MagicMock(spec=PagedSSDCacheManager)
 
@@ -3740,8 +3740,8 @@ class TestTurboQuantFormatMismatchRecovery:
 
     def test_reconstruct_preserves_variable_length_arrays_state(self, mx):
         """N-tuple ArraysCache markers restore every recurrent state slot."""
-        from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
-        from omlx_runtime.cache.type_handlers import SizedArraysCache
+        from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+        from molto_runtime.cache.type_handlers import SizedArraysCache
 
         mock_ssd = MagicMock(spec=PagedSSDCacheManager)
         paged_cache = PagedCacheManager(
@@ -3807,7 +3807,7 @@ class TestPerBlockMetaStates:
 
     def test_store_cache_uses_snapshot_meta_for_rotating_cache(self, mx):
         """Boundary snapshot meta_state should override shared meta for RotatingKVCache blocks."""
-        from omlx_runtime.cache.hybrid_cache import ModelCacheConfig
+        from molto_runtime.cache.hybrid_cache import ModelCacheConfig
 
         block_size = 4
         paged_cache = PagedCacheManager(
@@ -3908,7 +3908,7 @@ class TestPerBlockMetaStates:
 
     def test_store_cache_kvcache_meta_falls_back_to_shared(self, mx):
         """KVCache layers in boundary snapshots have empty meta, should fall back to shared."""
-        from omlx_runtime.cache.hybrid_cache import ModelCacheConfig
+        from molto_runtime.cache.hybrid_cache import ModelCacheConfig
 
         block_size = 4
         paged_cache = PagedCacheManager(
@@ -4011,7 +4011,7 @@ class TestPerBlockMetaStates:
 
     def test_store_cache_last_block_with_snapshot_uses_snapshot_meta(self, mx):
         """Last block should also prefer snapshot meta when a boundary snapshot exists."""
-        from omlx_runtime.cache.hybrid_cache import ModelCacheConfig
+        from molto_runtime.cache.hybrid_cache import ModelCacheConfig
 
         block_size = 4
         paged_cache = PagedCacheManager(
@@ -4232,7 +4232,7 @@ class TestTurboQuantMixedPayloadReconstruction:
 
     def _make_cache(self, num_layers=1):
         """Build a prefix cache with a mocked SSD manager."""
-        from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+        from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
 
         mock_ssd = MagicMock(spec=PagedSSDCacheManager)
         paged_cache = PagedCacheManager(
@@ -4729,7 +4729,7 @@ class TestReconstructionSilentFallbackHardening:
 
     def _make_cache(self, num_layers=1):
         """Build a prefix cache with a mocked SSD manager."""
-        from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+        from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
 
         mock_ssd = MagicMock(spec=PagedSSDCacheManager)
         paged_cache = PagedCacheManager(
@@ -4847,9 +4847,9 @@ class TestReconstructionSilentFallbackHardening:
 def test_pooling_snapshot_base_after_atomic_image_prefix(tmp_path, complete_base):
     import mlx.core as mx
     from mlx_vlm.models.cache import CacheList, PoolingCache, RotatingKVCache
-    from omlx_runtime.cache.pooling_delta import compact_pooling_cache_snapshot
-    from omlx_runtime.cache.type_handlers import CacheListHandler
-    from omlx_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
+    from molto_runtime.cache.pooling_delta import compact_pooling_cache_snapshot
+    from molto_runtime.cache.type_handlers import CacheListHandler
+    from molto_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
 
     apply_deepseek_v4_patch()
     prefix, _, ssd = TestBlockAwarePrefixCache._make_ssd_prefix_cache(tmp_path)

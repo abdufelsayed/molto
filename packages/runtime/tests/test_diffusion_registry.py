@@ -9,7 +9,7 @@ import sys
 from unittest.mock import Mock
 
 import pytest
-from omlx_runtime.diffusion import (
+from molto_runtime.diffusion import (
     MODEL_IDENTITIES,
     PIPELINES,
     Checkpoint,
@@ -53,7 +53,7 @@ def test_registry_import_does_not_load_optional_backend():
         [
             sys.executable,
             "-c",
-            "import sys; import omlx_runtime.diffusion; assert not any(n == 'mflux' or n.startswith('mflux.') for n in sys.modules)",
+            "import sys; import molto_runtime.diffusion; assert not any(n == 'mflux' or n.startswith('mflux.') for n in sys.modules)",
         ],
         capture_output=True,
         text=True,
@@ -63,15 +63,15 @@ def test_registry_import_does_not_load_optional_backend():
 
 def test_acquisition_preserves_remote_checkpoint_identity():
     from huggingface_hub.utils import filter_repo_objects
-    from omlx_runtime.diffusion import download_patterns
+    from molto_runtime.diffusion import download_patterns
 
     selected = list(
         filter_repo_objects(
-            ["omlx-mflux.json", "transformer/0.safetensors", "unrelated.bin"],
+            ["molto-mflux.json", "transformer/0.safetensors", "unrelated.bin"],
             allow_patterns=download_patterns("flux2-klein-4b"),
         )
     )
-    assert selected == ["omlx-mflux.json", "transformer/0.safetensors"]
+    assert selected == ["molto-mflux.json", "transformer/0.safetensors"]
 
 
 def test_registry_covers_installed_canonical_models():
@@ -246,7 +246,7 @@ def test_checkpoint_manifest_roundtrip_and_legacy_migration(tmp_path):
     found = detect_checkpoint(tmp_path)
     assert found.quantization == 4 and found.default_pipeline == "z-image-turbo"
     assert found.metadata()["base_model"] == "z-image-turbo"
-    (tmp_path / "omlx-mflux.json").write_text(
+    (tmp_path / "molto-mflux.json").write_text(
         json.dumps(
             {
                 "version": 1,
@@ -283,7 +283,7 @@ def test_invalid_manifest_never_falls_back_to_directory_name(tmp_path, changes):
         "components": list(get_pipeline("z-image-turbo").components),
     }
     manifest.update(changes)
-    (path / "omlx-mflux.json").write_text(json.dumps(manifest))
+    (path / "molto-mflux.json").write_text(json.dumps(manifest))
     with pytest.raises(ValueError):
         detect_checkpoint(path)
 
@@ -312,7 +312,7 @@ def test_precision_manifest_cannot_relabel_weights(tmp_path):
 
 def test_offline_load_does_not_acquire_components(tmp_path):
     artifact(tmp_path)
-    from omlx_runtime.diffusion.backend import _offline
+    from molto_runtime.diffusion.backend import _offline
 
     pytest.importorskip("mflux")
     from mflux.models.common.resolution.path_resolution import PathResolution
@@ -443,7 +443,7 @@ def test_union_accepts_modes_without_auxiliary_models(mode):
             prompt="tree", image_paths=("input.png",), options={"control_types": [mode]}
         ),
     )["control_types"] == [mode]
-    assert spec.metadata()["defaults_source"] == "oMLX defaults informed by mflux APIs"
+    assert spec.metadata()["defaults_source"] == "Molto defaults informed by mflux APIs"
 
 
 def test_legacy_cache_identity_survives_symlink_alias(tmp_path):
@@ -464,7 +464,7 @@ def test_legacy_cache_identity_survives_symlink_alias(tmp_path):
 def test_dev_depth_declares_missing_local_preprocessor_and_rejects_before_construction(
     tmp_path, monkeypatch
 ):
-    from omlx_runtime.diffusion import backend as backend_module
+    from molto_runtime.diffusion import backend as backend_module
 
     spec = get_pipeline("dev-depth")
     metadata = spec.metadata()
@@ -485,8 +485,8 @@ def test_dev_depth_declares_missing_local_preprocessor_and_rejects_before_constr
 def test_catvton_rejects_ordinary_inpainting_and_incomplete_acquisition(
     tmp_path, monkeypatch
 ):
-    from omlx_runtime.diffusion import backend as backend_module
-    from omlx_runtime.diffusion import download_patterns
+    from molto_runtime.diffusion import backend as backend_module
+    from molto_runtime.diffusion import download_patterns
 
     spec = get_pipeline("dev-fill-catvton")
     metadata = spec.metadata()
@@ -508,7 +508,7 @@ def test_catvton_rejects_ordinary_inpainting_and_incomplete_acquisition(
 
 def test_krea_download_filters_skip_duplicate_turbo_layout():
     from huggingface_hub.utils import filter_repo_objects
-    from omlx_runtime.diffusion import download_patterns
+    from molto_runtime.diffusion import download_patterns
 
     files = [
         "turbo.safetensors",

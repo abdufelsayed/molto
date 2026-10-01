@@ -48,8 +48,8 @@ def _install_fake_vlm_base(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _fresh_fa256_patch(monkeypatch):
-    import omlx_runtime.patches.qwen35_fa256_attention as patch
-    from omlx_runtime import memory_monitor
+    import molto_runtime.patches.qwen35_fa256_attention as patch
+    from molto_runtime import memory_monitor
 
     monkeypatch.setattr(patch, "_PATCHED", False, raising=False)
     memory_monitor._SDPA_TILED_PREFILL_HEAD_DIMS.pop(256, None)
@@ -63,19 +63,19 @@ def _fresh_fa256_patch(monkeypatch):
         "_auto_dispatch_budget",
         lambda *a, **k: patch._DEFAULT_DISPATCH_BUDGET,
     )
-    monkeypatch.delenv("OMLX_FA256_STEEL", raising=False)
-    monkeypatch.delenv("OMLX_FA256_MIN_KV_LEN", raising=False)
-    monkeypatch.delenv("OMLX_FA256_Q_BLOCK", raising=False)
-    monkeypatch.delenv("OMLX_FA256_K_BLOCK", raising=False)
-    monkeypatch.delenv("OMLX_FA256_DEBUG", raising=False)
-    monkeypatch.delenv("OMLX_FA256_DISPATCH_BUDGET", raising=False)
+    monkeypatch.delenv("MOLTO_FA256_STEEL", raising=False)
+    monkeypatch.delenv("MOLTO_FA256_MIN_KV_LEN", raising=False)
+    monkeypatch.delenv("MOLTO_FA256_Q_BLOCK", raising=False)
+    monkeypatch.delenv("MOLTO_FA256_K_BLOCK", raising=False)
+    monkeypatch.delenv("MOLTO_FA256_DEBUG", raising=False)
+    monkeypatch.delenv("MOLTO_FA256_DISPATCH_BUDGET", raising=False)
     yield
     monkeypatch.setattr(patch, "_PATCHED", False, raising=False)
     memory_monitor._SDPA_TILED_PREFILL_HEAD_DIMS.pop(256, None)
 
 
 def test_route_gate_is_qwen_fa256_only():
-    import omlx_runtime.patches.qwen35_fa256_attention as patch
+    import molto_runtime.patches.qwen35_fa256_attention as patch
 
     q, k, _ = _qkv(128, 2048)
     assert patch._should_route(q, k, None, "causal", None, min_kv_len=2048)
@@ -106,7 +106,7 @@ def test_route_gate_is_qwen_fa256_only():
 
 
 def test_vlm_patch_routes_and_passes_through(monkeypatch):
-    import omlx_runtime.patches.qwen35_fa256_attention as patch
+    import molto_runtime.patches.qwen35_fa256_attention as patch
 
     base, language = _install_fake_vlm_base(monkeypatch)
     calls = []
@@ -142,7 +142,7 @@ def test_vlm_patch_routes_and_passes_through(monkeypatch):
         )
     ]
 
-    from omlx_runtime import memory_monitor
+    from molto_runtime import memory_monitor
 
     routes = memory_monitor._SDPA_TILED_PREFILL_HEAD_DIMS[256]
     assert any(route.min_query_len == 16 and route.min_kv_len == 16 for route in routes)
@@ -155,7 +155,7 @@ def test_vlm_patch_routes_and_passes_through(monkeypatch):
 
 
 def test_kernel_failure_keeps_registered_bounded_route(monkeypatch):
-    import omlx_runtime.patches.qwen35_fa256_attention as patch
+    import molto_runtime.patches.qwen35_fa256_attention as patch
 
     base, _ = _install_fake_vlm_base(monkeypatch)
     monkeypatch.setattr(
@@ -178,7 +178,7 @@ def test_kernel_failure_keeps_registered_bounded_route(monkeypatch):
 
 
 def test_dispatch_budget_env_and_capability_gate(monkeypatch):
-    import omlx_runtime.patches.qwen35_fa256_attention as patch
+    import molto_runtime.patches.qwen35_fa256_attention as patch
 
     base, _ = _install_fake_vlm_base(monkeypatch)
     calls = []
@@ -194,7 +194,7 @@ def test_dispatch_budget_env_and_capability_gate(monkeypatch):
         patch._fa256_fast, "fa256_supports_dispatch_budget", lambda: True
     )
     monkeypatch.setattr(patch.mx.metal, "is_available", lambda: True)
-    monkeypatch.setenv("OMLX_FA256_DISPATCH_BUDGET", "12345")
+    monkeypatch.setenv("MOLTO_FA256_DISPATCH_BUDGET", "12345")
 
     assert patch.apply_qwen35_fa256_attention_patch(min_kv_len=16)
     q, k, v = _qkv(32, 32)
@@ -203,7 +203,7 @@ def test_dispatch_budget_env_and_capability_gate(monkeypatch):
 
 
 def test_dispatch_budget_auto_calibration_used_when_env_unset(monkeypatch):
-    import omlx_runtime.patches.qwen35_fa256_attention as patch
+    import molto_runtime.patches.qwen35_fa256_attention as patch
 
     base, _ = _install_fake_vlm_base(monkeypatch)
     calls = []
@@ -231,7 +231,7 @@ def test_dispatch_budget_zeroed_on_old_extension(monkeypatch):
     # An extension built before the chunked-dispatch fix rejects the kwarg;
     # the patch must fall back to the single-dispatch behavior instead of
     # failing every routed call into the stock path (issue #2225).
-    import omlx_runtime.patches.qwen35_fa256_attention as patch
+    import molto_runtime.patches.qwen35_fa256_attention as patch
 
     base, _ = _install_fake_vlm_base(monkeypatch)
     calls = []
@@ -257,32 +257,32 @@ def test_dispatch_budget_zeroed_on_old_extension(monkeypatch):
 def test_apply_skips_on_nax_gpu(monkeypatch):
     # MLX 0.32.2 has a native NAX split-D fused path for head-dim-256 causal
     # prefill, so the auto mode must not replace it with the pre-NAX kernel.
-    import omlx_runtime.patches.qwen35_fa256_attention as patch
+    import molto_runtime.patches.qwen35_fa256_attention as patch
 
     monkeypatch.setattr(patch, "is_nax_available", lambda: True)
     assert patch.apply_qwen35_fa256_attention_patch() is False
 
 
 def test_apply_env_forces_steel_on_nax_gpu(monkeypatch):
-    import omlx_runtime.patches.qwen35_fa256_attention as patch
+    import molto_runtime.patches.qwen35_fa256_attention as patch
 
     _install_fake_vlm_base(monkeypatch)
     monkeypatch.setattr(patch, "is_nax_available", lambda: True)
     monkeypatch.setattr(patch, "_native_kernel", lambda: lambda *a, **k: "steel")
-    monkeypatch.setenv("OMLX_FA256_STEEL", "1")
+    monkeypatch.setenv("MOLTO_FA256_STEEL", "1")
     assert patch.apply_qwen35_fa256_attention_patch() is True
 
 
 def test_apply_env_kill_switch_wins(monkeypatch):
-    import omlx_runtime.patches.qwen35_fa256_attention as patch
+    import molto_runtime.patches.qwen35_fa256_attention as patch
 
     monkeypatch.setattr(patch, "is_nax_available", lambda: False)
-    monkeypatch.setenv("OMLX_FA256_STEEL", "0")
+    monkeypatch.setenv("MOLTO_FA256_STEEL", "0")
     assert patch.apply_qwen35_fa256_attention_patch() is False
 
 
 def test_qwen_native_symbols_are_not_registered_on_glm_extension():
-    from omlx_runtime.custom_kernels.glm_moe_dsa import fast as glm_fast
+    from molto_runtime.custom_kernels.glm_moe_dsa import fast as glm_fast
 
     assert not glm_fast.has_symbol("qwen35_fa256_attention")
     assert not glm_fast.has_symbol("qwen35_q4_affine_qmm_t")
@@ -294,7 +294,7 @@ def test_qwen_native_symbols_are_not_registered_on_glm_extension():
 
 @pytest.mark.skipif(not mx.metal.is_available(), reason="Metal is required")
 def test_native_fa256_matches_mlx_reference_small():
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
 
     if not fast.has_symbol("qwen35_fa256_attention"):
         pytest.skip("native qwen35_fa256_attention is unavailable")
@@ -316,8 +316,8 @@ def test_native_fa256_matches_mlx_reference_small():
 
 @pytest.mark.skipif(not mx.metal.is_available(), reason="Metal is required")
 def test_auto_dispatch_budget_calibrates_within_clamp():
-    import omlx_runtime.patches.qwen35_fa256_attention as patch
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
+    import molto_runtime.patches.qwen35_fa256_attention as patch
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
 
     if not fast.has_symbol("qwen35_fa256_attention"):
         pytest.skip("native qwen35_fa256_attention is unavailable")
@@ -341,7 +341,7 @@ def test_native_fa256_chunked_matches_single_dispatch(q_len, kv_len):
     # The dispatch budget splits the key axis into separately dispatched
     # chunks combined by logsumexp weights (issue #2225); the result must
     # match the single-dispatch kernel up to combine rounding.
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
 
     if not fast.has_symbol("qwen35_fa256_attention"):
         pytest.skip("native qwen35_fa256_attention is unavailable")

@@ -51,7 +51,7 @@ export function WorkspaceModelPanel({ modelId }: { modelId: string }) {
     onSuccess: () => {
       setConfirm(null)
       setDeletion(null)
-      void client.invalidateQueries({ queryKey: ["omlx"] })
+      void client.invalidateQueries({ queryKey: ["molto"] })
     },
   })
   const preview = useMutation({

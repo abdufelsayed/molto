@@ -14,7 +14,7 @@ duty bound on heavy models.
 import math
 import random
 
-from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _DepthController
+from molto_runtime.patches.mlx_lm_mtp.batch_generator import _DepthController
 
 
 def _simulate(controller, cycles, p_by_depth, ms_by_depth, seed=0):
@@ -409,7 +409,7 @@ def test_winning_speculation_never_exits():
 def test_exit_margin_arg_overrides_prior_with_clamp():
     # A measured loop tax seeds later controllers; the fallback prior only
     # applies until the first hand-off measured the real ratio.
-    from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _STD_TAX_MAX
+    from molto_runtime.patches.mlx_lm_mtp.batch_generator import _STD_TAX_MAX
 
     c = _DepthController(3, exit_margin=1.06)
     assert math.isclose(c.EXIT_MARGIN, 1.06, rel_tol=1e-9)
@@ -421,7 +421,7 @@ def test_exit_margin_arg_overrides_prior_with_clamp():
 def test_std_tax_probe_measures_and_smooths():
     from types import SimpleNamespace
 
-    from omlx_runtime.patches.mlx_lm_mtp.batch_generator import (
+    from molto_runtime.patches.mlx_lm_mtp.batch_generator import (
         _STD_TAX_SAMPLES,
         _STD_TAX_SKIP,
         _arm_std_tax_probe,
@@ -436,8 +436,8 @@ def test_std_tax_probe_measures_and_smooths():
         _record_std_tax_sample(gb, 99.0)
     for _ in range(_STD_TAX_SAMPLES):
         _record_std_tax_sample(gb, 10.0)
-    assert math.isclose(model._omlx_mtp_loop_tax, 1.2, rel_tol=1e-9)
-    assert not hasattr(gb, "_omlx_mtp_tax_probe")
+    assert math.isclose(model._molto_mtp_loop_tax, 1.2, rel_tol=1e-9)
+    assert not hasattr(gb, "_molto_mtp_tax_probe")
 
     # A second hand-off EMA-blends toward the new measurement.
     _arm_std_tax_probe(gb, 11.0)
@@ -445,7 +445,7 @@ def test_std_tax_probe_measures_and_smooths():
         _record_std_tax_sample(gb, 99.0)
     for _ in range(_STD_TAX_SAMPLES):
         _record_std_tax_sample(gb, 11.0)
-    assert 1.0 < model._omlx_mtp_loop_tax < 1.2
+    assert 1.0 < model._molto_mtp_loop_tax < 1.2
 
 
 def test_unreached_position_borrows_previous_estimate():

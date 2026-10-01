@@ -5,10 +5,10 @@ from unittest.mock import MagicMock, patch
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.cache.paged_cache import PagedCacheManager
-from omlx_runtime.cache.prefix_cache import BlockAwarePrefixCache
-from omlx_runtime.engine.vlm import VLMBatchedEngine
-from omlx_runtime.utils.image import compute_image_hash
+from molto_runtime.cache.paged_cache import PagedCacheManager
+from molto_runtime.cache.prefix_cache import BlockAwarePrefixCache
+from molto_runtime.engine.vlm import VLMBatchedEngine
+from molto_runtime.utils.image import compute_image_hash
 from PIL import Image
 
 
@@ -148,7 +148,7 @@ def test_generic_receding_boundary_salts_with_all_images():
         {1: [1] * 4, 3: [1, 7]},
         model_type="gemma3",
     )
-    from omlx_runtime.cache.paged_cache import resolve_block_extra_keys
+    from molto_runtime.cache.paged_cache import resolve_block_extra_keys
 
     ranges = [(start, (key,)) for start, key in result[5]]
     assert resolve_block_extra_keys(4, extra_key_ranges=ranges) == (

@@ -14,9 +14,9 @@ from unittest.mock import MagicMock, patch
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.exceptions import PrefillMemoryExceededError
-from omlx_runtime.request import Request, RequestStatus, SamplingParams
-from omlx_runtime.scheduler import (
+from molto_runtime.exceptions import PrefillMemoryExceededError
+from molto_runtime.request import Request, RequestStatus, SamplingParams
+from molto_runtime.scheduler import (
     PrefillEvictionRequest,
     Scheduler,
     SchedulerConfig,
@@ -137,16 +137,16 @@ def _make_recording_scheduler(
 
 @pytest.mark.parametrize("chunked", [False, True])
 def test_prefill_interrupts_mtp_cost_timing(chunked):
-    from omlx_runtime.patches.mlx_lm_mtp.batch_policy import BatchPolicy
+    from molto_runtime.patches.mlx_lm_mtp.batch_policy import BatchPolicy
 
     scheduler, model = _make_recording_scheduler("qwen3_5_moe")
     policy = BatchPolicy([0, 1], 3)
     scheduler.batch_generator = SimpleNamespace(
-        _generation_batch=SimpleNamespace(_omlx_mtp_batch_policy=policy)
+        _generation_batch=SimpleNamespace(_molto_mtp_batch_policy=policy)
     )
     policy.cycle_time_ms("mtp", 1.0, 1.02)
     request = _make_request("timing", n_tokens=9)
-    with patch("omlx_runtime.scheduler._sync_and_clear_cache"):
+    with patch("molto_runtime.scheduler._sync_and_clear_cache"):
         if chunked:
             state = _make_prefill_state(scheduler, request, n_remaining=8)
             scheduler._step_prefill_chunk(state)
@@ -302,7 +302,7 @@ class TestChunkedPrefillMRoPE:
         request.rope_deltas = 7.0
         state = _make_prefill_state(scheduler, request, n_remaining=8)
 
-        with patch("omlx_runtime.scheduler._sync_and_clear_cache"):
+        with patch("molto_runtime.scheduler._sync_and_clear_cache"):
             assert not scheduler._step_prefill_chunk(state)
             # Reproduce a concurrent request's completion cleanup.
             model.batch_deltas = None
@@ -348,7 +348,7 @@ class TestChunkedPrefillMRoPE:
         scheduler.request_id_to_uid[request.request_id] = 42
         state = _make_prefill_state(scheduler, request, n_remaining=8)
 
-        with patch("omlx_runtime.scheduler._sync_and_clear_cache"):
+        with patch("molto_runtime.scheduler._sync_and_clear_cache"):
             assert not scheduler._step_prefill_chunk(state)
             assert scheduler._step_prefill_chunk(state)
 
@@ -396,7 +396,7 @@ class TestChunkedPrefillMRoPE:
             total_length=5,
         )
 
-        with patch("omlx_runtime.scheduler._sync_and_clear_cache"):
+        with patch("molto_runtime.scheduler._sync_and_clear_cache"):
             assert scheduler._step_prefill_chunk(state)
 
         assert model.chunk_lengths == [4]
@@ -440,7 +440,7 @@ class TestGLMAdaptiveChunkedPrefill:
         req = _make_request("glm", n_tokens=8194)
         state = _make_prefill_state(sched, req, n_remaining=8193)
 
-        with patch("omlx_runtime.scheduler._sync_and_clear_cache"):
+        with patch("molto_runtime.scheduler._sync_and_clear_cache"):
             done = sched._step_prefill_chunk(state)
 
         assert not done
@@ -454,7 +454,7 @@ class TestGLMAdaptiveChunkedPrefill:
         req = _make_request("deepseek", n_tokens=8193)
         state = _make_prefill_state(sched, req, n_remaining=8192)
 
-        with patch("omlx_runtime.scheduler._sync_and_clear_cache"):
+        with patch("molto_runtime.scheduler._sync_and_clear_cache"):
             done = sched._step_prefill_chunk(state)
 
         assert not done
@@ -480,7 +480,7 @@ class TestMiniMaxM3AdaptiveChunkedPrefill:
         req = _make_request("minimax", n_tokens=4098)
         state = _make_prefill_state(sched, req, n_remaining=4097)
 
-        with patch("omlx_runtime.scheduler._sync_and_clear_cache"):
+        with patch("molto_runtime.scheduler._sync_and_clear_cache"):
             done = sched._step_prefill_chunk(state)
 
         assert not done
@@ -494,7 +494,7 @@ class TestMiniMaxM3AdaptiveChunkedPrefill:
         req = _make_request("minimax-short", n_tokens=4096)
         state = _make_prefill_state(sched, req, n_remaining=4095)
 
-        with patch("omlx_runtime.scheduler._sync_and_clear_cache"):
+        with patch("molto_runtime.scheduler._sync_and_clear_cache"):
             done = sched._step_prefill_chunk(state)
 
         assert not done
@@ -508,7 +508,7 @@ class TestMiniMaxM3AdaptiveChunkedPrefill:
         req = _make_request("minimax-disabled", n_tokens=4098)
         state = _make_prefill_state(sched, req, n_remaining=4097)
 
-        with patch("omlx_runtime.scheduler._sync_and_clear_cache"):
+        with patch("molto_runtime.scheduler._sync_and_clear_cache"):
             done = sched._step_prefill_chunk(state)
 
         assert not done
@@ -525,7 +525,7 @@ class TestMiniMaxM3AdaptiveChunkedPrefill:
         req = _make_request("minimax-adapter", n_tokens=4098)
         state = _make_prefill_state(sched, req, n_remaining=4097)
 
-        with patch("omlx_runtime.scheduler._sync_and_clear_cache"):
+        with patch("molto_runtime.scheduler._sync_and_clear_cache"):
             done = sched._step_prefill_chunk(state)
 
         assert not done
@@ -542,7 +542,7 @@ class TestMiniMaxM3AdaptiveChunkedPrefill:
         req = _make_request("minimax-nested-vlm", n_tokens=4098)
         state = _make_prefill_state(sched, req, n_remaining=4097)
 
-        with patch("omlx_runtime.scheduler._sync_and_clear_cache"):
+        with patch("molto_runtime.scheduler._sync_and_clear_cache"):
             done = sched._step_prefill_chunk(state)
 
         assert not done
@@ -565,7 +565,7 @@ class TestMiniMaxM3AdaptiveChunkedPrefill:
         req = _make_request("minimax-model-path", n_tokens=4098)
         state = _make_prefill_state(sched, req, n_remaining=4097)
 
-        with patch("omlx_runtime.scheduler._sync_and_clear_cache"):
+        with patch("molto_runtime.scheduler._sync_and_clear_cache"):
             done = sched._step_prefill_chunk(state)
 
         assert not done
@@ -920,7 +920,7 @@ class TestScheduleWaitingChunkedFork:
         with patch.object(sched, "_begin_prefill", return_value=fake_state):
             with patch.object(sched, "_step_prefill_chunk", return_value=True):
                 with patch.object(sched, "_emit_final_boundary_if_needed"):
-                    with patch("omlx_runtime.scheduler._sync_and_clear_cache"):
+                    with patch("molto_runtime.scheduler._sync_and_clear_cache"):
                         sched._schedule_waiting()
 
         assert req.request_id not in sched._prefill_states
@@ -945,7 +945,7 @@ class TestScheduleWaitingChunkedFork:
         must pop self.requests, drop the temp uid mappings, remove the
         PrefillProgressTracker entry, and emit a finish_reason=\"error\"
         RequestOutput so the client sees the failure (#1405)."""
-        from omlx_runtime.prefill_progress import get_prefill_tracker
+        from molto_runtime.prefill_progress import get_prefill_tracker
 
         sched, req = self._setup(n_tokens=3, step_size=4)
         rid = req.request_id
@@ -989,8 +989,8 @@ class TestScheduleWaitingChunkedFork:
         """Context manager-ish — patch both memory probes to current_gb."""
         target = int(current_gb * 1024**3)
         return patch(
-            "omlx_runtime.scheduler.mx.get_active_memory", return_value=target
-        ), patch("omlx_runtime.scheduler.get_phys_footprint", return_value=target)
+            "molto_runtime.scheduler.mx.get_active_memory", return_value=target
+        ), patch("molto_runtime.scheduler.get_phys_footprint", return_value=target)
 
     def test_adaptive_throttle_below_soft_watermark_passthrough(self):
         """current < soft watermark → no throttle, full chunk."""
@@ -1058,7 +1058,7 @@ class TestScheduleWaitingChunkedFork:
         RequestOutput. _step_prefill_chunk updates the tracker before the
         hard-limit check, so without this catch the entry would leak
         (#1405)."""
-        from omlx_runtime.prefill_progress import get_prefill_tracker
+        from molto_runtime.prefill_progress import get_prefill_tracker
 
         sched, req = self._setup(n_tokens=10, step_size=4)
         rid = req.request_id
@@ -1229,7 +1229,7 @@ class TestPrefillRejectionReleasesPagedCache:
         sched.add_request(req)
         sched.block_aware_cache.reset_mock()
 
-        from omlx_runtime.scheduler import _PreflightRejection
+        from molto_runtime.scheduler import _PreflightRejection
 
         with patch.object(
             sched,
@@ -1400,7 +1400,7 @@ class TestPrefillCleanupUsesEngineStream:
         """Patch the module-level helper so calls record the stream argument."""
         streams: list = []
         return streams, patch(
-            "omlx_runtime.scheduler._sync_and_clear_cache",
+            "molto_runtime.scheduler._sync_and_clear_cache",
             side_effect=lambda stream=None: streams.append(stream),
         )
 
@@ -1563,7 +1563,7 @@ def test_step_prefill_chunk_announces_the_next_chunk_to_the_model():
     request = _make_request("lookahead", n_tokens=11)
     state = _make_prefill_state(scheduler, request, n_remaining=10)
     state.tokens_remaining = mx.arange(10, 20, dtype=mx.int32)[None]
-    with patch("omlx_runtime.scheduler._sync_and_clear_cache"):
+    with patch("molto_runtime.scheduler._sync_and_clear_cache"):
         while not scheduler._step_prefill_chunk(state):
             pass
     assert model.chunk_lengths == [4, 4, 2]
@@ -1599,7 +1599,7 @@ def test_external_prefill_announces_the_next_chunk_to_the_model():
     )  # 10 prefill tokens, the last token goes to the batch generator
     request = _make_request("lookahead-external", n_tokens=11)
     cache = [types.SimpleNamespace(state=mx.array([0]))]
-    with patch("omlx_runtime.scheduler._sync_and_clear_cache"):
+    with patch("molto_runtime.scheduler._sync_and_clear_cache"):
         scheduler._do_external_prefill(request, tokens, cache)
     assert model.chunk_lengths == [4, 4, 2]
     assert model.seen == [

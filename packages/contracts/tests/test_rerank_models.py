@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx/api/rerank_models.py — the Pydantic schemas served at
+"""Tests for molto/api/rerank_models.py — the Pydantic schemas served at
 /v1/rerank. Pins down Cohere/Jina compatibility: required fields,
 multimodal query/document shapes, defaults, and the auto-generated
 ``id`` prefix that downstream clients filter on.
@@ -8,7 +8,7 @@ multimodal query/document shapes, defaults, and the auto-generated
 from __future__ import annotations
 
 import pytest
-from omlx_contracts.api.rerank_models import (
+from molto_contracts.api.rerank_models import (
     RerankRequest,
     RerankResponse,
     RerankResult,

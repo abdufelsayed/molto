@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for the MTP combine steps in omlx_runtime.oq (gemma4 assistant merge and
+"""Tests for the MTP combine steps in molto_runtime.oq (gemma4 assistant merge and
 the native Qwen3.5/3.6 donor head graft).
 
 Uses tiny synthetic checkpoints on disk — no model loading, no GPU work
@@ -12,7 +12,7 @@ import json
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.oq import (
+from molto_runtime.oq import (
     GEMMA4_ASSISTANT_MTP_PREFIX,
     GEMMA4_ASSISTANT_MTP_SHARD,
     MTPLX_RUNTIME_FILE,

@@ -5,20 +5,20 @@ from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
-from omlx_config.model_settings import ModelSettings, ModelSettingsManager
-from omlx_contracts.management import (
+from molto_config.model_settings import ModelSettings, ModelSettingsManager
+from molto_contracts.management import (
     ModelSettingsPatch,
     ProfileWrite,
     TemplateWrite,
 )
-from omlx_management.management import (
+from molto_management.management import (
     ManagementContext,
     ManagementError,
     ManagementService,
 )
-from omlx_management.management_model_options import ModelHelpers, options
-from omlx_management.recipe import encode_recipe
-from omlx_runtime.engine_pool import EngineEntry, EnginePool
+from molto_management.management_model_options import ModelHelpers, options
+from molto_management.recipe import encode_recipe
+from molto_runtime.engine_pool import EngineEntry, EnginePool
 from pydantic import ValidationError
 
 
@@ -174,8 +174,8 @@ def test_strict_wire_validation(values):
 async def test_authenticated_router_supports_canonical_slash_ids(model):
     from fastapi import Depends, FastAPI
     from httpx import ASGITransport, AsyncClient
-    from omlx_server.api.management_model_routes import router
-    from omlx_server.auth import AuthContext, require_management_key
+    from molto_server.api.management_model_routes import router
+    from molto_server.auth import AuthContext, require_management_key
 
     service, _, _, _, _ = model
     app = FastAPI()
@@ -361,7 +361,7 @@ async def test_profile_and_template_reject_invalid_inherited_engine_settings(mod
 
 
 def test_metadata_only_profile_and_template_updates_validate_saved_candidate(model):
-    from omlx_contracts.management import ProfileUpdate, TemplateUpdate
+    from molto_contracts.management import ProfileUpdate, TemplateUpdate
 
     service, helper, entry, manager, _ = model
     manager.save_profile(entry.model_id, "bad", "Bad", None, {"top_p": 2})
@@ -385,7 +385,7 @@ def test_metadata_only_profile_and_template_updates_validate_saved_candidate(mod
 async def test_exclusive_pool_blocks_runtime_mutations_but_keeps_reads_and_metadata(
     model, monkeypatch
 ):
-    from omlx_contracts.management import GlobalSettingsPatch
+    from molto_contracts.management import GlobalSettingsPatch
 
     service, helper, entry, manager, pool = model
     manager.set_settings(entry.model_id, ModelSettings(temperature=0.2))
@@ -465,7 +465,7 @@ def test_explicit_pool_admission_contract():
 def mtplx_model(model, monkeypatch):
     from types import SimpleNamespace
 
-    from omlx_management.management_runtime import ManagementRuntime
+    from molto_management.management_runtime import ManagementRuntime
 
     service, helper, entry, manager, pool = model
     path = Path(entry.model_path)
@@ -482,7 +482,7 @@ def mtplx_model(model, monkeypatch):
     worker = __import__("unittest.mock", fromlist=["MagicMock"]).MagicMock(
         return_value={"merge_mode": "rename", "mtp_tensors": 2}
     )
-    monkeypatch.setattr("omlx_runtime.oq.import_mtplx_sidecar", worker)
+    monkeypatch.setattr("molto_runtime.oq.import_mtplx_sidecar", worker)
     return helper, entry, runtime, worker
 
 

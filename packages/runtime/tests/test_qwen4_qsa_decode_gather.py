@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
+from molto_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
 
 compat.apply_mlx_vlm_qwen4_exp_compat_patch()
 language = importlib.import_module("mlx_vlm.models.qwen4_exp.language")
@@ -73,7 +73,7 @@ def _tiny_text_config():
 
 
 def test_qwen4_decode_gathers_budget_and_tail_and_matches_official(monkeypatch):
-    monkeypatch.setenv("OMLX_QWEN4_GATHERED_MIN_QUERY", "2")
+    monkeypatch.setenv("MOLTO_QWEN4_GATHERED_MIN_QUERY", "2")
     config = _tiny_text_config()
     import mlx_vlm.models.qwen4_exp.language as language
     import mlx_vlm.models.qwen4_exp.qsa_fast as qsa_fast
@@ -116,8 +116,8 @@ def test_qwen4_decode_gathers_budget_and_tail_and_matches_official(monkeypatch):
         mx.argmax(expected, axis=-1),
     ).item()
     assert fast_cache.offset == reference_cache.offset == 11
-    assert fast_cache._omlx_last_prefill_gathered is True
-    assert reference_cache._omlx_last_prefill_gathered is True
+    assert fast_cache._molto_last_prefill_gathered is True
+    assert reference_cache._molto_last_prefill_gathered is True
     for fast_value, reference_value in zip(
         fast_cache.state,
         reference_cache.state,
@@ -127,7 +127,7 @@ def test_qwen4_decode_gathers_budget_and_tail_and_matches_official(monkeypatch):
 
 def test_qwen4_language_wrapper_routes_2d_text_positions_to_gather(monkeypatch):
     # The fixture prefill is 10 rows; lower the gathered width gate for it.
-    monkeypatch.setenv("OMLX_QWEN4_GATHERED_MIN_QUERY", "2")
+    monkeypatch.setenv("MOLTO_QWEN4_GATHERED_MIN_QUERY", "2")
     config = _tiny_text_config()
     import mlx_vlm.models.qwen4_exp.language as language
 
@@ -378,7 +378,7 @@ def test_qwen4_gathered_prefill_is_exact_across_uneven_query_chunks():
 def test_qwen4_decode_sdpa_fails_closed_when_native_shape_is_rejected(monkeypatch):
     compat.apply_mlx_vlm_qwen4_exp_compat_patch()
     import mlx_vlm.models.qwen4_exp.qsa_fast as qsa_fast
-    from omlx_runtime.custom_kernels.decode_fast import fast
+    from molto_runtime.custom_kernels.decode_fast import fast
 
     q = mx.random.normal((1, 4, 1, 8))
     k = mx.random.normal((1, 2, 9, 8))
@@ -404,7 +404,7 @@ def test_qwen4_decode_sdpa_fails_closed_when_native_shape_is_rejected(monkeypatc
 def test_qwen4_decode_sdpa_uses_native_only_after_capability_accepts(monkeypatch):
     compat.apply_mlx_vlm_qwen4_exp_compat_patch()
     import mlx_vlm.models.qwen4_exp.qsa_fast as qsa_fast
-    from omlx_runtime.custom_kernels.decode_fast import fast
+    from molto_runtime.custom_kernels.decode_fast import fast
 
     q = mx.random.normal((1, 24, 1, 256)).astype(mx.bfloat16)
     k = mx.random.normal((1, 2, 2051, 256)).astype(mx.bfloat16)
@@ -692,7 +692,7 @@ def test_qwen4_gathered_prefill_requires_minimum_query_width(monkeypatch):
     narrow = mx.random.normal((1, 4, config.hidden_size))
     wide = mx.random.normal((1, 16, config.hidden_size))
 
-    monkeypatch.delenv("OMLX_QWEN4_GATHERED_MIN_QUERY", raising=False)
+    monkeypatch.delenv("MOLTO_QWEN4_GATHERED_MIN_QUERY", raising=False)
     assert language._gathered_min_query_tokens() == 16
     assert not attention._gathered_text_prefill_eligible(
         narrow, "causal", cache, None, None, False
@@ -701,11 +701,11 @@ def test_qwen4_gathered_prefill_requires_minimum_query_width(monkeypatch):
         wide, "causal", cache, None, None, False
     )
 
-    monkeypatch.setenv("OMLX_QWEN4_GATHERED_MIN_QUERY", "2")
+    monkeypatch.setenv("MOLTO_QWEN4_GATHERED_MIN_QUERY", "2")
     assert attention._gathered_text_prefill_eligible(
         narrow, "causal", cache, None, None, False
     )
-    monkeypatch.setenv("OMLX_QWEN4_GATHERED_MIN_QUERY", "garbage")
+    monkeypatch.setenv("MOLTO_QWEN4_GATHERED_MIN_QUERY", "garbage")
     assert language._gathered_min_query_tokens() == 16
 
 
@@ -765,7 +765,7 @@ def test_qwen4_trim_then_decode_matches_official_after_partial_invalidation(
     """Verify -> rollback -> decode stays exact with the retained pooled prefix."""
     config = _tiny_text_config()
     language = _language()
-    monkeypatch.setenv("OMLX_QWEN4_GATHERED_MIN_QUERY", "2")
+    monkeypatch.setenv("MOLTO_QWEN4_GATHERED_MIN_QUERY", "2")
     attention = language.Qwen4ExpAttention(config)
     mx.eval(attention.parameters())
     fast_cache = _crossover_cache(config, attention, length=12, seed=61)
@@ -814,9 +814,9 @@ def test_qwen4_prefill_memory_marker_tracks_query_width():
     cache = _crossover_cache(config, attention)
 
     mx.eval(attention(mx.zeros((1, 4, config.hidden_size)), cache=cache))
-    assert cache._omlx_last_prefill_gathered is False
+    assert cache._molto_last_prefill_gathered is False
     mx.eval(attention(mx.zeros((1, 16, config.hidden_size)), cache=cache))
-    assert cache._omlx_last_prefill_gathered is True
+    assert cache._molto_last_prefill_gathered is True
 
 
 # One-launch decode selection and selected-keys SDPA against MLX. The selection

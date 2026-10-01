@@ -8,11 +8,11 @@ from threading import Event, current_thread
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.patches.deepseek_v41 import loading, storage
-from omlx_runtime.patches.deepseek_v41.convert import convert
-from omlx_runtime.patches.deepseek_v41.loading import load
-from omlx_runtime.patches.deepseek_v41.residency import deepseek_v41_residency_estimate
-from omlx_runtime.patches.deepseek_v41.storage import (
+from molto_runtime.patches.deepseek_v41 import loading, storage
+from molto_runtime.patches.deepseek_v41.convert import convert
+from molto_runtime.patches.deepseek_v41.loading import load
+from molto_runtime.patches.deepseek_v41.residency import deepseek_v41_residency_estimate
+from molto_runtime.patches.deepseek_v41.storage import (
     DiskEngramEmbedding,
     EngramPrefetch,
 )
@@ -158,7 +158,7 @@ def test_converted_modes_match_chunked_prefill_decode_and_cleanup(converted):
                 for layer in resident.language_model.layers
                 if "engram" in layer
             )
-        from omlx_runtime.models.vlm import VLMModelAdapter
+        from molto_runtime.models.vlm import VLMModelAdapter
 
         VLMModelAdapter(disk).release_resources()
         for layer in disk.language_model.layers:
@@ -172,7 +172,7 @@ def test_converted_modes_match_chunked_prefill_decode_and_cleanup(converted):
 
 def test_residency_counts_indexed_tensors_not_linked_shard_bytes(converted):
     estimate = deepseek_v41_residency_estimate(converted)
-    spec = json.loads((converted / "config.json").read_text())["omlx_deepseek_v41"]
+    spec = json.loads((converted / "config.json").read_text())["molto_deepseek_v41"]
     expected = (72 + 204) * 32 * 4  # Fixture uses float32 embeddings.
     assert estimate.engram_bytes == expected
     assert estimate.supported
@@ -202,14 +202,14 @@ def test_residency_counts_indexed_tensors_not_linked_shard_bytes(converted):
 def test_memory_decision_and_reload_signature(
     monkeypatch, ceiling, requested, expected, forced
 ):
-    from omlx_config.model_settings import ModelSettings
-    from omlx_runtime.engine_pool import EngineEntry
-    from omlx_runtime.patches.deepseek_v41.residency import EngramResidencyEstimate
+    from molto_config.model_settings import ModelSettings
+    from molto_runtime.engine_pool import EngineEntry
+    from molto_runtime.patches.deepseek_v41.residency import EngramResidencyEstimate
     from test_engine_pool import _make_pool
 
     estimate = EngramResidencyEstimate(True, 1000, 400, 600)
     monkeypatch.setattr(
-        "omlx_runtime.patches.deepseek_v41.residency.deepseek_v41_residency_estimate",
+        "molto_runtime.patches.deepseek_v41.residency.deepseek_v41_residency_estimate",
         lambda _: estimate,
     )
     pool = _make_pool(ceiling=ceiling)
@@ -244,7 +244,7 @@ def test_memory_decision_and_reload_signature(
 
 
 def test_setting_roundtrip_excludes_shared_profile(tmp_path):
-    from omlx_config.model_settings import ModelSettingsManager
+    from molto_config.model_settings import ModelSettingsManager
 
     manager = ModelSettingsManager(tmp_path)
     settings = manager.get_settings("v41")
@@ -270,7 +270,7 @@ def test_loader_failure_closes_all_tables(converted, monkeypatch):
 
     monkeypatch.setattr(DiskEngramEmbedding, "__init__", init)
     monkeypatch.setattr(
-        "omlx_runtime.patches.deepseek_v41.loading.PreTrainedTokenizerFast.from_pretrained",
+        "molto_runtime.patches.deepseek_v41.loading.PreTrainedTokenizerFast.from_pretrained",
         fail,
     )
     with pytest.raises(ValueError, match="tokenizer failure"):
@@ -390,7 +390,7 @@ def test_direct_quantized_experts_and_dense_projection_match_export(converted, b
 
 
 def test_source_iterator_releases_mappings_before_yield(converted, monkeypatch):
-    from omlx_runtime.patches.deepseek_v41 import convert as converter
+    from molto_runtime.patches.deepseek_v41 import convert as converter
 
     source = converted.parent / "source"
     config = json.loads((source / "config.json").read_text())

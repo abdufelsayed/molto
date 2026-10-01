@@ -9,9 +9,9 @@ prefill chunk widths under three dispatch modes:
 - ``sorted``      raw ``sorted_indices=True`` (NAX rhs kernel; corrupt past
                   32768 rows on mlx <= 0.32.2, timed for reference only)
 - ``unsorted``    what the pre-segmenting M5 reroute did past the row cap
-- ``segmented``   the oMLX reroute with <=32768-row sorted slices (the
+- ``segmented``   the Molto reroute with <=32768-row sorted slices (the
                   NAX route below switched off)
-- ``nax``         the oMLX NAX route (``m5_gather_qmm_nax``: segmented tile
+- ``nax``         the Molto NAX route (``m5_gather_qmm_nax``: segmented tile
                   scheduling, one call for any row count)
 
 Prints ms per layer call and derived tokens/s so the chunk-width policy can
@@ -27,7 +27,7 @@ import os
 import time
 
 import mlx.core as mx
-import omlx_runtime.patches.m5_gather_qmm as reroute
+import molto_runtime.patches.m5_gather_qmm as reroute
 from mlx_lm.models.switch_layers import _gather_sort, _scatter_unsort
 
 
@@ -125,9 +125,9 @@ def main():
             else:
                 raise SystemExit(f"unknown mode {mode}")
             if mode == "segmented":
-                os.environ["OMLX_M5_GATHER_QMM_NAX"] = "0"
+                os.environ["MOLTO_M5_GATHER_QMM_NAX"] = "0"
             else:
-                os.environ.pop("OMLX_M5_GATHER_QMM_NAX", None)
+                os.environ.pop("MOLTO_M5_GATHER_QMM_NAX", None)
 
             def fn(x=x, inds=inds, sorted_flag=sorted_flag, gather=gather):
                 return _layer(

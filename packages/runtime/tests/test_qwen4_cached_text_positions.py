@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.models.vlm import VLMModelAdapter
-from omlx_runtime.scheduler import _bind_step_rope_deltas, _mark_text_positions
+from molto_runtime.models.vlm import VLMModelAdapter
+from molto_runtime.scheduler import _bind_step_rope_deltas, _mark_text_positions
 from test_scheduler_chunked_prefill import _make_request, _make_scheduler
 from test_vlm_model_adapter import TestPerRequestMRoPEDecode as _MRoPEFixtures
 

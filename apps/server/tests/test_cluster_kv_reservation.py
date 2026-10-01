@@ -6,8 +6,8 @@ prompt — the failure that took a 128 GiB MacBook down mid-session.
 """
 
 import pytest
-from omlx_runtime.cluster.performance import NodePerformanceProfile
-from omlx_runtime.cluster.planner import (
+from molto_runtime.cluster.performance import NodePerformanceProfile
+from molto_runtime.cluster.planner import (
     ModelLayout,
     NodeBudget,
     PlanningError,

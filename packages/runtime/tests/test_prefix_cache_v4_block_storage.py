@@ -30,8 +30,8 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from omlx_runtime.cache.paged_cache import PagedCacheManager
-from omlx_runtime.cache.prefix_cache import BlockAwarePrefixCache
+from molto_runtime.cache.paged_cache import PagedCacheManager
+from molto_runtime.cache.prefix_cache import BlockAwarePrefixCache
 
 
 class MockModel:

@@ -3,11 +3,11 @@
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.custom_kernels.glm_moe_dsa import fast
-from omlx_runtime.patches.deepseek_v41.activation import quantize_swiglu_activation
-from omlx_runtime.patches.deepseek_v41.config import ModelConfig
-from omlx_runtime.patches.deepseek_v41.language import Expert
-from omlx_runtime.patches.deepseek_v41.quantization import QuantizedProjection
+from molto_runtime.custom_kernels.glm_moe_dsa import fast
+from molto_runtime.patches.deepseek_v41.activation import quantize_swiglu_activation
+from molto_runtime.patches.deepseek_v41.config import ModelConfig
+from molto_runtime.patches.deepseek_v41.language import Expert
+from molto_runtime.patches.deepseek_v41.quantization import QuantizedProjection
 
 pytestmark = pytest.mark.skipif(
     not fast.has_symbol("deepseek_v41_grouped_expert"),

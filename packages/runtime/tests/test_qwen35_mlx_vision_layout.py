@@ -6,7 +6,7 @@ from pathlib import Path
 import mlx_vlm.utils as _vu
 import numpy as np
 import pytest
-from omlx_runtime.engine.vlm import _transpose_qwen35_mlx_vision_patch_embed_on_load
+from molto_runtime.engine.vlm import _transpose_qwen35_mlx_vision_patch_embed_on_load
 
 
 def _model_dir(tmp_path: Path, *, model_type="qwen3_5", mlx_format=True) -> Path:

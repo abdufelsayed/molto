@@ -8,8 +8,8 @@ import types
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.request import Request, SamplingParams
-from omlx_runtime.scheduler import Scheduler, SchedulerConfig
+from molto_runtime.request import Request, SamplingParams
+from molto_runtime.scheduler import Scheduler, SchedulerConfig
 
 
 class _Switch:
@@ -26,11 +26,11 @@ class _Block:
 
 @pytest.fixture(autouse=True)
 def _fresh_moe_patch(monkeypatch):
-    import omlx_runtime.patches.qwen35_moe_weighted_sum as patch
+    import molto_runtime.patches.qwen35_moe_weighted_sum as patch
 
     monkeypatch.setattr(patch, "_PATCHED", False, raising=False)
-    monkeypatch.delenv("OMLX_QWEN35_MOE_WEIGHTED_SUM", raising=False)
-    monkeypatch.delenv("OMLX_QWEN35_MOE_WEIGHTED_SUM_MIN_TOKENS", raising=False)
+    monkeypatch.delenv("MOLTO_QWEN35_MOE_WEIGHTED_SUM", raising=False)
+    monkeypatch.delenv("MOLTO_QWEN35_MOE_WEIGHTED_SUM_MIN_TOKENS", raising=False)
 
     originals = []
     try:
@@ -49,15 +49,15 @@ def _fresh_moe_patch(monkeypatch):
     for cls, original in originals:
         cls.__call__ = original
         for name in (
-            "_omlx_qwen_moe_weighted_sum_patched",
-            "_omlx_qwen_moe_weighted_sum_original_call",
+            "_molto_qwen_moe_weighted_sum_patched",
+            "_molto_qwen_moe_weighted_sum_original_call",
         ):
             if hasattr(cls, name):
                 delattr(cls, name)
 
 
 def test_moe_weighted_sum_route_gate(monkeypatch):
-    import omlx_runtime.patches.qwen35_moe_weighted_sum as patch
+    import molto_runtime.patches.qwen35_moe_weighted_sum as patch
 
     monkeypatch.setattr(patch.mx.metal, "is_available", lambda: True)
     x = mx.zeros((1, 1024, 128), dtype=mx.bfloat16)
@@ -77,7 +77,7 @@ def test_moe_weighted_sum_route_gate(monkeypatch):
 @pytest.mark.skipif(not mx.metal.is_available(), reason="Metal is required")
 def test_external_prefill_evaluates_native_weighted_sum_on_engine_stream():
     """The issue #2170 native op must stay on the per-engine worker stream."""
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
 
     if not fast.has_symbol("qwen35_moe_weighted_sum"):
         pytest.skip("qwen35_moe_weighted_sum native kernel unavailable")
@@ -150,16 +150,16 @@ def test_external_prefill_evaluates_native_weighted_sum_on_engine_stream():
 @pytest.mark.parametrize("top_k", [8, 10])
 def test_qwen3_moe_patch_matches_stock_and_skips_decode(monkeypatch, top_k):
     from mlx_lm.models import qwen3_moe
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
-    from omlx_runtime.patches.qwen35_moe_weighted_sum import (
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
+    from molto_runtime.patches.qwen35_moe_weighted_sum import (
         apply_qwen35_moe_weighted_sum_patch,
     )
 
     if not fast.has_symbol("qwen35_moe_weighted_sum"):
         pytest.skip("qwen35_moe_weighted_sum native kernel unavailable")
 
-    monkeypatch.setenv("OMLX_QWEN35_MOE_WEIGHTED_SUM", "1")
-    monkeypatch.setenv("OMLX_QWEN35_MOE_WEIGHTED_SUM_MIN_TOKENS", "16")
+    monkeypatch.setenv("MOLTO_QWEN35_MOE_WEIGHTED_SUM", "1")
+    monkeypatch.setenv("MOLTO_QWEN35_MOE_WEIGHTED_SUM_MIN_TOKENS", "16")
 
     args = types.SimpleNamespace(
         hidden_size=128,

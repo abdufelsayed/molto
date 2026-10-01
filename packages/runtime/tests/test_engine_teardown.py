@@ -10,20 +10,20 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import mlx.core as mx
-import omlx_runtime.cache.paged_ssd_cache as ssd
+import molto_runtime.cache.paged_ssd_cache as ssd
 import pytest
-from omlx_runtime.cache.paged_cache import PagedCacheManager
-from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
-from omlx_runtime.cache.prefix_cache import BlockAwarePrefixCache
-from omlx_runtime.engine.base import _close_engine_core
-from omlx_runtime.engine.batched import BatchedEngine
-from omlx_runtime.engine.vlm import VLMBatchedEngine
-from omlx_runtime.engine_core import EngineCore, _EngineTeardown
-from omlx_runtime.model_registry import ModelOwnershipError, get_registry
+from molto_runtime.cache.paged_cache import PagedCacheManager
+from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+from molto_runtime.cache.prefix_cache import BlockAwarePrefixCache
+from molto_runtime.engine.base import _close_engine_core
+from molto_runtime.engine.batched import BatchedEngine
+from molto_runtime.engine.vlm import VLMBatchedEngine
+from molto_runtime.engine_core import EngineCore, _EngineTeardown
+from molto_runtime.model_registry import ModelOwnershipError, get_registry
 
 
 def budget():
-    with patch("omlx_runtime.engine_core.time.monotonic", return_value=100.0):
+    with patch("molto_runtime.engine_core.time.monotonic", return_value=100.0):
         return _EngineTeardown("test")
 
 
@@ -70,8 +70,8 @@ def test_watchdog_logs_every_ten_seconds_with_current_phase(caplog):
 
     with (
         patch.object(guard._done, "wait", side_effect=wait),
-        patch("omlx_runtime.engine_core.time.monotonic", side_effect=lambda: now),
-        caplog.at_level("INFO", logger="omlx_runtime.engine_core"),
+        patch("molto_runtime.engine_core.time.monotonic", side_effect=lambda: now),
+        caplog.at_level("INFO", logger="molto_runtime.engine_core"),
     ):
         guard._watch()
 
@@ -177,7 +177,7 @@ def test_force_ownership_does_not_replace_closing_engine(mock_model, mock_tokeni
 def test_watchdog_terminates_stalled_or_over_budget_process(progressing):
     code = f"""
 import time
-from omlx_runtime.engine_core import _EngineTeardown
+from molto_runtime.engine_core import _EngineTeardown
 with _EngineTeardown("subprocess", 0.2) as guard:
     if {progressing!r}:
         guard.set_phase("primary_ssd", time.monotonic)

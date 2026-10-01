@@ -8,9 +8,9 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import mlx.core as mx
-import omlx_runtime.cache.vision_feature_cache as vfc_mod
+import molto_runtime.cache.vision_feature_cache as vfc_mod
 import pytest
-from omlx_runtime.cache.vision_feature_cache import (
+from molto_runtime.cache.vision_feature_cache import (
     VisionFeatureSSDCache,
     _composite_hash,
     _composite_key,
@@ -387,7 +387,7 @@ class TestVLMEngineIntegration:
 
     def test_compute_vision_features_encode_image(self):
         """Model with encode_image should receive image_position_ids when available."""
-        from omlx_runtime.engine.vlm import VLMBatchedEngine
+        from molto_runtime.engine.vlm import VLMBatchedEngine
 
         engine = VLMBatchedEngine.__new__(VLMBatchedEngine)
         engine._vlm_model = MagicMock()
@@ -408,7 +408,7 @@ class TestVLMEngineIntegration:
 
     def test_compute_vision_features_encode_image_with_grid_thw(self):
         """MiniMax-style encode_image should receive image_grid_thw."""
-        from omlx_runtime.engine.vlm import VLMBatchedEngine
+        from molto_runtime.engine.vlm import VLMBatchedEngine
 
         expected = mx.ones((10, 16))
 
@@ -438,7 +438,7 @@ class TestVLMEngineIntegration:
 
     def test_compute_vision_features_encode_image_without_position_support(self):
         """Models with a pixel-only encode_image signature should still work."""
-        from omlx_runtime.engine.vlm import VLMBatchedEngine
+        from molto_runtime.engine.vlm import VLMBatchedEngine
 
         expected = mx.ones((10, 16))
 
@@ -465,7 +465,7 @@ class TestVLMEngineIntegration:
 
     def test_compute_vision_features_qwen_style(self):
         """Qwen-style model should call vision_tower(pv, grid_thw) directly."""
-        from omlx_runtime.engine.vlm import VLMBatchedEngine
+        from molto_runtime.engine.vlm import VLMBatchedEngine
 
         engine = VLMBatchedEngine.__new__(VLMBatchedEngine)
         engine._vlm_model = MagicMock(
@@ -491,7 +491,7 @@ class TestVLMEngineIntegration:
 
     def test_compute_vision_features_unsupported(self):
         """Unsupported model should return None."""
-        from omlx_runtime.engine.vlm import VLMBatchedEngine
+        from molto_runtime.engine.vlm import VLMBatchedEngine
 
         engine = VLMBatchedEngine.__new__(VLMBatchedEngine)
         engine._vlm_model = MagicMock(spec=["config"])
@@ -502,7 +502,7 @@ class TestVLMEngineIntegration:
 
     def test_compute_vision_features_qwen_no_grid_thw(self):
         """Qwen model without grid_thw in extras should return None."""
-        from omlx_runtime.engine.vlm import VLMBatchedEngine
+        from molto_runtime.engine.vlm import VLMBatchedEngine
 
         engine = VLMBatchedEngine.__new__(VLMBatchedEngine)
         engine._vlm_model = MagicMock(spec=["vision_tower", "config"])
@@ -513,7 +513,7 @@ class TestVLMEngineIntegration:
 
     def test_compute_vision_features_llava_style(self):
         """LLaVA model should use vision_tower → select → projector."""
-        from omlx_runtime.engine.vlm import VLMBatchedEngine
+        from molto_runtime.engine.vlm import VLMBatchedEngine
 
         engine = VLMBatchedEngine.__new__(VLMBatchedEngine)
         engine._vlm_model = MagicMock(
@@ -552,7 +552,7 @@ class TestVLMEngineIntegration:
 
     def test_split_vision_features_with_soft_token_counts(self):
         """Flat compacted features should split by num_soft_tokens_per_image."""
-        from omlx_runtime.engine.vlm import VLMBatchedEngine
+        from molto_runtime.engine.vlm import VLMBatchedEngine
 
         engine = VLMBatchedEngine.__new__(VLMBatchedEngine)
         engine._vlm_model = MagicMock()
@@ -574,7 +574,7 @@ class TestVLMEngineIntegration:
 
     def test_split_vision_features_rejects_bad_soft_token_total(self):
         """Mismatched soft-token totals should fall back to whole-request cache."""
-        from omlx_runtime.engine.vlm import VLMBatchedEngine
+        from molto_runtime.engine.vlm import VLMBatchedEngine
 
         engine = VLMBatchedEngine.__new__(VLMBatchedEngine)
         engine._vlm_model = MagicMock()
@@ -590,7 +590,7 @@ class TestVLMEngineIntegration:
 
     def test_vision_features_match_image_tokens(self):
         """Cached features should be ignored when token counts do not match."""
-        from omlx_runtime.engine.vlm import VLMBatchedEngine
+        from molto_runtime.engine.vlm import VLMBatchedEngine
 
         engine = VLMBatchedEngine.__new__(VLMBatchedEngine)
         engine._vlm_model = MagicMock()
@@ -612,7 +612,7 @@ class TestVLMEngineIntegration:
 
     def test_language_prompt_kwargs_preserves_token_type_ids(self):
         """Gemma4 unified needs multimodal token types during language prefill."""
-        from omlx_runtime.engine.vlm import VLMBatchedEngine
+        from molto_runtime.engine.vlm import VLMBatchedEngine
 
         mm_token_type_ids = mx.array([[0, 1, 1, 0]])
         token_type_ids = mx.array([[0, 1, 1, 0]])

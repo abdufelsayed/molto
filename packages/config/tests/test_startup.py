@@ -5,8 +5,8 @@ import json
 from unittest.mock import patch
 
 import pytest
-from omlx_config.settings import GlobalSettings
-from omlx_config.startup import _has_cli_overrides, _migrate_saved_network_auth
+from molto_config.settings import GlobalSettings
+from molto_config.startup import _has_cli_overrides, _migrate_saved_network_auth
 
 
 class TestHasCliOverrides:
@@ -119,7 +119,7 @@ class TestHasCliOverrides:
 class TestSavedNetworkAuthMigration:
     @pytest.fixture(autouse=True)
     def setup_migration(self, tmp_path, monkeypatch):
-        for name in ("OMLX_HOST", "OMLX_API_KEY", "OMLX_STARTUP_NOTICE_PATH"):
+        for name in ("MOLTO_HOST", "MOLTO_API_KEY", "MOLTO_STARTUP_NOTICE_PATH"):
             monkeypatch.delenv(name, raising=False)
         self.path = tmp_path / "settings.json"
         self.data = {
@@ -161,7 +161,7 @@ class TestSavedNetworkAuthMigration:
         if case == "cli":
             self.args.host = "0.0.0.0"
         elif case == "env":
-            monkeypatch.setenv("OMLX_HOST", "0.0.0.0")
+            monkeypatch.setenv("MOLTO_HOST", "0.0.0.0")
         elif case == "authenticated":
             self.data["auth"]["skip_api_key_verification"] = False
         elif case == "loopback":
@@ -177,7 +177,7 @@ class TestSavedNetworkAuthMigration:
 
     def test_app_receives_notice_without_cli_prompt(self, tmp_path, monkeypatch):
         notice = tmp_path / "notice.txt"
-        monkeypatch.setenv("OMLX_STARTUP_NOTICE_PATH", str(notice))
+        monkeypatch.setenv("MOLTO_STARTUP_NOTICE_PATH", str(notice))
         self.write_settings()
         _migrate_saved_network_auth(self.load(), self.args)
         self.prompt.assert_not_called()
@@ -207,7 +207,7 @@ class TestSavedNetworkAuthMigration:
         self, monkeypatch
     ):
         self.write_settings()
-        monkeypatch.setenv("OMLX_API_KEY", "runtime-secret")
+        monkeypatch.setenv("MOLTO_API_KEY", "runtime-secret")
         self.args.port = 9001
         settings = GlobalSettings.load(
             base_path=str(self.path.parent), cli_args=self.args

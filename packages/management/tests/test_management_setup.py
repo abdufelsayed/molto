@@ -11,11 +11,11 @@ import httpx
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from omlx_config.settings import GlobalSettings, SubKeyEntry
-from omlx_management.management import ManagementContext, ManagementError
-from omlx_management.management_setup import ManagementSetupService
-from omlx_server.api.management_dependencies import get_runtime
-from omlx_server.api.management_setup_routes import router
+from molto_config.settings import GlobalSettings, SubKeyEntry
+from molto_management.management import ManagementContext, ManagementError
+from molto_management.management_setup import ManagementSetupService
+from molto_server.api.management_dependencies import get_runtime
+from molto_server.api.management_setup_routes import router
 
 PATH = "/management/v1/setup"
 
@@ -237,7 +237,7 @@ def test_setup_updates_only_main_key_preserving_persisted_override_views(setup):
 
 @pytest.mark.parametrize("persisted", [False, True])
 def test_activation_failure_restores_exact_runtime_and_persistence(setup, persisted):
-    from omlx_server.api.management_setup_routes import service
+    from molto_server.api.management_setup_routes import service
 
     path = setup.settings.base_path / "settings.json"
     before = {"server": {"port": 8123}, "auth": {"api_key": None}, "extra": True}
@@ -267,7 +267,7 @@ def test_activation_failure_restores_exact_runtime_and_persistence(setup, persis
 
 
 def test_repeated_activation_failure_still_restores_persistence(setup):
-    from omlx_server.api.management_setup_routes import service
+    from molto_server.api.management_setup_routes import service
 
     setup.settings._save_data({"auth": {"api_key": None}, "extra": True})
     before = json.loads((setup.settings.base_path / "settings.json").read_text())

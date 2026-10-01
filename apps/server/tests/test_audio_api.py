@@ -97,7 +97,7 @@ class TestModelsListAudio:
     @pytest.fixture
     def client_with_stt(self, stt_entry, request, monkeypatch):
         """TestClient with a pool containing only an STT model."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         app = create_app()
 
@@ -106,8 +106,8 @@ class TestModelsListAudio:
             mock_state.engine_pool = mock_pool
             mock_state.global_settings = None
             mock_state.distributed_inference_enabled = getattr(request, "param", False)
-            monkeypatch.setenv("OMLX_DISCOVERY", "0")
-            monkeypatch.setenv("OMLX_BONJOUR", "0")
+            monkeypatch.setenv("MOLTO_DISCOVERY", "0")
+            monkeypatch.setenv("MOLTO_BONJOUR", "0")
             mock_state.process_memory_enforcer = None
             mock_state.hf_downloader = None
             mock_state.ms_downloader = None
@@ -123,7 +123,7 @@ class TestModelsListAudio:
     @pytest.fixture
     def client_with_mixed(self, stt_entry, tts_entry, llm_entry):
         """TestClient with a pool containing STT + TTS + LLM models."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         app = create_app()
 
@@ -155,7 +155,7 @@ class TestModelsListAudio:
     ):
         client, _ = client_with_stt
         assert client.get("/v1/models").status_code == 200
-        assert (cluster_home / ".omlx/bin/omlx-cluster-python").is_file()
+        assert (cluster_home / ".molto/bin/molto-cluster-python").is_file()
 
     def test_models_list_includes_stt_model(self, client_with_stt):
         """audio_stt model appears in /v1/models response."""

@@ -13,8 +13,8 @@ import httpx
 import pytest
 from huggingface_hub import HfApi
 from huggingface_hub.utils import HfHubHTTPError
-from omlx_management import hf_downloader as hf_downloader_mod
-from omlx_management.hf_downloader import (
+from molto_management import hf_downloader as hf_downloader_mod
+from molto_management.hf_downloader import (
     DownloadStatus,
     DownloadTask,
     HFDownloader,
@@ -26,7 +26,7 @@ from omlx_management.hf_downloader import (
     _make_cancellable_tqdm,
     _sum_safetensors_blob_bytes,
 )
-from omlx_runtime._hf_download_worker import _download_without_xet
+from molto_runtime._hf_download_worker import _download_without_xet
 
 
 @pytest.fixture(autouse=True)
@@ -144,8 +144,8 @@ class TestHFDownloader:
     @pytest.mark.asyncio
     async def test_start_download_creates_task(self, downloader):
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
-            patch("omlx_management.hf_downloader.snapshot_download"),
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.snapshot_download"),
         ):
             mock_api = MagicMock()
             mock_info = MagicMock()
@@ -178,8 +178,8 @@ class TestHFDownloader:
     @pytest.mark.asyncio
     async def test_start_download_strips_whitespace(self, downloader):
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
-            patch("omlx_management.hf_downloader.snapshot_download"),
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.snapshot_download"),
         ):
             mock_api = MagicMock()
             mock_info = MagicMock()
@@ -195,8 +195,8 @@ class TestHFDownloader:
     @pytest.mark.asyncio
     async def test_start_download_duplicate(self, downloader):
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
-            patch("omlx_management.hf_downloader.snapshot_download"),
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.snapshot_download"),
         ):
             mock_api = MagicMock()
             mock_info = MagicMock()
@@ -224,8 +224,8 @@ class TestHFDownloader:
         (target_dir / "config.json").write_text("{}")
 
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
-            patch("omlx_management.hf_downloader.snapshot_download") as mock_download,
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.snapshot_download") as mock_download,
         ):
             mock_api = MagicMock()
             mock_info = MagicMock()
@@ -250,9 +250,9 @@ class TestHFDownloader:
         downloader = HFDownloader(model_dir=str(model_dir))
 
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
                 side_effect=Exception("Network error"),
             ),
         ):
@@ -287,9 +287,9 @@ class TestHFDownloader:
         mock_response.url = "https://huggingface.co/api/models/owner/nonexistent"
 
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
                 side_effect=RepositoryNotFoundError(
                     "Not found", response=mock_response
                 ),
@@ -325,9 +325,9 @@ class TestHFDownloader:
         mock_response.url = "https://huggingface.co/api/models/owner/gated-model"
 
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
                 side_effect=GatedRepoError("Gated", response=mock_response),
             ),
         ):
@@ -360,9 +360,9 @@ class TestHFDownloader:
         (temp_dir / "model-00002-of-00002.safetensors").write_bytes(b"in-progress")
 
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
                 side_effect=blocked_worker.call,
             ),
         ):
@@ -415,11 +415,11 @@ class TestHFDownloader:
 
         with (
             patch(
-                "omlx_management.hf_downloader._get_hf_api",
+                "molto_management.hf_downloader._get_hf_api",
                 return_value=(mock_api, None),
             ),
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
                 side_effect=fake_snapshot_download,
             ),
         ):
@@ -446,11 +446,11 @@ class TestHFDownloader:
 
         with (
             patch(
-                "omlx_management.hf_downloader._get_hf_api",
+                "molto_management.hf_downloader._get_hf_api",
                 return_value=(mock_api, None),
             ),
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
                 side_effect=fake_snapshot_download,
             ),
             patch.object(downloader, "_cleanup_partial", side_effect=Exception("boom")),
@@ -486,7 +486,7 @@ class TestHFDownloader:
         active = asyncio.create_task(asyncio.sleep(10))
         downloader._active_tasks[task.task_id] = active
 
-        with patch("omlx_management.hf_downloader.abort_xet_session") as mock_abort:
+        with patch("molto_management.hf_downloader.abort_xet_session") as mock_abort:
             assert await downloader.cancel_download(task.task_id) is True
 
         mock_abort.assert_called_once()
@@ -506,7 +506,7 @@ class TestHFDownloader:
         )
         downloader._tasks[task.task_id] = task
 
-        with patch("omlx_management.hf_downloader.abort_xet_session") as mock_abort:
+        with patch("molto_management.hf_downloader.abort_xet_session") as mock_abort:
             assert await downloader.cancel_download(task.task_id) is True
 
         mock_abort.assert_not_called()
@@ -515,7 +515,7 @@ class TestHFDownloader:
     @pytest.mark.asyncio
     async def test_shutdown_aborts_xet_session(self, downloader):
         """shutdown() must reap any in-flight xet transfer thread."""
-        with patch("omlx_management.hf_downloader.abort_xet_session") as mock_abort:
+        with patch("molto_management.hf_downloader.abort_xet_session") as mock_abort:
             await downloader.shutdown()
 
         mock_abort.assert_called_once()
@@ -565,11 +565,11 @@ class TestHFDownloader:
 
         with (
             patch(
-                "omlx_management.hf_downloader._get_hf_api",
+                "molto_management.hf_downloader._get_hf_api",
                 return_value=(mock_api, None),
             ),
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
                 side_effect=fake_snapshot_download,
             ),
         ):
@@ -584,9 +584,9 @@ class TestHFDownloader:
     ):
         """shutdown() flags active tasks so in-flight threads abort via tqdm."""
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
                 side_effect=blocked_worker.call,
             ),
         ):
@@ -613,8 +613,8 @@ class TestHFDownloader:
         downloader = HFDownloader(model_dir=str(model_dir))
 
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
-            patch("omlx_management.hf_downloader.snapshot_download"),
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.snapshot_download"),
         ):
             mock_api = MagicMock()
             mock_info = MagicMock()
@@ -639,8 +639,8 @@ class TestHFDownloader:
     @pytest.mark.asyncio
     async def test_get_tasks_returns_all(self, downloader):
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
-            patch("omlx_management.hf_downloader.snapshot_download"),
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.snapshot_download"),
         ):
             mock_api = MagicMock()
             mock_info = MagicMock()
@@ -665,8 +665,8 @@ class TestHFDownloader:
         downloader = HFDownloader(model_dir=str(model_dir))
 
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
-            patch("omlx_management.hf_downloader.snapshot_download"),
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.snapshot_download"),
         ):
             mock_api = MagicMock()
             mock_info = MagicMock()
@@ -687,9 +687,9 @@ class TestHFDownloader:
     @pytest.mark.asyncio
     async def test_remove_active_task_fails(self, downloader, blocked_worker):
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
                 side_effect=blocked_worker.call,
             ),
         ):
@@ -723,9 +723,9 @@ class TestHFDownloader:
     @pytest.mark.asyncio
     async def test_shutdown_cancels_active_tasks(self, downloader, blocked_worker):
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
                 side_effect=blocked_worker.call,
             ),
         ):
@@ -812,8 +812,8 @@ class TestHFDownloader:
         downloader = HFDownloader(model_dir=str(model_dir))
 
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
-            patch("omlx_management.hf_downloader.snapshot_download") as mock_download,
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.snapshot_download") as mock_download,
         ):
             mock_api = MagicMock()
             mock_info = MagicMock()
@@ -858,11 +858,11 @@ class TestHFDownloader:
 
         with (
             patch(
-                "omlx_management.hf_downloader._get_hf_api",
+                "molto_management.hf_downloader._get_hf_api",
                 return_value=(mock_api, None),
             ),
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
                 side_effect=fake_snapshot_download,
             ),
         ):
@@ -912,11 +912,11 @@ class TestHFDownloader:
 
         with (
             patch(
-                "omlx_management.hf_downloader._get_hf_api",
+                "molto_management.hf_downloader._get_hf_api",
                 return_value=(mock_api, None),
             ),
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
                 side_effect=fake_snapshot_download,
             ),
         ):
@@ -960,11 +960,11 @@ class TestHFDownloader:
 
         with (
             patch(
-                "omlx_management.hf_downloader._get_hf_api",
+                "molto_management.hf_downloader._get_hf_api",
                 return_value=(mock_api, None),
             ),
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
                 side_effect=fake_snapshot_download,
             ),
         ):
@@ -995,11 +995,11 @@ class TestHFDownloader:
 
         with (
             patch(
-                "omlx_management.hf_downloader._get_hf_api",
+                "molto_management.hf_downloader._get_hf_api",
                 return_value=(mock_api, None),
             ),
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
                 side_effect=fake_snapshot_download,
             ),
         ):
@@ -1036,11 +1036,11 @@ class TestHFDownloader:
 
         with (
             patch(
-                "omlx_management.hf_downloader._get_hf_api",
+                "molto_management.hf_downloader._get_hf_api",
                 return_value=(mock_api, None),
             ),
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
                 side_effect=fake_snapshot_download,
             ),
         ):
@@ -1145,7 +1145,7 @@ class TestGetRecommendedModels:
             ),
         ]
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = mock_models
             mock_api_cls.return_value = mock_api
@@ -1173,7 +1173,7 @@ class TestGetRecommendedModels:
             downloads=200,
         )
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [small_model, large_model]
             mock_api_cls.return_value = mock_api
@@ -1202,7 +1202,7 @@ class TestGetRecommendedModels:
             downloads=200,
         )
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [good_model, no_safetensors]
             mock_api_cls.return_value = mock_api
@@ -1230,7 +1230,7 @@ class TestGetRecommendedModels:
             downloads=50,
         )
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [popular, unpopular]
             mock_api_cls.return_value = mock_api
@@ -1255,7 +1255,7 @@ class TestGetRecommendedModels:
             trending_score=3.5,
         )
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [model]
             mock_api_cls.return_value = mock_api
@@ -1287,7 +1287,7 @@ class TestGetRecommendedModels:
             for i in range(60)
         ]
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = models
             mock_api_cls.return_value = mock_api
@@ -1313,7 +1313,7 @@ class TestGetRecommendedModels:
             for i in range(20)
         ]
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = models
             mock_api_cls.return_value = mock_api
@@ -1335,7 +1335,7 @@ class TestGetRecommendedModels:
             downloads=200,
         )
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [model]
             mock_api_cls.return_value = mock_api
@@ -1361,7 +1361,7 @@ class TestGetRecommendedModels:
         inflated = _calc_safetensors_disk_size(model.safetensors)
         assert inflated > 90 * 1024**3
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [model]
             mock_api.model_info.return_value = _blob_info(
@@ -1389,7 +1389,7 @@ class TestGetRecommendedModels:
             sibling_bytes=blob_bytes,
         )
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [model]
             mock_api_cls.return_value = mock_api
@@ -1409,7 +1409,7 @@ class TestGetRecommendedModels:
             downloads=500,
         )
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [model]
             mock_api.model_info.side_effect = RuntimeError("hub down")
@@ -1437,7 +1437,7 @@ class TestGetRecommendedModels:
             downloads=200,
         )
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [bad, good]
             mock_api_cls.return_value = mock_api
@@ -1475,7 +1475,7 @@ class TestSearchModels:
             ),
         ]
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = mock_models
             mock_api_cls.return_value = mock_api
@@ -1496,7 +1496,7 @@ class TestSearchModels:
             ),
         ]
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = mock_models
             mock_api_cls.return_value = mock_api
@@ -1518,7 +1518,7 @@ class TestSearchModels:
             likes=42,
         )
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [model]
             mock_api_cls.return_value = mock_api
@@ -1539,7 +1539,7 @@ class TestSearchModels:
         """Models without safetensors should still appear with size=0."""
         model = _make_mock_model("org/model", disk_size_bytes=None, downloads=100)
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [model]
             mock_api_cls.return_value = mock_api
@@ -1560,7 +1560,7 @@ class TestSearchModels:
             "org/large", disk_size_bytes=20_000_000_000, downloads=100
         )
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [small, large]
             mock_api_cls.return_value = mock_api
@@ -1581,7 +1581,7 @@ class TestSearchModels:
             "org/large", disk_size_bytes=20_000_000_000, downloads=100
         )
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [small, large]
             mock_api_cls.return_value = mock_api
@@ -1604,7 +1604,7 @@ class TestSearchModels:
             for i in range(20)
         ]
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = models
             mock_api_cls.return_value = mock_api
@@ -1623,7 +1623,7 @@ class TestSearchModels:
             "org/large", disk_size_bytes=20_000_000_000, downloads=100
         )
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [small, large]
             mock_api_cls.return_value = mock_api
@@ -1644,7 +1644,7 @@ class TestSearchModels:
             "org/large", disk_size_bytes=20_000_000_000, downloads=100
         )
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [small, large]
             mock_api_cls.return_value = mock_api
@@ -1665,7 +1665,7 @@ class TestSearchModels:
             "org/large", disk_size_bytes=20_000_000_000, downloads=100
         )
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [small, large]
             mock_api_cls.return_value = mock_api
@@ -1693,7 +1693,7 @@ class TestSearchModels:
             "org/large", disk_size_bytes=28_000_000_000, downloads=100
         )
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [small, medium, large]
             mock_api_cls.return_value = mock_api
@@ -1722,7 +1722,7 @@ class TestSearchModels:
             "org/large", disk_size_bytes=20_000_000_000, downloads=100
         )
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [small, medium, large]
             mock_api_cls.return_value = mock_api
@@ -1743,7 +1743,7 @@ class TestSearchModels:
         blob_bytes = 15_400_000_000
         model = _make_mock_u32_model("mlx-community/gemma-4-26B-A4B-it-4bit")
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [model]
             mock_api.model_info.return_value = _blob_info(
@@ -1766,7 +1766,7 @@ class TestSearchModels:
             "org/small-bf16", disk_size_bytes=2_000_000_000, downloads=100
         )
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [huge, small]
             mock_api_cls.return_value = mock_api
@@ -1788,7 +1788,7 @@ class TestSearchModels:
             "total": None,
         }
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [model]
             mock_api_cls.return_value = mock_api
@@ -1807,7 +1807,7 @@ class TestSearchModels:
         model = _make_mock_u32_model("mlx-community/gemma-4-26B-A4B-it-4bit")
         info = _blob_info(model.id, blob_bytes, safetensors=model.safetensors)
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = [model]
             mock_api.model_info.return_value = info
@@ -1861,7 +1861,7 @@ class TestStaleTokenFallback:
             ),
         ]
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.side_effect = _stale_token_list_models(models)
             mock_api_cls.return_value = mock_api
@@ -1882,7 +1882,7 @@ class TestStaleTokenFallback:
             ),
         ]
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = models
             mock_api_cls.return_value = mock_api
@@ -1899,7 +1899,7 @@ class TestStaleTokenFallback:
         response = httpx.Response(503, request=request)
         error = HfHubHTTPError("Service unavailable", response=response)
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.side_effect = error
             mock_api_cls.return_value = mock_api
@@ -1921,7 +1921,7 @@ class TestStaleTokenFallback:
             ),
         ]
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.side_effect = _stale_token_list_models(models)
             mock_api_cls.return_value = mock_api
@@ -1945,7 +1945,7 @@ class TestStaleTokenFallback:
             ),
         ]
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.return_value = models
             mock_api_cls.return_value = mock_api
@@ -1988,9 +1988,9 @@ class TestGetModelInfo:
         mock_info.siblings = [mock_sibling]
 
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
             patch(
-                "omlx_management.hf_downloader.hf_hub_download",
+                "molto_management.hf_downloader.hf_hub_download",
                 side_effect=Exception("no readme"),
             ),
         ):
@@ -2036,9 +2036,9 @@ class TestGetModelInfo:
         mock_info.siblings = [weight, tokenizer]
 
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
             patch(
-                "omlx_management.hf_downloader.hf_hub_download",
+                "molto_management.hf_downloader.hf_hub_download",
                 side_effect=Exception("no readme"),
             ),
         ):
@@ -2075,9 +2075,9 @@ class TestGetModelInfo:
         mock_info.siblings = siblings
 
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
             patch(
-                "omlx_management.hf_downloader.hf_hub_download",
+                "molto_management.hf_downloader.hf_hub_download",
                 side_effect=Exception("no readme"),
             ),
         ):
@@ -2111,9 +2111,9 @@ class TestGetModelInfo:
         )
 
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
             patch(
-                "omlx_management.hf_downloader.hf_hub_download",
+                "molto_management.hf_downloader.hf_hub_download",
                 return_value=str(readme_path),
             ),
         ):
@@ -2137,23 +2137,23 @@ class TestFormatParamCount:
     """Test _format_param_count helper."""
 
     def test_billions(self):
-        from omlx_management.hf_downloader import _format_param_count
+        from molto_management.hf_downloader import _format_param_count
 
         assert _format_param_count(7_000_000_000) == "7.0B"
         assert _format_param_count(13_500_000_000) == "13.5B"
 
     def test_millions(self):
-        from omlx_management.hf_downloader import _format_param_count
+        from molto_management.hf_downloader import _format_param_count
 
         assert _format_param_count(125_000_000) == "125.0M"
 
     def test_trillions(self):
-        from omlx_management.hf_downloader import _format_param_count
+        from molto_management.hf_downloader import _format_param_count
 
         assert _format_param_count(1_500_000_000_000) == "1.5T"
 
     def test_small(self):
-        from omlx_management.hf_downloader import _format_param_count
+        from molto_management.hf_downloader import _format_param_count
 
         assert _format_param_count(500) == "500"
 
@@ -2162,25 +2162,25 @@ class TestGetParamCount:
     """Test _get_param_count helper."""
 
     def test_single_dtype(self):
-        from omlx_management.hf_downloader import _get_param_count
+        from molto_management.hf_downloader import _get_param_count
 
         assert (
             _get_param_count({"parameters": {"BF16": 7_000_000_000}}) == 7_000_000_000
         )
 
     def test_mixed_dtypes(self):
-        from omlx_management.hf_downloader import _get_param_count
+        from molto_management.hf_downloader import _get_param_count
 
         assert _get_param_count({"parameters": {"BF16": 100, "F32": 200}}) == 300
 
     def test_empty(self):
-        from omlx_management.hf_downloader import _get_param_count
+        from molto_management.hf_downloader import _get_param_count
 
         assert _get_param_count({"parameters": {}}) == 0
         assert _get_param_count({}) == 0
 
     def test_non_int_count_returns_zero(self):
-        from omlx_management.hf_downloader import _get_param_count
+        from molto_management.hf_downloader import _get_param_count
 
         assert _get_param_count({"parameters": {"BF16": None}}) == 0
 
@@ -2189,26 +2189,26 @@ class TestCalcSafetensorsDiskSize:
     """Test _calc_safetensors_disk_size helper."""
 
     def test_bf16_only(self):
-        from omlx_management.hf_downloader import _calc_safetensors_disk_size
+        from molto_management.hf_downloader import _calc_safetensors_disk_size
 
         st = {"parameters": {"BF16": 1_000_000}, "total": 1_000_000}
         assert _calc_safetensors_disk_size(st) == 2_000_000  # BF16 = 2 bytes
 
     def test_mixed_dtypes(self):
-        from omlx_management.hf_downloader import _calc_safetensors_disk_size
+        from molto_management.hf_downloader import _calc_safetensors_disk_size
 
         st = {"parameters": {"BF16": 100, "U32": 200, "F32": 50}, "total": 350}
         # BF16: 100*2=200, U32: 200*4=800, F32: 50*4=200 → 1200
         assert _calc_safetensors_disk_size(st) == 1200
 
     def test_empty_parameters(self):
-        from omlx_management.hf_downloader import _calc_safetensors_disk_size
+        from molto_management.hf_downloader import _calc_safetensors_disk_size
 
         assert _calc_safetensors_disk_size({"parameters": {}}) == 0
         assert _calc_safetensors_disk_size({}) == 0
 
     def test_non_int_count_returns_zero(self):
-        from omlx_management.hf_downloader import _calc_safetensors_disk_size
+        from molto_management.hf_downloader import _calc_safetensors_disk_size
 
         assert _calc_safetensors_disk_size({"parameters": {"BF16": None}}) == 0
         assert (
@@ -2325,8 +2325,8 @@ class TestHFAPITimeouts:
             return []
 
         with (
-            patch("omlx_management.hf_downloader._HF_API_TIMEOUT", 0.1),
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader._HF_API_TIMEOUT", 0.1),
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
         ):
             mock_api = MagicMock()
             mock_api.list_models.side_effect = slow_list_models
@@ -2346,8 +2346,8 @@ class TestHFAPITimeouts:
             return []
 
         with (
-            patch("omlx_management.hf_downloader._HF_API_TIMEOUT", 0.1),
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader._HF_API_TIMEOUT", 0.1),
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
         ):
             mock_api = MagicMock()
             mock_api.list_models.side_effect = slow_list_models
@@ -2366,8 +2366,8 @@ class TestHFAPITimeouts:
             blocked_worker.call()
 
         with (
-            patch("omlx_management.hf_downloader._HF_API_TIMEOUT", 0.1),
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader._HF_API_TIMEOUT", 0.1),
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
         ):
             mock_api = MagicMock()
             mock_api.model_info.side_effect = slow_model_info
@@ -2392,8 +2392,8 @@ class TestHFAPITimeouts:
             return gen()
 
         with (
-            patch("omlx_management.hf_downloader._HF_API_TIMEOUT", 0.1),
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader._HF_API_TIMEOUT", 0.1),
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
         ):
             mock_api = MagicMock()
             mock_api.list_models.side_effect = lazy_hanging_list_models
@@ -2418,8 +2418,8 @@ class TestHFAPITimeouts:
             return gen()
 
         with (
-            patch("omlx_management.hf_downloader._HF_API_TIMEOUT", 0.1),
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader._HF_API_TIMEOUT", 0.1),
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
         ):
             mock_api = MagicMock()
             mock_api.list_models.side_effect = lazy_hanging_list_models
@@ -2447,7 +2447,7 @@ class TestHFAPITimeouts:
 
             return gen()
 
-        with patch("omlx_management.hf_downloader.HfApi") as mock_api_cls:
+        with patch("molto_management.hf_downloader.HfApi") as mock_api_cls:
             mock_api = MagicMock()
             mock_api.list_models.side_effect = lazy_list_models
             mock_api_cls.return_value = mock_api
@@ -2483,10 +2483,10 @@ class TestHFEndpointPassthrough:
 
         with (
             patch(
-                "omlx_management.hf_downloader._get_hf_api",
+                "molto_management.hf_downloader._get_hf_api",
                 return_value=(mock_api, "https://hf-mirror.com"),
             ),
-            patch("omlx_management.hf_downloader.snapshot_download") as mock_download,
+            patch("molto_management.hf_downloader.snapshot_download") as mock_download,
         ):
             downloader = HFDownloader(model_dir=str(model_dir))
             task = await downloader.start_download("owner/model")
@@ -2509,8 +2509,8 @@ class TestHFEndpointPassthrough:
         (target_dir / "config.json").write_text("{}")
 
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
-            patch("omlx_management.hf_downloader.snapshot_download") as mock_download,
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.snapshot_download") as mock_download,
         ):
             mock_api = MagicMock()
             mock_info = MagicMock()
@@ -2548,10 +2548,10 @@ class TestHFEndpointPassthrough:
 
         with (
             patch(
-                "omlx_management.hf_downloader._get_hf_api",
+                "molto_management.hf_downloader._get_hf_api",
                 return_value=(mock_api, "https://hf-mirror.com"),
             ),
-            patch("omlx_management.hf_downloader.hf_hub_download") as mock_hf_download,
+            patch("molto_management.hf_downloader.hf_hub_download") as mock_hf_download,
         ):
             mock_hf_download.side_effect = Exception("no readme")
 
@@ -2589,8 +2589,8 @@ class TestRetryDownload:
         (target / "partial.bin").write_bytes(b"x" * 100)
 
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
-            patch("omlx_management.hf_downloader.snapshot_download"),
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.snapshot_download"),
         ):
             mock_api = MagicMock()
             mock_info = MagicMock()
@@ -2620,8 +2620,8 @@ class TestRetryDownload:
     async def test_retry_cancelled_download(self, downloader):
         """Retry a cancelled download should work."""
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
-            patch("omlx_management.hf_downloader.snapshot_download"),
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.snapshot_download"),
         ):
             mock_api = MagicMock()
             mock_info = MagicMock()
@@ -2643,8 +2643,8 @@ class TestRetryDownload:
     async def test_retry_increments_count(self, downloader):
         """Multiple retries should increment retry_count."""
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
-            patch("omlx_management.hf_downloader.snapshot_download"),
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.snapshot_download"),
         ):
             mock_api = MagicMock()
             mock_info = MagicMock()
@@ -2668,9 +2668,9 @@ class TestRetryDownload:
     async def test_retry_active_download_raises(self, downloader, blocked_worker):
         """Retrying an active download should raise ValueError."""
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
                 side_effect=blocked_worker.call,
             ),
         ):
@@ -2712,7 +2712,7 @@ class TestStallDetection:
     @pytest.mark.asyncio
     async def test_zero_byte_startup_stall_aborts_xet(self, model_dir, monkeypatch):
         """No first write must trigger the startup deadline, including at 0%."""
-        import omlx_management.hf_downloader as dl_module
+        import molto_management.hf_downloader as dl_module
 
         monkeypatch.setattr(dl_module, "_STARTUP_STALL_TIMEOUT", 0.03)
         monkeypatch.setattr(dl_module, "_PROGRESS_POLL_INTERVAL", 0.01)
@@ -2740,7 +2740,7 @@ class TestStallDetection:
                 "_get_download_activity",
                 side_effect=zero_byte_temp,
             ),
-            patch("omlx_management.hf_downloader.abort_xet_session") as mock_abort,
+            patch("molto_management.hf_downloader.abort_xet_session") as mock_abort,
         ):
             await downloader._poll_progress(task.task_id, target)
 
@@ -2752,7 +2752,7 @@ class TestStallDetection:
     @pytest.mark.asyncio
     async def test_active_stall_uses_longer_timeout(self, model_dir, monkeypatch):
         """After the first write, the active-transfer timeout must apply."""
-        import omlx_management.hf_downloader as dl_module
+        import molto_management.hf_downloader as dl_module
 
         monkeypatch.setattr(dl_module, "_STARTUP_STALL_TIMEOUT", 1)
         monkeypatch.setattr(dl_module, "_STALL_TIMEOUT", 0.03)
@@ -2778,7 +2778,7 @@ class TestStallDetection:
                 "_get_download_activity",
                 side_effect=[empty, writing, writing, writing, writing, writing],
             ),
-            patch("omlx_management.hf_downloader.abort_xet_session") as mock_abort,
+            patch("molto_management.hf_downloader.abort_xet_session") as mock_abort,
         ):
             await downloader._poll_progress(task.task_id, model_dir)
 
@@ -2841,11 +2841,11 @@ class TestXetHTTPFallback:
 
         with (
             patch(
-                "omlx_management.hf_downloader._get_hf_api",
+                "molto_management.hf_downloader._get_hf_api",
                 return_value=(self._api(), None),
             ),
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
                 side_effect=fail_xet,
             ),
             patch.object(
@@ -2863,7 +2863,7 @@ class TestXetHTTPFallback:
     async def test_zero_byte_stall_waits_for_xet_exit_before_fallback(
         self, model_dir, monkeypatch
     ):
-        import omlx_management.hf_downloader as dl_module
+        import molto_management.hf_downloader as dl_module
 
         monkeypatch.setattr(dl_module, "_STARTUP_STALL_TIMEOUT", 0.03)
         monkeypatch.setattr(dl_module, "_PROGRESS_POLL_INTERVAL", 0.01)
@@ -2885,15 +2885,15 @@ class TestXetHTTPFallback:
 
         with (
             patch(
-                "omlx_management.hf_downloader._get_hf_api",
+                "molto_management.hf_downloader._get_hf_api",
                 return_value=(self._api(), None),
             ),
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
                 side_effect=stalled_xet,
             ),
             patch(
-                "omlx_management.hf_downloader.abort_xet_session",
+                "molto_management.hf_downloader.abort_xet_session",
                 side_effect=aborted.set,
             ) as abort,
             patch.object(
@@ -2922,11 +2922,11 @@ class TestXetHTTPFallback:
 
         with (
             patch(
-                "omlx_management.hf_downloader._get_hf_api",
+                "molto_management.hf_downloader._get_hf_api",
                 return_value=(self._api(), None),
             ),
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
                 side_effect=fail_xet,
             ),
             patch.object(
@@ -2957,14 +2957,14 @@ class TestXetHTTPFallback:
         }
 
         with patch(
-            "omlx_management.hf_downloader.asyncio.create_subprocess_exec",
+            "molto_management.hf_downloader.asyncio.create_subprocess_exec",
             new_callable=AsyncMock,
             return_value=process,
         ) as spawn:
             await downloader._run_http_fallback("t1", kwargs)
 
         argv = spawn.await_args.args
-        assert argv[1:] == ("-m", "omlx_runtime._hf_download_worker")
+        assert argv[1:] == ("-m", "molto_runtime._hf_download_worker")
         assert "secret-token" not in argv
         assert spawn.await_args.kwargs["env"]["HF_HUB_DISABLE_XET"] == "1"
         request = json.loads(process.communicate.await_args.kwargs["input"])
@@ -3000,9 +3000,9 @@ class TestSequentialDownloadQueue:
         downloader = HFDownloader(model_dir=str(model_dir))
 
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
                 side_effect=blocked_worker.call,
             ),
         ):
@@ -3029,9 +3029,9 @@ class TestSequentialDownloadQueue:
         downloader = HFDownloader(model_dir=str(model_dir))
 
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
             patch(
-                "omlx_management.hf_downloader.snapshot_download",
+                "molto_management.hf_downloader.snapshot_download",
             ) as mock_download,
         ):
             mock_api = MagicMock()
@@ -3069,7 +3069,7 @@ class TestMtimeActivityDetection:
     @pytest.mark.asyncio
     async def test_mtime_prevents_false_stall(self, model_dir, monkeypatch):
         """Download should not stall if file mtimes are updating."""
-        import omlx_management.hf_downloader as dl_module
+        import molto_management.hf_downloader as dl_module
 
         monkeypatch.setattr(dl_module, "_STARTUP_STALL_TIMEOUT", 0.03)
         monkeypatch.setattr(dl_module, "_STALL_TIMEOUT", 0.03)
@@ -3100,7 +3100,7 @@ class TestMtimeActivityDetection:
                 "_get_download_activity",
                 side_effect=active_download,
             ),
-            patch("omlx_management.hf_downloader.abort_xet_session") as mock_abort,
+            patch("molto_management.hf_downloader.abort_xet_session") as mock_abort,
         ):
             poll = asyncio.create_task(
                 downloader._poll_progress(task.task_id, model_dir)
@@ -3131,8 +3131,8 @@ class TestEtagTimeout:
     async def test_etag_timeout_passed(self, model_dir):
         """snapshot_download should receive etag_timeout=30."""
         with (
-            patch("omlx_management.hf_downloader.HfApi") as mock_api_cls,
-            patch("omlx_management.hf_downloader.snapshot_download") as mock_download,
+            patch("molto_management.hf_downloader.HfApi") as mock_api_cls,
+            patch("molto_management.hf_downloader.snapshot_download") as mock_download,
         ):
             mock_api = MagicMock()
             mock_info = MagicMock()
@@ -3174,7 +3174,7 @@ class TestResolveEndpoint:
     def _clear_cache(self):
         # Cache is module-global; clear before/after every test so cases
         # don't bleed into each other.
-        from omlx_management.hf_downloader import _endpoint_resolution_cache
+        from molto_management.hf_downloader import _endpoint_resolution_cache
 
         _endpoint_resolution_cache.clear()
         yield
@@ -3198,7 +3198,7 @@ class TestResolveEndpoint:
         return patch("httpx.Client", mock_client_cls), mock_client
 
     def test_no_redirect_returns_endpoint_unchanged(self):
-        from omlx_management.hf_downloader import _resolve_endpoint
+        from molto_management.hf_downloader import _resolve_endpoint
 
         ctx, _ = self._patch_httpx([self._response(200)])
         with ctx:
@@ -3209,7 +3209,7 @@ class TestResolveEndpoint:
     def test_cross_origin_308_returns_redirected_origin(self):
         # The bug this whole module exists to fix: hf-mirror permanently
         # 308s to huggingface.co; downloads must resolve to the final origin.
-        from omlx_management.hf_downloader import _resolve_endpoint
+        from molto_management.hf_downloader import _resolve_endpoint
 
         ctx, _ = self._patch_httpx(
             [
@@ -3224,7 +3224,7 @@ class TestResolveEndpoint:
 
     def test_cross_origin_301_also_handled(self):
         # 301 (Moved Permanently) gets the same treatment as 308.
-        from omlx_management.hf_downloader import _resolve_endpoint
+        from molto_management.hf_downloader import _resolve_endpoint
 
         ctx, _ = self._patch_httpx(
             [
@@ -3240,7 +3240,7 @@ class TestResolveEndpoint:
     def test_same_origin_redirect_does_not_rewrite(self):
         # If the server returns a relative Location (`/foo`) we must not
         # try to rewrite the endpoint — same origin, same hostname.
-        from omlx_management.hf_downloader import _resolve_endpoint
+        from molto_management.hf_downloader import _resolve_endpoint
 
         ctx, _ = self._patch_httpx(
             [
@@ -3252,7 +3252,7 @@ class TestResolveEndpoint:
 
     def test_chained_redirects_walk_up_to_3_hops(self):
         # A → B → C all cross-origin permanent. Final hop wins.
-        from omlx_management.hf_downloader import _resolve_endpoint
+        from molto_management.hf_downloader import _resolve_endpoint
 
         ctx, _ = self._patch_httpx(
             [
@@ -3267,7 +3267,7 @@ class TestResolveEndpoint:
     def test_temporary_redirect_is_not_followed(self):
         # 302 / 307 are NOT permanent — leave the endpoint alone so the HF
         # client can handle them per-request.
-        from omlx_management.hf_downloader import _resolve_endpoint
+        from molto_management.hf_downloader import _resolve_endpoint
 
         ctx, _ = self._patch_httpx(
             [
@@ -3279,7 +3279,7 @@ class TestResolveEndpoint:
 
     def test_network_error_falls_back_to_original_endpoint(self):
         # Best-effort probe: any httpx exception leaves the endpoint as-is.
-        from omlx_management.hf_downloader import _resolve_endpoint
+        from molto_management.hf_downloader import _resolve_endpoint
 
         mock_client_cls = MagicMock()
         mock_client = MagicMock()
@@ -3292,7 +3292,7 @@ class TestResolveEndpoint:
 
     def test_result_is_cached_per_endpoint(self):
         # Second call for the same endpoint must not re-probe.
-        from omlx_management.hf_downloader import _resolve_endpoint
+        from molto_management.hf_downloader import _resolve_endpoint
 
         ctx, mock_client = self._patch_httpx(
             [
@@ -3308,7 +3308,7 @@ class TestResolveEndpoint:
     def test_trailing_slash_normalized(self):
         # `https://hf-mirror.com/` and `https://hf-mirror.com` are the same
         # endpoint and must share the cache.
-        from omlx_management.hf_downloader import _resolve_endpoint
+        from molto_management.hf_downloader import _resolve_endpoint
 
         ctx, mock_client = self._patch_httpx(
             [

@@ -14,7 +14,7 @@ import struct
 import time
 from types import SimpleNamespace
 
-from omlx_runtime.cluster.discovery import (
+from molto_runtime.cluster.discovery import (
     _TX_FAIL_RESET_ROUNDS,
     MULTICAST_GROUP,
     MULTICAST_PORT,
@@ -33,8 +33,8 @@ from omlx_runtime.cluster.discovery import (
     encode_hello,
     encode_wassup,
 )
-from omlx_runtime.cluster.identity import NodeIdentity
-from omlx_runtime.cluster.registry import DeviceRegistry
+from molto_runtime.cluster.identity import NodeIdentity
+from molto_runtime.cluster.registry import DeviceRegistry
 
 
 class FakeHTTPStream:
@@ -119,7 +119,7 @@ def _service(
     config: DiscoveryConfig | None = None,
 ):
     clock = clock or FakeClock()
-    cfg = config or DiscoveryConfig(cluster_name="omlx", http_port=8000)
+    cfg = config or DiscoveryConfig(cluster_name="molto", http_port=8000)
     service = DiscoveryService(
         _identity(node_id),
         registry
@@ -143,13 +143,13 @@ def _service(
 
 
 def test_hello_codec_roundtrip():
-    payload = encode_hello(0xDEADBEEF, cluster_hash_u64("omlx"))
-    assert decode_hello(payload) == (0xDEADBEEF, cluster_hash_u64("omlx"))
+    payload = encode_hello(0xDEADBEEF, cluster_hash_u64("molto"))
+    assert decode_hello(payload) == (0xDEADBEEF, cluster_hash_u64("molto"))
 
 
 def test_hello_codec_rejects_garbage():
     assert decode_hello(b"") is None
-    assert decode_hello(b"OMLX") is None
+    assert decode_hello(b"MOLTO") is None
     assert decode_hello(b"NOPE" + b"\x00" * 16) is None
     assert decode_hello(encode_hello(1, 2) + b"extra") is None
 
@@ -165,11 +165,12 @@ def test_wassup_codec_roundtrip():
 
 def test_wassup_codec_rejects_garbage():
     assert decode_wassup(b"") is None
-    assert decode_wassup(b"OMLXW{not json") is None
-    assert decode_wassup(b"OMLXW" + json.dumps({"nonce": -1}).encode()) is None
+    assert decode_wassup(b"MOLTOW{not json") is None
+    assert decode_wassup(b"MOLTOW" + json.dumps({"nonce": -1}).encode()) is None
     assert (
         decode_wassup(
-            b"OMLXW" + json.dumps({"nonce": 1, "node_id": "x", "http_port": 0}).encode()
+            b"MOLTOW"
+            + json.dumps({"nonce": 1, "node_id": "x", "http_port": 0}).encode()
         )
         is None
     )
@@ -178,9 +179,9 @@ def test_wassup_codec_rejects_garbage():
 def test_cluster_hash_is_blake2s_prefix():
     import hashlib
 
-    expected = int.from_bytes(hashlib.blake2s(b"omlx").digest()[:8], "big")
-    assert cluster_hash_u64("omlx") == expected
-    assert cluster_hash_u64("omlx") != cluster_hash_u64("other")
+    expected = int.from_bytes(hashlib.blake2s(b"molto").digest()[:8], "big")
+    assert cluster_hash_u64("molto") == expected
+    assert cluster_hash_u64("molto") != cluster_hash_u64("other")
 
 
 # -- HELLO handling -----------------------------------------------------------
@@ -276,7 +277,7 @@ def test_higher_node_id_probes_immediately_lower_defers():
 
     def prober(ip, port, timeout):
         calls.append((ip, port))
-        return {"node_id": "aaaa-node", "version": "0.6.1", "cluster_name": "omlx"}
+        return {"node_id": "aaaa-node", "version": "0.6.1", "cluster_name": "molto"}
 
     # We are zzzz-node: higher than aaaa-node → we initiate contact.
     service, _ = _service("zzzz-node", prober=prober)
@@ -320,7 +321,7 @@ def test_successful_probe_fills_peer_details_and_link():
         prober=lambda ip, port, timeout: {
             "node_id": "bbbb-node",
             "version": "0.6.1",
-            "cluster_name": "omlx",
+            "cluster_name": "molto",
         },
     )
     service.add_manual("10.0.0.5", 8000)
@@ -339,7 +340,7 @@ def test_probe_node_id_mismatch_drops_address():
         prober=lambda ip, port, timeout: {
             "node_id": "impostor",
             "version": "0.6.1",
-            "cluster_name": "omlx",
+            "cluster_name": "molto",
         },
     )
     _announce_nonce(service)
@@ -365,7 +366,7 @@ def test_failed_probe_keeps_candidate_unverified_for_retry():
 
 
 def test_http_probe_falls_back_to_system_python_carrier(monkeypatch):
-    from omlx_runtime.cluster import discovery
+    from molto_runtime.cluster import discovery
 
     monkeypatch.setattr(
         discovery.urllib.request,
@@ -377,7 +378,7 @@ def test_http_probe_falls_back_to_system_python_carrier(monkeypatch):
     expected = {
         "node_id": "peer-node",
         "version": "0.6.4.dev1",
-        "cluster_name": "omlx",
+        "cluster_name": "molto",
     }
     calls = []
     monkeypatch.setattr(
@@ -391,7 +392,7 @@ def test_http_probe_falls_back_to_system_python_carrier(monkeypatch):
 
 
 def test_tailscale_probe_failure_does_not_spawn_direct_subnet_proxy(monkeypatch):
-    from omlx_runtime.cluster import discovery
+    from molto_runtime.cluster import discovery
 
     monkeypatch.setattr(
         discovery.urllib.request,
@@ -410,13 +411,13 @@ def test_tailscale_probe_failure_does_not_spawn_direct_subnet_proxy(monkeypatch)
 
 
 def test_system_python_carrier_parses_bounded_node_probe(monkeypatch):
-    from omlx_runtime.cluster import system_socket_proxy
+    from molto_runtime.cluster import system_socket_proxy
 
     body = json.dumps(
         {
             "node_id": "peer-node",
             "version": "0.6.4.dev1",
-            "cluster_name": "omlx",
+            "cluster_name": "molto",
         }
     ).encode()
     response = (
@@ -465,7 +466,7 @@ def test_paired_manual_address_and_port_rehydrate_after_reboot(tmp_path):
                 "node_id": "bbbb-node",
                 "friendly_name": "studio-b",
                 "version": "0.6.1",
-                "cluster_name": "omlx",
+                "cluster_name": "molto",
             }
         ),
     )
@@ -498,7 +499,7 @@ def test_legacy_paired_address_rehydrates_on_the_configured_default_port(tmp_pat
     service, _ = _service(
         "aaaa-node",
         registry=DeviceRegistry(registry.path),
-        config=DiscoveryConfig(cluster_name="omlx", http_port=8765),
+        config=DiscoveryConfig(cluster_name="molto", http_port=8765),
     )
 
     assert ("10.0.0.8", 8765) in service._candidates
@@ -531,7 +532,7 @@ def test_verified_candidate_uses_heartbeat_cadence():
             or {
                 "node_id": "peer-node",
                 "version": "0.6.4.dev1",
-                "cluster_name": "omlx",
+                "cluster_name": "molto",
             }
         ),
     )
@@ -632,7 +633,7 @@ def test_discovered_peer_merges_into_registry_unpaired(tmp_path):
         prober=lambda *a: {
             "node_id": "bbbb-node",
             "version": "0.6.1",
-            "cluster_name": "omlx",
+            "cluster_name": "molto",
         },
     )
     _verified_peer(service)
@@ -699,10 +700,10 @@ def test_macos_tailscale_app_binary_is_a_cli_fallback(tmp_path, monkeypatch):
     executable.write_text("#!/bin/sh\n")
     executable.chmod(0o755)
     monkeypatch.setattr(
-        "omlx_runtime.cluster.discovery.shutil.which", lambda _name: None
+        "molto_runtime.cluster.discovery.shutil.which", lambda _name: None
     )
-    monkeypatch.setattr("omlx_runtime.cluster.discovery.sys.platform", "darwin")
-    monkeypatch.setenv("OMLX_TAILSCALE_CLI", str(executable))
+    monkeypatch.setattr("molto_runtime.cluster.discovery.sys.platform", "darwin")
+    monkeypatch.setenv("MOLTO_TAILSCALE_CLI", str(executable))
 
     assert _tailscale_executable() == str(executable)
 
@@ -743,7 +744,7 @@ def test_mdns_service_creates_peer_from_txt():
             b"id": b"bbbb-node",
             b"name": b"studio-b",
             b"ver": b"0.6.1",
-            b"cl": b"omlx",
+            b"cl": b"molto",
             b"caps": json.dumps({"chip": "M3 Ultra", "ram_gb": 96}).encode(),
         }
 
@@ -775,7 +776,7 @@ def test_mdns_foreign_cluster_and_self_are_ignored():
 
     class SelfInfo:
         port = 8000
-        properties = {b"id": b"aaaa-node", b"cl": b"omlx"}
+        properties = {b"id": b"aaaa-node", b"cl": b"molto"}
 
         def parsed_addresses(self):
             return ["10.0.0.9"]
@@ -819,9 +820,9 @@ en13: flags=8863<UP,BROADCAST,RUNNING,MULTICAST> mtu 1500
 utun0: flags=8051<UP,POINTOPOINT,RUNNING,MULTICAST> mtu 1380
     inet6 fe80::4%utun0 prefixlen 64
 """
-    monkeypatch.setattr("omlx_runtime.cluster.discovery.sys.platform", "darwin")
+    monkeypatch.setattr("molto_runtime.cluster.discovery.sys.platform", "darwin")
     monkeypatch.setattr(
-        "omlx_runtime.cluster.discovery.subprocess.run",
+        "molto_runtime.cluster.discovery.subprocess.run",
         lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout=output),
     )
     assert _default_interface_lister() == ["en0", "utun0"]
@@ -894,7 +895,7 @@ def test_peer_record_to_dict_shape():
         node_id="n1",
         friendly_name="studio",
         version="0.6.1",
-        cluster_name="omlx",
+        cluster_name="molto",
         caps=PeerCaps(
             chip="M3 Ultra",
             ram_gb=96.0,
@@ -927,7 +928,7 @@ def test_mark_paired_updates_live_discovery_record():
 
 
 def test_announced_caps_uses_configured_service():
-    from omlx_runtime.cluster.discovery import (
+    from molto_runtime.cluster.discovery import (
         announced_caps,
         configure_discovery_service,
     )
@@ -988,12 +989,12 @@ def test_mdns_announce_publishes_spec_txt_record():
     service._start_mdns()
 
     info = service._zc_instance.registered[0]
-    assert info.type == "_omlx._tcp.local."
-    assert info.name.startswith("studio-a._omlx._tcp.local.")
+    assert info.type == "_molto._tcp.local."
+    assert info.name.startswith("studio-a._molto._tcp.local.")
     assert info.port == 8000
     assert info.properties["id"] == "aaaa-node"
     assert info.properties["name"] == "studio-a"
-    assert info.properties["cl"] == "omlx"
+    assert info.properties["cl"] == "molto"
     assert info.properties["ver"]
     caps = json.loads(info.properties["caps"])
     assert set(caps) == {"chip", "ram_gb", "backends", "thunderbolt", "jaccl"}
@@ -1100,7 +1101,7 @@ def test_send_failures_are_rate_limited(caplog):
     service, clock = _service(socket_factory=lambda: sock)
     service._joined = {"en0": 10}
 
-    with caplog.at_level(5, logger="omlx_runtime.cluster.discovery"):
+    with caplog.at_level(5, logger="molto_runtime.cluster.discovery"):
         service._send_hello(sock)
         clock.advance(5)
         service._send_hello(sock)  # inside the 60s window: silent
@@ -1115,7 +1116,7 @@ def test_send_failures_are_rate_limited(caplog):
         )
 
     caplog.clear()
-    with caplog.at_level(logging.DEBUG, logger="omlx_runtime.cluster.discovery"):
+    with caplog.at_level(logging.DEBUG, logger="molto_runtime.cluster.discovery"):
         clock.advance(61)
         service._send_hello(sock)
         assert not any("HELLO send on if" in r.getMessage() for r in caplog.records)
@@ -1226,7 +1227,7 @@ def test_blocked_suspicion_flag_lifecycle():
 
 
 def test_rdma_fabric_caps_detects_jaccl_when_enabled_with_devices():
-    from omlx_runtime.cluster import discovery
+    from molto_runtime.cluster import discovery
 
     calls = []
 
@@ -1255,7 +1256,7 @@ def test_rdma_fabric_caps_detects_jaccl_when_enabled_with_devices():
 
 
 def test_rdma_fabric_caps_stays_false_when_disabled_or_no_devices():
-    from omlx_runtime.cluster import discovery
+    from molto_runtime.cluster import discovery
 
     def disabled(args, **kwargs):
         class Result:

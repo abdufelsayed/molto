@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run an exact-token streaming context gate against an oMLX endpoint.
+"""Run an exact-token streaming context gate against a Molto endpoint.
 
 This is intentionally a small black-box harness: it builds a prompt whose
 token count is verified with the model tokenizer, sends it through the public
@@ -33,13 +33,13 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument(
         "--api-key-file",
         type=Path,
-        default=Path("~/.omlx/settings.json").expanduser(),
+        default=Path("~/.molto/settings.json").expanduser(),
     )
     return parser.parse_args()
 
 
 def _api_key(path: Path) -> str:
-    environment_key = os.environ.get("OMLX_API_KEY", "").strip()
+    environment_key = os.environ.get("MOLTO_API_KEY", "").strip()
     if environment_key:
         return environment_key
     settings = json.loads(path.read_text())

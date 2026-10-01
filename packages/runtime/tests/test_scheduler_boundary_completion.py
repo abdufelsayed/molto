@@ -8,12 +8,12 @@ import mlx.core as mx
 import pytest
 from mlx_lm.generate import BatchGenerator
 from mlx_lm.models.qwen3_5 import Model, ModelArgs
-from omlx_runtime.cache.boundary_snapshot_store import BoundarySnapshotSSDStore
-from omlx_runtime.cache.paged_cache import PagedCacheManager
-from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
-from omlx_runtime.cache.prefix_cache import BlockAwarePrefixCache
-from omlx_runtime.request import Request, SamplingParams
-from omlx_runtime.scheduler import Scheduler, SchedulerConfig
+from molto_runtime.cache.boundary_snapshot_store import BoundarySnapshotSSDStore
+from molto_runtime.cache.paged_cache import PagedCacheManager
+from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+from molto_runtime.cache.prefix_cache import BlockAwarePrefixCache
+from molto_runtime.request import Request, SamplingParams
+from molto_runtime.scheduler import Scheduler, SchedulerConfig
 
 
 def _tiny_hybrid_model():

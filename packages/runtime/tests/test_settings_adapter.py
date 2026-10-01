@@ -2,8 +2,8 @@
 
 from unittest.mock import patch
 
-from omlx_config.settings import GlobalSettings
-from omlx_runtime.settings_adapter import scheduler_config as build_scheduler_config
+from molto_config.settings import GlobalSettings
+from molto_runtime.settings_adapter import scheduler_config as build_scheduler_config
 
 
 class TestSettingsAdapter:
@@ -68,7 +68,7 @@ class TestInitSettings:
         sidecars = cache_dir / "_gdn_sidecars" / ("b" * 64)
         sidecars.mkdir(parents=True)
         (sidecars / "state.safetensors").write_bytes(b"x" * 40)
-        with patch("omlx_config.settings.shutil.disk_usage") as usage:
+        with patch("molto_config.settings.shutil.disk_usage") as usage:
             usage.return_value.free = 200
             config = build_scheduler_config(settings)
             assert config.paged_ssd_cache_auto_size is True

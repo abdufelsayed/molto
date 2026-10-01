@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _trunk_norm_module
+from molto_runtime.patches.mlx_lm_mtp.batch_generator import _trunk_norm_module
 
 
 def _norm():
@@ -23,7 +23,7 @@ class TestTrunkNormModule:
 
     def test_marked_instance_returns_identity(self):
         model = SimpleNamespace(
-            _omlx_mtp_head_hidden_normed=True,
+            _molto_mtp_head_hidden_normed=True,
             model=SimpleNamespace(norm=_norm()),
         )
         fn = _trunk_norm_module(model)
@@ -32,7 +32,7 @@ class TestTrunkNormModule:
 
     def test_marked_inner_language_model_returns_identity(self):
         inner = SimpleNamespace(
-            _omlx_mtp_head_hidden_normed=True,
+            _molto_mtp_head_hidden_normed=True,
             model=SimpleNamespace(norm=_norm()),
         )
         model = SimpleNamespace(language_model=inner)

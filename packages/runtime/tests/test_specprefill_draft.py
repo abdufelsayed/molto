@@ -12,10 +12,10 @@ from typing import Any
 from unittest.mock import patch
 
 import mlx.core as mx
-import omlx_runtime.specprefill.draft as draft_workflow
+import molto_runtime.specprefill.draft as draft_workflow
 import pytest
-from omlx_runtime.request import Request, SamplingParams
-from omlx_runtime.specprefill.policy import plan_specprefill_scoring
+from molto_runtime.request import Request, SamplingParams
+from molto_runtime.specprefill.policy import plan_specprefill_scoring
 
 
 class _Logger:
@@ -163,11 +163,11 @@ def _run(
     with (
         patch.object(draft_workflow, "get_prefill_tracker", return_value=tracker),
         patch(
-            "omlx_runtime.patches.specprefill.score_tokens",
+            "molto_runtime.patches.specprefill.score_tokens",
             side_effect=score_tokens or default_score_tokens,
         ),
         patch(
-            "omlx_runtime.patches.specprefill.select_chunks", side_effect=select_chunks
+            "molto_runtime.patches.specprefill.select_chunks", side_effect=select_chunks
         ),
         patch.object(draft_workflow.mx, "stream", side_effect=use_stream),
     ):
@@ -306,7 +306,7 @@ class _RecurrentLayer:
     ],
 )
 def test_boundary_matches_prefill_progress(cached, n, step, block, expected):
-    from omlx_runtime.patches.specprefill import _prefill_draft
+    from molto_runtime.patches.specprefill import _prefill_draft
 
     cache = SimpleNamespace(offset=cached, state=mx.zeros((1,)))
     reported = []
@@ -332,7 +332,7 @@ def test_boundary_matches_prefill_progress(cached, n, step, block, expected):
 
 
 def test_sliceable_cache_types_track_the_scheduler():
-    from omlx_runtime.scheduler import _KNOWN_SLICEABLE_CACHE_TYPES
+    from molto_runtime.scheduler import _KNOWN_SLICEABLE_CACHE_TYPES
 
     assert draft_workflow._SLICEABLE_CACHE_TYPES == _KNOWN_SLICEABLE_CACHE_TYPES
 
@@ -371,9 +371,9 @@ def test_restored_cache_is_released_before_the_clear():
     # Mock call recording would retain cache arguments through the clear.
     with (
         patch.object(draft_workflow, "get_prefill_tracker", new=lambda: tracker),
-        patch("omlx_runtime.patches.specprefill.score_tokens", new=score_tokens),
+        patch("molto_runtime.patches.specprefill.score_tokens", new=score_tokens),
         patch(
-            "omlx_runtime.patches.specprefill.select_chunks",
+            "molto_runtime.patches.specprefill.select_chunks",
             new=lambda importance, keep_pct: mx.arange(3),
         ),
         patch.object(draft_workflow.mx, "stream", new=lambda s: nullcontext()),
@@ -440,10 +440,10 @@ class TestDraftCacheReuse:
 
     def _prefix_cache(self, model, cache_dir):
         from mlx_lm.models.cache import make_prompt_cache
-        from omlx_runtime.cache.hybrid_cache import ModelCacheConfig
-        from omlx_runtime.cache.paged_cache import PagedCacheManager
-        from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
-        from omlx_runtime.cache.prefix_cache import BlockAwarePrefixCache
+        from molto_runtime.cache.hybrid_cache import ModelCacheConfig
+        from molto_runtime.cache.paged_cache import PagedCacheManager
+        from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+        from molto_runtime.cache.prefix_cache import BlockAwarePrefixCache
 
         types = ModelCacheConfig.from_cache_list(
             make_prompt_cache(model), model_name="tiny-draft"
@@ -467,7 +467,7 @@ class TestDraftCacheReuse:
         return prefix, ssd
 
     def _score(self, model, tokens, prefix_cache):
-        from omlx_runtime.scheduler import Scheduler
+        from molto_runtime.scheduler import Scheduler
 
         request = Request(
             request_id=f"r-{id(prefix_cache)}",
@@ -490,7 +490,7 @@ class TestDraftCacheReuse:
         )
         assert plan is not None and plan.n_to_score == len(tokens)
 
-        import omlx_runtime.patches.specprefill as sp
+        import molto_runtime.patches.specprefill as sp
 
         real_score_tokens = sp.score_tokens
         seen: dict[str, Any] = {}
@@ -531,7 +531,7 @@ class TestDraftCacheReuse:
     @staticmethod
     def _prompt_state(model, tokens, step):
         from mlx_lm.models.cache import make_prompt_cache
-        from omlx_runtime.patches.specprefill import _prefill_draft
+        from molto_runtime.patches.specprefill import _prefill_draft
 
         cache = make_prompt_cache(model)
         _prefill_draft(model, tokens, cache, step_size=step)
@@ -586,7 +586,7 @@ class TestDraftCacheReuse:
 
     @pytest.mark.parametrize("cached", [64, 80])
     def test_scoring_rejects_cache_at_or_past_prompt_end(self, cached):
-        from omlx_runtime.patches.specprefill import score_tokens
+        from molto_runtime.patches.specprefill import score_tokens
 
         model = self._model()
         tokens = list(range(80))

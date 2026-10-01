@@ -21,16 +21,16 @@ from unittest.mock import MagicMock, patch
 import pytest
 from mlx_lm.models.cache import make_prompt_cache
 from mlx_lm.models.llama import Model, ModelArgs
-from omlx_runtime import scheduler as sched_mod
-from omlx_runtime.exceptions import PrefillMemoryExceededError
-from omlx_runtime.memory_monitor import (
+from molto_runtime import scheduler as sched_mod
+from molto_runtime.exceptions import PrefillMemoryExceededError
+from molto_runtime.memory_monitor import (
     _SDPA_FALLBACK_SCORE_DTYPE_SIZE,
     MemoryMonitor,
     make_prefill_memory_profile,
 )
-from omlx_runtime.prefill_transient_tracker import PrefillTransientTracker
-from omlx_runtime.request import Request, SamplingParams
-from omlx_runtime.scheduler import (
+from molto_runtime.prefill_transient_tracker import PrefillTransientTracker
+from molto_runtime.request import Request, SamplingParams
+from molto_runtime.scheduler import (
     Scheduler,
     SchedulerConfig,
     _PrefillEvictionNeeded,
@@ -316,7 +316,7 @@ def test_throttle_emits_one_info_notice_per_request(caplog):
     )
     ns._fake_current = hard + _GB
 
-    with caplog.at_level(logging.INFO, logger="omlx_runtime.scheduler"):
+    with caplog.at_level(logging.INFO, logger="molto_runtime.scheduler"):
         for _ in range(5):
             _call(ns, 2048, kv_len=5000)
 
@@ -433,7 +433,7 @@ def test_guard_rejection_logs_admission_terms_breakdown(caplog):
     ns = _throttle_ctx(current=current, hard=hard, samples_bpt=bpt, reclaim_to=current)
     ns._fake_current = current
 
-    with caplog.at_level(logging.WARNING, logger="omlx_runtime.scheduler"):
+    with caplog.at_level(logging.WARNING, logger="molto_runtime.scheduler"):
         with pytest.raises(PrefillMemoryExceededError):
             _guard_call(ns, 256, kv_len=122_000)
 
@@ -552,7 +552,7 @@ def test_predicted_transient_zero_without_signals():
 
 def test_predicted_transient_drops_dense_ewma_when_qsa_static_is_cheaper():
     """A leftover dense last_delta must not refuse gathered QSA static."""
-    from omlx_runtime.memory_monitor import make_prefill_memory_profile
+    from molto_runtime.memory_monitor import make_prefill_memory_profile
 
     config = SimpleNamespace(
         model_type="qwen4_exp",
@@ -642,7 +642,7 @@ def test_qwen4_measured_excess_is_flat_not_scaled_to_the_next_chunk():
 def test_qwen4_actual_route_uses_cache_markers_or_prediction(
     markers, predicted, expected
 ):
-    cache = [SimpleNamespace(_omlx_last_prefill_gathered=value) for value in markers]
+    cache = [SimpleNamespace(_molto_last_prefill_gathered=value) for value in markers]
     assert Scheduler._qwen4_actual_gathered_pricing(cache, predicted) is expected
 
 
@@ -651,7 +651,7 @@ def test_qwen4_mask_dense_chunk_does_not_poison_gathered_admission():
     monitor = _qwen4_monitor()
     ns = _throttle_ctx(current=84.27 * _GB, hard=121.6 * _GB, monitor=monitor)
     actual = Scheduler._qwen4_actual_gathered_pricing(
-        [SimpleNamespace(_omlx_last_prefill_gathered=False)], True
+        [SimpleNamespace(_molto_last_prefill_gathered=False)], True
     )
 
     Scheduler._record_chunk_transient(
@@ -827,7 +827,7 @@ def test_generic_linear_chunk_sizing_keeps_grid_and_exact_fits(
     monkeypatch, path, snap, budget_tokens
 ):
     """A linear predictor keeps its previous sizes, including the opt-out."""
-    monkeypatch.setenv("OMLX_CHUNK_SNAP", snap)
+    monkeypatch.setenv("MOLTO_CHUNK_SNAP", snap)
     hard = 20 * _GB
     cap = int(hard * Scheduler._PREFILL_ABORT_MARGIN)
     # A 10-byte observation produces an exactly representable 13-byte
@@ -1166,7 +1166,7 @@ def test_chunk_backpressure_holds_mlx_at_the_peak_target(monkeypatch):
 
 def _filled_caches():
     from mlx_lm.models.cache import CacheList, KVCache, RotatingKVCache
-    from omlx_runtime.patches.deepseek_v4.cache_extras import PoolingCache
+    from molto_runtime.patches.deepseek_v4.cache_extras import PoolingCache
 
     mx = sched_mod.mx
     keys = mx.arange(2 * 3 * 4, dtype=mx.float16).reshape(1, 2, 3, 4)
@@ -1258,7 +1258,7 @@ def test_step_prefill_reclaims_before_first_guard(
     request = SimpleNamespace(request_id="req-prefill")
     state = _PrefillState(
         request=request,
-        cache=[SimpleNamespace(state=None, _omlx_last_prefill_gathered=True)],
+        cache=[SimpleNamespace(state=None, _molto_last_prefill_gathered=True)],
         tokens_remaining=sched_mod.mx.array([[1, 2, 3]]),
         last_token=[4],
         tokens_processed=0,
@@ -1459,7 +1459,7 @@ class TestSnapChunkSize:
         assert ns._snap_chunk_size(2049, 2048) == 2049
 
     def test_env_toggle_disables_snapping(self, monkeypatch):
-        monkeypatch.setenv("OMLX_CHUNK_SNAP", "0")
+        monkeypatch.setenv("MOLTO_CHUNK_SNAP", "0")
         ns = self._ns()
         assert ns._snap_chunk_size(33, 2048) == 33
 
@@ -2124,7 +2124,7 @@ def _v41_text_dict():
 
 
 def _v41_config():
-    from omlx_runtime.patches.deepseek_v41.config import ModelConfig
+    from molto_runtime.patches.deepseek_v41.config import ModelConfig
 
     return ModelConfig.from_dict(_v41_text_dict())
 
@@ -2220,8 +2220,8 @@ def test_v41_flat_overhead_charges_pool_once_and_releases_on_reclaim():
 
 
 def _register_sdpa256_route():
-    from omlx_runtime import memory_monitor as mm
-    from omlx_runtime.patches import sdpa256_attention as sdpa256
+    from molto_runtime import memory_monitor as mm
+    from molto_runtime.patches import sdpa256_attention as sdpa256
 
     mm._SDPA_TILED_PREFILL_HEAD_DIMS.pop(256, None)
     assert sdpa256._register_bounded_route(sdpa256._SDPA256_MIN_KV_LEN)
@@ -2232,7 +2232,7 @@ def test_second_resident_model_does_not_change_the_sdpa256_charge(monkeypatch):
     """A sibling engine's weights raise the guard's live baseline, but the
     route and the per-chunk charge are functions of the request alone, so the
     chunk the guard admits is priced for the route that will actually run."""
-    from omlx_runtime import memory_monitor as mm
+    from molto_runtime import memory_monitor as mm
 
     monkeypatch.setitem(mm._SDPA_TILED_PREFILL_HEAD_DIMS, 256, ())
     _register_sdpa256_route()
@@ -2265,8 +2265,8 @@ def test_concurrent_admission_race_is_documented_not_fixed(monkeypatch):
     attention transient by more than an order of magnitude, which reduces the
     exposure, but the race belongs to the admission design and is unchanged.
     """
-    from omlx_runtime import memory_monitor as mm
-    from omlx_runtime.memory_monitor import (
+    from molto_runtime import memory_monitor as mm
+    from molto_runtime.memory_monitor import (
         SDPA256_UNFUSED_SCORE_DTYPE_SIZE,
         estimate_unfused_sdpa_call_bytes,
     )

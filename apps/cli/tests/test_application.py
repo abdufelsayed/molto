@@ -10,7 +10,7 @@ import time
 from types import SimpleNamespace
 
 import pytest
-from omlx_cli import application
+from molto_cli import application
 
 
 def settings(port, host="127.0.0.1"):
@@ -41,14 +41,14 @@ def test_multiple_hosts_fail_without_widening(monkeypatch):
 
 def test_missing_dashboard_actionable(monkeypatch, tmp_path):
     monkeypatch.setattr(
-        application, "__file__", str(tmp_path / "omlx" / "application.py")
+        application, "__file__", str(tmp_path / "molto" / "application.py")
     )
     with pytest.raises(application.ApplicationError, match="build apps/dashboard/"):
         application.dashboard_command()
 
 
 def test_installed_assets_require_bundled_node(monkeypatch, tmp_path):
-    package = tmp_path / "omlx"
+    package = tmp_path / "molto"
     entry = package / "_dashboard" / "server" / "index.mjs"
     entry.parent.mkdir(parents=True)
     entry.touch()
@@ -65,9 +65,9 @@ def test_source_runtime_override(monkeypatch, tmp_path):
     entry.parent.mkdir(parents=True)
     entry.touch()
     monkeypatch.setattr(
-        application, "__file__", str(tmp_path / "omlx" / "application.py")
+        application, "__file__", str(tmp_path / "molto" / "application.py")
     )
-    monkeypatch.setenv("OMLX_NODE", sys.executable)
+    monkeypatch.setenv("MOLTO_NODE", sys.executable)
     assert application.dashboard_command() == [sys.executable, str(entry)]
 
 
@@ -138,7 +138,7 @@ def test_intentional_restart_keeps_dashboard_alive_and_shutdown_reaps(tmp_path):
             f"import os,time; open({str(dashboard_pid)!r}, 'w').write(str(os.getpid())); time.sleep(30)"
         ),
         "backend": child_command(
-            f"import os,time; open({str(backend_pids)!r}, 'a').write(str(os.getpid())+'\\n'); open({str(restart_flags)!r}, 'a').write(os.environ.get('OMLX_BACKEND_RESTART', 'initial')+'\\n'); time.sleep(30)"
+            f"import os,time; open({str(backend_pids)!r}, 'a').write(str(os.getpid())+'\\n'); open({str(restart_flags)!r}, 'a').write(os.environ.get('MOLTO_BACKEND_RESTART', 'initial')+'\\n'); time.sleep(30)"
         ),
     }
     errors = []
@@ -208,7 +208,7 @@ def test_readiness_timeout_reaps_partial_start(tmp_path):
 
 def test_runtime_contract_preserves_args_and_public_settings(monkeypatch, tmp_path):
     monkeypatch.setattr(application, "dashboard_command", lambda: ["node", "index.mjs"])
-    monkeypatch.setenv("OMLX_API_KEY", "never-log-this")
+    monkeypatch.setenv("MOLTO_API_KEY", "never-log-this")
     observed = {}
 
     def capture(commands, environments, descriptors, ready, marker, stop, **kwargs):
@@ -223,7 +223,7 @@ def test_runtime_contract_preserves_args_and_public_settings(monkeypatch, tmp_pa
         with socket.socket(fileno=os.dup(fd)) as listener:
             assert listener.getsockname()[0] == "127.0.0.1"
             assert (
-                environments["dashboard"]["OMLX_API_URL"]
+                environments["dashboard"]["MOLTO_API_URL"]
                 == f"http://127.0.0.1:{listener.getsockname()[1]}"
             )
 
@@ -235,8 +235,8 @@ def test_runtime_contract_preserves_args_and_public_settings(monkeypatch, tmp_pa
         == 0
     )
     assert observed["commands"]["backend"][-3:] == ["serve", "--model-dir", "/example"]
-    assert observed["environments"]["backend"]["OMLX_SUPERVISED"] == "application"
-    assert "OMLX_API_KEY" not in observed["environments"]["dashboard"]
+    assert observed["environments"]["backend"]["MOLTO_SUPERVISED"] == "application"
+    assert "MOLTO_API_KEY" not in observed["environments"]["dashboard"]
     assert observed["environments"]["dashboard"]["NITRO_HOST"] == configured.server.host
     assert observed["environments"]["dashboard"]["NITRO_PORT"] == "0"
     assert observed["descriptors"]["dashboard"] == ()
@@ -266,10 +266,10 @@ def test_preload_503_is_alive(monkeypatch):
 def test_cli_parent_dispatches_before_inference_imports(monkeypatch):
     import builtins
 
-    from omlx_cli import cli
-    from omlx_config import settings as settings_module
+    from molto_cli import cli
+    from molto_config import settings as settings_module
 
-    monkeypatch.delenv("OMLX_INTERNAL_FD", raising=False)
+    monkeypatch.delenv("MOLTO_INTERNAL_FD", raising=False)
     configured = SimpleNamespace(validate=lambda: [])
     monkeypatch.setattr(settings_module, "init_settings", lambda **kw: configured)
     monkeypatch.setattr(cli, "_migrate_saved_network_auth", lambda *args: None)
@@ -294,7 +294,7 @@ def test_cli_parent_dispatches_before_inference_imports(monkeypatch):
 
 
 def test_restart_settings_honors_original_overrides(monkeypatch, tmp_path):
-    from omlx_config import settings as settings_module
+    from molto_config import settings as settings_module
 
     marker = tmp_path / "restart"
     marker.write_text('{"host":"0.0.0.0","port":9000}')
@@ -315,7 +315,7 @@ def test_restart_settings_honors_original_overrides(monkeypatch, tmp_path):
 def test_changed_public_binding_restarts_application(monkeypatch, tmp_path):
     import json
 
-    from omlx_cli import cli_lifecycle
+    from molto_cli import cli_lifecycle
 
     monkeypatch.setattr(application, "dashboard_command", lambda: ["node", "index.mjs"])
     current = settings(0)
@@ -337,11 +337,11 @@ def test_changed_public_binding_restarts_application(monkeypatch, tmp_path):
     ):
         commands_seen.append(environments["dashboard"]["HOST"])
         if len(commands_seen) == 1:
-            assert "OMLX_BACKEND_RESTART" not in environments["backend"]
+            assert "MOLTO_BACKEND_RESTART" not in environments["backend"]
             marker.write_text(json.dumps({"host": "localhost", "port": 0}))
             assert restart_requested()
             raise application.ApplicationRestartError()
-        assert environments["backend"]["OMLX_BACKEND_RESTART"] == "1"
+        assert environments["backend"]["MOLTO_BACKEND_RESTART"] == "1"
         stop.set()
 
     monkeypatch.setattr(application, "supervise", capture)
@@ -359,7 +359,7 @@ def test_invalid_restart_marker_is_actionable(tmp_path):
     marker = tmp_path / "restart"
     marker.write_text("broken")
     with pytest.raises(
-        application.ApplicationError, match="restart omlx serve manually"
+        application.ApplicationError, match="restart molto serve manually"
     ):
         application.restart_settings(
             marker, settings(1234), SimpleNamespace(base_path=tmp_path)
@@ -370,7 +370,7 @@ def test_real_saved_binding_reload_does_not_rewrite_settings(monkeypatch, tmp_pa
     import argparse
     import json
 
-    for name in ("OMLX_HOST", "OMLX_PORT", "OMLX_API_KEY"):
+    for name in ("MOLTO_HOST", "MOLTO_PORT", "MOLTO_API_KEY"):
         monkeypatch.delenv(name, raising=False)
     saved = tmp_path / "settings.json"
     saved.write_text(
@@ -430,7 +430,7 @@ def test_public_readiness_identifies_instance_without_disclosing_nonce(instance_
     payload["instance"] = "expected-nonce"
     assert application.public_ready("127.0.0.1", port, "expected-nonce")
     for path, headers in observations:
-        assert path == "/_omlx/ready"
+        assert path == "/_molto/ready"
         assert "expected-nonce" not in repr(headers)
         assert "expected-nonce" not in path
 
@@ -510,7 +510,7 @@ def test_stale_instance_after_dashboard_respawn_never_starts_backend(
 
     def spawn(command, **kwargs):
         assert command == commands["dashboard"], "Backend started from stale readiness"
-        identities.append(kwargs["env"]["OMLX_INSTANCE_ID"])
+        identities.append(kwargs["env"]["MOLTO_INSTANCE_ID"])
         # The public listener keeps reporting the identity of the first process.
         payload["instance"] = identities[0]
         if len(identities) == 1:
@@ -527,7 +527,7 @@ def test_stale_instance_after_dashboard_respawn_never_starts_backend(
             {name: () for name in commands},
             {
                 "dashboard": lambda: application.public_ready(
-                    "127.0.0.1", port, environments["dashboard"]["OMLX_INSTANCE_ID"]
+                    "127.0.0.1", port, environments["dashboard"]["MOLTO_INSTANCE_ID"]
                 ),
                 "backend": lambda: True,
             },
@@ -547,7 +547,7 @@ def test_development_command_uses_native_vite_on_public_address(monkeypatch, tmp
     (tmp_path / "pyproject.toml").touch()
     (tmp_path / "pnpm-workspace.yaml").touch()
     monkeypatch.setattr(
-        application, "__file__", str(tmp_path / "omlx" / "application.py")
+        application, "__file__", str(tmp_path / "molto" / "application.py")
     )
     monkeypatch.setattr(
         application.shutil,
@@ -571,10 +571,10 @@ def test_development_command_uses_native_vite_on_public_address(monkeypatch, tmp
 
 def test_development_mode_rejects_installed_distribution(monkeypatch, tmp_path):
     monkeypatch.setattr(
-        application, "__file__", str(tmp_path / "omlx" / "application.py")
+        application, "__file__", str(tmp_path / "molto" / "application.py")
     )
     with pytest.raises(
-        application.ApplicationError, match="requires an oMLX source checkout"
+        application.ApplicationError, match="requires a Molto source checkout"
     ):
         application.development_command("127.0.0.1", 8000)
 
@@ -585,7 +585,7 @@ def test_development_mode_missing_pnpm_is_actionable(monkeypatch, tmp_path):
     (tmp_path / "pyproject.toml").touch()
     (tmp_path / "pnpm-workspace.yaml").touch()
     monkeypatch.setattr(
-        application, "__file__", str(tmp_path / "omlx" / "application.py")
+        application, "__file__", str(tmp_path / "molto" / "application.py")
     )
     monkeypatch.setattr(application.shutil, "which", lambda name: None)
     with pytest.raises(application.ApplicationError, match="requires pnpm"):
@@ -608,7 +608,9 @@ def test_development_launch_needs_no_production_assets(monkeypatch, tmp_path):
 
     def capture(commands, environments, descriptors, ready, marker, stop, **kwargs):
         assert commands["dashboard"] == ["pnpm", "exec", "vite", "dev"]
-        assert environments["dashboard"]["OMLX_API_URL"].startswith("http://127.0.0.1:")
+        assert environments["dashboard"]["MOLTO_API_URL"].startswith(
+            "http://127.0.0.1:"
+        )
         assert environments["dashboard"]["NITRO_PORT"] == "0"
         assert commands["backend"][-2:] == ["serve", "--dashboard-dev"]
         stop.set()

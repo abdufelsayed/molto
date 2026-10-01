@@ -4,7 +4,7 @@ Install the optional `image` extra to use mflux 0.20.0 on Apple Silicon. Image
 diffusion has its own checkpoint and pipeline registry. DiffusionGemma continues
 to use MLX-VLM for text generation; DFlash remains a speculative text drafter.
 
-oMLX owns acquisition, checkpoint discovery, request validation, engine leases,
+Molto owns acquisition, checkpoint discovery, request validation, engine leases,
 memory admission, residency, and cleanup. The mflux adapter selects native model
 classes and translates validated tasks. A checkpoint identifies weights; a
 pipeline identifies an operation on those weights. For example, one
@@ -13,9 +13,9 @@ reference-edit pipelines. Family selection does not live in HTTP handlers.
 
 ```mermaid
 flowchart LR
-    Source[Local checkpoint or HF repository] --> Prepare[oMLX preparation]
+    Source[Local checkpoint or HF repository] --> Prepare[Molto preparation]
     Prepare --> Checkpoint[Validated checkpoint and identity manifest]
-    Checkpoint --> Pool[oMLX discovery and engine pool]
+    Checkpoint --> Pool[Molto discovery and engine pool]
     Request[Image API request] --> Validate[Registry validation]
     Validate --> Pool
     Pool --> Adapter[Pipeline adapter]
@@ -31,7 +31,7 @@ uniform quantization of every tensor. Supported requested levels are 3, 4, 5,
 6, and 8 bits where the pipeline permits them.
 
 ```bash
-omlx mflux-save --model flux2-klein-4b --quantize 4 \
+molto mflux-save --model flux2-klein-4b --quantize 4 \
   --output /path/to/models/flux2-klein-4b-q4
 ```
 
@@ -39,7 +39,7 @@ For an already quantized third-party repository, specify its identity and
 preserve its stored precision:
 
 ```bash
-omlx mflux-save --model mflux-community/flux2-klein-4b-mflux-q4 \
+molto mflux-save --model mflux-community/flux2-klein-4b-mflux-q4 \
   --base-model flux2-klein-4b --no-quantize \
   --revision 794cd159538149ad9830848508c31f0ea7088e58 \
   --output /path/to/models/flux2-klein-4b-q4
@@ -52,7 +52,7 @@ be absent or empty. Conversion saves into a hidden staging directory, validates
 it, and publishes the complete directory. Failure removes staging and retains
 the source and preexisting output.
 
-The version 2 `omlx-mflux.json` records base identity, default pipeline,
+The version 2 `molto-mflux.json` records base identity, default pipeline,
 components, actual stored quantization, requested quantization, and source
 provenance. Historic version 1 Z-Image Turbo manifests remain readable. Original
 checkpoints need unambiguous identity and complete components/tokenizers.
@@ -75,7 +75,7 @@ runtime and do not download weights. Other families continue to use the native
 First collect transformer input activation energy with text-to-image prompts:
 
 ```bash
-omlx diffusion-calibrate --model /path/to/local/flux2-klein-4b \
+molto diffusion-calibrate --model /path/to/local/flux2-klein-4b \
   --prompt "A red ceramic teapot on a wooden table" \
   --prompt "A blue ceramic bowl on a stone countertop" \
   --steps 4 --width 256 --height 256 --max-rows 64 \
@@ -96,7 +96,7 @@ the source directory; rerunning requires another output filename.
 Then quantize from a complete floating-point checkpoint of the same base model:
 
 ```bash
-omlx diffusion-quantize --model /path/to/local/flux2-klein-4b-float \
+molto diffusion-quantize --model /path/to/local/flux2-klein-4b-float \
   --calibration /path/to/calibration.json --bits 4 --budget-ratio 1.10 \
   --output /path/to/models/flux2-klein-4b-calibrated
 ```
@@ -152,8 +152,8 @@ that every checkpoint has passed real generation. The live registry lists exact 
 defaults, required images, masks, and preparation limitations:
 
 ```bash
-curl "$OMLX_URL/v1/images/capabilities"
-curl "$OMLX_URL/v1/images/capabilities?model=your-model-id"
+curl "$MOLTO_URL/v1/images/capabilities"
+curl "$MOLTO_URL/v1/images/capabilities?model=your-model-id"
 ```
 
 | Canonical checkpoint identities                                                                       | Operations exposed                               | Preparation limits                                                                                    |
@@ -184,7 +184,7 @@ LoRAs, training, PiD decoding, automatic prompt rewriting, and missing auxiliary
 preprocessor acquisition are not exposed. Unknown fields and unsupported or
 ineffective options return errors before engine acquisition. Model-specific
 options belong inside `options`; this is an allowlist with validated values,
-not arbitrary mflux keyword forwarding. Defaults are oMLX policy informed by
+not arbitrary mflux keyword forwarding. Defaults are Molto policy informed by
 native APIs; they need not equal every mflux CLI default.
 
 ## Image API
@@ -318,7 +318,7 @@ For opt-in real API verification, prepare local checkpoints and run:
 uv run --all-packages --inexact python tooling/scripts/verify_diffusion.py \
   --z-image /path/to/z-image-turbo-q4 \
   --flux2 /path/to/flux2-klein-4b-q4 \
-  --output /tmp/omlx-image-verification
+  --output /tmp/molto-image-verification
 ```
 
 This uses an isolated pool and in-process HTTP requests, not the running
@@ -339,7 +339,7 @@ uv run --all-packages --inexact python tooling/scripts/verify_diffusion_performa
 The output directory must be new and separate from the inputs. The script
 forces offline loading, uses an isolated pool, and writes incremental
 `report.json`, `runs.jsonl`, and PNGs. It defaults to three trials; use
-`OMLX_DIFFUSION_PROOF_TRIALS=1` for a shorter functional check. `--batch4` adds
+`MOLTO_DIFFUSION_PROOF_TRIALS=1` for a shorter functional check. `--batch4` adds
 four-image checks. Ratios below one indicate slower performance. Source
 preservation checks cover weight headers and file sizes, not full-file hashes.
 

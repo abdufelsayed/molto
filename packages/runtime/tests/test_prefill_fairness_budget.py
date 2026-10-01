@@ -6,10 +6,10 @@ from unittest.mock import MagicMock, patch
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.decode_activity import get_decode_activity
-from omlx_runtime.prefill_progress import get_prefill_tracker
-from omlx_runtime.request import Request, SamplingParams
-from omlx_runtime.scheduler import (
+from molto_runtime.decode_activity import get_decode_activity
+from molto_runtime.prefill_progress import get_prefill_tracker
+from molto_runtime.request import Request, SamplingParams
+from molto_runtime.scheduler import (
     Scheduler,
     SchedulerConfig,
     _PrefillAbortedError,
@@ -21,7 +21,7 @@ from omlx_runtime.scheduler import (
 def isolated_activity():
     get_decode_activity().clear()
     get_prefill_tracker().clear()
-    with patch("omlx_runtime.scheduler._sync_and_clear_cache"):
+    with patch("molto_runtime.scheduler._sync_and_clear_cache"):
         yield
     get_decode_activity().clear()
     get_prefill_tracker().clear()
@@ -30,13 +30,15 @@ def isolated_activity():
 @pytest.fixture
 def clock(monkeypatch):
     current = SimpleNamespace(now=100.0)
-    monkeypatch.setattr("omlx_runtime.scheduler.time.perf_counter", lambda: current.now)
+    monkeypatch.setattr(
+        "molto_runtime.scheduler.time.perf_counter", lambda: current.now
+    )
     return current
 
 
 def make_scheduler(**settings) -> Scheduler:
     model = MagicMock()
-    del model._omlx_prefill
+    del model._molto_prefill
     model.layers = []
     tokenizer = MagicMock()
     tokenizer.eos_token_id = 2
@@ -279,8 +281,8 @@ def test_short_external_prefills_share_admission_debt(clock, ane_prefill):
 
     scheduler.model.side_effect = forward
     if ane_prefill:
-        scheduler.model._omlx_prefill = forward
-    with patch("omlx_runtime.scheduler.make_prompt_cache", return_value=[]):
+        scheduler.model._molto_prefill = forward
+    with patch("molto_runtime.scheduler.make_prompt_cache", return_value=[]):
         scheduled, rejected = scheduler._schedule_waiting()
         assert scheduled == [requests[0]]
         assert rejected == []
@@ -327,7 +329,7 @@ def test_waiting_and_inflight_prefills_both_progress_under_decode_load(
     scheduler.batch_generator.next_generated.side_effect = decode
     with (
         patch.object(scheduler, "_step_prefill_chunk", side_effect=advance),
-        patch("omlx_runtime.scheduler.make_prompt_cache", return_value=[]),
+        patch("molto_runtime.scheduler.make_prompt_cache", return_value=[]),
     ):
         for _ in range(24):
             scheduler.step()
@@ -388,7 +390,7 @@ def test_cross_engine_admission_chunk_reports_work_without_advancing_twice(clock
 
     with (
         patch.object(scheduler, "_step_prefill_chunk", side_effect=advance),
-        patch("omlx_runtime.scheduler.make_prompt_cache", return_value=[]),
+        patch("molto_runtime.scheduler.make_prompt_cache", return_value=[]),
     ):
         scheduler.step()
         clock.now = get_decode_activity().hold_until()
@@ -415,7 +417,7 @@ def test_cancel_after_admission_turn_preserves_inflight_prefill(clock):
 
     with (
         patch.object(scheduler, "_step_prefill_chunk", side_effect=advance),
-        patch("omlx_runtime.scheduler.make_prompt_cache", return_value=[]),
+        patch("molto_runtime.scheduler.make_prompt_cache", return_value=[]),
     ):
         scheduler.step()
         scheduler._repay_decode_debt(scheduler._decode_time_owed_s)

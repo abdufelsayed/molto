@@ -5,8 +5,8 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-from omlx_runtime.request import Request, SamplingParams
-from omlx_runtime.scheduler import Scheduler, SchedulerConfig
+from molto_runtime.request import Request, SamplingParams
+from molto_runtime.scheduler import Scheduler, SchedulerConfig
 
 
 def _scheduler() -> Scheduler:

@@ -27,7 +27,7 @@ GROUP_SIZE = 64
 def _kernels():
     """The native module, or None when this build/host cannot run it."""
     try:
-        from omlx_runtime.custom_kernels.qwen35_prefill import fast
+        from molto_runtime.custom_kernels.qwen35_prefill import fast
     except Exception:
         return None
     if not fast.oq_a8_available():
@@ -379,7 +379,7 @@ def _quantized_linear(in_dim, out_dim, bits, group_size=GROUP_SIZE):
 @requires_kernels
 def test_classification_is_frozen_and_memoized():
     """The forward path must never re-parse quantization config."""
-    from omlx_runtime.patches import qwen35_oq_a8 as dispatch
+    from molto_runtime.patches import qwen35_oq_a8 as dispatch
 
     linear = _quantized_linear(256, 128, 4)
     first = dispatch.classify_linear(linear)
@@ -395,7 +395,7 @@ def test_classification_is_frozen_and_memoized():
 def test_float32_scales_are_not_claimed():
     """Only checkpoint-dtype scales route here; float32 stays on MLX."""
     import mlx.nn as nn
-    from omlx_runtime.patches import qwen35_oq_a8 as dispatch
+    from molto_runtime.patches import qwen35_oq_a8 as dispatch
 
     linear = nn.QuantizedLinear(256, 128, bias=False, group_size=64, bits=4)
     assert linear.scales.dtype == mx.float32
@@ -406,11 +406,11 @@ def test_float32_scales_are_not_claimed():
 @pytest.mark.parametrize("variant", [800, 803, 806])
 def test_dispatch_runs_and_tracks_the_original(monkeypatch, variant):
     """oq_a8_linear must actually route to the kernel, not fall back."""
-    from omlx_runtime.patches import qwen35_oq_a8 as dispatch
+    from molto_runtime.patches import qwen35_oq_a8 as dispatch
 
-    monkeypatch.setenv("OMLX_OQ_A8", "1")
-    monkeypatch.setenv("OMLX_OQ_A8_VARIANT", str(variant))
-    monkeypatch.setenv("OMLX_OQ_A8_MIN_TOKENS", "64")
+    monkeypatch.setenv("MOLTO_OQ_A8", "1")
+    monkeypatch.setenv("MOLTO_OQ_A8_VARIANT", str(variant))
+    monkeypatch.setenv("MOLTO_OQ_A8_MIN_TOKENS", "64")
     assert dispatch.enabled()
 
     linear = _quantized_linear(512, 128, 4)
@@ -423,7 +423,7 @@ def test_dispatch_runs_and_tracks_the_original(monkeypatch, variant):
     reference = linear(x)
     mx.eval(got, reference)
 
-    assert hasattr(linear, "_omlx_oq_a8_prepared"), "operand transform not cached"
+    assert hasattr(linear, "_molto_oq_a8_prepared"), "operand transform not cached"
 
     g = np.array(got.astype(mx.float32))
     r = np.array(reference.astype(mx.float32))
@@ -436,13 +436,13 @@ def test_dispatch_runs_and_tracks_the_original(monkeypatch, variant):
 @pytest.mark.parametrize("bits", [2, 6, 8])
 def test_unsupported_bit_widths_are_not_claimed(bits):
     """Only Q4 and Q5 are production paths here; the rest stay on MLX."""
-    from omlx_runtime.patches import qwen35_oq_a8 as dispatch
+    from molto_runtime.patches import qwen35_oq_a8 as dispatch
 
     assert dispatch.classify_linear(_quantized_linear(256, 128, bits)) is None
 
 
 def test_group_size_128_is_not_claimed():
-    from omlx_runtime.patches import qwen35_oq_a8 as dispatch
+    from molto_runtime.patches import qwen35_oq_a8 as dispatch
 
     linear = _quantized_linear(256, 128, 4, group_size=128)
     assert dispatch.classify_linear(linear) is None
@@ -450,9 +450,9 @@ def test_group_size_128_is_not_claimed():
 
 def test_disabled_without_opt_in(monkeypatch):
     """Turning this on changes inference numerics, so it must be explicit."""
-    from omlx_runtime.patches import qwen35_oq_a8 as dispatch
+    from molto_runtime.patches import qwen35_oq_a8 as dispatch
 
-    monkeypatch.delenv("OMLX_OQ_A8", raising=False)
+    monkeypatch.delenv("MOLTO_OQ_A8", raising=False)
     assert dispatch.enabled() is False
 
 
@@ -509,7 +509,7 @@ def test_stage_a_v8_carries_the_schedules_k_order(act_mode):
 @requires_kernels
 def test_v8_reads_the_checkpoint_weight_stream_unchanged():
     """The whole point: no repacked weight array, so nothing is held twice."""
-    from omlx_runtime.patches import qwen35_oq_a8 as dispatch
+    from molto_runtime.patches import qwen35_oq_a8 as dispatch
 
     linear = _quantized_linear(512, 128, 4)
     assert dispatch.classify_linear(linear) is not None
@@ -598,8 +598,8 @@ def test_packed_linear_matches_the_row_major_layout(variant, act_mode):
     Two projections share one store, so the second reads from a tile offset.
     """
     import mlx.nn as nn
-    from omlx_runtime.patches import qwen35_oq_a8 as dispatch
-    from omlx_runtime.patches.qwen35_packed_linear import _pack
+    from molto_runtime.patches import qwen35_oq_a8 as dispatch
+    from molto_runtime.patches.qwen35_packed_linear import _pack
 
     fast = _kernels()
     M, K, N = 96, 512, 384
@@ -734,10 +734,10 @@ def test_batched_prefill_keeps_sequences_independent(B):
 @requires_kernels
 def test_short_sequences_stay_on_the_existing_path(monkeypatch):
     """Below the token floor the Stage-A pass costs more than the GEMM saves."""
-    from omlx_runtime.patches import qwen35_oq_a8 as dispatch
+    from molto_runtime.patches import qwen35_oq_a8 as dispatch
 
-    monkeypatch.setenv("OMLX_OQ_A8", "1")
-    monkeypatch.setenv("OMLX_OQ_A8_MIN_TOKENS", "512")
+    monkeypatch.setenv("MOLTO_OQ_A8", "1")
+    monkeypatch.setenv("MOLTO_OQ_A8_MIN_TOKENS", "512")
     linear = _quantized_linear(512, 128, 4)
     rng = np.random.default_rng(9)
     x = mx.array((rng.standard_normal((64, 512)) * 0.5).astype(np.float32), mx.float16)
@@ -755,7 +755,7 @@ def test_out_of_family_variants_are_rejected():
     The number arrives from an environment variable, so an out-of-range one
     otherwise reaches the op as a missing kernel name deep in dispatch.
     """
-    from omlx_runtime.patches import qwen35_oq_a8 as dispatch
+    from molto_runtime.patches import qwen35_oq_a8 as dispatch
 
     for variant in (800, 803, 806):
         assert dispatch.check_variant(variant) == variant
@@ -767,10 +767,10 @@ def test_out_of_family_variants_are_rejected():
 @requires_kernels
 def test_an_unusable_variant_leaves_the_projection_alone(monkeypatch):
     """Refusing to classify keeps the model on MLX rather than crashing it."""
-    from omlx_runtime.patches import qwen35_oq_a8 as dispatch
+    from molto_runtime.patches import qwen35_oq_a8 as dispatch
 
-    monkeypatch.setenv("OMLX_OQ_A8", "1")
-    monkeypatch.setenv("OMLX_OQ_A8_VARIANT", "807")
+    monkeypatch.setenv("MOLTO_OQ_A8", "1")
+    monkeypatch.setenv("MOLTO_OQ_A8_VARIANT", "807")
     linear = _quantized_linear(512, 128, 4)
     assert dispatch.classify_linear(linear) is None
 
@@ -785,7 +785,7 @@ def test_an_unusable_variant_leaves_the_projection_alone(monkeypatch):
 
 def test_patch_is_idempotent_and_reports_state():
     """Installing twice must not stack wrappers on the MLP class."""
-    from omlx_runtime.patches import qwen35_oq_a8 as dispatch
+    from molto_runtime.patches import qwen35_oq_a8 as dispatch
 
     if not dispatch._kernels_available():
         pytest.skip("oQ A8 kernels unavailable")
@@ -798,10 +798,10 @@ def test_patch_is_idempotent_and_reports_state():
 def test_patched_mlp_routes_and_falls_back(monkeypatch):
     """The installed wrapper must route long prompts and pass short ones through."""
     import mlx.nn as nn
-    from omlx_runtime.patches import qwen35_oq_a8 as dispatch
+    from molto_runtime.patches import qwen35_oq_a8 as dispatch
 
-    monkeypatch.setenv("OMLX_OQ_A8", "1")
-    monkeypatch.setenv("OMLX_OQ_A8_MIN_TOKENS", "128")
+    monkeypatch.setenv("MOLTO_OQ_A8", "1")
+    monkeypatch.setenv("MOLTO_OQ_A8_MIN_TOKENS", "128")
 
     class MLP(nn.Module):
         def __init__(self):
@@ -852,11 +852,11 @@ def test_patch_takes_its_configuration_from_the_caller(monkeypatch):
     """The engine passes the model's settings in, rather than via the process
     environment, so two engines cannot silently reconfigure each other."""
     import mlx.nn as nn
-    from omlx_runtime.patches import qwen35_oq_a8 as dispatch
+    from molto_runtime.patches import qwen35_oq_a8 as dispatch
 
-    monkeypatch.delenv("OMLX_OQ_A8", raising=False)
-    monkeypatch.delenv("OMLX_OQ_A8_VARIANT", raising=False)
-    monkeypatch.delenv("OMLX_OQ_A8_MIN_TOKENS", raising=False)
+    monkeypatch.delenv("MOLTO_OQ_A8", raising=False)
+    monkeypatch.delenv("MOLTO_OQ_A8_VARIANT", raising=False)
+    monkeypatch.delenv("MOLTO_OQ_A8_MIN_TOKENS", raising=False)
 
     assert dispatch._variant_for_bits(4) == dispatch._DEFAULT_VARIANT_Q4
 
@@ -879,9 +879,9 @@ def test_patch_takes_its_configuration_from_the_caller(monkeypatch):
     assert dispatch._variant_for_bits(5) == dispatch._DEFAULT_VARIANT_Q5
 
     # The environment still wins, for benchmarking.
-    monkeypatch.setenv("OMLX_OQ_A8_VARIANT", "801")
+    monkeypatch.setenv("MOLTO_OQ_A8_VARIANT", "801")
     assert dispatch._variant_for_bits(4) == 801
-    monkeypatch.setenv("OMLX_OQ_A8_MIN_TOKENS", "64")
+    monkeypatch.setenv("MOLTO_OQ_A8_MIN_TOKENS", "64")
     assert dispatch._min_tokens(config) == 64
 
 
@@ -896,10 +896,10 @@ def test_turning_the_setting_off_actually_stops_routing(monkeypatch):
     instead, and an untagged model falls straight through.
     """
     import mlx.nn as nn
-    from omlx_runtime.patches import qwen35_oq_a8 as dispatch
+    from molto_runtime.patches import qwen35_oq_a8 as dispatch
 
-    monkeypatch.delenv("OMLX_OQ_A8", raising=False)
-    monkeypatch.setenv("OMLX_OQ_A8_MIN_TOKENS", "64")
+    monkeypatch.delenv("MOLTO_OQ_A8", raising=False)
+    monkeypatch.setenv("MOLTO_OQ_A8_MIN_TOKENS", "64")
 
     class Model(nn.Module):
         def __init__(self):
@@ -939,10 +939,10 @@ def test_turning_the_setting_off_actually_stops_routing(monkeypatch):
 def test_two_resident_models_keep_their_own_settings(monkeypatch):
     """The wrapper is shared, so the floors must not be last-writer-wins."""
     import mlx.nn as nn
-    from omlx_runtime.patches import qwen35_oq_a8 as dispatch
+    from molto_runtime.patches import qwen35_oq_a8 as dispatch
 
-    monkeypatch.delenv("OMLX_OQ_A8", raising=False)
-    monkeypatch.delenv("OMLX_OQ_A8_MIN_TOKENS", raising=False)
+    monkeypatch.delenv("MOLTO_OQ_A8", raising=False)
+    monkeypatch.delenv("MOLTO_OQ_A8_MIN_TOKENS", raising=False)
 
     class Model(nn.Module):
         def __init__(self):
@@ -961,9 +961,9 @@ def test_two_resident_models_keep_their_own_settings(monkeypatch):
 def test_single_token_mlp_stays_on_decode_when_floor_is_one(monkeypatch, batch):
     from unittest.mock import Mock
 
-    from omlx_runtime.patches import qwen35_oq_a8 as dispatch
+    from molto_runtime.patches import qwen35_oq_a8 as dispatch
 
-    monkeypatch.setenv("OMLX_OQ_A8_MIN_TOKENS", "1")
+    monkeypatch.setenv("MOLTO_OQ_A8_MIN_TOKENS", "1")
     route = Mock(side_effect=AssertionError("decode entered A8"))
     monkeypatch.setattr(dispatch, "oq_a8_mlp", route)
     original = Mock(return_value="decode")
@@ -990,7 +990,7 @@ def test_native_qmm_rejects_removed_variants(variant):
 def test_mlp_routing_errors_are_not_silently_ignored(monkeypatch):
     from unittest.mock import Mock
 
-    from omlx_runtime.patches import qwen35_oq_a8 as dispatch
+    from molto_runtime.patches import qwen35_oq_a8 as dispatch
 
     route = Mock(side_effect=RuntimeError("kernel failure"))
     original = Mock()

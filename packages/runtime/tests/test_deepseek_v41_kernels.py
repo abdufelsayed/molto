@@ -3,15 +3,15 @@
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.patches.deepseek_v41.kernels import (
+from molto_runtime.patches.deepseek_v41.kernels import (
     packed_index_scores,
     packed_sparse_attention,
 )
-from omlx_runtime.patches.deepseek_v41.language import (
+from molto_runtime.patches.deepseek_v41.language import (
     candidate_block_ids,
     sparse_attention,
 )
-from omlx_runtime.patches.deepseek_v41.quantization import (
+from molto_runtime.patches.deepseek_v41.quantization import (
     pack_activation,
     unpack_activation,
 )
@@ -168,7 +168,7 @@ def test_noncontiguous_index_inputs():
     [(0, 33), (7, 9001), (512, 5003), (2048, 5003), (3000, 5003), (50, 17)],
 )
 def test_tile_topk_matches_score_order(count, width):
-    from omlx_runtime.patches.deepseek_v41.kernels import _tile_topk
+    from molto_runtime.patches.deepseek_v41.kernels import _tile_topk
 
     rng = np.random.default_rng(122)
     data = rng.normal(size=(1, 3, width)).astype(np.float32)
@@ -184,7 +184,7 @@ def test_tile_topk_matches_score_order(count, width):
 
 
 def test_tile_topk_ties_use_absolute_ids():
-    from omlx_runtime.patches.deepseek_v41.kernels import _tile_topk
+    from molto_runtime.patches.deepseek_v41.kernels import _tile_topk
 
     ids = mx.arange(5003, dtype=mx.int32)[::-1][None, None]
     scores = mx.zeros(ids.shape)
@@ -199,7 +199,7 @@ def test_tile_topk_ties_use_absolute_ids():
 def test_streamed_index_and_candidate_blocks_match_full_scores(
     dim, heads, start, ratio, dtype
 ):
-    from omlx_runtime.patches.deepseek_v41.kernels import packed_index_topk
+    from molto_runtime.patches.deepseek_v41.kernels import packed_index_topk
 
     mx.random.seed(105)
     length, width = 19, 203
@@ -235,7 +235,7 @@ def test_streamed_index_and_candidate_blocks_match_full_scores(
 
 
 def test_streamed_index_empty_and_forced_recent_block():
-    from omlx_runtime.patches.deepseek_v41.kernels import packed_index_topk
+    from molto_runtime.patches.deepseek_v41.kernels import packed_index_topk
 
     q = mx.zeros((1, 5, 8, 32))
     weights = mx.ones((1, 5, 8))
@@ -262,7 +262,7 @@ def test_streamed_index_empty_and_forced_recent_block():
 
 
 def test_streaming_bounds_scoring_and_skips_future_chunks(monkeypatch):
-    from omlx_runtime.patches.deepseek_v41 import kernels
+    from molto_runtime.patches.deepseek_v41 import kernels
 
     calls = []
     original = kernels.packed_index_scores
@@ -295,7 +295,7 @@ def test_streaming_bounds_scoring_and_skips_future_chunks(monkeypatch):
     [(512, 513, 512), (5, 2, 7), (0, 33, 17), (2048, 13, 2048)],
 )
 def test_sorted_merge_ties_padding_and_uneven_runs(left_size, right_size, count):
-    from omlx_runtime.patches.deepseek_v41.kernels import _merge_topk
+    from molto_runtime.patches.deepseek_v41.kernels import _merge_topk
 
     rng = np.random.default_rng(577)
     values = rng.integers(-3, 4, (1, 3, left_size + right_size)).astype(np.float32)
@@ -323,7 +323,7 @@ def test_sorted_merge_ties_padding_and_uneven_runs(left_size, right_size, count)
 
 @pytest.mark.parametrize("block,count", [(3, 17), (8, 2048), (2, 3000), (1, 512)])
 def test_fused_candidate_selection_matches_block_maxima(block, count):
-    from omlx_runtime.patches.deepseek_v41.kernels import _tile_topk
+    from molto_runtime.patches.deepseek_v41.kernels import _tile_topk
 
     width, length, start, ratio = 10003, 3, 100, 2
     rng = np.random.default_rng(302)
@@ -345,7 +345,7 @@ def test_fused_candidate_selection_matches_block_maxima(block, count):
 
 @pytest.mark.parametrize("length", [1, 9])
 def test_streaming_drains_async_work_before_return(monkeypatch, length):
-    from omlx_runtime.patches.deepseek_v41.kernels import packed_index_topk
+    from molto_runtime.patches.deepseek_v41.kernels import packed_index_topk
 
     pending, submissions = set(), []
     evaluate, submit = mx.eval, mx.async_eval
@@ -386,7 +386,7 @@ def test_streaming_drains_async_work_before_return(monkeypatch, length):
 
 @pytest.mark.parametrize("count,runs", [(7, 3), (17, 5), (512, 9), (513, 5), (2048, 3)])
 def test_multiway_merge_exact_rank_with_duplicate_ids(count, runs):
-    from omlx_runtime.patches.deepseek_v41.kernels import _merge_topk
+    from molto_runtime.patches.deepseek_v41.kernels import _merge_topk
 
     rng = np.random.default_rng(779)
     values = rng.integers(-2, 3, (1, 2, runs, count)).astype(np.float32)
@@ -411,7 +411,7 @@ def test_multiway_merge_exact_rank_with_duplicate_ids(count, runs):
 
 @pytest.mark.parametrize("length", [1, 4, 65, 512])
 def test_single_tile_index_stays_lazy_and_matches_streaming(monkeypatch, length):
-    from omlx_runtime.patches.deepseek_v41.kernels import packed_index_topk
+    from molto_runtime.patches.deepseek_v41.kernels import packed_index_topk
 
     mx.random.seed(106)
     q = mx.random.normal((1, length, 8, 32))
@@ -436,7 +436,7 @@ def test_single_tile_index_stays_lazy_and_matches_streaming(monkeypatch, length)
 @pytest.mark.parametrize("iters", [1, 2, 20])
 @pytest.mark.parametrize("eps", [1e-6, 1e-3])
 def test_sinkhorn_fused_exact(length, iters, eps):
-    from omlx_runtime.patches.deepseek_v41.hyper_connection import (
+    from molto_runtime.patches.deepseek_v41.hyper_connection import (
         sinkhorn,
         sinkhorn_reference,
     )

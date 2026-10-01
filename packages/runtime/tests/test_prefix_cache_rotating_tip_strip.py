@@ -36,15 +36,15 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from omlx_runtime.cache._rotating_subclass import PrefillReadyRotatingKVCache
-from omlx_runtime.cache.paged_cache import BlockTable, PagedCacheManager
-from omlx_runtime.cache.paged_ssd_cache import (
+from molto_runtime.cache._rotating_subclass import PrefillReadyRotatingKVCache
+from molto_runtime.cache.paged_cache import BlockTable, PagedCacheManager
+from molto_runtime.cache.paged_ssd_cache import (
     PagedSSDCacheManager,
     SharedHotCacheBudget,
 )
-from omlx_runtime.cache.pooling_delta import POOLING_CACHE_DELTA_CLASS
-from omlx_runtime.cache.prefix_cache import BlockAwarePrefixCache
-from omlx_runtime.cache.type_registry import CacheTypeRegistry
+from molto_runtime.cache.pooling_delta import POOLING_CACHE_DELTA_CLASS
+from molto_runtime.cache.prefix_cache import BlockAwarePrefixCache
+from molto_runtime.cache.type_registry import CacheTypeRegistry
 
 try:
     import mlx.core as mx
@@ -309,7 +309,7 @@ def test_stripped_block_keeps_sliceable_layers(tmp_path):
 
 def test_stripped_block_preserves_v4_cachelist_signature(tmp_path):
     """Re-saving a stripped V4 tip must preserve CacheList composition."""
-    from omlx_runtime.cache.paged_ssd_cache import _signature_cachelist_subtypes
+    from molto_runtime.cache.paged_ssd_cache import _signature_cachelist_subtypes
 
     cache, ssd = _make_cache(tmp_path)
     block_hash = b"\x24" * 32

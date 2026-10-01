@@ -8,20 +8,25 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PROJECTS = {
-    "omlx_config": "packages/config",
-    "omlx_contracts": "packages/contracts",
-    "omlx_management": "packages/management",
-    "omlx_runtime": "packages/runtime",
-    "omlx_server": "apps/server",
-    "omlx_cli": "apps/cli",
+    "molto_config": "packages/config",
+    "molto_contracts": "packages/contracts",
+    "molto_management": "packages/management",
+    "molto_runtime": "packages/runtime",
+    "molto_server": "apps/server",
+    "molto_cli": "apps/cli",
 }
 ALLOWED = {
-    "omlx_config": set(),
-    "omlx_contracts": set(),
-    "omlx_runtime": {"omlx_config", "omlx_contracts"},
-    "omlx_management": {"omlx_config", "omlx_contracts", "omlx_runtime"},
-    "omlx_server": {"omlx_config", "omlx_contracts", "omlx_runtime", "omlx_management"},
-    "omlx_cli": {"omlx_config", "omlx_contracts", "omlx_runtime", "omlx_server"},
+    "molto_config": set(),
+    "molto_contracts": set(),
+    "molto_runtime": {"molto_config", "molto_contracts"},
+    "molto_management": {"molto_config", "molto_contracts", "molto_runtime"},
+    "molto_server": {
+        "molto_config",
+        "molto_contracts",
+        "molto_runtime",
+        "molto_management",
+    },
+    "molto_cli": {"molto_config", "molto_contracts", "molto_runtime", "molto_server"},
 }
 
 
@@ -59,7 +64,7 @@ def violations(root: Path = ROOT):
                 for name in names:
                     owner = name.split(".")[0]
                     if owner == ns or owner not in PROJECTS:
-                        if ns == "omlx_runtime" and owner == "fastapi":
+                        if ns == "molto_runtime" and owner == "fastapi":
                             result.append(
                                 f"{path.relative_to(root)}:{node.lineno}: runtime imports HTTP framework"
                             )

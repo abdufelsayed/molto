@@ -4,7 +4,7 @@
 from unittest.mock import MagicMock
 
 import pytest
-from omlx_management.management import (
+from molto_management.management import (
     ManagementContext,
     ManagementError,
     ManagementService,

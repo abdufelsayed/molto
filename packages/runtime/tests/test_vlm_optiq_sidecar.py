@@ -6,7 +6,7 @@ from pathlib import Path
 import mlx.nn as nn
 import numpy as np
 import pytest
-from omlx_runtime.engine.vlm import (
+from molto_runtime.engine.vlm import (
     _has_audio_weights,
     _load_optiq_vision_sidecar_on_load,
     _resolve_optiq_vision_sidecar,

@@ -25,7 +25,7 @@ import pytest
 
 mx = pytest.importorskip("mlx.core")
 
-from omlx_runtime.patches.mlx_vlm_qwen4_exp_compat import (  # noqa: E402
+from molto_runtime.patches.mlx_vlm_qwen4_exp_compat import (  # noqa: E402
     apply_mlx_vlm_qwen4_exp_compat_patch,
 )
 

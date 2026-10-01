@@ -45,7 +45,7 @@ def _minimal_config(**overrides):
 
 
 def _load_patch_module():
-    from omlx_runtime.patches.bailing_hybrid import apply_bailing_hybrid_patch
+    from molto_runtime.patches.bailing_hybrid import apply_bailing_hybrid_patch
 
     apply_bailing_hybrid_patch()
     return importlib.import_module("mlx_lm.models.bailing_hybrid")
@@ -63,7 +63,7 @@ def test_apply_registers_bailing_hybrid_module():
 
 
 def test_apply_is_idempotent():
-    from omlx_runtime.patches.bailing_hybrid import (
+    from molto_runtime.patches.bailing_hybrid import (
         apply_bailing_hybrid_patch,
         is_applied,
     )
@@ -77,9 +77,9 @@ def test_apply_is_idempotent():
 
 
 def test_apply_prefers_upstream_module(monkeypatch):
-    from omlx_runtime.patches import bailing_hybrid
+    from molto_runtime.patches import bailing_hybrid
 
-    upstream = SimpleNamespace(_omlx_swiglu_clamp_native=True)
+    upstream = SimpleNamespace(_molto_swiglu_clamp_native=True)
     models_pkg = SimpleNamespace()
 
     def fake_import(name):
@@ -102,7 +102,7 @@ def test_apply_prefers_upstream_module(monkeypatch):
 
 
 def test_apply_propagates_clamp_install_failure(monkeypatch):
-    from omlx_runtime.patches import bailing_hybrid
+    from molto_runtime.patches import bailing_hybrid
 
     upstream = SimpleNamespace()
     models_pkg = SimpleNamespace()
@@ -332,8 +332,8 @@ def test_fused_kda_matches_reference(safe_gate):
 def test_external_prefill_upgrades_legacy_one_slot_cache():
     bailing_hybrid = _load_patch_module()
     from mlx_lm.models.cache import ArraysCache
-    from omlx_runtime.request import Request, SamplingParams
-    from omlx_runtime.scheduler import Scheduler
+    from molto_runtime.request import Request, SamplingParams
+    from molto_runtime.scheduler import Scheduler
 
     model = bailing_hybrid.Model(bailing_hybrid.ModelArgs.from_dict(_minimal_config()))
     source_cache = model.make_cache()
@@ -375,7 +375,7 @@ def test_external_prefill_upgrades_legacy_one_slot_cache():
 def test_scheduler_rejects_legacy_zero_slot_cache():
     bailing_hybrid = _load_patch_module()
     from mlx_lm.models.cache import ArraysCache
-    from omlx_runtime.scheduler import Scheduler
+    from molto_runtime.scheduler import Scheduler
 
     model = bailing_hybrid.Model(bailing_hybrid.ModelArgs.from_dict(_minimal_config()))
     source_cache = model.make_cache()
@@ -601,7 +601,7 @@ def test_sanitize_decodes_e8m0_fp8_block_scales():
 
 
 def test_bailing_fp8_config_normalizes_to_affine_runtime_quantization():
-    from omlx_runtime.utils.model_loading import normalize_bailing_hybrid_fp8_quant
+    from molto_runtime.utils.model_loading import normalize_bailing_hybrid_fp8_quant
 
     config = _minimal_config(
         quantization_config={
@@ -615,7 +615,7 @@ def test_bailing_fp8_config_normalizes_to_affine_runtime_quantization():
 
 
 def test_bailing_mixed_fp4_config_adds_routed_expert_overrides():
-    from omlx_runtime.utils.model_loading import normalize_bailing_hybrid_fp8_quant
+    from molto_runtime.utils.model_loading import normalize_bailing_hybrid_fp8_quant
 
     config = _minimal_config(
         num_hidden_layers=3,
@@ -666,7 +666,7 @@ def test_fp8_checkpoint_loads_strictly_as_quantized_model(tmp_path):
     (tmp_path / "config.json").write_text(json.dumps(config))
 
     from mlx_lm.utils import load_model
-    from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+    from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
     maybe_apply_pre_load_patches(str(tmp_path))
     loaded, loaded_config = load_model(tmp_path, strict=True)
@@ -715,7 +715,7 @@ def test_mixed_fp4_checkpoint_loads_strictly(tmp_path):
     (tmp_path / "config.json").write_text(json.dumps(config))
 
     from mlx_lm.utils import load_model
-    from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+    from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
     maybe_apply_pre_load_patches(str(tmp_path))
     loaded, loaded_config = load_model(tmp_path, strict=True)
@@ -735,7 +735,7 @@ def test_mixed_fp4_checkpoint_loads_strictly(tmp_path):
 
 def test_oq_discovers_ling_embeddings_and_hybrid_layer_masks():
     bailing_hybrid = _load_patch_module()
-    from omlx_runtime.oq import (
+    from molto_runtime.oq import (
         _find_model_layers,
         _layer_masks_for_model,
         _uses_quantized_source_sensitivity,
@@ -759,12 +759,12 @@ def test_oq_discovers_ling_embeddings_and_hybrid_layer_masks():
 def test_pre_load_dispatch_calls_bailing_hybrid_patch(tmp_path, monkeypatch):
     calls = []
     monkeypatch.setattr(
-        "omlx_runtime.patches.bailing_hybrid.apply_bailing_hybrid_patch",
+        "molto_runtime.patches.bailing_hybrid.apply_bailing_hybrid_patch",
         lambda: calls.append(True) or True,
     )
     (tmp_path / "config.json").write_text(json.dumps(_minimal_config()))
 
-    from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+    from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
     maybe_apply_pre_load_patches(str(tmp_path))
 
@@ -772,7 +772,7 @@ def test_pre_load_dispatch_calls_bailing_hybrid_patch(tmp_path, monkeypatch):
 
 
 def test_bailing_hybrid_is_discovered_as_llm(tmp_path):
-    from omlx_runtime.model_discovery import detect_model_type
+    from molto_runtime.model_discovery import detect_model_type
 
     (tmp_path / "config.json").write_text(json.dumps(_minimal_config()))
 

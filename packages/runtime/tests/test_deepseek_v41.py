@@ -13,19 +13,19 @@ from types import SimpleNamespace
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.cache.deepseek_v41_delta import compact_state
-from omlx_runtime.generation.utils import (
+from molto_runtime.cache.deepseek_v41_delta import compact_state
+from molto_runtime.generation.utils import (
     extract_text_content,
     uses_native_reasoning_content,
 )
-from omlx_runtime.patches.deepseek_v41.cache import DeepseekV41Cache
-from omlx_runtime.patches.deepseek_v41.config import ModelConfig
-from omlx_runtime.patches.deepseek_v41.encoding import (
+from molto_runtime.patches.deepseek_v41.cache import DeepseekV41Cache
+from molto_runtime.patches.deepseek_v41.config import ModelConfig
+from molto_runtime.patches.deepseek_v41.encoding import (
     IMAGE_PLACEHOLDER,
     encode_messages,
 )
-from omlx_runtime.patches.deepseek_v41.language import LanguageModel
-from omlx_runtime.patches.deepseek_v41.processing import Processor
+from molto_runtime.patches.deepseek_v41.language import LanguageModel
+from molto_runtime.patches.deepseek_v41.processing import Processor
 from repo_paths import repository_root
 
 
@@ -283,7 +283,7 @@ def test_left_padding():
 
 
 def test_engram_hash_history_and_image_boundary(expected):
-    from omlx_runtime.patches.deepseek_v41.engram import NgramHash
+    from molto_runtime.patches.deepseek_v41.engram import NgramHash
 
     c = tiny(
         engram_layer_ids=(1,),
@@ -308,7 +308,7 @@ def test_engram_hash_history_and_image_boundary(expected):
 
 
 def test_vision_and_aligner_reference(expected):
-    from omlx_runtime.patches.deepseek_v41.vision import Aligner, ViT
+    from molto_runtime.patches.deepseek_v41.vision import Aligner, ViT
 
     c = tiny(
         vision_n_layers=2,
@@ -333,7 +333,7 @@ def test_vision_and_aligner_reference(expected):
     "shape", [(120, 50), (30, 190), (1, 2000), (2000, 1), (12, 12)]
 )
 def test_image_processor_matches_reference(expected, shape):
-    from omlx_runtime.patches.deepseek_v41.processing import image_patches
+    from molto_runtime.patches.deepseek_v41.processing import image_patches
     from PIL import Image
 
     c = tiny(
@@ -353,7 +353,7 @@ def test_image_processor_matches_reference(expected, shape):
 
 
 def test_fp8_and_fp4_roundtrip():
-    from omlx_runtime.patches.deepseek_v41.quantization import quantize_activation
+    from molto_runtime.patches.deepseek_v41.quantization import quantize_activation
 
     rng = np.random.default_rng(8)
     raw = np.concatenate([rng.normal(0, 4, (4, 32)), np.zeros((1, 32))]).astype(
@@ -372,7 +372,7 @@ def test_fp8_and_fp4_roundtrip():
 
 
 def test_mmap_engram_selected_rows_and_close(tmp_path):
-    from omlx_runtime.patches.deepseek_v41.storage import DiskEngramEmbedding
+    from molto_runtime.patches.deepseek_v41.storage import DiskEngramEmbedding
 
     path = tmp_path / "table.safetensors"
     # Byte-compatible E4M3 data and E8M0 scales represented by source dtypes.
@@ -389,8 +389,8 @@ def test_mmap_engram_selected_rows_and_close(tmp_path):
 
 
 def test_cache_handler_restores_type_and_continuation():
-    from omlx_runtime.cache.type_registry import CacheTypeRegistry
-    from omlx_runtime.patches.deepseek_v41 import apply_patch
+    from molto_runtime.cache.type_registry import CacheTypeRegistry
+    from molto_runtime.patches.deepseek_v41 import apply_patch
 
     apply_patch()
     model = LanguageModel(tiny())
@@ -414,7 +414,7 @@ def write_checkpoint(tmp_path, vision=True, **config_overrides):
     import re
 
     from mlx.utils import tree_flatten
-    from omlx_runtime.patches.deepseek_v41.model import Model
+    from molto_runtime.patches.deepseek_v41.model import Model
     from tokenizers import Tokenizer, models, pre_tokenizers
     from transformers import PreTrainedTokenizerFast
 
@@ -609,8 +609,8 @@ def test_convert_preserves_complete_dspark(tmp_path, preserve):
     import json
 
     from mlx.utils import tree_flatten
-    from omlx_runtime.patches.deepseek_v41.convert import convert
-    from omlx_runtime.patches.deepseek_v41.loading import load
+    from molto_runtime.patches.deepseek_v41.convert import convert
+    from molto_runtime.patches.deepseek_v41.loading import load
 
     source, before = write_checkpoint(
         tmp_path,
@@ -637,16 +637,16 @@ def test_convert_preserves_complete_dspark(tmp_path, preserve):
                 np.testing.assert_array_equal(value, expected[name])
             assert loaded.config.preserve_mtp == preserve
         config = json.loads((target / "config.json").read_text())
-        assert config["omlx_deepseek_v41"]["preserve_mtp"] == preserve
+        assert config["molto_deepseek_v41"]["preserve_mtp"] == preserve
     finally:
         after.close()
         direct.close()
 
 
 def test_conversion_loading_and_image_path(tmp_path):
-    from omlx_runtime.models.vlm import VLMModelAdapter
-    from omlx_runtime.patches.deepseek_v41.convert import convert
-    from omlx_runtime.patches.deepseek_v41.loading import load
+    from molto_runtime.models.vlm import VLMModelAdapter
+    from molto_runtime.patches.deepseek_v41.convert import convert
+    from molto_runtime.patches.deepseek_v41.loading import load
     from PIL import Image
 
     source, before = write_checkpoint(tmp_path)
@@ -714,12 +714,12 @@ def test_batch_generator_ragged_prefill_and_admission():
 
 
 def test_dsml_and_reasoning_encoding(tmp_path):
-    from omlx_runtime.generation.tool_calling import (
+    from molto_runtime.generation.tool_calling import (
         ToolCallStreamFilter,
         parse_tool_calls,
     )
-    from omlx_runtime.patches.deepseek_v41.convert import convert
-    from omlx_runtime.patches.deepseek_v41.loading import load
+    from molto_runtime.patches.deepseek_v41.convert import convert
+    from molto_runtime.patches.deepseek_v41.loading import load
 
     source, _ = write_checkpoint(tmp_path, vision=False)
     convert(source, tmp_path / "mlx")
@@ -739,7 +739,7 @@ def test_dsml_and_reasoning_encoding(tmp_path):
 
 
 def test_mxfp_repacking_has_exact_source_values():
-    from omlx_runtime.patches.deepseek_v41.convert import repack_weight
+    from molto_runtime.patches.deepseek_v41.convert import repack_weight
 
     raw = np.arange(128, dtype=np.uint8).reshape(4, 32)
     scale = np.full((1, 1), 125, np.uint8)
@@ -759,7 +759,7 @@ def test_mxfp_repacking_has_exact_source_values():
 
 
 def test_engram_gate_matches_official(expected):
-    from omlx_runtime.patches.deepseek_v41.engram import Engram
+    from molto_runtime.patches.deepseek_v41.engram import Engram
 
     c = tiny(
         engram_layer_ids=(1,),
@@ -783,9 +783,9 @@ def test_engram_gate_matches_official(expected):
 async def _run_vlm_engine(tmp_path, direct=False):
     import asyncio
 
-    from omlx_runtime.engine.vlm import VLMBatchedEngine
-    from omlx_runtime.patches.deepseek_v41.convert import convert
-    from omlx_runtime.scheduler import SchedulerConfig
+    from molto_runtime.engine.vlm import VLMBatchedEngine
+    from molto_runtime.patches.deepseek_v41.convert import convert
+    from molto_runtime.scheduler import SchedulerConfig
     from PIL import Image
 
     source, _ = write_checkpoint(tmp_path)
@@ -857,7 +857,7 @@ def raw_safetensors(path, tensors):
 
 
 def test_mmap_fp8_rows_use_per_channel_scales(tmp_path):
-    from omlx_runtime.patches.deepseek_v41.storage import DiskEngramEmbedding
+    from molto_runtime.patches.deepseek_v41.storage import DiskEngramEmbedding
 
     raw = np.arange(5 * 64, dtype=np.uint8).reshape(5, 64) % 120
     scales = np.arange(10, dtype=np.uint8).reshape(5, 2) + 120
@@ -876,9 +876,9 @@ def test_mmap_fp8_rows_use_per_channel_scales(tmp_path):
 def test_quantized_conversion_and_loaded_projection(tmp_path):
     import json
 
-    from omlx_runtime.patches.deepseek_v41.convert import convert
-    from omlx_runtime.patches.deepseek_v41.loading import load
-    from omlx_runtime.patches.deepseek_v41.quantization import QuantizedProjection
+    from molto_runtime.patches.deepseek_v41.convert import convert
+    from molto_runtime.patches.deepseek_v41.loading import load
+    from molto_runtime.patches.deepseek_v41.quantization import QuantizedProjection
 
     source, _ = write_checkpoint(tmp_path, vision=False)
     name = "layers.0.attn.wq_a"
@@ -955,7 +955,7 @@ asyncio.run(main())
 )
 @pytest.mark.parametrize("dtype", [mx.float32, mx.bfloat16])
 def test_packed_cache_arithmetic_and_bytes(bits, group, e4, dtype):
-    from omlx_runtime.patches.deepseek_v41.quantization import (
+    from molto_runtime.patches.deepseek_v41.quantization import (
         pack_activation,
         quantize_activation,
         unpack_activation,
@@ -982,7 +982,7 @@ def test_persistent_cache_is_packed_and_decode_only_unpacks_selected_rows(monkey
         for slot, width in [(1, 33), (2, 18), (3, 17)]:
             assert state[slot].dtype == mx.uint8
             assert state[slot].shape[-1] == width
-    from omlx_runtime.patches.deepseek_v41 import quantization
+    from molto_runtime.patches.deepseek_v41 import quantization
 
     def no_expansion(*args, **kwargs):
         raise AssertionError("Production attention must decode inside Metal")
@@ -1001,7 +1001,7 @@ def test_persistent_cache_is_packed_and_decode_only_unpacks_selected_rows(monkey
     "bits,group,e4m3", [(8, 32, False), (4, 32, False), (4, 16, True)]
 )
 def test_compiled_activation_is_exact(dtype, bits, group, e4m3):
-    from omlx_runtime.patches.deepseek_v41.quantization import (
+    from molto_runtime.patches.deepseek_v41.quantization import (
         _quantize_activation,
         quantize_activation,
     )
@@ -1021,8 +1021,8 @@ def test_compiled_activation_is_exact(dtype, bits, group, e4m3):
 
 @pytest.mark.parametrize("quantized", [False, True])
 def test_sorted_prefill_preserves_weighted_expert_output(quantized):
-    from omlx_runtime.patches.deepseek_v41.language import MoE
-    from omlx_runtime.patches.deepseek_v41.quantization import QuantizedProjection
+    from molto_runtime.patches.deepseek_v41.language import MoE
+    from molto_runtime.patches.deepseek_v41.quantization import QuantizedProjection
 
     mx.random.seed(1204)
     layer = MoE(tiny())
@@ -1065,8 +1065,8 @@ def test_sorted_prefill_preserves_weighted_expert_output(quantized):
 
 
 def test_load_preserves_bf16_head_without_changing_prefill_logits(tmp_path):
-    from omlx_runtime.patches.deepseek_v41.convert import convert
-    from omlx_runtime.patches.deepseek_v41.loading import load
+    from molto_runtime.patches.deepseek_v41.convert import convert
+    from molto_runtime.patches.deepseek_v41.loading import load
 
     source, _ = write_checkpoint(tmp_path, vision=False)
     filename = source / "model.safetensors"
@@ -1135,9 +1135,9 @@ def test_ced_preserves_encoder_and_global_kv_bitwise():
     ids = mx.array([[5, 9, 3, 12, 20, 7, 33, 41, 2, 18]])
     co, cn = off.make_cache(), on.make_cache()
     off(ids, cache=co)
-    ln = np.asarray(on._omlx_prefill(ids, cache=cn)[:, -1])
+    ln = np.asarray(on._molto_prefill(ids, cache=cn)[:, -1])
     # Determinism: two CED runs are bit-identical.
-    ln2 = np.asarray(on._omlx_prefill(ids, cache=on.make_cache())[:, -1])
+    ln2 = np.asarray(on._molto_prefill(ids, cache=on.make_cache())[:, -1])
     np.testing.assert_array_equal(ln, ln2)
     # Encoder caches are untouched by CED.
     for i in range(3):
@@ -1157,7 +1157,7 @@ def test_ced_preserves_encoder_and_global_kv_bitwise():
 def test_ced_inactive_within_window_is_bitwise_full_compute():
     off, on = ced_pair()
     ids = mx.array([[5, 9, 3, 12, 20, 7]])
-    ln = np.asarray(on._omlx_prefill(ids, cache=on.make_cache()))
+    ln = np.asarray(on._molto_prefill(ids, cache=on.make_cache()))
     # Cache-only prefill returns computed tail logits, not fabricated zeros.
     assert ln.shape == (1, 4, 64)
     assert np.isfinite(ln).all()
@@ -1167,7 +1167,7 @@ def test_ced_inactive_within_window_is_bitwise_full_compute():
     short = mx.array([[5, 9, 3, 12]])
     np.testing.assert_array_equal(
         np.asarray(off(short, cache=off.make_cache())),
-        np.asarray(on._omlx_prefill(short, cache=on.make_cache())),
+        np.asarray(on._molto_prefill(short, cache=on.make_cache())),
     )
 
 
@@ -1175,8 +1175,8 @@ def test_ced_chunked_continuity_and_decode_seam():
     _, on = ced_pair()
     full = mx.array([[5, 9, 3, 12, 20, 7, 33, 41, 2, 18]])
     ca = on.make_cache()
-    first = np.asarray(on._omlx_prefill(full[:, :6], cache=ca))
-    second = np.asarray(on._omlx_prefill(full[:, 6:], cache=ca))
+    first = np.asarray(on._molto_prefill(full[:, :6], cache=ca))
+    second = np.asarray(on._molto_prefill(full[:, 6:], cache=ca))
     assert first.shape[1] == second.shape[1] == 4
     decoded = np.asarray(on(mx.array([[11]]), cache=ca))[:, -1]
     assert np.isfinite(decoded).all()
@@ -1185,7 +1185,7 @@ def test_ced_chunked_continuity_and_decode_seam():
         assert ca[i][1].shape[1] == 4
     # A short suffix extends the contiguous replay window normally.
     cb = on.make_cache()
-    on._omlx_prefill(full[:, :6], cache=cb)
+    on._molto_prefill(full[:, :6], cache=cb)
     on(full[:, 6:], cache=cb)
     solo = np.asarray(on(mx.array([[11]]), cache=cb))[:, -1]
     np.testing.assert_array_equal(decoded, solo)

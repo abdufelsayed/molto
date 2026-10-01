@@ -29,11 +29,11 @@ uv run --all-packages --inexact pytest -q \
 
 ## Opt-in real-model backend check
 
-Set `OMLX_TEST_GEMMA_VLM` to a complete local Gemma vision-language
+Set `MOLTO_TEST_GEMMA_VLM` to a complete local Gemma vision-language
 checkpoint, then run:
 
 ```bash
-OMLX_TEST_GEMMA_VLM=/path/to/complete/local/GemmaVLM \
+MOLTO_TEST_GEMMA_VLM=/path/to/complete/local/GemmaVLM \
   uv run --all-packages --inexact pytest -m 'slow and integration' \
   tests/integration/test_backend_serving_real_model.py
 ```
@@ -113,9 +113,9 @@ For Qwen4 native sparse-GQA prefill measurements, run `python benchmarks/bench_q
 
 # Qwen4 verify attention row tests
 
-Run `uv run --all-packages --inexact pytest -q packages/runtime/tests/test_qwen4_verify_attention_rows.py` to check that row-exact Lightning MTP verify windows through Qwen4 attention give every row the bits of the serial one-row decode step and leave the same KV and QSA indexer state. The tests build one attention layer at the real Flash-Next shapes with synthetic 6-bit weights. Masked-arm windows (past the 2,048-token QSA budget, rank-three positions) cover 2 to 8 rows at 2,060, 16,382 and 24,000 cached tokens and compare each row's FP32 block scores and token mask; a rollback case accepts one draft and decodes on. Dense windows below the budget include rows on both sides of MLX's one-pass/two-pass vector SDPA switch at 1,024 keys. `OMLX_QWEN4_QSA_MASKED_VERIFY=0` restores the multi-row masked path.
+Run `uv run --all-packages --inexact pytest -q packages/runtime/tests/test_qwen4_verify_attention_rows.py` to check that row-exact Lightning MTP verify windows through Qwen4 attention give every row the bits of the serial one-row decode step and leave the same KV and QSA indexer state. The tests build one attention layer at the real Flash-Next shapes with synthetic 6-bit weights. Masked-arm windows (past the 2,048-token QSA budget, rank-three positions) cover 2 to 8 rows at 2,060, 16,382 and 24,000 cached tokens and compare each row's FP32 block scores and token mask; a rollback case accepts one draft and decodes on. Dense windows below the budget include rows on both sides of MLX's one-pass/two-pass vector SDPA switch at 1,024 keys. `MOLTO_QWEN4_QSA_MASKED_VERIFY=0` restores the multi-row masked path.
 
-`test_mlx_vlm_qwen4_exp_compat.py::test_qwen4_mtp_one_row_step_is_the_serial_decode_step` checks that a one-row Lightning MTP window (the activation step and depth-0 cycles) runs the serial decode step: equal logits and cache state, no speculative transaction, and a following verify window that rolls back as usual. `OMLX_QWEN4_MTP_ONE_ROW_DECODE=0` keeps the verify forward for those windows.
+`test_mlx_vlm_qwen4_exp_compat.py::test_qwen4_mtp_one_row_step_is_the_serial_decode_step` checks that a one-row Lightning MTP window (the activation step and depth-0 cycles) runs the serial decode step: equal logits and cache state, no speculative transaction, and a following verify window that rolls back as usual. `MOLTO_QWEN4_MTP_ONE_ROW_DECODE=0` keeps the verify forward for those windows.
 
 # Prefill memory accounting tests
 

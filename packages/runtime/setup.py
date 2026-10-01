@@ -12,7 +12,7 @@ def _with_custom_kernel() -> bool:
     if CUSTOM_KERNEL_FLAG in sys.argv:
         sys.argv.remove(CUSTOM_KERNEL_FLAG)
         return True
-    return os.environ.get("OMLX_WITH_CUSTOM_KERNEL", "").strip().lower() in TRUTHY
+    return os.environ.get("MOLTO_WITH_CUSTOM_KERNEL", "").strip().lower() in TRUTHY
 
 
 def _custom_kernel_build_kwargs() -> dict:
@@ -20,7 +20,7 @@ def _custom_kernel_build_kwargs() -> dict:
         return {}
 
     target = (
-        os.environ.get("OMLX_CUSTOM_KERNEL_DEPLOYMENT_TARGET")
+        os.environ.get("MOLTO_CUSTOM_KERNEL_DEPLOYMENT_TARGET")
         or os.environ.get("MACOSX_DEPLOYMENT_TARGET")
         or DEFAULT_CUSTOM_KERNEL_DEPLOYMENT_TARGET
     )
@@ -50,24 +50,24 @@ def _custom_kernel_build_kwargs() -> dict:
     return {
         "ext_modules": [
             extension.CMakeExtension(
-                "omlx_runtime.custom_kernels.bonsai._ext",
-                sourcedir="src/omlx_runtime/custom_kernels/bonsai/csrc",
+                "molto_runtime.custom_kernels.bonsai._ext",
+                sourcedir="src/molto_runtime/custom_kernels/bonsai/csrc",
             ),
             extension.CMakeExtension(
-                "omlx_runtime.custom_kernels.decode_fast._ext",
-                sourcedir="src/omlx_runtime/custom_kernels/decode_fast/csrc",
+                "molto_runtime.custom_kernels.decode_fast._ext",
+                sourcedir="src/molto_runtime/custom_kernels/decode_fast/csrc",
             ),
             extension.CMakeExtension(
-                "omlx_runtime.custom_kernels.glm_moe_dsa._ext",
-                sourcedir="src/omlx_runtime/custom_kernels/glm_moe_dsa/csrc",
+                "molto_runtime.custom_kernels.glm_moe_dsa._ext",
+                sourcedir="src/molto_runtime/custom_kernels/glm_moe_dsa/csrc",
             ),
             extension.CMakeExtension(
-                "omlx_runtime.custom_kernels.minimax_m3._ext",
-                sourcedir="src/omlx_runtime/custom_kernels/minimax_m3/csrc",
+                "molto_runtime.custom_kernels.minimax_m3._ext",
+                sourcedir="src/molto_runtime/custom_kernels/minimax_m3/csrc",
             ),
             extension.CMakeExtension(
-                "omlx_runtime.custom_kernels.qwen35_prefill._ext",
-                sourcedir="src/omlx_runtime/custom_kernels/qwen35_prefill/csrc",
+                "molto_runtime.custom_kernels.qwen35_prefill._ext",
+                sourcedir="src/molto_runtime/custom_kernels/qwen35_prefill/csrc",
             ),
         ],
         "cmdclass": {"build_ext": extension.CMakeBuild},

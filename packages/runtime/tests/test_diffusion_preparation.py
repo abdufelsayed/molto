@@ -5,13 +5,13 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from omlx_runtime.mflux_conversion import convert_mflux_model
-from omlx_runtime.model_discovery import detect_model_type, discover_models
+from molto_runtime.mflux_conversion import convert_mflux_model
+from molto_runtime.model_discovery import detect_model_type, discover_models
 
 
 @pytest.fixture
 def preparation_backend(monkeypatch, tmp_path):
-    import omlx_runtime.diffusion as diffusion
+    import molto_runtime.diffusion as diffusion
 
     state = SimpleNamespace(
         loads=[], saves=[], fail=False, bits=8, rewrite_tokenizer=False
@@ -25,8 +25,8 @@ def preparation_backend(monkeypatch, tmp_path):
 
     def detect(path):
         path = Path(path)
-        if (path / "omlx-mflux.json").exists():
-            data = json.loads((path / "omlx-mflux.json").read_text())
+        if (path / "molto-mflux.json").exists():
+            data = json.loads((path / "molto-mflux.json").read_text())
             if data.get("backend") != "mflux":
                 raise ValueError("Invalid explicit manifest")
             return SimpleNamespace(
@@ -50,7 +50,7 @@ def preparation_backend(monkeypatch, tmp_path):
             (Path(path) / "weights.safetensors").write_bytes(b"weights")
             if state.fail:
                 raise RuntimeError("save failed")
-            (Path(path) / "omlx-mflux.json").write_text(
+            (Path(path) / "molto-mflux.json").write_text(
                 json.dumps(
                     {
                         "version": 2,
@@ -109,7 +109,7 @@ def test_prepares_registry_alias_and_reports_actual_precision(
         )
     ]
     assert result["manifest"]["quantization_bits"] == 8
-    assert (tmp_path / "saved" / "omlx-mflux.json").is_file()
+    assert (tmp_path / "saved" / "molto-mflux.json").is_file()
 
 
 def test_third_party_requires_identity_before_output_mutation(
@@ -187,7 +187,7 @@ def test_unsupported_original_is_image_artifact_and_never_served(tmp_path):
 def test_invalid_manifest_never_falls_back_to_text(tmp_path):
     source = tmp_path / "bad"
     source.mkdir()
-    (source / "omlx-mflux.json").write_text('{"backend": "wrong"}')
+    (source / "molto-mflux.json").write_text('{"backend": "wrong"}')
     (source / "config.json").write_text('{"model_type": "llama"}')
     (source / "model.safetensors").write_bytes(b"weights")
     assert detect_model_type(source) == "image_generation"
@@ -195,7 +195,7 @@ def test_invalid_manifest_never_falls_back_to_text(tmp_path):
 
 
 def _complete_layout(path, base_model):
-    from omlx_runtime.diffusion import get_pipeline
+    from molto_runtime.diffusion import get_pipeline
 
     spec = get_pipeline(base_model)
     for component in spec.components:
@@ -212,7 +212,7 @@ def _complete_layout(path, base_model):
 def test_legacy_v1_manifest_is_discovered_without_name_hint(tmp_path):
     source = tmp_path / "old-conversion"
     _complete_layout(source, "z-image-turbo")
-    (source / "omlx-mflux.json").write_text(
+    (source / "molto-mflux.json").write_text(
         json.dumps(
             {
                 "version": 1,
@@ -253,7 +253,7 @@ def test_original_flux2_checkpoint_uses_identity_without_directory_hint(tmp_path
 def test_prepared_qwen_without_root_config_uses_manifest_identity(tmp_path):
     source = tmp_path / "arbitrary-prepared"
     spec = _complete_layout(source, "qwen-image")
-    (source / "omlx-mflux.json").write_text(
+    (source / "molto-mflux.json").write_text(
         json.dumps(
             {
                 "version": 2,

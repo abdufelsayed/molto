@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
-from omlx_server.api.management_workspace_routes import router, workspace
-from omlx_server.auth import AuthContext, require_management_key
+from molto_server.api.management_workspace_routes import router, workspace
+from molto_server.auth import AuthContext, require_management_key
 
 
 @pytest.fixture

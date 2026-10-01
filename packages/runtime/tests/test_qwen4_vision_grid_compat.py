@@ -6,7 +6,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import mlx.core as mx
-from omlx_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
+from molto_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
 
 
 class _CaptureBlock:

@@ -3,7 +3,7 @@
 
 from types import SimpleNamespace
 
-from omlx_management.management import ManagementContext, ManagementService
+from molto_management.management import ManagementContext, ManagementService
 
 
 class _Pool:
@@ -14,7 +14,7 @@ class _Pool:
         return ["model-a"]
 
     def cache_status(self, directory=None):
-        from omlx_runtime.cache_operations import cache_status
+        from molto_runtime.cache_operations import cache_status
 
         return cache_status(self, directory)
 

@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-from omlx_runtime.memory_monitor import (
+from molto_runtime.memory_monitor import (
     _SDPA_FALLBACK_SCORE_DTYPE_SIZE,
     _SDPA_FULL_SUPPORTED_HEAD_DIMS,
     _SDPA_VECTOR_QUERY_TOKEN_THRESHOLD,
@@ -13,7 +13,7 @@ from omlx_runtime.memory_monitor import (
     MemoryInfo,
     MemoryMonitor,
 )
-from omlx_runtime.utils.hardware import format_bytes
+from molto_runtime.utils.hardware import format_bytes
 
 
 class TestMemoryInfo:
@@ -569,7 +569,7 @@ class TestCollectKvLayerSpecs:
         KVCache = cache_module.KVCache
         RotatingKVCache = cache_module.RotatingKVCache
 
-        from omlx_runtime.memory_monitor import collect_kv_layer_specs
+        from molto_runtime.memory_monitor import collect_kv_layer_specs
 
         cache_list = [
             KVCache(),
@@ -591,13 +591,13 @@ class TestCollectKvLayerSpecs:
         import sys
 
         from mlx_lm.models.cache import CacheList, KVCache
-        from omlx_runtime.memory_monitor import collect_kv_layer_specs
+        from molto_runtime.memory_monitor import collect_kv_layer_specs
 
         monkeypatch.setitem(sys.modules, "mlx_vlm.models.cache", None)
         assert collect_kv_layer_specs([CacheList(KVCache())]) == (1, [], 0)
 
     def test_duck_typed_rotating_subclass_counts(self):
-        from omlx_runtime.memory_monitor import collect_kv_layer_specs
+        from molto_runtime.memory_monitor import collect_kv_layer_specs
 
         class _CustomRotating:
             def __init__(self, max_size):
@@ -613,7 +613,7 @@ class TestCollectKvLayerSpecs:
 
     def test_kvcache_subclass_not_counted_as_full(self):
         from mlx_lm.models.cache import KVCache
-        from omlx_runtime.memory_monitor import collect_kv_layer_specs
+        from molto_runtime.memory_monitor import collect_kv_layer_specs
 
         class _Sub(KVCache):
             pass
@@ -622,7 +622,7 @@ class TestCollectKvLayerSpecs:
         assert (full, specs, arrays) == (0, [], 0)
 
     def test_none_and_failure_degrade_to_zero(self):
-        from omlx_runtime.memory_monitor import collect_kv_layer_specs
+        from molto_runtime.memory_monitor import collect_kv_layer_specs
 
         assert collect_kv_layer_specs(None) == (0, [], 0)
         assert collect_kv_layer_specs(object()) == (0, [], 0)
@@ -717,7 +717,7 @@ class TestEstimateResidentKvBytes:
         assert m.estimate_resident_kv_bytes(100) == base
 
     def test_fixed_state_added_on_qwen4_profile_path(self):
-        from omlx_runtime.memory_monitor import make_prefill_memory_profile
+        from molto_runtime.memory_monitor import make_prefill_memory_profile
 
         config = SimpleNamespace(
             model_type="qwen4_exp",
@@ -785,7 +785,7 @@ class TestSetModelInfoFromModelRotating:
 
     def test_hybrid_model_populates_rotating_specs(self):
         from mlx_lm.models.cache import KVCache, RotatingKVCache
-        from omlx_runtime.memory_monitor import set_model_info_from_model
+        from molto_runtime.memory_monitor import set_model_info_from_model
 
         cache_list = [KVCache() for _ in range(5)] + [
             RotatingKVCache(max_size=1024) for _ in range(25)
@@ -797,7 +797,7 @@ class TestSetModelInfoFromModelRotating:
 
     def test_rotating_only_model_keeps_zero_full_layers(self):
         from mlx_lm.models.cache import RotatingKVCache
-        from omlx_runtime.memory_monitor import set_model_info_from_model
+        from molto_runtime.memory_monitor import set_model_info_from_model
 
         cache_list = [RotatingKVCache(max_size=512) for _ in range(30)]
         monitor = MemoryMonitor(max_kv_cache_memory=2 * 1024**3)
@@ -831,7 +831,7 @@ class TestDeepSeekV4PrefillMemoryProfile:
         ratios=None,
         wsdpa_dtype_supported: bool = False,
     ):
-        from omlx_runtime.memory_monitor import make_prefill_memory_profile
+        from molto_runtime.memory_monitor import make_prefill_memory_profile
 
         config = self._config()
         if ratios is not None:
@@ -866,7 +866,7 @@ class TestDeepSeekV4PrefillMemoryProfile:
         dense: bool = True,
         topk: bool = True,
     ):
-        from omlx_runtime.patches.deepseek_v4 import wsdpa_attention as wsdpa
+        from molto_runtime.patches.deepseek_v4 import wsdpa_attention as wsdpa
 
         monkeypatch.setattr(wsdpa, "_ENABLED", enabled)
         monkeypatch.setattr(wsdpa, "_TOPK_ENABLED", True)
@@ -894,7 +894,7 @@ class TestDeepSeekV4PrefillMemoryProfile:
     def test_wsdpa_route_uses_bounded_local_transient_and_safe_fallbacks(
         self, monkeypatch
     ):
-        from omlx_runtime.memory_monitor import estimate_unfused_sdpa_call_bytes
+        from molto_runtime.memory_monitor import estimate_unfused_sdpa_call_bytes
 
         query_tokens, kv_len = 2048, 66_000
         local_tokens = 128 + query_tokens - 1
@@ -922,7 +922,7 @@ class TestDeepSeekV4PrefillMemoryProfile:
         )
 
     def test_active_wsdpa_route_prices_ratio128_without_scores(self, monkeypatch):
-        from omlx_runtime.memory_monitor import estimate_unfused_sdpa_call_bytes
+        from molto_runtime.memory_monitor import estimate_unfused_sdpa_call_bytes
 
         self._set_wsdpa_route(monkeypatch)
         monitor = self._monitor(ratios=[128], wsdpa_dtype_supported=True)
@@ -942,7 +942,7 @@ class TestDeepSeekV4PrefillMemoryProfile:
         assert active < projection + concat + fallback
 
     def test_active_wsdpa_route_prices_ratio4_dense_without_scores(self, monkeypatch):
-        import omlx_runtime.memory_monitor as memory_monitor
+        import molto_runtime.memory_monitor as memory_monitor
 
         monkeypatch.setattr(memory_monitor, "native_indexer_eligible", lambda **_: True)
         self._set_wsdpa_route(monkeypatch)
@@ -960,7 +960,7 @@ class TestDeepSeekV4PrefillMemoryProfile:
     def test_ratio4_topk_route_switches_between_wsdpa_and_sparse_fallback(
         self, monkeypatch
     ):
-        import omlx_runtime.memory_monitor as memory_monitor
+        import molto_runtime.memory_monitor as memory_monitor
 
         monkeypatch.setattr(memory_monitor, "native_indexer_eligible", lambda **_: True)
         monitor = self._monitor(ratios=[4], wsdpa_dtype_supported=True)
@@ -1006,8 +1006,8 @@ class TestDeepSeekV4PrefillMemoryProfile:
     def test_native_prefill_transient_does_not_charge_dense_full_context_sdpa(
         self, monkeypatch
     ):
-        import omlx_runtime.memory_monitor as memory_monitor
-        from omlx_runtime.memory_monitor import estimate_unfused_sdpa_call_bytes
+        import molto_runtime.memory_monitor as memory_monitor
+        from molto_runtime.memory_monitor import estimate_unfused_sdpa_call_bytes
 
         monkeypatch.setattr(
             memory_monitor,
@@ -1024,7 +1024,7 @@ class TestDeepSeekV4PrefillMemoryProfile:
     def test_prefill_transient_uses_native_indexer_for_unaligned_tail(
         self, monkeypatch
     ):
-        import omlx_runtime.memory_monitor as memory_monitor
+        import molto_runtime.memory_monitor as memory_monitor
 
         monitor = self._monitor()
         profile = monitor._prefill_memory_profile
@@ -1058,7 +1058,7 @@ class TestDeepSeekV4PrefillMemoryProfile:
     def test_prefill_transient_falls_back_when_native_indexer_is_disabled(
         self, monkeypatch
     ):
-        import omlx_runtime.memory_monitor as memory_monitor
+        import molto_runtime.memory_monitor as memory_monitor
 
         monitor = self._monitor()
         calls = []
@@ -1083,7 +1083,7 @@ class TestDeepSeekV4PrefillMemoryProfile:
         ]
 
     def test_non_v4_config_keeps_generic_estimator(self):
-        from omlx_runtime.memory_monitor import make_prefill_memory_profile
+        from molto_runtime.memory_monitor import make_prefill_memory_profile
 
         config = self._config()
         config.model_type = "llama"
@@ -1097,7 +1097,7 @@ class TestQwen4ExpPrefillMemoryProfile:
 
     @staticmethod
     def _profile():
-        from omlx_runtime.memory_monitor import make_prefill_memory_profile
+        from molto_runtime.memory_monitor import make_prefill_memory_profile
 
         config = SimpleNamespace(
             model_type="qwen4_exp",
@@ -1115,7 +1115,7 @@ class TestQwen4ExpPrefillMemoryProfile:
         return make_prefill_memory_profile(config, compute_dtype_size=2)
 
     def _monitor(self, profile):
-        from omlx_runtime.memory_monitor import MemoryMonitor
+        from molto_runtime.memory_monitor import MemoryMonitor
 
         monitor = MemoryMonitor(max_kv_cache_memory=None, eviction_enabled=False)
         monitor.set_model_info(
@@ -1135,7 +1135,7 @@ class TestQwen4ExpPrefillMemoryProfile:
         return 4 * query_tokens * pooled * 4 + 4 * query_tokens * 128 * 4
 
     def test_no_registration_prices_dense_fp32_core(self):
-        import omlx_runtime.memory_monitor as memory_monitor
+        import molto_runtime.memory_monitor as memory_monitor
 
         memory_monitor._SDPA_TILED_PREFILL_HEAD_DIMS.pop(256, None)
         try:
@@ -1151,7 +1151,7 @@ class TestQwen4ExpPrefillMemoryProfile:
             memory_monitor._SDPA_TILED_PREFILL_HEAD_DIMS.pop(256, None)
 
     def test_causal_only_registration_keeps_array_mask_core_dense(self):
-        import omlx_runtime.memory_monitor as memory_monitor
+        import molto_runtime.memory_monitor as memory_monitor
 
         memory_monitor._SDPA_TILED_PREFILL_HEAD_DIMS.pop(256, None)
         memory_monitor.register_tiled_prefill_head_dim(
@@ -1171,7 +1171,7 @@ class TestQwen4ExpPrefillMemoryProfile:
             memory_monitor._SDPA_TILED_PREFILL_HEAD_DIMS.pop(256, None)
 
     def test_matching_registration_prices_output_plus_one_fp32_tile(self):
-        import omlx_runtime.memory_monitor as memory_monitor
+        import molto_runtime.memory_monitor as memory_monitor
 
         memory_monitor._SDPA_TILED_PREFILL_HEAD_DIMS.pop(256, None)
         memory_monitor.register_tiled_prefill_head_dim(
@@ -1199,7 +1199,7 @@ class TestQwen4ExpPrefillMemoryProfile:
             memory_monitor._SDPA_TILED_PREFILL_HEAD_DIMS.pop(256, None)
 
     def test_threshold_misses_stay_dense(self):
-        import omlx_runtime.memory_monitor as memory_monitor
+        import molto_runtime.memory_monitor as memory_monitor
 
         memory_monitor._SDPA_TILED_PREFILL_HEAD_DIMS.pop(256, None)
         memory_monitor.register_tiled_prefill_head_dim(
@@ -1230,7 +1230,7 @@ class TestQwen4ExpPrefillMemoryProfile:
         """Two routes whose individual (query, kv) thresholds are not jointly
         met must not produce a bounded price (mirror of the generic
         estimator's threshold-independence regression)."""
-        import omlx_runtime.memory_monitor as memory_monitor
+        import molto_runtime.memory_monitor as memory_monitor
 
         memory_monitor._SDPA_TILED_PREFILL_HEAD_DIMS.pop(256, None)
         memory_monitor.register_tiled_prefill_head_dim(
@@ -1267,7 +1267,7 @@ class TestQwen4ExpPrefillMemoryProfile:
         """The route covers the dense core's actual K width. A gathered QSA
         core attending ~indexer_budget tokens is below the 8192 route floor
         and must not borrow a bounded price registered for the dense path."""
-        import omlx_runtime.memory_monitor as memory_monitor
+        import molto_runtime.memory_monitor as memory_monitor
 
         memory_monitor._SDPA_TILED_PREFILL_HEAD_DIMS.pop(256, None)
         memory_monitor.register_tiled_prefill_head_dim(
@@ -1294,7 +1294,7 @@ class TestQwen4ExpPrefillMemoryProfile:
             memory_monitor._SDPA_TILED_PREFILL_HEAD_DIMS.pop(256, None)
 
     def test_bounded_price_reaches_monitor_via_chunk_transient(self):
-        import omlx_runtime.memory_monitor as memory_monitor
+        import molto_runtime.memory_monitor as memory_monitor
 
         memory_monitor._SDPA_TILED_PREFILL_HEAD_DIMS.pop(256, None)
         memory_monitor.register_tiled_prefill_head_dim(
@@ -1320,7 +1320,7 @@ class TestAnePrefillTransientReserve:
     def test_ane_prefill_transient_is_added_to_the_peak(self):
         # issue #2841: the ANE I/O surfaces are dirtied by the first long
         # prompt, so admission reserves them on top of the KV+SDPA peak.
-        from omlx_runtime.memory_monitor import MemoryMonitor
+        from molto_runtime.memory_monitor import MemoryMonitor
 
         def make(reserve=0):
             monitor = MemoryMonitor(max_kv_cache_memory=None, eviction_enabled=False)
@@ -1340,7 +1340,7 @@ class TestAnePrefillTransientReserve:
         assert ane_peak == base_peak + reserve
 
     def test_reserve_defaults_to_zero_and_resets_per_model(self):
-        from omlx_runtime.memory_monitor import MemoryMonitor
+        from molto_runtime.memory_monitor import MemoryMonitor
 
         monitor = MemoryMonitor(max_kv_cache_memory=None, eviction_enabled=False)
         assert monitor._ane_prefill_transient_bytes == 0
@@ -1357,7 +1357,7 @@ class TestAnePrefillTransientReserve:
         assert monitor._ane_prefill_transient_bytes == 0
 
     def test_clear_drops_the_reservation_after_a_shed(self):
-        from omlx_runtime.memory_monitor import MemoryMonitor
+        from molto_runtime.memory_monitor import MemoryMonitor
 
         monitor = MemoryMonitor(max_kv_cache_memory=None, eviction_enabled=False)
         monitor.set_model_info(
@@ -1374,7 +1374,7 @@ class TestAnePrefillTransientReserve:
         # The banks compile after the scheduler snapshots model info, so the
         # load-time reserve reads 0; engines refresh it post-compile, and the
         # release rung clears it while the model stays resident.
-        from omlx_runtime.memory_monitor import MemoryMonitor
+        from molto_runtime.memory_monitor import MemoryMonitor
 
         monitor = MemoryMonitor(max_kv_cache_memory=None, eviction_enabled=False)
         monitor.set_model_info(

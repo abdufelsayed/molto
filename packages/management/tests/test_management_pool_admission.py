@@ -5,8 +5,8 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-from omlx_runtime.engine_pool import EngineEntry, EnginePool
-from omlx_runtime.exceptions import ModelBusyError
+from molto_runtime.engine_pool import EngineEntry, EnginePool
+from molto_runtime.exceptions import ModelBusyError
 
 
 def make_pool():

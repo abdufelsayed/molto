@@ -45,7 +45,7 @@ TINY_WAV = _make_wav_bytes()
 
 def _make_mock_stt_engine(transcript: str = "hello world") -> MagicMock:
     """Build a mock STTEngine that returns the given transcript."""
-    from omlx_runtime.engine.stt import STTEngine
+    from molto_runtime.engine.stt import STTEngine
 
     engine = MagicMock(spec=STTEngine)
     engine.transcribe = AsyncMock(
@@ -86,7 +86,7 @@ def _make_mock_pool(stt_engine=None, model_id: str = "whisper-tiny") -> MagicMoc
 def audio_client():
     """TestClient for the audio router with a mocked STT engine."""
     from fastapi import FastAPI
-    from omlx_server.api.audio_routes import router
+    from molto_server.api.audio_routes import router
 
     app = FastAPI()
     app.include_router(router)
@@ -94,7 +94,7 @@ def audio_client():
     mock_pool = _make_mock_pool()
 
     with (
-        patch("omlx_server.api.audio_routes._get_engine_pool", return_value=mock_pool),
+        patch("molto_server.api.audio_routes._get_engine_pool", return_value=mock_pool),
         TestClient(app, raise_server_exceptions=False) as client,
     ):
         yield client, mock_pool
@@ -102,7 +102,7 @@ def audio_client():
 
 def _ensure_audio_routes(app):
     """Register audio routes if not already present (e.g., mlx-audio not installed)."""
-    from omlx_server.api.audio_routes import router as audio_router
+    from molto_server.api.audio_routes import router as audio_router
 
     audio_paths = {"/v1/audio/transcriptions", "/v1/audio/speech", "/v1/audio/process"}
     existing = {getattr(r, "path", "") for r in app.routes}
@@ -116,7 +116,7 @@ class TestSTTEngineLanguageForwarding:
     @pytest.mark.asyncio
     async def test_transcribe_maps_iso_language_and_forwards_kwargs(self, tmp_path):
         """Qwen3-ASR-style models receive lowercase full language names."""
-        from omlx_runtime.engine.stt import STTEngine
+        from molto_runtime.engine.stt import STTEngine
 
         generate_call = {}
 
@@ -155,7 +155,7 @@ class TestSTTEngineLanguageForwarding:
     @pytest.mark.asyncio
     async def test_transcribe_preserves_iso_language_for_code_backends(self, tmp_path):
         """Cohere-style models receive the original ISO language code."""
-        from omlx_runtime.engine.stt import STTEngine
+        from molto_runtime.engine.stt import STTEngine
 
         generate_call = {}
 
@@ -187,7 +187,7 @@ class TestSTTEngineLanguageForwarding:
     @pytest.mark.asyncio
     async def test_transcribe_passes_unknown_language_through(self, tmp_path):
         """Unknown / non-ISO inputs are forwarded as-is so backends can still try."""
-        from omlx_runtime.engine.stt import STTEngine
+        from molto_runtime.engine.stt import STTEngine
 
         generate_kwargs = {}
 
@@ -214,7 +214,7 @@ class TestSTTEngineLanguageForwarding:
     @pytest.mark.asyncio
     async def test_transcribe_omits_empty_language(self, tmp_path):
         """Empty language values keep mlx-audio in its default mode."""
-        from omlx_runtime.engine.stt import STTEngine
+        from molto_runtime.engine.stt import STTEngine
 
         generate_kwargs = {}
 
@@ -241,8 +241,8 @@ class TestSTTEngineLanguageForwarding:
 
 @pytest.fixture
 def server_audio_client():
-    """TestClient using the full omlx server app with mocked pool."""
-    from omlx_server.server import create_app
+    """TestClient using the full molto server app with mocked pool."""
+    from molto_server.server import create_app
 
     app = create_app()
 
@@ -277,7 +277,7 @@ class TestAudioUploadLimitSettings:
 
     def test_uninitialized_settings_keep_default_limit(self):
         """Without init_settings(), the 100MB default still applies."""
-        from omlx_server.api.audio_routes import (
+        from molto_server.api.audio_routes import (
             MAX_AUDIO_UPLOAD_BYTES,
             _max_audio_upload_bytes,
         )
@@ -287,8 +287,8 @@ class TestAudioUploadLimitSettings:
 
     def test_reads_limit_from_initialized_settings(self, tmp_path):
         """init_settings() with a CLI override is what _read_upload enforces."""
-        from omlx_config.settings import GlobalSettings
-        from omlx_server.api.audio_routes import _max_audio_upload_bytes
+        from molto_config.settings import GlobalSettings
+        from molto_server.api.audio_routes import _max_audio_upload_bytes
 
         settings = GlobalSettings(base_path=tmp_path)
         settings.server.max_audio_upload_size = "2MB"
@@ -296,14 +296,14 @@ class TestAudioUploadLimitSettings:
 
     def test_invalid_configured_size_warns_and_falls_back(self, caplog):
         """Garbage settings.json/env values log a warning instead of failing silent."""
-        from omlx_config.settings import ServerSettings
-        from omlx_server.api.audio_routes import (
+        from molto_config.settings import ServerSettings
+        from molto_server.api.audio_routes import (
             MAX_AUDIO_UPLOAD_BYTES,
             _max_audio_upload_bytes,
         )
 
         bogus = ServerSettings(max_audio_upload_size="bogus")
-        with caplog.at_level("WARNING", logger="omlx_server.api.audio_routes"):
+        with caplog.at_level("WARNING", logger="molto_server.api.audio_routes"):
             assert (
                 _max_audio_upload_bytes(type("GS", (), {"server": bogus})())
                 == MAX_AUDIO_UPLOAD_BYTES
@@ -312,14 +312,14 @@ class TestAudioUploadLimitSettings:
 
     def test_non_positive_configured_size_warns_and_falls_back(self, caplog):
         """0MB parses cleanly but would reject every upload; fall back instead."""
-        from omlx_config.settings import ServerSettings
-        from omlx_server.api.audio_routes import (
+        from molto_config.settings import ServerSettings
+        from molto_server.api.audio_routes import (
             MAX_AUDIO_UPLOAD_BYTES,
             _max_audio_upload_bytes,
         )
 
         zero = ServerSettings(max_audio_upload_size="0MB")
-        with caplog.at_level("WARNING", logger="omlx_server.api.audio_routes"):
+        with caplog.at_level("WARNING", logger="molto_server.api.audio_routes"):
             assert (
                 _max_audio_upload_bytes(type("GS", (), {"server": zero})())
                 == MAX_AUDIO_UPLOAD_BYTES
@@ -386,7 +386,7 @@ class TestSTTEndpointBasic:
         client, _ = server_audio_client
         oversized = b"\x00" * 2048
         with patch(
-            "omlx_server.api.audio_routes._max_audio_upload_bytes",
+            "molto_server.api.audio_routes._max_audio_upload_bytes",
             return_value=1024,
         ):
             response = client.post(
@@ -401,7 +401,7 @@ class TestSTTEndpointBasic:
         """Raising the limit allows an upload that the default cap would reject."""
         client, _ = server_audio_client
         with patch(
-            "omlx_server.api.audio_routes._max_audio_upload_bytes",
+            "molto_server.api.audio_routes._max_audio_upload_bytes",
             return_value=len(TINY_WAV) + 1,
         ):
             response = client.post(
@@ -460,7 +460,7 @@ class TestSTTEndpointBasic:
 
         # No settings manager => model's own default applies; nothing forwarded.
         with patch(
-            "omlx_server.api.audio_routes._get_settings_manager",
+            "molto_server.api.audio_routes._get_settings_manager",
             return_value=None,
         ):
             response = client.post(
@@ -494,7 +494,7 @@ class TestSTTEndpointBasic:
         fake_manager.get_settings.return_value = fake_settings
 
         with patch(
-            "omlx_server.api.audio_routes._get_settings_manager",
+            "molto_server.api.audio_routes._get_settings_manager",
             return_value=fake_manager,
         ):
             response = client.post(
@@ -526,7 +526,7 @@ class TestSTTEndpointBasic:
         fake_manager.get_settings.return_value = fake_settings
 
         with patch(
-            "omlx_server.api.audio_routes._get_settings_manager",
+            "molto_server.api.audio_routes._get_settings_manager",
             return_value=fake_manager,
         ):
             response = client.post(
@@ -600,7 +600,7 @@ class TestSTTEnginePromptBiasing:
     @pytest.mark.asyncio
     async def test_prompt_maps_to_system_prompt_for_qwen3_style(self, tmp_path):
         """Backends with a system_prompt hook get trained context injection."""
-        from omlx_runtime.engine.stt import STTEngine
+        from molto_runtime.engine.stt import STTEngine
 
         generate_kwargs = {}
 
@@ -619,11 +619,11 @@ class TestSTTEnginePromptBiasing:
         engine._model = FakeModel()
 
         await engine.transcribe(
-            self._wav(tmp_path), prompt="Vocabulary: Kubernetes, issue, omlx."
+            self._wav(tmp_path), prompt="Vocabulary: Kubernetes, issue, molto."
         )
 
         assert generate_kwargs["system_prompt"] == (
-            "Vocabulary: Kubernetes, issue, omlx."
+            "Vocabulary: Kubernetes, issue, molto."
         )
         assert "prompt" not in generate_kwargs
         assert "initial_prompt" not in generate_kwargs
@@ -631,7 +631,7 @@ class TestSTTEnginePromptBiasing:
     @pytest.mark.asyncio
     async def test_prompt_maps_to_initial_prompt_for_whisper_style(self, tmp_path):
         """Whisper-family backends get the prompt as a decoder prefix."""
-        from omlx_runtime.engine.stt import STTEngine
+        from molto_runtime.engine.stt import STTEngine
 
         generate_kwargs = {}
 
@@ -658,7 +658,7 @@ class TestSTTEnginePromptBiasing:
     @pytest.mark.asyncio
     async def test_prompt_dropped_for_backends_without_hook(self, tmp_path):
         """Backends with no biasing hook never see the field and never fail."""
-        from omlx_runtime.engine.stt import STTEngine
+        from molto_runtime.engine.stt import STTEngine
 
         generate_kwargs = {}
 
@@ -685,7 +685,7 @@ class TestSTTEnginePromptBiasing:
     @pytest.mark.asyncio
     async def test_no_prompt_leaves_generate_kwargs_unchanged(self, tmp_path):
         """Requests without prompt are byte-for-byte today's behavior."""
-        from omlx_runtime.engine.stt import STTEngine
+        from molto_runtime.engine.stt import STTEngine
 
         generate_kwargs = {}
 
@@ -710,7 +710,7 @@ class TestSTTEnginePromptBiasing:
     @pytest.mark.asyncio
     async def test_blank_prompt_is_dropped(self, tmp_path):
         """Whitespace-only prompts keep the backend in its default mode."""
-        from omlx_runtime.engine.stt import STTEngine
+        from molto_runtime.engine.stt import STTEngine
 
         generate_kwargs = {}
 
@@ -757,12 +757,12 @@ class TestSTTEndpointPrompt:
             files={"file": ("audio.wav", TINY_WAV, "audio/wav")},
             data={
                 "model": "qwen3-asr",
-                "prompt": "Vocabulary: Kubernetes, issue, omlx.",
+                "prompt": "Vocabulary: Kubernetes, issue, molto.",
             },
         )
 
         assert response.status_code == 200
-        assert captured.get("prompt") == "Vocabulary: Kubernetes, issue, omlx."
+        assert captured.get("prompt") == "Vocabulary: Kubernetes, issue, molto."
 
     def test_absent_prompt_not_forwarded(self, server_audio_client):
         client, mock_pool = server_audio_client
@@ -825,7 +825,7 @@ class TestSTTEndpointErrors:
     def test_unsupported_model_returns_error(self, server_audio_client):
         """Requesting an unknown model returns 4xx error."""
         client, mock_pool = server_audio_client
-        from omlx_runtime.exceptions import ModelNotFoundError
+        from molto_runtime.exceptions import ModelNotFoundError
 
         mock_pool.get_engine.side_effect = ModelNotFoundError(
             model_id="nonexistent-model",
@@ -863,7 +863,7 @@ class TestSTTEngineStreaming:
     @pytest.mark.asyncio
     async def test_native_stream_yields_normalized_chunks(self, tmp_path):
         """Models with a ``stream`` generate() param yield incremental chunks."""
-        from omlx_runtime.engine.stt import STTEngine
+        from molto_runtime.engine.stt import STTEngine
 
         calls = []
 
@@ -913,7 +913,7 @@ class TestSTTEngineStreaming:
     @pytest.mark.asyncio
     async def test_native_stream_normalizes_language(self, tmp_path):
         """Language hints get the same backend normalization as transcribe()."""
-        from omlx_runtime.engine.stt import STTEngine
+        from molto_runtime.engine.stt import STTEngine
 
         generate_kwargs = {}
 
@@ -950,7 +950,7 @@ class TestSTTEngineStreaming:
     @pytest.mark.asyncio
     async def test_fallback_without_native_stream_support(self, tmp_path):
         """Models without a ``stream`` param fall back to one-shot transcribe."""
-        from omlx_runtime.engine.stt import STTEngine
+        from molto_runtime.engine.stt import STTEngine
 
         class FakeModel:
             def generate(self, audio_path, **kwargs):
@@ -976,7 +976,7 @@ class TestSTTEngineStreaming:
 
     def test_supports_native_stt_streaming_detection(self):
         """Capability check keys off the ``stream`` param in generate()."""
-        from omlx_runtime.engine.stt import STTEngine
+        from molto_runtime.engine.stt import STTEngine
 
         class StreamingModel:
             def generate(self, audio_path, *, stream=False, **kwargs):
@@ -996,7 +996,7 @@ class TestSTTEngineStreaming:
     @pytest.mark.asyncio
     async def test_native_stream_maps_prompt_to_biasing_hook(self, tmp_path):
         """The OpenAI prompt field biases native streaming too (#2078)."""
-        from omlx_runtime.engine.stt import STTEngine
+        from molto_runtime.engine.stt import STTEngine
 
         generate_kwargs = {}
 
@@ -1027,18 +1027,18 @@ class TestSTTEngineStreaming:
         chunks = [
             c
             async for c in engine.transcribe_stream(
-                str(audio_path), prompt="Vocabulary: Kubernetes, omlx."
+                str(audio_path), prompt="Vocabulary: Kubernetes, molto."
             )
         ]
 
         assert chunks[0]["text"] == "ok"
-        assert generate_kwargs["system_prompt"] == "Vocabulary: Kubernetes, omlx."
+        assert generate_kwargs["system_prompt"] == "Vocabulary: Kubernetes, molto."
         assert "prompt" not in generate_kwargs
 
     @pytest.mark.asyncio
     async def test_fallback_stream_forwards_prompt(self, tmp_path):
         """Non-streaming fallback also applies prompt biasing."""
-        from omlx_runtime.engine.stt import STTEngine
+        from molto_runtime.engine.stt import STTEngine
 
         generate_kwargs = {}
 
@@ -1062,12 +1062,12 @@ class TestSTTEngineStreaming:
         chunks = [
             c
             async for c in engine.transcribe_stream(
-                str(audio_path), prompt="Vocabulary: omlx."
+                str(audio_path), prompt="Vocabulary: molto."
             )
         ]
 
         assert chunks[0]["text"] == "ok"
-        assert generate_kwargs["system_prompt"] == "Vocabulary: omlx."
+        assert generate_kwargs["system_prompt"] == "Vocabulary: molto."
         assert "prompt" not in generate_kwargs
 
 
@@ -1205,14 +1205,14 @@ class TestSTTEndpointStreaming:
                 "model": "whisper-tiny",
                 "stream": "true",
                 "language": "zh",
-                "prompt": "Vocabulary: omlx.",
+                "prompt": "Vocabulary: molto.",
                 "max_tokens": "128",
             },
         )
 
         assert response.status_code == 200
         assert calls[0]["kwargs"]["language"] == "zh"
-        assert calls[0]["kwargs"]["prompt"] == "Vocabulary: omlx."
+        assert calls[0]["kwargs"]["prompt"] == "Vocabulary: molto."
         assert calls[0]["kwargs"]["max_tokens"] == 128
 
     def test_stream_false_keeps_json_response(self, server_audio_client):
@@ -1310,7 +1310,7 @@ class TestSTTModelAliasResolution:
 
     def test_transcription_resolves_alias(self):
         """POST /v1/audio/transcriptions with alias resolves to real model ID."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         app = create_app()
 
@@ -1340,7 +1340,7 @@ class TestSTTModelAliasResolution:
 
     def test_transcription_direct_model_id(self):
         """POST /v1/audio/transcriptions with direct model ID works without alias."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         app = create_app()
 
@@ -1393,7 +1393,7 @@ class TestSTTProcessorErrors:
     """
 
     def _stt_engine(self, model_name: str = "mlx-community/whisper-large-v3-turbo"):
-        from omlx_runtime.engine.stt import STTEngine
+        from molto_runtime.engine.stt import STTEngine
 
         return STTEngine(model_name)
 
@@ -1553,7 +1553,7 @@ class TestSTTIntegration:
         """Real transcription with small WAV and actual mlx-audio model."""
         pytest.importorskip("mlx_audio")
 
-        from omlx_runtime.engine.stt import STTEngine
+        from molto_runtime.engine.stt import STTEngine
 
         model_name = "mlx-community/whisper-tiny"
         wav_path = tmp_path / "test.wav"

@@ -5,7 +5,7 @@ import mlx.core as mx
 
 
 def test_storage_q_positions_adds_left_padding_for_minimax_2d_positions():
-    from omlx_runtime.patches.minimax_m3_sparse_attention import _storage_q_positions
+    from molto_runtime.patches.minimax_m3_sparse_attention import _storage_q_positions
 
     positions = mx.array([[2048], [1960], [1984]], dtype=mx.int32)
     left_padding = mx.array([0, 88, 64], dtype=mx.int32)
@@ -15,7 +15,7 @@ def test_storage_q_positions_adds_left_padding_for_minimax_2d_positions():
 
 
 def test_storage_q_positions_handles_decode_vector_positions():
-    from omlx_runtime.patches.minimax_m3_sparse_attention import _storage_q_positions
+    from molto_runtime.patches.minimax_m3_sparse_attention import _storage_q_positions
 
     positions = mx.array([2048, 1960, 1984], dtype=mx.int32)
     left_padding = mx.array([0, 88, 64], dtype=mx.int32)
@@ -25,7 +25,7 @@ def test_storage_q_positions_handles_decode_vector_positions():
 
 
 def test_storage_q_positions_leaves_absent_padding_unchanged():
-    from omlx_runtime.patches.minimax_m3_sparse_attention import _storage_q_positions
+    from molto_runtime.patches.minimax_m3_sparse_attention import _storage_q_positions
 
     positions = mx.array([[11, 12]], dtype=mx.int32)
 
@@ -33,8 +33,8 @@ def test_storage_q_positions_leaves_absent_padding_unchanged():
 
 
 def test_preload_dispatches_minimax_m3_sparse_patch(tmp_path, monkeypatch):
-    import omlx_runtime.patches.minimax_m3_sparse_attention as patch
-    from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+    import molto_runtime.patches.minimax_m3_sparse_attention as patch
+    from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
     calls = []
 
@@ -51,8 +51,8 @@ def test_preload_dispatches_minimax_m3_sparse_patch(tmp_path, monkeypatch):
 
 
 def test_preload_skips_minimax_m3_sparse_patch_for_llm_path(tmp_path, monkeypatch):
-    import omlx_runtime.patches.minimax_m3_sparse_attention as patch
-    from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+    import molto_runtime.patches.minimax_m3_sparse_attention as patch
+    from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
     calls = []
 
@@ -69,7 +69,7 @@ def test_preload_skips_minimax_m3_sparse_patch_for_llm_path(tmp_path, monkeypatc
 
 
 def test_minimax_m3_sparse_patch_is_idempotent_when_available():
-    from omlx_runtime.patches.minimax_m3_sparse_attention import (
+    from molto_runtime.patches.minimax_m3_sparse_attention import (
         apply_minimax_m3_sparse_attention_patch,
     )
 

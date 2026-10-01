@@ -6,11 +6,11 @@ from __future__ import annotations
 from dataclasses import replace
 
 import pytest
-from omlx_runtime.cluster import launch
-from omlx_runtime.cluster.deployment import ClusterDeployment, ClusterHost
-from omlx_runtime.cluster.planner import PipelineAssignment
-from omlx_runtime.cluster.rdma import launch_links
-from omlx_runtime.cluster.rdma.stage_plan import StageLink
+from molto_runtime.cluster import launch
+from molto_runtime.cluster.deployment import ClusterDeployment, ClusterHost
+from molto_runtime.cluster.planner import PipelineAssignment
+from molto_runtime.cluster.rdma import launch_links
+from molto_runtime.cluster.rdma.stage_plan import StageLink
 
 _LINK = StageLink(1, 0, "linka", "/tmp/mcdma-rpcd.linka.sock")
 _REPORT = {"active": True, "reason": "rank 1 sends to rank 0 over linka", "edges": []}

@@ -1,4 +1,4 @@
-"""Real oMLX management routes and persistence with synthetic engines, never weights."""
+"""Real Molto management routes and persistence with synthetic engines, never weights."""
 
 import asyncio
 import json
@@ -13,17 +13,17 @@ from types import SimpleNamespace
 import uvicorn
 from fastapi import Depends, FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, Response, StreamingResponse
-from omlx_config.model_settings import ModelSettings, ModelSettingsManager
-from omlx_config.settings import GlobalSettings, SubKeyEntry
-from omlx_management import management
-from omlx_management.management import ManagementContext, ManagementError
-from omlx_management.management_runtime import ManagementRuntime
-from omlx_runtime.engine_pool import EngineEntry, EnginePool
-from omlx_runtime.server_metrics import ServerMetrics
-from omlx_runtime.usage_history import UsageHistory
-from omlx_server.api.management_routes import router
-from omlx_server.api.management_setup_routes import router as setup_router
-from omlx_server.auth import AuthContext, require_model_load_key
+from molto_config.model_settings import ModelSettings, ModelSettingsManager
+from molto_config.settings import GlobalSettings, SubKeyEntry
+from molto_management import management
+from molto_management.management import ManagementContext, ManagementError
+from molto_management.management_runtime import ManagementRuntime
+from molto_runtime.engine_pool import EngineEntry, EnginePool
+from molto_runtime.server_metrics import ServerMetrics
+from molto_runtime.usage_history import UsageHistory
+from molto_server.api.management_routes import router
+from molto_server.api.management_setup_routes import router as setup_router
+from molto_server.auth import AuthContext, require_model_load_key
 
 MODEL = "mlx-community/test-model"
 GIB = 1024**3
@@ -205,7 +205,7 @@ async def reset(setup: bool = False):
         "ws_closed": [],
         "requests": [],
     }
-    app.state.temporary = tempfile.TemporaryDirectory(prefix="omlx-dashboard-test-")
+    app.state.temporary = tempfile.TemporaryDirectory(prefix="molto-dashboard-test-")
     directory = Path(app.state.temporary.name)
     pool = Pool(directory)
     settings = GlobalSettings(base_path=directory)
@@ -219,10 +219,10 @@ async def reset(setup: bool = False):
     logs = settings.logging.get_log_dir(directory)
     logs.mkdir(parents=True, exist_ok=True)
     (logs / "server.log").write_text(
-        "2026-10-01 10:00:00,001 - omlx_runtime.fixture - INFO - fixture ready\nERROR fixture info continuation\n2026-10-01 10:00:00,002 - omlx_runtime.fixture - WARNING - fixture warning\n2026-10-01 10:00:00,003 - omlx_runtime.fixture - ERROR - fixture failure\n  traceback continuation\n"
+        "2026-10-01 10:00:00,001 - molto_runtime.fixture - INFO - fixture ready\nERROR fixture info continuation\n2026-10-01 10:00:00,002 - molto_runtime.fixture - WARNING - fixture warning\n2026-10-01 10:00:00,003 - molto_runtime.fixture - ERROR - fixture failure\n  traceback continuation\n"
     )
     (logs / "server.log.1").write_text(
-        "2026-10-01 09:00:00,001 - omlx_runtime.fixture - INFO - rotated fixture record\n"
+        "2026-10-01 09:00:00,001 - molto_runtime.fixture - INFO - rotated fixture record\n"
     )
     history = UsageHistory(directory / "usage.sqlite3")
     for model_id, timestamp in [
@@ -387,7 +387,7 @@ async def inference_stream():
 
 @app.websocket("/v1/audio/transcriptions/realtime")
 async def synthetic_realtime(websocket: WebSocket):
-    from omlx_server.api.audio_routes import _verify_ws_api_key
+    from molto_server.api.audio_routes import _verify_ws_api_key
 
     await websocket.accept()
     try:

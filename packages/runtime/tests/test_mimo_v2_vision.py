@@ -7,13 +7,13 @@ from types import SimpleNamespace
 import mlx.core as mx
 import pytest
 from mlx.utils import tree_flatten
-from omlx_runtime.patches.mimo_v2.omnimodal import (
+from molto_runtime.patches.mimo_v2.omnimodal import (
     MiMoLanguageAdapter,
     MiMoOmnimodalModel,
     has_vision_sidecar,
     load,
 )
-from omlx_runtime.patches.mimo_v2.vision import (
+from molto_runtime.patches.mimo_v2.vision import (
     VisionAttention,
     VisionConfig,
     VisionModel,
@@ -189,7 +189,7 @@ def test_sidecar_loader_composes_text_vision_and_processor(tmp_path, monkeypatch
         return processor
 
     monkeypatch.setattr(
-        "omlx_runtime.utils.model_loading.load_text_model",
+        "molto_runtime.utils.model_loading.load_text_model",
         lambda *_args, **_kwargs: (text_model, tokenizer),
     )
     monkeypatch.setattr(
@@ -324,7 +324,7 @@ def test_image_feature_merge_is_batch_ordered_and_strict():
 
 
 def test_export_sidecars_keeps_original_media_weights_and_audio_tokenizer(tmp_path):
-    from omlx_runtime.patches.mimo_v2.omnimodal import export_sidecars
+    from molto_runtime.patches.mimo_v2.omnimodal import export_sidecars
 
     source = tmp_path / "source"
     output = tmp_path / "output"

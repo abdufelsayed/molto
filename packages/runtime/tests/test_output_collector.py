@@ -18,8 +18,8 @@ Note: Uses pytest-asyncio for async tests.
 import asyncio
 
 import pytest
-from omlx_runtime.output_collector import RequestOutputCollector, RequestStreamState
-from omlx_runtime.request import RequestOutput
+from molto_runtime.output_collector import RequestOutputCollector, RequestStreamState
+from molto_runtime.request import RequestOutput
 
 
 async def _wait_for_waiting_consumers(expected: int, timeout: float = 1.0):

@@ -102,11 +102,11 @@ temp/
 .mlx_cache/
 
 # Generated engine commit metadata (build-time artifact)
-packages/runtime/src/omlx_runtime/_engine_commits.json
+packages/runtime/src/molto_runtime/_engine_commits.json
 
 # Generated build info (build-time artifact)
-packages/runtime/src/omlx_runtime/_build_info.py
-/apps/cli/src/omlx_cli/_dashboard/
+packages/runtime/src/molto_runtime/_build_info.py
+/apps/cli/src/molto_cli/_dashboard/
 
 # Git worktrees
 .worktrees/

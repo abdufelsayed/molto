@@ -2,7 +2,7 @@
 """Tests for the N-tuple state interface on CacheTypeHandler.
 
 The legacy interface in `extract_state` / `reconstruct_cache` modeled
-state as a 2-tuple `(keys, values)` dict. omlx core had hard-coded
+state as a 2-tuple `(keys, values)` dict. molto core had hard-coded
 `state[0], state[1]` unpacking sprinkled across `prefix_cache.py`,
 `paged_ssd_cache.py`, and `boundary_snapshot_store.py`, which silently
 dropped the third+ element of N-tuple state caches like DeepSeek V4's
@@ -11,7 +11,7 @@ dropped the third+ element of N-tuple state caches like DeepSeek V4's
 This test module pins the new handler-driven interface introduced in
 Commit 1 of the cache architecture refactor: per-element axis metadata,
 generic serialize/deserialize, and seq-len recovery from a raw state
-tuple. Subsequent commits wire omlx core to use this interface; this
+tuple. Subsequent commits wire molto core to use this interface; this
 test establishes the contract those changes must keep stable.
 """
 
@@ -34,7 +34,7 @@ class TestCacheStateAxisInfoDefault:
     """Default axis_info matches the legacy 2-tuple (keys, values) contract."""
 
     def test_default_axis_info_two_elements(self):
-        from omlx_runtime.cache.type_handlers import KVCacheHandler
+        from molto_runtime.cache.type_handlers import KVCacheHandler
 
         info = KVCacheHandler().get_state_axis_info()
         assert len(info) == 2
@@ -47,7 +47,7 @@ class TestCacheStateAxisInfoDefault:
 
     def test_rotating_axis_info_marks_non_sliceable(self):
         """RotatingKVCache uses circular buffer, must not be per-block sliced."""
-        from omlx_runtime.cache.type_handlers import RotatingKVCacheHandler
+        from molto_runtime.cache.type_handlers import RotatingKVCacheHandler
 
         info = RotatingKVCacheHandler().get_state_axis_info()
         assert len(info) == 2
@@ -58,16 +58,16 @@ class TestCacheStateAxisInfoDefault:
         assert info[0].sequence_axis == 2
 
     def test_arrays_cache_marked_variable_length(self):
-        from omlx_runtime.cache.type_handlers import ArraysCacheHandler
+        from molto_runtime.cache.type_handlers import ArraysCacheHandler
 
         h = ArraysCacheHandler()
         assert h.is_variable_length_state() is True
-        # Variable-length caches return empty axis info — omlx core
+        # Variable-length caches return empty axis info — molto core
         # consults the `is_variable_length_state` flag instead.
         assert h.get_state_axis_info() == ()
 
     def test_cache_list_marked_composite(self):
-        from omlx_runtime.cache.type_handlers import CacheListHandler
+        from molto_runtime.cache.type_handlers import CacheListHandler
 
         h = CacheListHandler()
         assert h.is_composite_cache() is True
@@ -80,7 +80,7 @@ class TestSerializeStatePassthrough:
     def test_kvcache_state_serialized_as_2tuple(self):
         import mlx.core as mx
         from mlx_lm.models.cache import KVCache
-        from omlx_runtime.cache.type_handlers import KVCacheHandler
+        from molto_runtime.cache.type_handlers import KVCacheHandler
 
         cache = KVCache()
         cache.update_and_fetch(mx.zeros((1, 4, 8, 16)), mx.zeros((1, 4, 8, 16)))
@@ -89,7 +89,7 @@ class TestSerializeStatePassthrough:
         assert len(elements) == 2
 
     def test_serialize_state_handles_missing_state_attr(self):
-        from omlx_runtime.cache.type_handlers import KVCacheHandler
+        from molto_runtime.cache.type_handlers import KVCacheHandler
 
         class _Empty:
             pass
@@ -104,7 +104,7 @@ class TestDeserializeStateLegacyContract:
     def test_kvcache_round_trip_via_new_interface(self):
         import mlx.core as mx
         from mlx_lm.models.cache import KVCache
-        from omlx_runtime.cache.type_handlers import KVCacheHandler
+        from molto_runtime.cache.type_handlers import KVCacheHandler
 
         original = KVCache()
         original.update_and_fetch(
@@ -132,7 +132,7 @@ class TestSeqLenFromTuple:
 
     def test_kvcache_seq_len_from_tuple(self):
         import mlx.core as mx
-        from omlx_runtime.cache.type_handlers import KVCacheHandler
+        from molto_runtime.cache.type_handlers import KVCacheHandler
 
         keys = mx.zeros((1, 4, 13, 16))  # seq_len = 13 on axis 2
         values = mx.zeros((1, 4, 13, 16))
@@ -145,7 +145,7 @@ class TestSeqLenFromTuple:
         Default impl skips non-sliceable, so RotatingKVCache reports 0
         until a handler explicitly overrides this method."""
         import mlx.core as mx
-        from omlx_runtime.cache.type_handlers import RotatingKVCacheHandler
+        from molto_runtime.cache.type_handlers import RotatingKVCacheHandler
 
         keys = mx.zeros((1, 4, 128, 16))
         values = mx.zeros((1, 4, 128, 16))
@@ -156,12 +156,12 @@ class TestSeqLenFromTuple:
         )
 
     def test_seq_len_returns_zero_for_empty_tuple(self):
-        from omlx_runtime.cache.type_handlers import KVCacheHandler
+        from molto_runtime.cache.type_handlers import KVCacheHandler
 
         assert KVCacheHandler().get_state_seq_len_from_tuple(()) == 0
 
     def test_seq_len_returns_zero_for_none_element(self):
-        from omlx_runtime.cache.type_handlers import KVCacheHandler
+        from molto_runtime.cache.type_handlers import KVCacheHandler
 
         assert KVCacheHandler().get_state_seq_len_from_tuple((None, None)) == 0
 
@@ -170,7 +170,7 @@ class TestPagedSSDV3Format:
     """V3 safetensors format — N-tuple state keys, V2 polyfill on read."""
 
     def _make_manager(self, tmp_path):
-        from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+        from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
 
         return PagedSSDCacheManager(
             cache_dir=tmp_path / "ntuple_v3",
@@ -264,7 +264,7 @@ class TestPagedSSDV3Format:
         assert "layer_0_state_0" in loaded
         assert "layer_0_state_1" in loaded
         assert meta.get("layer_0_state_count") == "2"
-        assert meta.get("omlx_cache_format_version") == "3"
+        assert meta.get("molto_cache_format_version") == "3"
         # V2 keys must NOT exist
         assert "layer_0_keys" not in loaded
         assert "layer_0_values" not in loaded
@@ -301,7 +301,7 @@ class TestPagedSSDV3Format:
         assert loaded is not None
 
         # Smoke-check that the format version constant changed.
-        from omlx_runtime.cache.paged_ssd_cache import (
+        from molto_runtime.cache.paged_ssd_cache import (
             _CACHE_FORMAT_VERSION,
             _READABLE_CACHE_FORMAT_VERSIONS,
         )
@@ -335,7 +335,7 @@ class TestPrefixCacheNTupleSubState:
         pooled)) and verifies the third element survives the slice path.
         """
         import mlx.core as mx
-        from omlx_runtime.cache.prefix_cache import BlockAwarePrefixCache
+        from molto_runtime.cache.prefix_cache import BlockAwarePrefixCache
 
         # Stand-in cache that records type without needing a model.
         class _FakeManager:
@@ -424,7 +424,7 @@ class TestPrefixCacheNTupleSubState:
         guard at the boundary-snapshot layer.
         """
         import mlx.core as mx
-        from omlx_runtime.cache.boundary_snapshot_store import BoundarySnapshotSSDStore
+        from molto_runtime.cache.boundary_snapshot_store import BoundarySnapshotSSDStore
 
         store = BoundarySnapshotSSDStore(base_dir=tmp_path)
 
@@ -473,7 +473,7 @@ class TestPrefixCacheNTupleSubState:
         import json as _json
 
         import mlx.core as mx
-        from omlx_runtime.cache.boundary_snapshot_store import BoundarySnapshotSSDStore
+        from molto_runtime.cache.boundary_snapshot_store import BoundarySnapshotSSDStore
 
         store = BoundarySnapshotSSDStore(base_dir=tmp_path)
 
@@ -481,7 +481,7 @@ class TestPrefixCacheNTupleSubState:
         keys = mx.zeros((1, 4, 8, 16))
         values = mx.ones((1, 4, 8, 16))
         mx.eval(keys, values)
-        from omlx_runtime.cache.paged_ssd_cache import _extract_tensor_bytes
+        from molto_runtime.cache.paged_ssd_cache import _extract_tensor_bytes
 
         tensors_raw = {
             "layer_0_0": _extract_tensor_bytes(keys),
@@ -513,7 +513,7 @@ class TestPrefixCacheNTupleSubState:
 
     def test_pooling_cache_handler_axis_info(self):
         """PoolingCacheHandler exposes all persisted state as non-sliceable."""
-        from omlx_runtime.patches.deepseek_v4.cache_handlers import PoolingCacheHandler
+        from molto_runtime.patches.deepseek_v4.cache_handlers import PoolingCacheHandler
 
         info = PoolingCacheHandler().get_state_axis_info()
         assert len(info) == 5
@@ -530,13 +530,13 @@ class TestPrefixCacheNTupleSubState:
     def test_pooling_cache_deserialize_state_round_trip(self):
         """PoolingCacheHandler preserves overlap state and reads legacy state."""
         import mlx.core as mx
-        from omlx_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
+        from molto_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
 
         # PoolingCache lives in mlx_lm.models.cache only after the
         # deepseek_v4 patch is applied (it injects the class).
         apply_deepseek_v4_patch()
         from mlx_lm.models.cache import PoolingCache
-        from omlx_runtime.patches.deepseek_v4.cache_handlers import PoolingCacheHandler
+        from molto_runtime.patches.deepseek_v4.cache_handlers import PoolingCacheHandler
 
         ratio = 4
         original = PoolingCache(ratio=ratio)
@@ -578,8 +578,8 @@ class TestPrefixCacheNTupleSubState:
         """Tolerates length-2 input (e.g. coming from a legacy V2 polyfill)
         — pooled fills with None."""
         import mlx.core as mx
-        from omlx_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
-        from omlx_runtime.patches.deepseek_v4.cache_handlers import PoolingCacheHandler
+        from molto_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
+        from molto_runtime.patches.deepseek_v4.cache_handlers import PoolingCacheHandler
 
         apply_deepseek_v4_patch()
 
@@ -591,7 +591,7 @@ class TestPrefixCacheNTupleSubState:
         assert restored.ratio == 4
 
     def test_batch_pooling_cache_handler_axis_info(self):
-        from omlx_runtime.patches.deepseek_v4.cache_handlers import (
+        from molto_runtime.patches.deepseek_v4.cache_handlers import (
             BatchPoolingCacheHandler,
         )
 
@@ -603,8 +603,8 @@ class TestPrefixCacheNTupleSubState:
     def test_extract_cache_states_preserves_pooling_cache_state(self):
         """Scheduler extraction preserves pooled and overlap state tensors."""
         import mlx.core as mx
-        from omlx_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
-        from omlx_runtime.scheduler import Scheduler
+        from molto_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
+        from molto_runtime.scheduler import Scheduler
 
         apply_deepseek_v4_patch()
         from mlx_lm.models.cache import PoolingCache
@@ -635,7 +635,7 @@ class TestPrefixCacheNTupleSubState:
         unchanged — keeps the V2 shape so existing callers see no
         behavioral change."""
         import mlx.core as mx
-        from omlx_runtime.cache.prefix_cache import BlockAwarePrefixCache
+        from molto_runtime.cache.prefix_cache import BlockAwarePrefixCache
 
         prefix_cache = BlockAwarePrefixCache.__new__(BlockAwarePrefixCache)
         prefix_cache._block_size = 64
@@ -672,7 +672,7 @@ class TestPrefixCacheNTupleSubState:
 def test_chunked_cache_round_trip_preserves_trimmed_absolute_positions():
     import mlx.core as mx
     from mlx_lm.models.cache import ChunkedKVCache
-    from omlx_runtime.cache.type_registry import CacheTypeRegistry
+    from molto_runtime.cache.type_registry import CacheTypeRegistry
 
     original = ChunkedKVCache(chunk_size=4)
     values = mx.arange(48).reshape(1, 1, 12, 4).astype(mx.float32)

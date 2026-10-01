@@ -8,14 +8,14 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
-from omlx_management.management import (
+from molto_management.management import (
     ManagementContext,
     ManagementError,
     ManagementService,
 )
-from omlx_runtime.engine_pool import EngineEntry, EnginePool
-from omlx_server.api.management_routes import get_management_service, router
-from omlx_server.auth import require_management_key
+from molto_runtime.engine_pool import EngineEntry, EnginePool
+from molto_server.api.management_routes import get_management_service, router
+from molto_server.auth import require_management_key
 
 
 def _service(pool):
@@ -118,8 +118,8 @@ def test_unload_route_returns_accepted_while_requests_drain():
 async def test_lease_rejected_during_manual_unload_uses_unload_error():
     pool = MagicMock()
     pool.get_abort_requested_reason.return_value = "manual management unload"
-    from omlx_server.engine_requests import _raise_if_llm_lease_abort_requested
-    from omlx_server.shared import _LLMEngineLease
+    from molto_server.engine_requests import _raise_if_llm_lease_abort_requested
+    from molto_server.shared import _LLMEngineLease
 
     lease = _LLMEngineLease(pool=pool, model_id="model-a")
     with pytest.raises(HTTPException) as exc_info:

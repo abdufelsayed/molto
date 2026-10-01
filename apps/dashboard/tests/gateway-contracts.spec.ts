@@ -18,7 +18,7 @@ test("gateway forwards retained cluster paths and rejects unsupported operations
     await readFile("src/server/management-target.server.ts", "utf8")
   )
     .replace(
-      'import openapi from "@omlx/contracts/openapi.json"',
+      'import openapi from "@molto/contracts/openapi.json"',
       `const openapi = ${schema}`
     )
     .replace("export function operationTarget", "function operationTarget")
@@ -28,7 +28,7 @@ test("gateway forwards retained cluster paths and rejects unsupported operations
   )
   const code = ts.transpileModule(
     source.replace(
-      'import openapi from "@omlx/contracts/openapi.json"',
+      'import openapi from "@molto/contracts/openapi.json"',
       `const openapi = ${schema}`
     ),
     {
@@ -94,7 +94,7 @@ test("gateway forwards retained cluster paths and rejects unsupported operations
     for (const [method, path, target] of cases) {
       calls.length = 0
       const response = await gateway.forward(
-        new Request(`${origin}/api/omlx/${path}`, {
+        new Request(`${origin}/api/molto/${path}`, {
           method,
           headers: { origin, cookie },
           ...(method !== "GET" ? { body: "{}" } : {}),
@@ -118,7 +118,7 @@ test("gateway forwards retained cluster paths and rejects unsupported operations
     ]) {
       calls.length = 0
       const response = await gateway.forward(
-        new Request(`${origin}/api/omlx/${path}`, {
+        new Request(`${origin}/api/molto/${path}`, {
           method,
           headers: { origin, cookie },
           ...(method !== "GET" ? { body: "{}" } : {}),

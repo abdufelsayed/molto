@@ -42,7 +42,7 @@ MAX_WAV_CHUNK_SIZE = 0xFFFFFFFF
 
 def _make_mock_tts_engine(wav_bytes: bytes = None) -> MagicMock:
     """Build a mock TTSEngine that returns the given WAV bytes."""
-    from omlx_runtime.engine.tts import TTSEngine
+    from molto_runtime.engine.tts import TTSEngine
 
     engine = MagicMock(spec=TTSEngine)
     engine.synthesize = AsyncMock(return_value=wav_bytes or DUMMY_WAV)
@@ -74,7 +74,7 @@ def _make_mock_pool(tts_engine=None, model_id: str = "qwen3-tts") -> MagicMock:
 
 def _ensure_audio_routes(app):
     """Register audio routes if not already present (e.g., mlx-audio not installed)."""
-    from omlx_server.api.audio_routes import router as audio_router
+    from molto_server.api.audio_routes import router as audio_router
 
     audio_paths = {"/v1/audio/transcriptions", "/v1/audio/speech", "/v1/audio/process"}
     existing = {getattr(r, "path", "") for r in app.routes}
@@ -84,8 +84,8 @@ def _ensure_audio_routes(app):
 
 @pytest.fixture
 def server_tts_client():
-    """TestClient using the full omlx server app with mocked TTS pool."""
-    from omlx_server.server import create_app
+    """TestClient using the full molto server app with mocked TTS pool."""
+    from molto_server.server import create_app
 
     app = create_app()
 
@@ -130,7 +130,7 @@ class TestTTSKokoroLangInference:
         from types import SimpleNamespace
 
         import numpy as np
-        from omlx_runtime.engine.tts import TTSEngine
+        from molto_runtime.engine.tts import TTSEngine
 
         class FakeModel:
             sample_rate = 24000
@@ -148,14 +148,14 @@ class TestTTSKokoroLangInference:
         return engine
 
     def test_helper_covers_all_kokoro_languages(self):
-        from omlx_runtime.engine.tts import _infer_kokoro_lang_code
+        from molto_runtime.engine.tts import _infer_kokoro_lang_code
 
         for code in "abefhijpz":
             assert _infer_kokoro_lang_code(f"{code}f_test") == code
             assert _infer_kokoro_lang_code(f"{code}m_test") == code
 
     def test_helper_rejects_non_kokoro_names(self):
-        from omlx_runtime.engine.tts import _infer_kokoro_lang_code
+        from molto_runtime.engine.tts import _infer_kokoro_lang_code
 
         for name in ("aiden", "eric", "alloy", "zeta", "af", "xf_test", None, ""):
             assert _infer_kokoro_lang_code(name) is None
@@ -402,7 +402,7 @@ class TestTTSEndpointErrors:
     def test_unsupported_model_returns_error(self, server_tts_client):
         """Requesting an unknown model returns 4xx."""
         client, mock_pool = server_tts_client
-        from omlx_runtime.exceptions import ModelNotFoundError
+        from molto_runtime.exceptions import ModelNotFoundError
 
         mock_pool.get_engine.side_effect = ModelNotFoundError(
             model_id="nonexistent-tts",
@@ -701,7 +701,7 @@ class TestTTSModelAliasResolution:
 
     def test_speech_resolves_alias(self):
         """POST /v1/audio/speech with alias resolves to real model ID."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         app = create_app()
 
@@ -738,7 +738,7 @@ class TestTTSModelAliasResolution:
 
     def test_speech_direct_model_id(self):
         """POST /v1/audio/speech with direct model ID works without alias."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         app = create_app()
 
@@ -784,7 +784,7 @@ class TestTTSNativeStreamingCapability:
     def _engine_with_generate_params(self, params):
         import inspect
 
-        from omlx_runtime.engine.tts import TTSEngine
+        from molto_runtime.engine.tts import TTSEngine
 
         sig_params = {
             "text": inspect.Parameter("text", inspect.Parameter.POSITIONAL_OR_KEYWORD),
@@ -835,7 +835,7 @@ class TestTTSVoiceRouting:
         """
         import asyncio
 
-        from omlx_runtime.engine.tts import TTSEngine
+        from molto_runtime.engine.tts import TTSEngine
 
         def _run(
             generate_sig_params,
@@ -956,7 +956,7 @@ class TestTTSVoiceRouting:
         import asyncio
         import inspect
 
-        from omlx_runtime.engine.tts import TTSEngine
+        from molto_runtime.engine.tts import TTSEngine
 
         engine = TTSEngine("test-model")
         sig_params = {
@@ -1002,7 +1002,7 @@ class TestTTSVoiceRouting:
         """language stays after existing positional parameters."""
         import inspect
 
-        from omlx_runtime.engine.tts import TTSEngine
+        from molto_runtime.engine.tts import TTSEngine
 
         synth_params = list(inspect.signature(TTSEngine.synthesize).parameters)
         stream_params = list(
@@ -1028,7 +1028,7 @@ class TestTTSVoiceClonePassthrough:
         """Helper: run TTSEngine.synthesize with ref_audio/ref_text and return generate() kwargs."""
         import asyncio
 
-        from omlx_runtime.engine.tts import TTSEngine
+        from molto_runtime.engine.tts import TTSEngine
 
         def _run(ref_audio_path=None, ref_text=None):
             engine = TTSEngine("test-model")
@@ -1115,7 +1115,7 @@ class TestTTSVoiceCloneEndpoint:
     @pytest.fixture
     def clone_client(self):
         """TestClient with mocked TTS pool for voice clone tests."""
-        from omlx_server.server import create_app
+        from molto_server.server import create_app
 
         app = create_app()
 
@@ -1193,7 +1193,7 @@ class TestTTSVoiceCloneEndpoint:
     def test_oversized_ref_audio_returns_413(self, clone_client):
         """ref_audio exceeding size limit returns 413."""
         client, _ = clone_client
-        from omlx_server.api.audio_routes import MAX_REF_AUDIO_BASE64_BYTES
+        from molto_server.api.audio_routes import MAX_REF_AUDIO_BASE64_BYTES
 
         # Create a base64 string just over the limit
         huge_b64 = base64.b64encode(b"\x00" * (MAX_REF_AUDIO_BASE64_BYTES)).decode()
@@ -1316,7 +1316,7 @@ class TestTTSGenerationParams:
         """Reuse voice routing fixture pattern for gen param tests."""
         import asyncio
 
-        from omlx_runtime.engine.tts import TTSEngine
+        from molto_runtime.engine.tts import TTSEngine
 
         def _run(generate_sig_params, **synth_kwargs):
             engine = TTSEngine("test-model")
@@ -1421,7 +1421,7 @@ class TestTTSIntegration:
         """Real synthesis with actual mlx-audio TTS model produces playable WAV."""
         pytest.importorskip("mlx_audio")
 
-        from omlx_runtime.engine.tts import TTSEngine
+        from molto_runtime.engine.tts import TTSEngine
 
         model_name = "mlx-community/Kokoro-82M-mlx"
 

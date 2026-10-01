@@ -13,8 +13,8 @@ try:
 except ImportError:
     HAS_MLX = False
 
-from omlx_runtime.exceptions import InvalidRequestError
-from omlx_runtime.models.reranker import (
+from molto_runtime.exceptions import InvalidRequestError
+from molto_runtime.models.reranker import (
     MLXRerankerModel,
     RerankOutput,
     _coerce_item_to_text,
@@ -83,7 +83,7 @@ class TestVLItemBuilder:
         model = MLXRerankerModel(str(tmp_path))
         fake_img = object()
         with patch(
-            "omlx_runtime.models.reranker.load_image", return_value=fake_img
+            "molto_runtime.models.reranker.load_image", return_value=fake_img
         ) as mock_load:
             result = model._build_vl_item({"image": IMAGE_DATA_URI})
         mock_load.assert_called_once_with(IMAGE_DATA_URI, field="image")
@@ -93,7 +93,7 @@ class TestVLItemBuilder:
         model = MLXRerankerModel(str(tmp_path))
         fake_img = object()
         with patch(
-            "omlx_runtime.models.reranker.load_image", return_value=fake_img
+            "molto_runtime.models.reranker.load_image", return_value=fake_img
         ) as mock_load:
             result = model._build_vl_item({"text": "t", "image": IMAGE_DATA_URI})
         mock_load.assert_called_once_with(IMAGE_DATA_URI, field="image")
@@ -160,7 +160,7 @@ class TestVLRerankScoring:
         model.processor = MagicMock()
 
         fake_img = object()
-        with patch("omlx_runtime.models.reranker.load_image", return_value=fake_img):
+        with patch("molto_runtime.models.reranker.load_image", return_value=fake_img):
             output = model._rerank_vl(
                 query={"text": "a dog"},
                 documents=[

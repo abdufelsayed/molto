@@ -3,8 +3,8 @@
 
 from __future__ import annotations
 
-from omlx_contracts.api.openai_models import Message
-from omlx_runtime.adapter.gemma4 import (
+from molto_contracts.api.openai_models import Message
+from molto_runtime.adapter.gemma4 import (
     Gemma4OutputParserSession,
     _strip_thinking,
     extract_gemma4_messages,

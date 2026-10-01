@@ -149,7 +149,7 @@ export function KeyManagement() {
       )
       setAction(null)
       setKey("")
-      await queryClient.invalidateQueries({ queryKey: ["omlx"] })
+      await queryClient.invalidateQueries({ queryKey: ["molto"] })
     },
   })
   function open(next: KeyAction) {
@@ -425,7 +425,7 @@ function Policy({ data }: { data: AuthKeys }) {
     onSuccess: async () => {
       setEdits({})
       setSaved(true)
-      await client.invalidateQueries({ queryKey: ["omlx"] })
+      await client.invalidateQueries({ queryKey: ["molto"] })
     },
   })
   if (!fields.length) return null

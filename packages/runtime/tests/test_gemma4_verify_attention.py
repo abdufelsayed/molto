@@ -13,7 +13,7 @@ import pytest
 
 pytest.importorskip("mlx_vlm.models.gemma4")
 
-from omlx_runtime.patches import gemma4_verify_attention
+from molto_runtime.patches import gemma4_verify_attention
 
 TINY_TEXT_CONFIG = {
     "model_type": "gemma4_text",
@@ -100,7 +100,7 @@ def test_decomposed_matches_stock_logits(step_len):
     # Stock reference: bypass the route by restoring the original call.
     original = None
     for klass in type(lm.model.layers[0].self_attn).__mro__:
-        if "_omlx_verify_attn_patched" in klass.__dict__:
+        if "_molto_verify_attn_patched" in klass.__dict__:
             original = klass
             break
     assert original is g4_lang.Attention
@@ -175,7 +175,7 @@ KERNEL_TEXT_CONFIG = dict(
 
 
 def _count_fused_calls(monkeypatch, lm, prompt_len: int, step_len: int) -> int:
-    from omlx_runtime.patches import gemma4_verify_kernel as gvk
+    from molto_runtime.patches import gemma4_verify_kernel as gvk
 
     gvk.is_available()  # warm the probe (it calls fused_verify_sdpa itself)
     calls = {"n": 0}

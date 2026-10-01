@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "oMLX management API",
+    "title": "Molto management API",
     "version": "1"
   },
   "paths": {
@@ -4900,7 +4900,7 @@
           "cluster"
         ],
         "summary": "Cluster Link Status",
-        "description": "Report whether the fabric is actually usable, and how to fix it if not.\n\nDevice presence is not readiness: RDMA can be enabled but the port down, or\nactive but unroutable. Each state has a different remedy and one of them\nneeds administrator rights oMLX does not have, so the page has to say so\nrather than silently falling back to TCP.",
+        "description": "Report whether the fabric is actually usable, and how to fix it if not.\n\nDevice presence is not readiness: RDMA can be enabled but the port down, or\nactive but unroutable. Each state has a different remedy and one of them\nneeds administrator rights Molto does not have, so the page has to say so\nrather than silently falling back to TCP.",
         "operationId": "cluster_link_status_admin_api_cluster_link_status_get",
         "parameters": [
           {
@@ -5301,7 +5301,7 @@
           "cluster"
         ],
         "summary": "Cluster Node Budgets",
-        "description": "What each Mac should contribute, measured on the machine itself.\n\nReads the live oMLX admission ceiling per node rather than installed RAM:\na 256 GiB Studio can have a ~223 GiB MLX working set, and current unified\nmemory pressure can lower that further. A plan built on the larger number\nis refused by the memory guard at load.",
+        "description": "What each Mac should contribute, measured on the machine itself.\n\nReads the live Molto admission ceiling per node rather than installed RAM:\na 256 GiB Studio can have a ~223 GiB MLX working set, and current unified\nmemory pressure can lower that further. A plan built on the larger number\nis refused by the memory guard at load.",
         "operationId": "cluster_node_budgets_admin_api_cluster_node_budgets_post",
         "requestBody": {
           "content": {
@@ -5722,7 +5722,7 @@
           "cluster-discovery"
         ],
         "summary": "Cluster Node Id Probe",
-        "description": "Public, rate-limited identity probe used by peer verification.\n\nDeliberately unauthenticated: a discovering node must be able to confirm\nan announced address belongs to the announced node_id before any pairing\ntrust exists. It reveals only the stable node_id, the oMLX version, and\nthe cluster name \u2014 no capabilities, no device inventory.",
+        "description": "Public, rate-limited identity probe used by peer verification.\n\nDeliberately unauthenticated: a discovering node must be able to confirm\nan announced address belongs to the announced node_id before any pairing\ntrust exists. It reveals only the stable node_id, the Molto version, and\nthe cluster name \u2014 no capabilities, no device inventory.",
         "operationId": "cluster_node_id_probe_api_cluster_node_id_get",
         "responses": {
           "200": {
@@ -7022,7 +7022,7 @@
           "ssh"
         ],
         "title": "ClusterInventoryHostRequest",
-        "description": "A selected worker whose local oMLX model inventory should be included."
+        "description": "A selected worker whose local Molto model inventory should be included."
       },
       "ClusterJoinKeyRequest": {
         "properties": {

@@ -6,7 +6,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
-from omlx_runtime.cluster.node_role import (
+from molto_runtime.cluster.node_role import (
     HEADLESS,
     ROLES,
     WORKSTATION,
@@ -163,7 +163,7 @@ def test_the_local_budget_agrees_with_what_the_guard_admits(monkeypatch):
     """Two definitions of "the cap" is how a plan gets refused at load."""
 
     monkeypatch.setattr(
-        "omlx_runtime.cluster.memory_guard.ceiling_breakdown",
+        "molto_runtime.cluster.memory_guard.ceiling_breakdown",
         lambda *_a, **_k: {"hard_limit": 100 * GiB},
     )
     budget = suggest_budget(role="headless", runner=_sysctl(999999))
@@ -176,7 +176,7 @@ def test_a_peer_still_falls_back_to_its_gpu_cap(monkeypatch):
     """The enforcer reads *this* process; a remote Mac needs the sysctl."""
 
     monkeypatch.setattr(
-        "omlx_runtime.cluster.memory_guard.ceiling_breakdown",
+        "molto_runtime.cluster.memory_guard.ceiling_breakdown",
         lambda *_a, **_k: {"hard_limit": 100 * GiB},
     )
     budget = suggest_budget(
@@ -234,8 +234,8 @@ def test_a_headless_rank_is_not_stricter_than_the_same_mac_serving_alone():
 
 
 def test_the_guard_uses_the_roles_fraction():
-    from omlx_runtime.cluster.memory_guard import check_rank_fits
-    from omlx_runtime.exceptions import InsufficientMemoryError
+    from molto_runtime.cluster.memory_guard import check_rank_fits
+    from molto_runtime.exceptions import InsufficientMemoryError
 
     ceiling = int(107.5 * GiB)
     # 80 GiB: fine on a headless Mac, refused on one someone is using.
@@ -247,14 +247,14 @@ def test_the_guard_uses_the_roles_fraction():
 def test_an_unset_role_keeps_the_previous_behaviour():
     """Callers that never passed a role must not silently get stricter."""
 
-    from omlx_runtime.cluster.memory_guard import check_rank_fits
+    from molto_runtime.cluster.memory_guard import check_rank_fits
 
     check_rank_fits(90 * GiB, rank=0, ceiling_bytes=int(107.5 * GiB))
 
 
 def test_the_refusal_names_the_way_out():
-    from omlx_runtime.cluster.memory_guard import check_rank_fits
-    from omlx_runtime.exceptions import InsufficientMemoryError
+    from molto_runtime.cluster.memory_guard import check_rank_fits
+    from molto_runtime.exceptions import InsufficientMemoryError
 
     with pytest.raises(InsufficientMemoryError) as excinfo:
         check_rank_fits(

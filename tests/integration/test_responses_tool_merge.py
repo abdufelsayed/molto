@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """
 Integration tests for two real bugs in /v1/responses' tool-merge logic in
-omlx/server.py's create_response():
+molto/server.py's create_response():
 
 1. MCP tool-merge ordering: MCP-provided tools must reach the model even
    when the client sent no tools of its own. /v1/responses gated the merge
@@ -29,9 +29,9 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from omlx_runtime.engine.base import BaseEngine
-from omlx_server.mcp.tools import merge_tools
-from omlx_server.mcp.types import MCPTool
+from molto_runtime.engine.base import BaseEngine
+from molto_server.mcp.tools import merge_tools
+from molto_server.mcp.types import MCPTool
 
 
 class MockTokenizer:
@@ -175,7 +175,7 @@ class MockEnginePool:
         # kwargs absorb the lease protocol added by _LLMEngineLease
         # (``_lease``, optionally ``runtime_settings``) that the real
         # EnginePool.get_engine() now accepts — see get_engine() in
-        # omlx/server.py, which always passes these through.
+        # molto/server.py, which always passes these through.
         return self._engine
 
     async def release_engine(self, model_id):
@@ -383,7 +383,7 @@ class TestToolChoiceNoneSuppressesTemplateExposure:
 @pytest.fixture(autouse=True)
 def _isolated_application():
     global _test_app
-    from omlx_server.server import create_app
+    from molto_server.server import create_app
 
     _test_app = create_app()
     yield

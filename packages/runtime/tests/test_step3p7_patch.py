@@ -44,7 +44,7 @@ def _text_config(**overrides):
 
 
 def test_apply_registers_step3p7_module():
-    from omlx_runtime.patches.step3p7 import apply_step3p7_patch
+    from molto_runtime.patches.step3p7 import apply_step3p7_patch
 
     apply_step3p7_patch()
 
@@ -58,7 +58,7 @@ def test_apply_registers_step3p7_module():
 
 
 def test_apply_is_idempotent():
-    from omlx_runtime.patches.step3p7 import apply_step3p7_patch, is_applied
+    from molto_runtime.patches.step3p7 import apply_step3p7_patch, is_applied
 
     first = apply_step3p7_patch()
     second = apply_step3p7_patch()
@@ -69,7 +69,7 @@ def test_apply_is_idempotent():
 
 
 def test_get_classes_resolves_step3p7():
-    from omlx_runtime.patches.step3p7 import apply_step3p7_patch
+    from molto_runtime.patches.step3p7 import apply_step3p7_patch
 
     apply_step3p7_patch()
 
@@ -84,7 +84,7 @@ def test_get_classes_resolves_step3p7():
 
 
 def test_step3p7_wrapper_delegates_cache_and_forward():
-    from omlx_runtime.patches.step3p7 import apply_step3p7_patch
+    from molto_runtime.patches.step3p7 import apply_step3p7_patch
 
     apply_step3p7_patch()
 
@@ -103,7 +103,7 @@ def test_step3p7_wrapper_delegates_cache_and_forward():
 
 
 def test_step3p7_sanitize_drops_vision_and_nests_text_weights():
-    from omlx_runtime.patches.step3p7 import apply_step3p7_patch
+    from molto_runtime.patches.step3p7 import apply_step3p7_patch
 
     apply_step3p7_patch()
 
@@ -154,7 +154,7 @@ def test_step3p7_sanitize_drops_vision_and_nests_text_weights():
 
 
 def test_pre_load_dispatch_applies_step3p7_patch(tmp_path):
-    from omlx_runtime.patches import step3p7
+    from molto_runtime.patches import step3p7
 
     step3p7._APPLIED = False
     sys.modules.pop("mlx_lm.models.step3p7", None)
@@ -167,7 +167,7 @@ def test_pre_load_dispatch_applies_step3p7_patch(tmp_path):
         '{"model_type": "step3p7", "text_config": {"model_type": "step3p5"}}'
     )
 
-    from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+    from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
     maybe_apply_pre_load_patches(str(tmp_path))
 
@@ -177,12 +177,12 @@ def test_pre_load_dispatch_applies_step3p7_patch(tmp_path):
 
 @pytest.fixture
 def step3p7_mtp_model():
-    from omlx_runtime.patches.mlx_lm_mtp import (
+    from molto_runtime.patches.mlx_lm_mtp import (
         is_mtp_active,
         set_mtp_active,
         step3p7_model,
     )
-    from omlx_runtime.patches.step3p7 import apply_step3p7_patch
+    from molto_runtime.patches.step3p7 import apply_step3p7_patch
 
     apply_step3p7_patch()
     previous = is_mtp_active()
@@ -318,7 +318,7 @@ def test_step3p7_mtp_sanitize_accepts_nextn_prefixes(
 def test_step3p7_mtp_sanitize_tracks_streaming_norm_transforms(
     step3p7_mtp_model,
 ):
-    from omlx_runtime.oq import _TrackedTensor
+    from molto_runtime.oq import _TrackedTensor
 
     raw = step3p7_mtp_model.sanitize(
         {

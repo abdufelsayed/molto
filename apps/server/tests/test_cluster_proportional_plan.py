@@ -4,7 +4,7 @@
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from omlx_runtime.cluster.planner import (
+from molto_runtime.cluster.planner import (
     ModelLayout,
     NodeBudget,
     PlanningError,
@@ -12,7 +12,7 @@ from omlx_runtime.cluster.planner import (
     plan_proportional_pipeline,
     plan_unequal_pipeline,
 )
-from omlx_server.cluster import routes
+from molto_server.cluster import routes
 
 GIB = 1024**3
 

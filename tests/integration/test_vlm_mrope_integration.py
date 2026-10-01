@@ -166,7 +166,7 @@ def _prepare_vlm_inputs(
     import mlx.core as mx
     from mlx_vlm.prompt_utils import apply_chat_template as vlm_apply_template
     from mlx_vlm.utils import prepare_inputs
-    from omlx_runtime.utils.image import compute_image_hash
+    from molto_runtime.utils.image import compute_image_hash
 
     num_images = len(images)
     tokenizer = getattr(processor, "tokenizer", processor)
@@ -247,8 +247,8 @@ def _generate_tokens(
     vlm_extra_kwargs: dict[str, Any] | None = None,
     vlm_image_hash: str | None = None,
 ) -> tuple[list[int], int]:
-    from omlx_runtime.request import Request, SamplingParams
-    from omlx_runtime.scheduler import Scheduler, SchedulerConfig
+    from molto_runtime.request import Request, SamplingParams
+    from molto_runtime.scheduler import Scheduler, SchedulerConfig
 
     config_kwargs = dict(
         max_num_seqs=1,
@@ -312,8 +312,8 @@ def _generate_batch(
     block_size: int = 2048,
     vlm_embeds_list: list[tuple[Any, dict | None, str | None]] | None = None,
 ) -> list[tuple[str, list[int], int]]:
-    from omlx_runtime.request import Request, SamplingParams
-    from omlx_runtime.scheduler import Scheduler, SchedulerConfig
+    from molto_runtime.request import Request, SamplingParams
+    from molto_runtime.scheduler import Scheduler, SchedulerConfig
 
     n = len(prompt_list)
 
@@ -428,7 +428,7 @@ def _test_vlm_image_cache_consistency(vlm_model, processor, adapter):
     # Clear stale state before test
     adapter.clear_vlm_position_state()
 
-    tmp_dir = tempfile.mkdtemp(prefix="omlx_mrope_vlm_cache_")
+    tmp_dir = tempfile.mkdtemp(prefix="molto_mrope_vlm_cache_")
     try:
         # Fresh (cache miss)
         tokens_fresh, _ = _generate_tokens(
@@ -514,7 +514,7 @@ def _test_text_only_cache_consistency(adapter, tokenizer):
     token_ids = _apply_chat_template_as_ids(tokenizer, messages)
     print(f"    Prompt: {len(token_ids)} tokens")
 
-    tmp_dir = tempfile.mkdtemp(prefix="omlx_mrope_text_cache_")
+    tmp_dir = tempfile.mkdtemp(prefix="molto_mrope_text_cache_")
     try:
         tokens_fresh, _ = _generate_tokens(
             adapter,
@@ -697,7 +697,7 @@ def _test_mixed_batch_cache(vlm_model, processor, adapter):
         (None, None, None),
     ]
 
-    tmp_dir = tempfile.mkdtemp(prefix="omlx_mrope_mixed_cache_")
+    tmp_dir = tempfile.mkdtemp(prefix="molto_mrope_mixed_cache_")
     try:
         # Run 1: fresh (cache miss)
         results_fresh = _generate_batch(
@@ -766,7 +766,7 @@ def _test_mixed_batch_cache(vlm_model, processor, adapter):
 
 def _test_vision_feature_cache(vlm_model, processor, adapter):
     import mlx.core as mx
-    from omlx_runtime.utils.image import compute_image_hash
+    from molto_runtime.utils.image import compute_image_hash
 
     print("\n  [Test 6] Vision feature cache: store → hit → same generation...")
 
@@ -797,7 +797,7 @@ def _test_vision_feature_cache(vlm_model, processor, adapter):
     }
 
     # Try to compute vision features
-    from omlx_runtime.engine.vlm import VLMBatchedEngine
+    from molto_runtime.engine.vlm import VLMBatchedEngine
 
     engine_stub = VLMBatchedEngine.__new__(VLMBatchedEngine)
     engine_stub._vlm_model = vlm_model
@@ -888,8 +888,8 @@ def test_vlm_mrope_integration(model_path):
     print(f"mRoPE VLM Integration Test: {model_name}")
     print(f"{'=' * 60}")
 
-    from omlx_runtime.engine.vlm import _patch_video_processor_bug
-    from omlx_runtime.models.vlm import VLMModelAdapter
+    from molto_runtime.engine.vlm import _patch_video_processor_bug
+    from molto_runtime.models.vlm import VLMModelAdapter
 
     _patch_video_processor_bug()
 

@@ -2,7 +2,7 @@
 """Tests for server bind-host validation and network authentication."""
 
 import pytest
-from omlx_config.utils.network import (
+from molto_config.utils.network import (
     is_loopback_bind,
     is_loopback_bind_host,
     is_valid_bind_host,
@@ -11,7 +11,7 @@ from omlx_config.utils.network import (
 )
 
 # =============================================================================
-# Unit tests for omlx_config.utils.network
+# Unit tests for molto_config.utils.network
 # =============================================================================
 
 

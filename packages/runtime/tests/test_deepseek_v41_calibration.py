@@ -4,10 +4,10 @@ import mlx.core as mx
 import mlx.nn as nn
 import numpy as np
 import pytest
-from omlx_runtime.oq import OQImatrixCollector
-from omlx_runtime.patches.deepseek_v41.config import ModelConfig
-from omlx_runtime.patches.deepseek_v41.language import Expert
-from omlx_runtime.patches.deepseek_v41.quantization import QuantizedProjection
+from molto_runtime.oq import OQImatrixCollector
+from molto_runtime.patches.deepseek_v41.config import ModelConfig
+from molto_runtime.patches.deepseek_v41.language import Expert
+from molto_runtime.patches.deepseek_v41.quantization import QuantizedProjection
 
 
 @pytest.mark.parametrize("length", [2, 32])
@@ -82,8 +82,8 @@ def test_capture_dense_and_routed_quantized_projection_inputs(length):
 def test_inventory_matches_streamed_projection_shapes_and_bytes(tmp_path):
     import json
 
-    from omlx_runtime.patches.deepseek_v41.convert import iter_source_weights
-    from omlx_runtime.patches.deepseek_v41.oq_inventory import projection_inventory
+    from molto_runtime.patches.deepseek_v41.convert import iter_source_weights
+    from molto_runtime.patches.deepseek_v41.oq_inventory import projection_inventory
     from test_deepseek_v41 import write_checkpoint
 
     source, _ = write_checkpoint(tmp_path)
@@ -111,8 +111,8 @@ def test_inventory_matches_streamed_projection_shapes_and_bytes(tmp_path):
 
 
 def test_calibration_resume_matches_single_pass(monkeypatch):
-    import omlx_runtime.oq as oq
-    from omlx_runtime.patches.deepseek_v41.calibration import collect_imatrix
+    import molto_runtime.oq as oq
+    from molto_runtime.patches.deepseek_v41.calibration import collect_imatrix
 
     class Core(nn.Module):
         def __init__(self):
@@ -151,8 +151,8 @@ def test_calibration_resume_matches_single_pass(monkeypatch):
 
 
 def test_official_collector_routes_v41_settings(monkeypatch):
-    from omlx_runtime import oq
-    from omlx_runtime.patches.deepseek_v41 import calibration
+    from molto_runtime import oq
+    from molto_runtime.patches.deepseek_v41 import calibration
 
     received = {}
 
@@ -189,7 +189,7 @@ def test_official_collector_routes_v41_settings(monkeypatch):
 def test_official_v41_collector_closes_model_on_cancel(monkeypatch):
     from types import SimpleNamespace
 
-    from omlx_runtime.patches.deepseek_v41 import calibration, loading
+    from molto_runtime.patches.deepseek_v41 import calibration, loading
 
     events = []
     model = SimpleNamespace(close=lambda: events.append("close"))
@@ -224,8 +224,8 @@ def test_official_v41_collector_closes_model_on_cancel(monkeypatch):
 def test_adaptive_calibration_stops_on_coverage_or_available_data(
     monkeypatch, sufficient_at, expected
 ):
-    import omlx_runtime.oq as oq
-    from omlx_runtime.patches.deepseek_v41.calibration import collect_imatrix
+    import molto_runtime.oq as oq
+    from molto_runtime.patches.deepseek_v41.calibration import collect_imatrix
 
     class Collector:
         switch_capture_modules = 1
@@ -291,7 +291,7 @@ def test_adaptive_calibration_stops_on_coverage_or_available_data(
 def test_affine_plan_preserves_vision_precision(vision, calibrated_vision):
     from types import SimpleNamespace
 
-    from omlx_runtime.patches.deepseek_v41.oq_inventory import build_affine_plan
+    from molto_runtime.patches.deepseek_v41.oq_inventory import build_affine_plan
 
     good = "language_model.layers.0.ffn.experts.w1"
     missing_expert = "language_model.layers.1.ffn.experts.w1"
@@ -353,8 +353,8 @@ def test_affine_plan_preserves_vision_precision(vision, calibrated_vision):
 def test_mtp_cache_reuse_requires_v41_preservation_policy(
     monkeypatch, model_type, collection, missing
 ):
-    from omlx_runtime import oq
-    from omlx_runtime.utils import model_loading
+    from molto_runtime import oq
+    from molto_runtime.utils import model_loading
 
     monkeypatch.setattr(model_loading, "_has_mtp_heads", lambda config: True)
     monkeypatch.setattr(model_loading, "_checkpoint_has_mtp_weights", lambda path: True)

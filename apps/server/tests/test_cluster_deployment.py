@@ -5,14 +5,14 @@ import json
 import zlib
 
 import pytest
-from omlx_runtime.cluster.deployment import (
+from molto_runtime.cluster.deployment import (
     ClusterDeployment,
     ClusterHost,
     _assignment_from_dict,
     decode_worker_plan,
 )
-from omlx_runtime.cluster.performance import NodePerformanceProfile, execution_profile
-from omlx_runtime.cluster.planner import PipelineAssignment
+from molto_runtime.cluster.performance import NodePerformanceProfile, execution_profile
+from molto_runtime.cluster.planner import PipelineAssignment
 
 GIB = 1024**3
 
@@ -146,7 +146,7 @@ def test_deployment_round_trip_preserves_the_selected_context():
 
 def test_deployment_round_trip_preserves_tensor_parallel_size():
     """Tensor parallel size must survive to_dict/from_dict and worker plan encoding."""
-    from omlx_runtime.cluster.planner import PipelineAssignment
+    from molto_runtime.cluster.planner import PipelineAssignment
 
     assignments = (
         PipelineAssignment(
@@ -483,7 +483,7 @@ def test_link_local_zone_ids_are_stripped_from_communication_ips():
 
 
 def test_hostfile_advertises_routable_addresses_before_link_local():
-    from omlx_runtime.cluster.deployment import _hostfile_ips
+    from molto_runtime.cluster.deployment import _hostfile_ips
 
     host = ClusterHost(
         "node",
@@ -494,7 +494,7 @@ def test_hostfile_advertises_routable_addresses_before_link_local():
 
 
 def test_a_link_local_only_host_keeps_its_zone_free_fallback():
-    from omlx_runtime.cluster.deployment import _hostfile_ips
+    from molto_runtime.cluster.deployment import _hostfile_ips
 
     host = ClusterHost("node", "peer.local", ("fe80::1%en4",))
     assert _hostfile_ips(host) == ["fe80::1"]

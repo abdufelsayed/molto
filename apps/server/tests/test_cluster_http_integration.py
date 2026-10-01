@@ -11,11 +11,11 @@ import test_cluster_replan
 from cluster_app import cluster_app
 from fastapi import Depends, HTTPException
 from fastapi.testclient import TestClient
-from omlx_runtime.cluster import registry as runtime_registry
-from omlx_runtime.cluster import runtime
-from omlx_runtime.cluster.performance import ExecutionSettings
-from omlx_runtime.cluster.telemetry import RuntimeTelemetry
-from omlx_server.cluster import pairing_routes, routes
+from molto_runtime.cluster import registry as runtime_registry
+from molto_runtime.cluster import runtime
+from molto_runtime.cluster.performance import ExecutionSettings
+from molto_runtime.cluster.telemetry import RuntimeTelemetry
+from molto_server.cluster import pairing_routes, routes
 from test_cluster_autoconfigure import _app, _autoconfigure_payload
 from test_cluster_pairing import _loopback_pair
 from test_cluster_runtime import _marker
@@ -72,7 +72,7 @@ def test_join_mutations_are_on_admin_router():
 
 
 def test_expired_join_retains_retry_address_and_clears_code(tmp_path):
-    from omlx_runtime.cluster.pairing import CODE_TTL_SECONDS
+    from molto_runtime.cluster.pairing import CODE_TTL_SECONDS
 
     _, joiner, *_ = _loopback_pair(tmp_path)
     joiner.ui_session.begin("coordinator:8000")
@@ -115,7 +115,7 @@ def test_cancel_prevents_delayed_approval_from_completing_a_new_join(tmp_path):
 )
 def test_join_rejects_invalid_coordinator_addresses(tmp_path, address):
     _, joiner, *_ = _loopback_pair(tmp_path)
-    from omlx_runtime.cluster.pairing import PairingRequestError
+    from molto_runtime.cluster.pairing import PairingRequestError
 
     with pytest.raises(PairingRequestError):
         joiner.ui_session.begin(address)
@@ -246,8 +246,11 @@ def test_request_metrics_survive_the_runtime_validator_without_content():
 
 
 def test_autoconfigure_paths_match_activation_signature(active_deployment, monkeypatch):
-    from omlx_runtime.cluster.deployment import ClusterDeployment
-    from omlx_runtime.cluster.replan import hosts_from_deployment, nodes_from_deployment
+    from molto_runtime.cluster.deployment import ClusterDeployment
+    from molto_runtime.cluster.replan import (
+        hosts_from_deployment,
+        nodes_from_deployment,
+    )
 
     current = ClusterDeployment.from_dict(active_deployment.deployment)
     monkeypatch.setattr(routes, "_staging_for", lambda *_: {"ready": False})
@@ -279,7 +282,7 @@ def test_autoconfigure_paths_match_activation_signature(active_deployment, monke
 
 @pytest.mark.parametrize("enabled", [True, False])
 def test_worker_argument_roundtrip_keeps_ssd_limit(tmp_path, enabled):
-    from omlx_runtime.cluster.inference_worker import _execution_settings
+    from molto_runtime.cluster.inference_worker import _execution_settings
     from test_cluster_launch import _deployment, _parsed_plan
 
     deployment = _deployment()
@@ -298,7 +301,7 @@ def test_worker_argument_roundtrip_keeps_ssd_limit(tmp_path, enabled):
 
 
 def test_staging_reads_destination_path_map(tmp_path, monkeypatch):
-    from omlx_runtime.cluster import staging
+    from molto_runtime.cluster import staging
     from test_cluster_staging import _model
 
     model = _model(tmp_path / "model", layers=2, per_file=1)
@@ -335,7 +338,7 @@ def test_cancel_then_retry_same_coordinator_over_http(tmp_path, monkeypatch):
     assert not coordinator.pending_requests()
     retry = client.post("/api/cluster/pair/join", json=body)
     assert retry.status_code == 200
-    from omlx_runtime.cluster.pairing import PairingCodeError, PairingStateError
+    from molto_runtime.cluster.pairing import PairingCodeError, PairingStateError
 
     with pytest.raises(PairingCodeError):
         coordinator.cancel_join_request(joiner.node_id, old_token)
@@ -362,7 +365,7 @@ def test_lost_join_response_can_be_cancelled_before_retry(tmp_path):
         return result
 
     joiner._http_post = lose_reply
-    from omlx_runtime.cluster.pairing import PairingRequestError
+    from molto_runtime.cluster.pairing import PairingRequestError
 
     with pytest.raises(PairingRequestError):
         joiner.ui_session.begin("coordinator:8000")

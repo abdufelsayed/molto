@@ -9,7 +9,7 @@ from repo_paths import repository_root
 def _server_stream_node(name: str):
     source = (
         repository_root(__file__)
-        / "apps/server/src/omlx_server"
+        / "apps/server/src/molto_server"
         / ("responses.py" if name == "stream_responses_api" else "openai_streaming.py")
     ).read_text()
     for node in ast.walk(ast.parse(source)):

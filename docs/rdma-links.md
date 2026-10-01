@@ -9,12 +9,12 @@ guide describe the earlier interface.
 In a mixed Mac and CUDA deployment every pipeline activation normally crosses
 MLX's TCP Ring, and the Mac's side of that Ring is usually 10 GbE. A Mac with a
 ConnectX card driven by [MCDMA](https://github.com/ashhart/MCDMA) has an RDMA
-path to the CUDA workers instead. When that path is present and proven, oMLX
+path to the CUDA workers instead. When that path is present and proven, Molto
 sends the stage activation from rank 1 to rank 0 over it. Everything else stays
 on the Ring: the token all-sum, the final all-gather, and every other stage edge.
 
-oMLX never opens an RDMA device. MCDMA's `mcdma-rpcd` daemons own the queue
-pairs on both hosts, and oMLX exchanges bytes with them through shared-memory
+Molto never opens an RDMA device. MCDMA's `mcdma-rpcd` daemons own the queue
+pairs on both hosts, and Molto exchanges bytes with them through shared-memory
 mailboxes. A Python process that crashes or is killed therefore never leaves a
 queue pair behind.
 
@@ -24,27 +24,27 @@ queue pair behind.
   worker that will be rank 1.
 - `mcdma-rpcd` from the same MCDMA release on both hosts: `connect` mode on the
   Mac and `listen` mode on the worker, one peer entry per worker. Mailboxes are
-  owner-only, so the Mac's daemon runs as the user running oMLX, and the
+  owner-only, so the Mac's daemon runs as the user running Molto, and the
   worker's daemon runs as the enrolled SSH user (or as root with `--owner` set
   to that user).
-- `libmcdma-rpc` on both hosts. oMLX looks in `/usr/local/lib` and `/usr/lib`,
-  or at the path in `OMLX_MCDMA_RPC_LIBRARY`.
+- `libmcdma-rpc` on both hosts. Molto looks in `/usr/local/lib` and `/usr/lib`,
+  or at the path in `MOLTO_MCDMA_RPC_LIBRARY`.
 - The worker enrolled in the coordinator registry through the retained cluster
   API. The daemon's peer host must match exactly one enrolled worker by SSH
   target, address or hostname.
 
 The daemon must speak mailbox protocol 1: its `STATUS` reply carries `host=`,
 `device=`, `req_mib=`, `rep_mib=` and `since=` for every peer. A link whose
-peer reports no `host=` cannot be tied to a worker, so oMLX lists it but never
+peer reports no `host=` cannot be tied to a worker, so Molto lists it but never
 routes traffic through it.
 
-## How oMLX decides a link is live
+## How Molto decides a link is live
 
 A link carries activations only after three independent checks agree.
 
 1. **Daemon status.** The Mac's daemon must report the link up, and the link
    must resolve to the worker that holds rank 1.
-2. **Byte-checked probe.** oMLX starts a short-lived probe service on the
+2. **Byte-checked probe.** Molto starts a short-lived probe service on the
    worker over the cluster's SSH policy, with the same SSH target and Python
    that the launch will use for rank 1, then sends content-checked round
    trips, a bulk transfer to the worker that must come back with a matching
@@ -67,7 +67,7 @@ re-verifies and falls back to the Ring if the link is still down.
 
 ## Evidence
 
-Each probe result is kept in `cluster/rdma-links.json` under the oMLX base
+Each probe result is kept in `cluster/rdma-links.json` under the Molto base
 directory, readable by the owner only. A result stops counting as verified
 after 24 hours, or as soon as any of these change: the daemon version, the peer
 host or node, the RDMA device, the mailbox sizes, the time the link came up, or
@@ -89,11 +89,11 @@ would take the worker's end of the mailbox away from the running rank.
 
 ## Settings
 
-| Variable                  | Effect                                                              |
-| ------------------------- | ------------------------------------------------------------------- |
-| `OMLX_RDMA_STAGE_LINKS=0` | Never route stage activations over RDMA                             |
-| `OMLX_MCDMA_RPCD_SOCKET`  | Control socket of the Mac's daemon (default `/tmp/mcdma-rpcd.sock`) |
-| `OMLX_MCDMA_RPC_LIBRARY`  | Path to `libmcdma-rpc`                                              |
+| Variable                   | Effect                                                              |
+| -------------------------- | ------------------------------------------------------------------- |
+| `MOLTO_RDMA_STAGE_LINKS=0` | Never route stage activations over RDMA                             |
+| `MOLTO_MCDMA_RPCD_SOCKET`  | Control socket of the Mac's daemon (default `/tmp/mcdma-rpcd.sock`) |
+| `MOLTO_MCDMA_RPC_LIBRARY`  | Path to `libmcdma-rpc`                                              |
 
 ## Limits
 
@@ -108,7 +108,7 @@ would take the worker's end of the mailbox away from the running rank.
 
 ## Operating the daemons
 
-oMLX only reads the daemons' status; it never starts, stops or signals them.
+Molto only reads the daemons' status; it never starts, stops or signals them.
 Stop them the way MCDMA documents: the Mac's daemon first, with its `SHUTDOWN`
 command rather than a signal, and only then any worker's daemon.
 

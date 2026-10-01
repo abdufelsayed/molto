@@ -4,7 +4,7 @@ import base64
 import stat
 
 import pytest
-from omlx_runtime.cluster.ssh_keys import pin_enrolled_host_key
+from molto_runtime.cluster.ssh_keys import pin_enrolled_host_key
 
 
 def _key(material: bytes) -> str:
@@ -51,7 +51,7 @@ def test_enrolled_host_key_never_overwrites_a_changed_identity(tmp_path):
     "hostname",
     (
         "cuda-worker-1; touch /tmp/pwned",
-        "omlxworker@cuda-worker-1 && id",
+        "moltoworker@cuda-worker-1 && id",
         "-oProxyCommand=id",
     ),
 )

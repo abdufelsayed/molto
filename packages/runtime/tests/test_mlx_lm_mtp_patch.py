@@ -16,14 +16,14 @@ from mlx.utils import tree_flatten
 from mlx_lm.generate import BatchGenerator
 from mlx_lm.generate_utils import BatchCounters
 from mlx_lm.models.cache import KVCache
-from omlx_config.model_settings import ModelSettings
-from omlx_runtime.cache.type_registry import CacheTypeRegistry
-from omlx_runtime.patches import mlx_lm_mtp
-from omlx_runtime.patches.mlx_lm_mtp import batch_generator as bg
-from omlx_runtime.patches.mlx_lm_mtp import batched_head, cache_rollback
-from omlx_runtime.patches.mlx_lm_mtp.batch_policy import BatchPolicy
-from omlx_runtime.patches.mlx_vlm_mtp import qwen35_verify_linear
-from omlx_runtime.utils.model_loading import (
+from molto_config.model_settings import ModelSettings
+from molto_runtime.cache.type_registry import CacheTypeRegistry
+from molto_runtime.patches import mlx_lm_mtp
+from molto_runtime.patches.mlx_lm_mtp import batch_generator as bg
+from molto_runtime.patches.mlx_lm_mtp import batched_head, cache_rollback
+from molto_runtime.patches.mlx_lm_mtp.batch_policy import BatchPolicy
+from molto_runtime.patches.mlx_vlm_mtp import qwen35_verify_linear
+from molto_runtime.utils.model_loading import (
     _has_mtp_heads,
     _is_mtp_compatible,
     maybe_apply_pre_load_patches,
@@ -36,7 +36,7 @@ from omlx_runtime.utils.model_loading import (
 
 class TestApplyOrchestrator:
     def test_apply_idempotent(self):
-        from omlx_runtime.patches.mlx_lm_mtp import apply_mlx_lm_mtp_patch
+        from molto_runtime.patches.mlx_lm_mtp import apply_mlx_lm_mtp_patch
 
         first = apply_mlx_lm_mtp_patch()
         second = apply_mlx_lm_mtp_patch()
@@ -47,12 +47,12 @@ class TestApplyOrchestrator:
     def test_module_imports_without_mlx_lm(self, monkeypatch):
         """Importing the package must not fail even if mlx_lm is unavailable."""
         # Just exercise the import path; sub-modules are deferred to apply().
-        import omlx_runtime.patches.mlx_lm_mtp as mtp  # noqa: F401
+        import molto_runtime.patches.mlx_lm_mtp as mtp  # noqa: F401
 
 
 class TestCacheRollback:
     def test_arrays_cache_gains_rollback_slot(self):
-        from omlx_runtime.patches.mlx_lm_mtp import cache_rollback
+        from molto_runtime.patches.mlx_lm_mtp import cache_rollback
 
         applied = cache_rollback.apply()
         assert applied is True
@@ -66,7 +66,7 @@ class TestCacheRollback:
         assert cache.rollback_state is None
 
     def test_full_accept_clears_pooling_undo_chain(self):
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _clear_rollback
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _clear_rollback
 
         pool = SimpleNamespace(_undo=object(), _undo_chain=True)
         container = SimpleNamespace(caches=[SimpleNamespace(caches=[pool])])
@@ -81,10 +81,10 @@ class TestMtpBoundaryCommit:
     @staticmethod
     def _run_full_accept_cycle(monkeypatch, *, emitted, drafts, clamp=None):
         import mlx.core as mx
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator as bg
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator as bg
 
         cache = SimpleNamespace(offset=emitted - 1)
-        model = SimpleNamespace(_omlx_mtp_commit_align=4)
+        model = SimpleNamespace(_molto_mtp_commit_align=4)
         if clamp is not None:
             model.mtp_clamp_accept = lambda _cache, accepted, _drafts: min(
                 accepted, clamp
@@ -182,9 +182,9 @@ class TestQwen35Model:
     @pytest.fixture(autouse=True)
     def _apply(self):
         try:
-            from omlx_runtime.patches.mlx_lm_mtp import qwen35_model
+            from molto_runtime.patches.mlx_lm_mtp import qwen35_model
         except ImportError:
-            pytest.skip("omlx_runtime.patches.mlx_lm_mtp not importable")
+            pytest.skip("molto_runtime.patches.mlx_lm_mtp not importable")
         applied = qwen35_model.apply()
         if not applied:
             pytest.skip("qwen35_model patch refused to apply (likely mlx_lm absent)")
@@ -259,11 +259,11 @@ class TestQwen35Model:
         # module is gated by the active-flag set right before mlx_lm.load.
         assert hasattr(TextModel, "mtp_forward")
         assert hasattr(TextModel, "make_mtp_cache")
-        assert hasattr(TextModel, "_omlx_mtp_patched")
+        assert hasattr(TextModel, "_molto_mtp_patched")
 
     def test_set_mtp_active_toggles_module_flag(self):
         """The active-flag controls whether subsequent loads attach self.mtp."""
-        from omlx_runtime.patches.mlx_lm_mtp import is_mtp_active, set_mtp_active
+        from molto_runtime.patches.mlx_lm_mtp import is_mtp_active, set_mtp_active
 
         prev = is_mtp_active()
         try:
@@ -279,7 +279,7 @@ class TestQwen35Model:
 
         assert hasattr(Model, "mtp_forward")
         assert hasattr(Model, "make_mtp_cache")
-        assert hasattr(Model, "_omlx_mtp_patched")
+        assert hasattr(Model, "_molto_mtp_patched")
 
     def test_decoder_layer_omits_n_confirmed_when_zero(self):
         """DFlash replaces linear_attn.__call__ with a hook that has no
@@ -340,9 +340,9 @@ class TestQwen35MtpNormShift:
     @pytest.fixture(autouse=True)
     def _apply(self):
         try:
-            from omlx_runtime.patches.mlx_lm_mtp import qwen35_model
+            from molto_runtime.patches.mlx_lm_mtp import qwen35_model
         except ImportError:
-            pytest.skip("omlx_runtime.patches.mlx_lm_mtp not importable")
+            pytest.skip("molto_runtime.patches.mlx_lm_mtp not importable")
         if not qwen35_model.apply():
             pytest.skip("qwen35_model patch refused to apply")
 
@@ -432,7 +432,7 @@ class TestQwen35MtpNormShift:
         the same unconditional +1 "add" transform as the backbone norms. A
         pre-converted source records no transform at all."""
         import mlx.core as mx
-        from omlx_runtime.oq import _discover_sanitize_plan
+        from molto_runtime.oq import _discover_sanitize_plan
 
         m = self._model()
 
@@ -474,12 +474,12 @@ class TestQwen35MoeSanitize:
     @pytest.fixture(autouse=True)
     def _apply(self):
         try:
-            from omlx_runtime.patches.mlx_lm_mtp import qwen35_model
+            from molto_runtime.patches.mlx_lm_mtp import qwen35_model
         except ImportError:
-            pytest.skip("omlx_runtime.patches.mlx_lm_mtp not importable")
+            pytest.skip("molto_runtime.patches.mlx_lm_mtp not importable")
         if not qwen35_model.apply():
             pytest.skip("qwen35_model patch refused to apply")
-        from omlx_runtime.patches.mlx_lm_mtp.qwen35_model import _patch_qwen3_5_moe
+        from molto_runtime.patches.mlx_lm_mtp.qwen35_model import _patch_qwen3_5_moe
 
         _patch_qwen3_5_moe()
 
@@ -636,7 +636,7 @@ class TestDeepseekV4Model:
     def test_skip_when_base_patch_not_applied(self, monkeypatch):
         """deepseek_v4 MTP patch must skip cleanly if the base
         DeepSeek-V4 module hasn't been registered (= non-DeepSeek model)."""
-        from omlx_runtime.patches.mlx_lm_mtp import deepseek_v4_model
+        from molto_runtime.patches.mlx_lm_mtp import deepseek_v4_model
 
         # Simulate the base patch not having run by removing the module.
         # No module-level _PATCHED to reset anymore — sub-patcher does its
@@ -656,13 +656,13 @@ class TestDeepseekV4Model:
         not satisfied in this environment.
         """
         try:
-            from omlx_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
+            from molto_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
         except ImportError:
-            pytest.skip("omlx_runtime.patches.deepseek_v4 not importable")
+            pytest.skip("molto_runtime.patches.deepseek_v4 not importable")
         if not apply_deepseek_v4_patch():
             pytest.skip("DeepSeek-V4 base patch refused to apply in this env")
 
-        from omlx_runtime.patches.mlx_lm_mtp import deepseek_v4_model
+        from molto_runtime.patches.mlx_lm_mtp import deepseek_v4_model
 
         applied = deepseek_v4_model.apply()
         assert applied is True
@@ -672,7 +672,7 @@ class TestDeepseekV4Model:
         assert hasattr(dsv4, "MTPBlock")
         assert hasattr(dsv4.Model, "mtp_forward")
         assert hasattr(dsv4.Model, "make_mtp_cache")
-        assert hasattr(dsv4.Model, "_omlx_mtp_patched")
+        assert hasattr(dsv4.Model, "_molto_mtp_patched")
         # Idempotent.
         applied_again = deepseek_v4_model.apply()
         assert applied_again is True
@@ -681,7 +681,7 @@ class TestDeepseekV4Model:
         """DeepSeek-V4 MTP override must keep the base Metal leak fix."""
         import inspect
 
-        from omlx_runtime.patches.mlx_lm_mtp import deepseek_v4_model
+        from molto_runtime.patches.mlx_lm_mtp import deepseek_v4_model
 
         call_source = inspect.getsource(deepseek_v4_model._patch_deepseek_v4_model_call)
         model_source = inspect.getsource(deepseek_v4_model._patch_model)
@@ -693,7 +693,7 @@ class TestDeepseekV4Model:
 class TestBatchGeneratorDispatch:
     @pytest.fixture(autouse=True)
     def _apply(self):
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         applied = batch_generator.apply()
         if not applied:
@@ -702,18 +702,18 @@ class TestBatchGeneratorDispatch:
     def test_generation_batch_is_patched(self):
         from mlx_lm.generate import BatchGenerator, GenerationBatch
 
-        assert hasattr(GenerationBatch, "_omlx_mtp_patched")
-        assert hasattr(BatchGenerator, "_omlx_mtp_patched")
+        assert hasattr(GenerationBatch, "_molto_mtp_patched")
+        assert hasattr(BatchGenerator, "_molto_mtp_patched")
 
     def test_next_realigns_rows_before_mtp_eligibility(self, monkeypatch):
         """Native MTP must not read stale row slots before scheduler realignment."""
         from mlx_lm.generate import GenerationBatch
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         calls = []
         batch = SimpleNamespace(
             uids=[],
-            _omlx_realign_rows=lambda: calls.append("realign"),
+            _molto_realign_rows=lambda: calls.append("realign"),
         )
 
         monkeypatch.setattr(
@@ -739,25 +739,25 @@ class TestBatchGeneratorDispatch:
     def test_realign_can_make_grammar_rows_disable_mtp(self, monkeypatch):
         """If realignment reveals processors, MTP must not activate first."""
         from mlx_lm.generate import GenerationBatch
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         processor = object()
         model = SimpleNamespace(
             mtp=object(),
             mtp_forward=lambda *_, **__: None,
-            _omlx_mtp_decode_enabled=True,
+            _molto_mtp_decode_enabled=True,
         )
         batch = SimpleNamespace(
             model=model,
             uids=[1],
             logits_processors=[],
-            _omlx_mtp_activation_safe=True,
+            _molto_mtp_activation_safe=True,
         )
 
         def realign_rows():
             batch.logits_processors = [[processor]]
 
-        batch._omlx_realign_rows = realign_rows
+        batch._molto_realign_rows = realign_rows
 
         monkeypatch.setattr(
             batch_generator,
@@ -780,7 +780,7 @@ class TestBatchGeneratorDispatch:
         assert batch.logits_processors == [[processor]]
 
     def test_decode_eligibility_reads_model_instance_flag_not_global(self):
-        from omlx_runtime.patches.mlx_lm_mtp import (
+        from molto_runtime.patches.mlx_lm_mtp import (
             batch_generator,
             is_mtp_active,
             set_mtp_active,
@@ -789,7 +789,7 @@ class TestBatchGeneratorDispatch:
         model = SimpleNamespace(
             mtp=object(),
             mtp_forward=lambda *args, **kwargs: None,
-            _omlx_mtp_decode_enabled=True,
+            _molto_mtp_decode_enabled=True,
         )
         gen_batch = SimpleNamespace(
             model=model,
@@ -804,15 +804,15 @@ class TestBatchGeneratorDispatch:
             set_mtp_active(False)
             assert batch_generator._mtp_common_eligible(gen_batch) is True
 
-            model._omlx_mtp_decode_enabled = False
+            model._molto_mtp_decode_enabled = False
             assert batch_generator._mtp_common_eligible(gen_batch) is False
         finally:
             set_mtp_active(prior_active)
 
     def test_decode_marker_is_found_on_wrapped_language_model(self):
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
-        inner = SimpleNamespace(_omlx_mtp_decode_enabled=True)
+        inner = SimpleNamespace(_molto_mtp_decode_enabled=True)
 
         assert (
             batch_generator._model_mtp_decode_enabled(
@@ -829,14 +829,14 @@ class TestBatchGeneratorDispatch:
         assert (
             batch_generator._model_mtp_decode_enabled(
                 SimpleNamespace(
-                    language_model=SimpleNamespace(_omlx_mtp_decode_enabled=False)
+                    language_model=SimpleNamespace(_molto_mtp_decode_enabled=False)
                 )
             )
             is False
         )
 
     def test_is_mtp_eligible_requires_mtp_forward_and_solo_batch(self):
-        from omlx_runtime.patches.mlx_lm_mtp import (
+        from molto_runtime.patches.mlx_lm_mtp import (
             batch_generator,
             is_mtp_active,
             set_mtp_active,
@@ -860,7 +860,7 @@ class TestBatchGeneratorDispatch:
 
             def __init__(self, decode_enabled=True):
                 self.mtp = object()  # placeholder for an actual MTPModule
-                self._omlx_mtp_decode_enabled = decode_enabled
+                self._molto_mtp_decode_enabled = decode_enabled
 
             def mtp_forward(self, *_):
                 pass
@@ -903,7 +903,7 @@ class TestBatchGeneratorDispatch:
             set_mtp_active(prior_active)
 
     def test_singleton_activation_waits_for_batch_generator_safe_point(self):
-        from omlx_runtime.patches.mlx_lm_mtp import (
+        from molto_runtime.patches.mlx_lm_mtp import (
             batch_generator,
             is_mtp_active,
             set_mtp_active,
@@ -912,7 +912,7 @@ class TestBatchGeneratorDispatch:
         class _MtpModel:
             def __init__(self):
                 self.mtp = object()
-                self._omlx_mtp_decode_enabled = True
+                self._molto_mtp_decode_enabled = True
 
             def mtp_forward(self, *_):
                 pass
@@ -924,17 +924,17 @@ class TestBatchGeneratorDispatch:
                 model=_MtpModel(),
                 uids=[1],
                 logits_processors=[],
-                _omlx_mtp_activation_safe=False,
+                _molto_mtp_activation_safe=False,
             )
             assert batch_generator._is_mtp_eligible(batch) is False
 
-            batch._omlx_mtp_state = batch_generator._MtpState(uid=1)
+            batch._molto_mtp_state = batch_generator._MtpState(uid=1)
             assert batch_generator._is_mtp_eligible(batch) is True
         finally:
             set_mtp_active(prior_active)
 
     def test_singleton_activation_blocked_after_standard_multirow_decode(self):
-        from omlx_runtime.patches.mlx_lm_mtp import (
+        from molto_runtime.patches.mlx_lm_mtp import (
             batch_generator,
             is_mtp_active,
             set_mtp_active,
@@ -943,7 +943,7 @@ class TestBatchGeneratorDispatch:
         class _MtpModel:
             def __init__(self):
                 self.mtp = object()
-                self._omlx_mtp_decode_enabled = True
+                self._molto_mtp_decode_enabled = True
 
             def mtp_forward(self, *_):
                 pass
@@ -955,12 +955,12 @@ class TestBatchGeneratorDispatch:
                 model=_MtpModel(),
                 uids=[1],
                 logits_processors=[],
-                _omlx_mtp_activation_safe=True,
-                _omlx_mtp_saw_standard_multirow_decode=True,
+                _molto_mtp_activation_safe=True,
+                _molto_mtp_saw_standard_multirow_decode=True,
             )
             assert batch_generator._is_mtp_eligible(batch) is False
 
-            batch._omlx_mtp_state = batch_generator._MtpState(uid=1)
+            batch._molto_mtp_state = batch_generator._MtpState(uid=1)
             assert batch_generator._is_mtp_eligible(batch) is True
         finally:
             set_mtp_active(prior_active)
@@ -968,7 +968,7 @@ class TestBatchGeneratorDispatch:
     def test_batch_generator_activation_safe_helper(self):
         from collections import deque
 
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import (
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import (
             _batch_generator_allows_mtp_activation,
         )
 
@@ -998,7 +998,7 @@ class TestBatchGeneratorDispatch:
     ):
         from collections import deque
 
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         class _FakeGenerationBatch:
             def __init__(self, size, next_size, active_state):
@@ -1010,12 +1010,12 @@ class TestBatchGeneratorDispatch:
                     # A real state with a matching uid: the handoff-ready
                     # predicate validates ownership and reads queue depth.
                     self.uids = [1]
-                    self._omlx_mtp_state = batch_generator._MtpState(
+                    self._molto_mtp_state = batch_generator._MtpState(
                         uid=1,
                         queue=deque([(5, None, "draft")] * queue_len),
                     )
                 elif active_state == "batch":
-                    self._omlx_mtp_batch_state = object()
+                    self._molto_mtp_batch_state = object()
 
             def __len__(self):
                 return self.size
@@ -1141,10 +1141,10 @@ class TestBatchGeneratorDispatch:
         assert bg.completion_batch_size == 4
 
     def test_empty_generation_batch_with_stale_mtp_state_does_not_defer(self):
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         class _EmptyBatch:
-            _omlx_mtp_state = batch_generator._MtpState(uid=1)
+            _molto_mtp_state = batch_generator._MtpState(uid=1)
 
             def __len__(self):
                 return 0
@@ -1154,13 +1154,13 @@ class TestBatchGeneratorDispatch:
     def test_handoff_ready_truth_table(self):
         from collections import deque
 
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         def make(queue_len=1, **overrides):
             batch = SimpleNamespace(
                 uids=[1],
-                _omlx_mtp_activation_safe=False,
-                _omlx_mtp_state=batch_generator._MtpState(
+                _molto_mtp_activation_safe=False,
+                _molto_mtp_state=batch_generator._MtpState(
                     uid=1, queue=deque([(5, None, "draft")] * queue_len)
                 ),
             )
@@ -1172,14 +1172,14 @@ class TestBatchGeneratorDispatch:
         assert ready(None) is False
         # Missing activation-safe stamp means no known pending work.
         unstamped = make()
-        delattr(unstamped, "_omlx_mtp_activation_safe")
+        delattr(unstamped, "_molto_mtp_activation_safe")
         assert ready(unstamped) is False
-        assert ready(make(_omlx_mtp_activation_safe=True)) is False
+        assert ready(make(_molto_mtp_activation_safe=True)) is False
         # Row-wise batch state keeps the deferral.
-        assert ready(make(_omlx_mtp_batch_state=object())) is False
+        assert ready(make(_molto_mtp_batch_state=object())) is False
         # Stale or absent singleton state keeps the pin.
         assert ready(make(uids=[2])) is False
-        assert ready(make(_omlx_mtp_state=None)) is False
+        assert ready(make(_molto_mtp_state=None)) is False
         assert ready(make(queue_len=0)) is True
         assert ready(make(queue_len=1)) is True
         assert ready(make(queue_len=2)) is False
@@ -1188,13 +1188,13 @@ class TestBatchGeneratorDispatch:
         from collections import deque
 
         from mlx_lm.generate import GenerationBatch
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         state = batch_generator._MtpState(uid=1, queue=deque([(5, None, "draft")]))
         batch = SimpleNamespace(
             uids=[1],
-            _omlx_mtp_state=state,
-            _omlx_mtp_activation_safe=False,
+            _molto_mtp_state=state,
+            _molto_mtp_activation_safe=False,
         )
 
         calls = []
@@ -1202,7 +1202,7 @@ class TestBatchGeneratorDispatch:
         def fake_handoff(gen_batch, handoff_state):
             assert handoff_state is state
             calls.append("handoff")
-            del gen_batch._omlx_mtp_state
+            del gen_batch._molto_mtp_state
             return True
 
         monkeypatch.setattr(batch_generator, "_is_mtp_batch_eligible", lambda _: False)
@@ -1227,13 +1227,13 @@ class TestBatchGeneratorDispatch:
         from collections import deque
 
         from mlx_lm.generate import GenerationBatch
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         state = batch_generator._MtpState(uid=1, queue=deque([(5, None, "draft")]))
         batch = SimpleNamespace(
             uids=[1],
-            _omlx_mtp_state=state,
-            _omlx_mtp_activation_safe=True,
+            _molto_mtp_state=state,
+            _molto_mtp_activation_safe=True,
         )
         sentinel = ["mtp-step"]
 
@@ -1253,11 +1253,11 @@ class TestBatchGeneratorDispatch:
 
     def test_patched_next_counts_parked_standard_tokens(self, monkeypatch):
         from mlx_lm.generate import GenerationBatch
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         batch = SimpleNamespace(
             uids=[7],
-            _omlx_mtp_park_state=batch_generator._MtpParkState(
+            _molto_mtp_park_state=batch_generator._MtpParkState(
                 uid=7,
                 tokens_remaining=2,
             ),
@@ -1274,9 +1274,9 @@ class TestBatchGeneratorDispatch:
         monkeypatch.setattr(batch_generator, "_drop_mtp_state", lambda *_, **__: None)
 
         GenerationBatch.next(batch)
-        assert batch._omlx_mtp_park_state.tokens_remaining == 1
+        assert batch._molto_mtp_park_state.tokens_remaining == 1
         GenerationBatch.next(batch)
-        assert batch._omlx_mtp_park_state.tokens_remaining == 0
+        assert batch._molto_mtp_park_state.tokens_remaining == 0
 
     def _make_handoff_batch(self, monkeypatch, *, queue_entries, next_main=None):
         """Fake singleton batch for _handoff_mtp_for_late_join tests.
@@ -1288,7 +1288,7 @@ class TestBatchGeneratorDispatch:
 
         import mlx.core as mx
         import numpy as np
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         vocab = 8
         backbone_calls = []
@@ -1324,7 +1324,7 @@ class TestBatchGeneratorDispatch:
             _next_logprobs=[],
             _token_context=[],
             prompt_cache=[_FakeCache()],
-            _omlx_mtp_state=state,
+            _molto_mtp_state=state,
         )
         return batch_generator, batch, state, backbone_calls
 
@@ -1351,9 +1351,9 @@ class TestBatchGeneratorDispatch:
         assert batch.prompt_cache[0] is old_cache
         assert old_cache.rollback_state is None
         assert old_cache._mtp_draft_stash is None
-        assert not hasattr(batch, "_omlx_mtp_state")
-        assert not hasattr(batch, "_omlx_mtp_park_state")
-        assert not hasattr(batch, "_omlx_mtp_tax_probe")
+        assert not hasattr(batch, "_molto_mtp_state")
+        assert not hasattr(batch, "_molto_mtp_park_state")
+        assert not hasattr(batch, "_molto_mtp_tax_probe")
 
     def test_late_join_handoff_queue_empty_feeds_next_main_without_parking(
         self, monkeypatch
@@ -1372,9 +1372,9 @@ class TestBatchGeneratorDispatch:
         assert batch._next_tokens.tolist() == [5]
         assert batch.prompt_cache[0].rollback_state is None
         assert batch.prompt_cache[0]._mtp_draft_stash is None
-        assert not hasattr(batch, "_omlx_mtp_state")
-        assert not hasattr(batch, "_omlx_mtp_park_state")
-        assert not hasattr(batch, "_omlx_mtp_tax_probe")
+        assert not hasattr(batch, "_molto_mtp_state")
+        assert not hasattr(batch, "_molto_mtp_park_state")
+        assert not hasattr(batch, "_molto_mtp_tax_probe")
 
     def test_late_join_handoff_declines_deep_queue(self, monkeypatch):
         import mlx.core as mx
@@ -1386,7 +1386,7 @@ class TestBatchGeneratorDispatch:
         )
 
         assert bg._handoff_mtp_for_late_join(batch, state) is False
-        assert batch._omlx_mtp_state is state
+        assert batch._molto_mtp_state is state
         assert batch._next_tokens.tolist() == [999]
         assert backbone_calls == []
 
@@ -1445,7 +1445,7 @@ class TestBatchGeneratorDispatch:
             with pytest.raises(RuntimeError, match="could not restore") as caught:
                 getattr(bg, handoff)(batch, state)
             assert caught.value.__cause__ is error
-            assert batch._omlx_mtp_state is state
+            assert batch._molto_mtp_state is state
             assert batch._next_tokens.tolist() == [999]
         else:
             assert getattr(bg, handoff)(batch, state)
@@ -1455,7 +1455,7 @@ class TestBatchGeneratorDispatch:
             assert batch._token_context[0].tokens.tolist() == [10, 11, 12, 13]
             assert processor.count == 1
             assert processor.prefixes == [[10, 11, 12, 13]] * 2
-            assert not hasattr(batch, "_omlx_mtp_state")
+            assert not hasattr(batch, "_molto_mtp_state")
         assert backbone_calls == [1]
 
     def test_performance_park_starts_reentry_cooldown(self, monkeypatch):
@@ -1469,10 +1469,10 @@ class TestBatchGeneratorDispatch:
 
         assert bg._park_mtp_to_standard(batch, state) is True
         assert backbone_calls == [1]
-        assert batch._omlx_mtp_park_state.uid == 7
-        assert batch._omlx_mtp_park_state.tokens_remaining == 128
+        assert batch._molto_mtp_park_state.uid == 7
+        assert batch._molto_mtp_park_state.tokens_remaining == 128
         assert batch._next_tokens.tolist() == [5]
-        assert not hasattr(batch, "_omlx_mtp_state")
+        assert not hasattr(batch, "_molto_mtp_state")
 
     def test_failed_reentry_probe_doubles_cooldown(self, monkeypatch):
         import mlx.core as mx
@@ -1489,23 +1489,23 @@ class TestBatchGeneratorDispatch:
             next_main=mx.array([7], dtype=mx.uint32),
             reentry_probe=True,
         )
-        batch._omlx_mtp_state = retry
+        batch._molto_mtp_state = retry
         assert bg._park_mtp_to_standard(batch, retry) is True
-        assert batch._omlx_mtp_park_state.tokens_remaining == 256
+        assert batch._molto_mtp_park_state.tokens_remaining == 256
 
     def test_batch_eligibility_requires_safe_activation(self, monkeypatch):
-        from omlx_runtime.patches.mlx_lm_mtp import (
+        from molto_runtime.patches.mlx_lm_mtp import (
             batch_generator,
             is_mtp_active,
             set_mtp_active,
         )
 
         class _MtpModel:
-            _omlx_mtp_multi_request = True
+            _molto_mtp_multi_request = True
 
             def __init__(self):
                 self.mtp = object()
-                self._omlx_mtp_decode_enabled = True
+                self._molto_mtp_decode_enabled = True
 
             def mtp_forward(self, *_):
                 pass
@@ -1517,15 +1517,15 @@ class TestBatchGeneratorDispatch:
                 model=_MtpModel(),
                 uids=[1, 2],
                 logits_processors=[],
-                _omlx_mtp_activation_safe=True,
+                _molto_mtp_activation_safe=True,
                 prompt_cache=[],
             )
             assert batch_generator._is_mtp_batch_eligible(batch) is True
 
-            batch._omlx_mtp_activation_safe = False
+            batch._molto_mtp_activation_safe = False
             assert batch_generator._is_mtp_batch_eligible(batch) is False
 
-            batch._omlx_mtp_batch_state = batch_generator._MtpBatchState(
+            batch._molto_mtp_batch_state = batch_generator._MtpBatchState(
                 states={1: batch_generator._MtpState(uid=1)}
             )
             assert batch_generator._is_mtp_batch_eligible(batch) is True
@@ -1537,7 +1537,7 @@ class TestBatchGeneratorDispatch:
         # cache offsets rarely align. Activation must not require alignment:
         # each row is seeded from its own extract_cache view and steady-state
         # row cycles diverge the offsets anyway (#2150).
-        from omlx_runtime.patches.mlx_lm_mtp import (
+        from molto_runtime.patches.mlx_lm_mtp import (
             batch_generator,
             is_mtp_active,
             set_mtp_active,
@@ -1551,11 +1551,11 @@ class TestBatchGeneratorDispatch:
                 return list(self._values)
 
         class _MtpModel:
-            _omlx_mtp_multi_request = True
+            _molto_mtp_multi_request = True
 
             def __init__(self):
                 self.mtp = object()
-                self._omlx_mtp_decode_enabled = True
+                self._molto_mtp_decode_enabled = True
 
             def mtp_forward(self, *_):
                 pass
@@ -1567,7 +1567,7 @@ class TestBatchGeneratorDispatch:
                 model=_MtpModel(),
                 uids=[1, 2],
                 logits_processors=[],
-                _omlx_mtp_activation_safe=True,
+                _molto_mtp_activation_safe=True,
                 prompt_cache=[SimpleNamespace(offset=_Offset([8, 5]))],
             )
             assert batch_generator._is_mtp_batch_eligible(batch) is True
@@ -1579,18 +1579,18 @@ class TestBatchGeneratorDispatch:
         # only. A batch's first decode step is always standard (MTP has not
         # activated yet), so blocking batch activation on the marker would
         # permanently lock every batch out of row-wise MTP (#2150).
-        from omlx_runtime.patches.mlx_lm_mtp import (
+        from molto_runtime.patches.mlx_lm_mtp import (
             batch_generator,
             is_mtp_active,
             set_mtp_active,
         )
 
         class _MtpModel:
-            _omlx_mtp_multi_request = True
+            _molto_mtp_multi_request = True
 
             def __init__(self):
                 self.mtp = object()
-                self._omlx_mtp_decode_enabled = True
+                self._molto_mtp_decode_enabled = True
 
             def mtp_forward(self, *_):
                 pass
@@ -1602,8 +1602,8 @@ class TestBatchGeneratorDispatch:
                 model=_MtpModel(),
                 uids=[1, 2],
                 logits_processors=[],
-                _omlx_mtp_activation_safe=True,
-                _omlx_mtp_saw_standard_multirow_decode=True,
+                _molto_mtp_activation_safe=True,
+                _molto_mtp_saw_standard_multirow_decode=True,
                 prompt_cache=[],
             )
             assert batch_generator._is_mtp_batch_eligible(batch) is True
@@ -1612,8 +1612,8 @@ class TestBatchGeneratorDispatch:
                 model=_MtpModel(),
                 uids=[1],
                 logits_processors=[],
-                _omlx_mtp_activation_safe=True,
-                _omlx_mtp_saw_standard_multirow_decode=True,
+                _molto_mtp_activation_safe=True,
+                _molto_mtp_saw_standard_multirow_decode=True,
             )
             assert batch_generator._is_mtp_eligible(singleton) is False
         finally:
@@ -1623,7 +1623,7 @@ class TestBatchGeneratorDispatch:
         # A batch that shrinks back to one row with no residual left padding
         # satisfies the singleton-init invariant again, so the multirow
         # marker must lift and the surviving request regains MTP (#2150).
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         class _Padding:
             def __init__(self, values):
@@ -1634,36 +1634,36 @@ class TestBatchGeneratorDispatch:
 
         batch = SimpleNamespace(
             uids=[1],
-            _omlx_mtp_saw_standard_multirow_decode=True,
+            _molto_mtp_saw_standard_multirow_decode=True,
             prompt_cache=[SimpleNamespace(left_padding=_Padding([0]))],
         )
         batch_generator._maybe_clear_multirow_marker(batch)
-        assert batch._omlx_mtp_saw_standard_multirow_decode is False
+        assert batch._molto_mtp_saw_standard_multirow_decode is False
 
         # Residual padding: the invariant does not hold — keep the marker.
         padded = SimpleNamespace(
             uids=[1],
-            _omlx_mtp_saw_standard_multirow_decode=True,
+            _molto_mtp_saw_standard_multirow_decode=True,
             prompt_cache=[SimpleNamespace(left_padding=_Padding([3]))],
         )
         batch_generator._maybe_clear_multirow_marker(padded)
-        assert padded._omlx_mtp_saw_standard_multirow_decode is True
+        assert padded._molto_mtp_saw_standard_multirow_decode is True
 
         # Still multi-row: never clears.
         multirow = SimpleNamespace(
             uids=[1, 2],
-            _omlx_mtp_saw_standard_multirow_decode=True,
+            _molto_mtp_saw_standard_multirow_decode=True,
             prompt_cache=[SimpleNamespace(left_padding=_Padding([0, 0]))],
         )
         batch_generator._maybe_clear_multirow_marker(multirow)
-        assert multirow._omlx_mtp_saw_standard_multirow_decode is True
+        assert multirow._molto_mtp_saw_standard_multirow_decode is True
 
     def test_singleton_recovery_checks_cachelist_sub_caches(self):
         # CacheList layers (GLM 5.2 / DeepSeek v3.2 lineage) keep left
         # padding on their sub-caches, not on the container. The compactness
         # check must recurse into ``.caches`` instead of skipping the layer,
         # or the marker clears without verifying anything.
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         class _Padding:
             def __init__(self, values):
@@ -1678,15 +1678,15 @@ class TestBatchGeneratorDispatch:
 
         padded = SimpleNamespace(
             uids=[1],
-            _omlx_mtp_saw_standard_multirow_decode=True,
+            _molto_mtp_saw_standard_multirow_decode=True,
             prompt_cache=[_CacheList(SimpleNamespace(left_padding=_Padding([3])))],
         )
         batch_generator._maybe_clear_multirow_marker(padded)
-        assert padded._omlx_mtp_saw_standard_multirow_decode is True
+        assert padded._molto_mtp_saw_standard_multirow_decode is True
 
         compact = SimpleNamespace(
             uids=[1],
-            _omlx_mtp_saw_standard_multirow_decode=True,
+            _molto_mtp_saw_standard_multirow_decode=True,
             prompt_cache=[
                 _CacheList(
                     SimpleNamespace(left_padding=_Padding([0])),
@@ -1695,10 +1695,10 @@ class TestBatchGeneratorDispatch:
             ],
         )
         batch_generator._maybe_clear_multirow_marker(compact)
-        assert compact._omlx_mtp_saw_standard_multirow_decode is False
+        assert compact._molto_mtp_saw_standard_multirow_decode is False
 
     def test_mtp_state_valid_requires_single_matching_uid(self):
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import (
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import (
             _mtp_state_valid_for_batch,
             _MtpState,
         )
@@ -1712,39 +1712,39 @@ class TestBatchGeneratorDispatch:
         assert _mtp_state_valid_for_batch(SimpleNamespace(uids=[7]), None) is False
 
     def test_drop_invalid_mtp_state_after_batch_reshape(self):
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import (
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import (
             _drop_invalid_mtp_state,
             _MtpState,
         )
 
-        batch = SimpleNamespace(uids=[1, 2], _omlx_mtp_state=_MtpState(uid=1))
+        batch = SimpleNamespace(uids=[1, 2], _molto_mtp_state=_MtpState(uid=1))
 
         dropped = _drop_invalid_mtp_state(batch, "test-reshape")
 
         assert dropped is not None
-        assert not hasattr(batch, "_omlx_mtp_state")
+        assert not hasattr(batch, "_molto_mtp_state")
 
     def test_drop_invalid_mtp_state_keeps_matching_singleton(self):
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import (
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import (
             _drop_invalid_mtp_state,
             _MtpState,
         )
 
         state = _MtpState(uid=1)
-        batch = SimpleNamespace(uids=[1], _omlx_mtp_state=state)
+        batch = SimpleNamespace(uids=[1], _molto_mtp_state=state)
 
         kept = _drop_invalid_mtp_state(batch, "test-filter")
 
         assert kept is state
-        assert batch._omlx_mtp_state is state
+        assert batch._molto_mtp_state is state
 
     def test_prepare_mtp_state_lazy_activates_with_current_uid(self, monkeypatch):
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         class _MtpModel:
             def __init__(self):
                 self.mtp = object()
-                self._omlx_mtp_decode_enabled = True
+                self._molto_mtp_decode_enabled = True
 
             def mtp_forward(self, *_):
                 pass
@@ -1756,22 +1756,24 @@ class TestBatchGeneratorDispatch:
         )
 
         def fake_post_init(gen_batch):
-            gen_batch._omlx_mtp_state = batch_generator._MtpState(uid=gen_batch.uids[0])
+            gen_batch._molto_mtp_state = batch_generator._MtpState(
+                uid=gen_batch.uids[0]
+            )
 
         monkeypatch.setattr(batch_generator, "_post_init_mtp", fake_post_init)
 
         state = batch_generator._prepare_mtp_state_for_next(batch)
 
-        assert state is batch._omlx_mtp_state
+        assert state is batch._molto_mtp_state
         assert state.uid == 42
 
     def test_prepare_mtp_state_drops_stale_owner_and_reinitializes(self, monkeypatch):
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         class _MtpModel:
             def __init__(self):
                 self.mtp = object()
-                self._omlx_mtp_decode_enabled = True
+                self._molto_mtp_decode_enabled = True
 
             def mtp_forward(self, *_):
                 pass
@@ -1781,17 +1783,19 @@ class TestBatchGeneratorDispatch:
             model=_MtpModel(),
             uids=[2],
             logits_processors=[],
-            _omlx_mtp_state=old_state,
+            _molto_mtp_state=old_state,
         )
 
         def fake_post_init(gen_batch):
-            gen_batch._omlx_mtp_state = batch_generator._MtpState(uid=gen_batch.uids[0])
+            gen_batch._molto_mtp_state = batch_generator._MtpState(
+                uid=gen_batch.uids[0]
+            )
 
         monkeypatch.setattr(batch_generator, "_post_init_mtp", fake_post_init)
 
         state = batch_generator._prepare_mtp_state_for_next(batch)
 
-        assert state is batch._omlx_mtp_state
+        assert state is batch._molto_mtp_state
         assert state is not old_state
         assert state.uid == 2
 
@@ -1807,7 +1811,7 @@ class TestBatchGeneratorDispatch:
 
         import mlx.core as mx
         import numpy as np
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         vocab = 8
 
@@ -1844,7 +1848,7 @@ class TestBatchGeneratorDispatch:
             _next_logprobs=[],
             _token_context=[],
             prompt_cache=[object()],  # old MTP-advanced cache, to be replaced
-            _omlx_mtp_state=state,
+            _molto_mtp_state=state,
         )
         return batch_generator, batch, state
 
@@ -1928,7 +1932,7 @@ class TestBatchGeneratorDispatch:
         with pytest.raises(RuntimeError, match="could not restore the committed cache"):
             GenerationBatch.extend(batch, donor)
         assert batch.uids == [7]
-        assert batch._omlx_mtp_state is state
+        assert batch._molto_mtp_state is state
 
 
 # ---------------------------------------------------------------------------
@@ -2051,7 +2055,7 @@ class TestRowExactVerifyGate:
         )
 
         class _Model:
-            _omlx_mtp_row_exact_verify = True
+            _molto_mtp_row_exact_verify = True
 
             def __call__(self, inputs, **kwargs):
                 return mx.zeros((*inputs.shape, 8)), mx.zeros((*inputs.shape, 4))
@@ -2128,7 +2132,7 @@ class TestResolveSampler:
 
     @pytest.fixture(autouse=True)
     def _apply(self):
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         applied = batch_generator.apply()
         if not applied:
@@ -2141,28 +2145,28 @@ class TestResolveSampler:
         )
 
     def test_returns_first_sampler_when_present(self):
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _resolve_sampler
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _resolve_sampler
 
         sampler = object()
         batch = self._make_batch(samplers=[sampler])
         assert _resolve_sampler(batch) is sampler
 
     def test_skips_none_sampler_and_uses_fallback(self):
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _resolve_sampler
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _resolve_sampler
 
         fallback = object()
         batch = self._make_batch(samplers=[None], fallback_sampler=fallback)
         assert _resolve_sampler(batch) is fallback
 
     def test_uses_fallback_when_samplers_empty(self):
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _resolve_sampler
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _resolve_sampler
 
         fallback = object()
         batch = self._make_batch(samplers=[], fallback_sampler=fallback)
         assert _resolve_sampler(batch) is fallback
 
     def test_uses_fallback_when_samplers_missing(self):
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _resolve_sampler
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _resolve_sampler
 
         fallback = object()
         batch = self._make_batch(samplers=None, fallback_sampler=fallback)
@@ -2170,7 +2174,7 @@ class TestResolveSampler:
 
     def test_prefers_samplers_0_over_fallback(self):
         """Even if fallback_sampler is set, samplers[0] takes priority."""
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _resolve_sampler
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _resolve_sampler
 
         primary = object()
         fallback = object()
@@ -2189,7 +2193,7 @@ class TestIsGreedy:
 
     @pytest.fixture(autouse=True)
     def _apply(self):
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         applied = batch_generator.apply()
         if not applied:
@@ -2209,41 +2213,41 @@ class TestIsGreedy:
         return SimpleNamespace()
 
     def test_greedy_when_sampler_temp_is_zero(self):
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _is_greedy
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _is_greedy
 
         batch = self._make_batch(samplers=[self._make_sampler(temp=0.0)])
         assert _is_greedy(batch) is True
 
     def test_not_greedy_when_sampler_temp_is_positive(self):
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _is_greedy
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _is_greedy
 
         batch = self._make_batch(samplers=[self._make_sampler(temp=0.7)])
         assert _is_greedy(batch) is False
 
     def test_greedy_when_sampler_has_no_temp_attribute(self):
         """Missing ``temp`` defaults to 0.0 → greedy."""
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _is_greedy
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _is_greedy
 
         batch = self._make_batch(samplers=[self._make_sampler_no_temp()])
         assert _is_greedy(batch) is True
 
     def test_greedy_when_sampler_is_none(self):
         """No sampler → falls back to fallback_sampler → greedy."""
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _is_greedy
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _is_greedy
 
         batch = self._make_batch(samplers=[None], fallback_sampler=None)
         assert _is_greedy(batch) is True
 
     def test_greedy_when_samplers_empty(self):
         """Empty samplers list → falls back to fallback_sampler → greedy."""
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _is_greedy
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _is_greedy
 
         batch = self._make_batch(samplers=[], fallback_sampler=None)
         assert _is_greedy(batch) is True
 
     def test_not_greedy_via_fallback_sampler(self):
         """When samplers[0] is None, the fallback sampler's temp is checked."""
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _is_greedy
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _is_greedy
 
         batch = self._make_batch(
             samplers=[None],
@@ -2253,7 +2257,7 @@ class TestIsGreedy:
 
     def test_greedy_via_fallback_sampler(self):
         """Fallback sampler with temp=0.0 → greedy."""
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _is_greedy
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _is_greedy
 
         batch = self._make_batch(
             samplers=[None],
@@ -2263,7 +2267,7 @@ class TestIsGreedy:
 
     def test_greedy_fallback_no_temp_attribute(self):
         """Fallback sampler without ``temp`` → defaults to 0.0 → greedy."""
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _is_greedy
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _is_greedy
 
         batch = self._make_batch(
             samplers=[None],
@@ -2273,7 +2277,7 @@ class TestIsGreedy:
 
     def test_greedy_when_fallback_is_none(self):
         """Both samplers and fallback are None → greedy."""
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _is_greedy
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _is_greedy
 
         batch = self._make_batch(samplers=None, fallback_sampler=None)
         assert _is_greedy(batch) is True
@@ -2307,7 +2311,7 @@ class TestMTPPatchSelfHealing:
         """Apply MTP patch, simulate dflash overwriting __call__, then re-apply
         the MTP patch — the class must end up with an n_confirmed-aware __call__
         again."""
-        from omlx_runtime.patches.mlx_lm_mtp import qwen35_model
+        from molto_runtime.patches.mlx_lm_mtp import qwen35_model
 
         assert qwen35_model.apply()
         from mlx_lm.models.qwen3_5 import GatedDeltaNet
@@ -2343,7 +2347,7 @@ class TestMTPPatchSelfHealing:
 
     def test_decoder_layer_reapplies_after_class_overwrite(self):
         """Same scenario for DecoderLayer.__call__."""
-        from omlx_runtime.patches.mlx_lm_mtp import qwen35_model
+        from molto_runtime.patches.mlx_lm_mtp import qwen35_model
 
         assert qwen35_model.apply()
         from mlx_lm.models.qwen3_5 import DecoderLayer
@@ -2377,7 +2381,7 @@ class TestMTPPatchSelfHealing:
         """Top-level apply_mlx_lm_mtp_patch must also re-run sub-patches when
         the underlying classes have been clobbered by another patch (dflash).
         """
-        from omlx_runtime.patches.mlx_lm_mtp import apply_mlx_lm_mtp_patch
+        from molto_runtime.patches.mlx_lm_mtp import apply_mlx_lm_mtp_patch
 
         assert apply_mlx_lm_mtp_patch() is True
         from mlx_lm.models.qwen3_5 import GatedDeltaNet
@@ -2389,7 +2393,7 @@ class TestMTPPatchSelfHealing:
         # Identity check: the current __call__ is the MTP-patched one
         # (has our marker attribute set in the new implementation).
         current_call = GatedDeltaNet.__dict__.get("__call__")
-        assert getattr(current_call, "_omlx_mtp_call_marker", False), (
+        assert getattr(current_call, "_molto_mtp_call_marker", False), (
             f"__call__ should carry the MTP marker after re-apply, got {current_call!r}"
         )
 
@@ -2421,7 +2425,7 @@ class TestRestoreOrTrimAtomicity:
     layer's cache)."""
 
     def test_partial_trim_is_rolled_back_to_noop(self):
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import (
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import (
             _restore_or_trim_caches,
         )
 
@@ -2433,7 +2437,7 @@ class TestRestoreOrTrimAtomicity:
         assert good_b.trimmed == 0
 
     def test_all_trimmable_trims_all(self):
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import (
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import (
             _restore_or_trim_caches,
         )
 
@@ -2463,7 +2467,7 @@ class TestRotatingCacheMtpUndo:
 
     def _run_equivalence(self, make_cache, num_drafts=1):
         import mlx.core as mx
-        from omlx_runtime.patches.mlx_lm_mtp import cache_rollback
+        from molto_runtime.patches.mlx_lm_mtp import cache_rollback
 
         cache_rollback.apply()
         cache = make_cache()
@@ -2528,7 +2532,7 @@ class TestRotatingCacheMtpUndo:
     def test_unarmed_update_keeps_stock_semantics(self):
         import mlx.core as mx
         from mlx_lm.models.cache import RotatingKVCache
-        from omlx_runtime.patches.mlx_lm_mtp import cache_rollback
+        from molto_runtime.patches.mlx_lm_mtp import cache_rollback
 
         cache_rollback.apply()
         cache = RotatingKVCache(max_size=8)
@@ -2540,7 +2544,7 @@ class TestRotatingCacheMtpUndo:
 
     def test_grow_mode_trim_unchanged(self):
         from mlx_lm.models.cache import RotatingKVCache
-        from omlx_runtime.patches.mlx_lm_mtp import cache_rollback
+        from molto_runtime.patches.mlx_lm_mtp import cache_rollback
 
         cache_rollback.apply()
         cache = RotatingKVCache(max_size=64)
@@ -2561,7 +2565,7 @@ class TestReversiblePerformancePark:
         model = SimpleNamespace(
             mtp_forward=lambda *a, **k: None,
             mtp=object(),
-            _omlx_mtp_decode_enabled=True,
+            _molto_mtp_decode_enabled=True,
         )
         return SimpleNamespace(
             model=model,
@@ -2570,12 +2574,12 @@ class TestReversiblePerformancePark:
         )
 
     def test_cooldown_blocks_then_releases_same_uid(self, monkeypatch):
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         gb = self._fake_batch([7])
         assert batch_generator._mtp_common_eligible(gb)
         park = batch_generator._MtpParkState(uid=7, tokens_remaining=2)
-        gb._omlx_mtp_park_state = park
+        gb._molto_mtp_park_state = park
         assert not batch_generator._mtp_common_eligible(gb)
         batch_generator._record_parked_standard_step(gb)
         assert not batch_generator._mtp_common_eligible(gb)
@@ -2584,17 +2588,17 @@ class TestReversiblePerformancePark:
         assert batch_generator._mtp_common_eligible(gb)
 
     def test_cooldown_does_not_leak_to_reused_batch(self):
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         gb = self._fake_batch([7])
-        gb._omlx_mtp_park_state = batch_generator._MtpParkState(uid=7)
+        gb._molto_mtp_park_state = batch_generator._MtpParkState(uid=7)
         # The parked request finished; a new request reuses the batch object.
         gb.uids = [8]
         assert batch_generator._mtp_common_eligible(gb)
-        assert not hasattr(gb, "_omlx_mtp_park_state")
+        assert not hasattr(gb, "_molto_mtp_park_state")
 
     def test_failed_probe_uses_bounded_exponential_backoff(self):
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         park = batch_generator._MtpParkState(uid=7)
         expected = [256, 512, 1024, 2048, 4096, 4096]
@@ -2605,14 +2609,14 @@ class TestReversiblePerformancePark:
         assert actual == expected
 
     def test_active_probe_stays_eligible_during_prefill_contention(self, monkeypatch):
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         gb = self._fake_batch([7])
-        gb._omlx_mtp_park_state = batch_generator._MtpParkState(
+        gb._molto_mtp_park_state = batch_generator._MtpParkState(
             uid=7,
             tokens_remaining=0,
         )
-        gb._omlx_mtp_state = batch_generator._MtpState(
+        gb._molto_mtp_state = batch_generator._MtpState(
             uid=7,
             reentry_probe=True,
         )
@@ -2620,23 +2624,23 @@ class TestReversiblePerformancePark:
         assert batch_generator._mtp_common_eligible(gb)
 
     def test_singleton_park_does_not_gate_batch_eligibility(self, monkeypatch):
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         gb = self._fake_batch([7, 8])
-        gb._omlx_mtp_park_state = batch_generator._MtpParkState(
+        gb._molto_mtp_park_state = batch_generator._MtpParkState(
             uid=7,
             tokens_remaining=1,
         )
         batch_generator._record_parked_standard_step(gb)
-        assert gb._omlx_mtp_park_state.tokens_remaining == 0
+        assert gb._molto_mtp_park_state.tokens_remaining == 0
         monkeypatch.setattr(batch_generator, "_prefill_activity_recent", lambda: False)
         assert batch_generator._mtp_common_eligible(gb)
 
     def test_due_cooldown_marks_new_state_as_reentry_probe(self, monkeypatch):
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         gb = self._fake_batch([7])
-        gb._omlx_mtp_park_state = batch_generator._MtpParkState(
+        gb._molto_mtp_park_state = batch_generator._MtpParkState(
             uid=7,
             tokens_remaining=0,
         )
@@ -2646,7 +2650,7 @@ class TestReversiblePerformancePark:
         )
 
         def fake_post_init(batch):
-            batch._omlx_mtp_state = batch_generator._MtpState(uid=7)
+            batch._molto_mtp_state = batch_generator._MtpState(uid=7)
 
         monkeypatch.setattr(batch_generator, "_post_init_mtp", fake_post_init)
 
@@ -2655,7 +2659,7 @@ class TestReversiblePerformancePark:
         assert state.reentry_probe is True
 
     def test_existing_controller_accepts_winning_reentry_probe(self):
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         controller = batch_generator._DepthController(3)
         controller._warmup = []
@@ -2666,7 +2670,7 @@ class TestReversiblePerformancePark:
             reentry_probe=True,
         )
         gb = self._fake_batch([7])
-        gb._omlx_mtp_park_state = batch_generator._MtpParkState(
+        gb._molto_mtp_park_state = batch_generator._MtpParkState(
             uid=7,
             tokens_remaining=0,
         )
@@ -2677,10 +2681,10 @@ class TestReversiblePerformancePark:
             was_warmup=False,
         )
         assert state.reentry_probe is False
-        assert not hasattr(gb, "_omlx_mtp_park_state")
+        assert not hasattr(gb, "_molto_mtp_park_state")
 
     def test_losing_reentry_probe_keeps_cooldown_state(self):
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         controller = batch_generator._DepthController(3)
         controller._warmup = []
@@ -2692,7 +2696,7 @@ class TestReversiblePerformancePark:
         )
         gb = self._fake_batch([7])
         park = batch_generator._MtpParkState(uid=7, tokens_remaining=0)
-        gb._omlx_mtp_park_state = park
+        gb._molto_mtp_park_state = park
 
         assert not batch_generator._maybe_finish_mtp_reentry_probe(
             gb,
@@ -2700,10 +2704,10 @@ class TestReversiblePerformancePark:
             was_warmup=False,
         )
         assert state.reentry_probe is True
-        assert gb._omlx_mtp_park_state is park
+        assert gb._molto_mtp_park_state is park
 
     def test_tax_probe_discarded_when_batch_gains_rows(self):
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import (
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import (
             _STD_TAX_SKIP,
             _arm_std_tax_probe,
             _record_std_tax_sample,
@@ -2713,13 +2717,13 @@ class TestReversiblePerformancePark:
         _arm_std_tax_probe(gb, 12.0, uid=7)
         for _ in range(_STD_TAX_SKIP + 2):
             _record_std_tax_sample(gb, 10.0)
-        assert hasattr(gb, "_omlx_mtp_tax_probe")
+        assert hasattr(gb, "_molto_mtp_tax_probe")
         # Another request merges in mid-probe: multi-row step timings must
         # not contaminate the singleton loop-tax ratio.
         gb.uids = [7, 9]
         _record_std_tax_sample(gb, 10.0)
-        assert not hasattr(gb, "_omlx_mtp_tax_probe")
-        assert not hasattr(gb.model, "_omlx_mtp_loop_tax")
+        assert not hasattr(gb, "_molto_mtp_tax_probe")
+        assert not hasattr(gb.model, "_molto_mtp_loop_tax")
 
 
 @pytest.fixture(autouse=True)
@@ -2727,7 +2731,7 @@ def _quiet_prefill_tracker():
     """Loop-tax probes consult the process-global prefill tracker; keep
     every test in this module hermetic against activity left behind by
     other suites (or by earlier tests here)."""
-    from omlx_runtime.prefill_progress import get_prefill_tracker
+    from molto_runtime.prefill_progress import get_prefill_tracker
 
     get_prefill_tracker().clear()
     yield
@@ -2740,7 +2744,7 @@ class TestLoopTaxHygiene:
     A park that fires while another request is prefilling (any engine on
     the shared GPU) measures a contention-inflated t0; if the std samples
     then run after the contention ends, the t0/t_std ratio poisons
-    ``model._omlx_mtp_loop_tax`` and every later sequence exits MTP
+    ``model._molto_mtp_loop_tax`` and every later sequence exits MTP
     against an inflated margin until restart.
     """
 
@@ -2748,12 +2752,12 @@ class TestLoopTaxHygiene:
         return SimpleNamespace(model=SimpleNamespace(), uids=list(uids))
 
     def _tracker(self):
-        from omlx_runtime.prefill_progress import get_prefill_tracker
+        from molto_runtime.prefill_progress import get_prefill_tracker
 
         return get_prefill_tracker()
 
     def _drain_probe(self, gb, std_ms=10.0):
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import (
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import (
             _STD_TAX_SAMPLES,
             _STD_TAX_SKIP,
             _record_std_tax_sample,
@@ -2763,25 +2767,25 @@ class TestLoopTaxHygiene:
             _record_std_tax_sample(gb, std_ms)
 
     def test_probe_not_armed_while_prefill_live(self):
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _arm_std_tax_probe
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _arm_std_tax_probe
 
         self._tracker().update("r1", 10, 100, "modelA")
         gb = self._fake_batch([7])
         _arm_std_tax_probe(gb, 12.0, uid=7)
-        assert not hasattr(gb, "_omlx_mtp_tax_probe")
+        assert not hasattr(gb, "_molto_mtp_tax_probe")
 
     def test_probe_not_armed_right_after_prefill_end(self):
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _arm_std_tax_probe
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _arm_std_tax_probe
 
         tracker = self._tracker()
         tracker.update("r1", 10, 100, "modelA")
         tracker.update("r1", 100, 100, "modelA")  # completes, entry popped
         gb = self._fake_batch([7])
         _arm_std_tax_probe(gb, 12.0, uid=7)
-        assert not hasattr(gb, "_omlx_mtp_tax_probe")
+        assert not hasattr(gb, "_molto_mtp_tax_probe")
 
     def test_probe_discarded_when_prefill_ran_during_sampling(self):
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import (
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import (
             _STD_TAX_SAMPLES,
             _STD_TAX_SKIP,
             _arm_std_tax_probe,
@@ -2790,31 +2794,31 @@ class TestLoopTaxHygiene:
 
         gb = self._fake_batch([7])
         _arm_std_tax_probe(gb, 15.0, uid=7)
-        assert hasattr(gb, "_omlx_mtp_tax_probe")
+        assert hasattr(gb, "_molto_mtp_tax_probe")
         for _ in range(_STD_TAX_SKIP + _STD_TAX_SAMPLES - 1):
             _record_std_tax_sample(gb, 10.0)
         # A prefill starts (and would end) inside the sampling window: the
         # finalize step must throw the whole probe away.
         self._tracker().update("r2", 10, 100, "modelB")
         _record_std_tax_sample(gb, 10.0)
-        assert not hasattr(gb, "_omlx_mtp_tax_probe")
-        assert not hasattr(gb.model, "_omlx_mtp_loop_tax")
+        assert not hasattr(gb, "_molto_mtp_tax_probe")
+        assert not hasattr(gb.model, "_molto_mtp_loop_tax")
 
     def test_clean_probe_still_latches_with_timestamp(self):
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _arm_std_tax_probe
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _arm_std_tax_probe
 
         gb = self._fake_batch([7])
         _arm_std_tax_probe(gb, 15.0, uid=7)
         self._drain_probe(gb)
-        assert gb.model._omlx_mtp_loop_tax == pytest.approx(1.5)
-        assert hasattr(gb.model, "_omlx_mtp_loop_tax_ts")
+        assert gb.model._molto_mtp_loop_tax == pytest.approx(1.5)
+        assert hasattr(gb.model, "_molto_mtp_loop_tax_ts")
 
     def test_tax_log_level_by_threshold(self, caplog):
         import logging
 
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _arm_std_tax_probe
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _arm_std_tax_probe
 
-        logger_name = "omlx_runtime.patches.mlx_lm_mtp.batch_generator"
+        logger_name = "molto_runtime.patches.mlx_lm_mtp.batch_generator"
         with caplog.at_level(logging.INFO, logger=logger_name):
             gb = self._fake_batch([7])
             _arm_std_tax_probe(gb, 15.0, uid=7)
@@ -2832,7 +2836,7 @@ class TestLoopTaxHygiene:
     def test_effective_loop_tax_decays_toward_default(self):
         import time
 
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import (
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import (
             _STD_TAX_DECAY_S,
             _DepthController,
             _effective_loop_tax,
@@ -2840,12 +2844,12 @@ class TestLoopTaxHygiene:
 
         model = SimpleNamespace()
         assert _effective_loop_tax(model) is None
-        model._omlx_mtp_loop_tax = 1.5
+        model._molto_mtp_loop_tax = 1.5
         # Legacy attribute without a timestamp passes through unchanged.
         assert _effective_loop_tax(model) == pytest.approx(1.5)
-        model._omlx_mtp_loop_tax_ts = time.monotonic()
+        model._molto_mtp_loop_tax_ts = time.monotonic()
         assert _effective_loop_tax(model) == pytest.approx(1.5, abs=0.01)
-        model._omlx_mtp_loop_tax_ts = time.monotonic() - 3 * _STD_TAX_DECAY_S
+        model._molto_mtp_loop_tax_ts = time.monotonic() - 3 * _STD_TAX_DECAY_S
         aged = _effective_loop_tax(model)
         assert _DepthController.EXIT_MARGIN <= aged < 1.2
 
@@ -2870,7 +2874,7 @@ class TestReconcileChunked:
 
         import mlx.core as mx
         import numpy as np
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         shapes = []
 
@@ -2903,7 +2907,7 @@ class TestReconcileChunked:
             _next_logprobs=[],
             _token_context=[],
             prompt_cache=[object()],
-            _omlx_mtp_state=state,
+            _molto_mtp_state=state,
             prefill_step_size=512,
         )
         assert batch_generator._reconcile_mtp_to_standard(batch, state) is True
@@ -2919,7 +2923,7 @@ class TestReconcileChunked:
         import mlx.core as mx
         from mlx_lm.generate import BatchGenerator
         from mlx_lm.models.llama import Model, ModelArgs
-        from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+        from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
         class ProbeModel(Model):
             def __init__(self):
@@ -2988,7 +2992,7 @@ class TestReconcileChunked:
 
 def test_chain_rollback_finds_the_method_behind_the_vlm_adapter():
     """Partial rollback reaches the language model through its adapter."""
-    from omlx_runtime.patches.mlx_lm_mtp import batch_generator as bg
+    from molto_runtime.patches.mlx_lm_mtp import batch_generator as bg
 
     calls = []
 
@@ -3008,14 +3012,14 @@ def test_chain_rollback_finds_the_method_behind_the_vlm_adapter():
 class CountingModel(nn.Module):
     """Predict the successor token while retaining every actual input in KV."""
 
-    _omlx_mtp_multi_request = True
+    _molto_mtp_multi_request = True
 
     def __init__(self):
         super().__init__()
         self.mtp = nn.Identity()
-        self._omlx_mtp_decode_enabled = True
-        self._omlx_mtp_chain = True
-        self._omlx_mtp_depth = 2
+        self._molto_mtp_decode_enabled = True
+        self._molto_mtp_chain = True
+        self._molto_mtp_depth = 2
         self.model = SimpleNamespace(norm=nn.Identity())
         self.calls = []
 
@@ -3139,7 +3143,7 @@ def test_cache_only_head_drafts_before_backbone_rollback(monkeypatch, cache_only
                 else logits
             )
 
-    RejectDrafts.mtp_forward._omlx_head_cache_only = cache_only
+    RejectDrafts.mtp_forward._molto_head_cache_only = cache_only
     rollback = bg._chain_rollback
 
     def record(*args):
@@ -3233,9 +3237,9 @@ def test_batched_handoff_restores_unequal_frontiers(monkeypatch, batch_size):
     model = UnequalDrafts()
     prompts = [[1, 2], [3, 4, 5], [4, 5, 6], [8, 9]][:batch_size]
     limits = [18, 22, 24, 27][:batch_size]
-    model._omlx_mtp_decode_enabled = False
+    model._molto_mtp_decode_enabled = False
     expected, expected_terminal = generate(model, prompts, limits)
-    model._omlx_mtp_decode_enabled = True
+    model._molto_mtp_decode_enabled = True
     original = bg._mtp_batch_next
     handoffs = []
 
@@ -3252,7 +3256,7 @@ def test_batched_handoff_restores_unequal_frontiers(monkeypatch, batch_size):
             assert bg._feed_batch_mains_to_standard(batch, state)
             assert model.calls[before:] == [((batch_size, 1), 0)]
             bg._drop_mtp_batch_state(batch, "test-handoff")
-            model._omlx_mtp_decode_enabled = False
+            model._molto_mtp_decode_enabled = False
             handoffs.append(offsets)
         return result
 
@@ -3273,7 +3277,7 @@ def test_batched_handoff_restores_unequal_frontiers(monkeypatch, batch_size):
 def test_batch_cost_parking_and_reentry_preserve_tokens(
     monkeypatch, batch_size, caplog
 ):
-    from omlx_runtime.patches.mlx_lm_mtp.batch_policy import BatchPolicy
+    from molto_runtime.patches.mlx_lm_mtp.batch_policy import BatchPolicy
 
     standard = BatchPolicy.observe_standard
     mtp = BatchPolicy.observe_mtp
@@ -3296,9 +3300,9 @@ def test_batch_cost_parking_and_reentry_preserve_tokens(
     model = CountingModel()
     prompts = [[1] * (i + 2) for i in range(batch_size)]
     limits = [90] * batch_size
-    model._omlx_mtp_decode_enabled = False
+    model._molto_mtp_decode_enabled = False
     expected, _ = generate(model, prompts, limits)
-    model._omlx_mtp_decode_enabled = True
+    model._molto_mtp_decode_enabled = True
     with caplog.at_level("INFO", logger=bg.__name__):
         actual, _ = generate(model, prompts, limits)
     assert parks
@@ -3359,7 +3363,7 @@ class CapturingCountingModel(CountingModel):
     ):
         from mlx_vlm.models.base import LanguageModelOutput
 
-        drafter = getattr(self, "_omlx_drafter", None)
+        drafter = getattr(self, "_molto_drafter", None)
         scope = getattr(drafter, "scope_uids", None)
         if not return_hidden and scope and capture_layer_ids is None:
             # Mirror the runtime wrapper: ordinary steps feed the drafter.
@@ -3438,8 +3442,8 @@ class TableDrafter:
 
 def _drafted_counting_model(depth, wrong_from=None):
     model = CapturingCountingModel()
-    model._omlx_mtp_depth = depth
-    model._omlx_drafter = TableDrafter(depth, wrong_from=wrong_from)
+    model._molto_mtp_depth = depth
+    model._molto_drafter = TableDrafter(depth, wrong_from=wrong_from)
     return model
 
 
@@ -3451,13 +3455,13 @@ def test_block_drafter_matches_standard_and_feeds_committed_context(
     prompts = [[1, 2], [10, 11, 12], [30, 31]]
     limits = [12, 8, 15]
     standard = CapturingCountingModel()
-    standard._omlx_mtp_decode_enabled = False
+    standard._molto_mtp_decode_enabled = False
     expected, _ = generate(standard, prompts, limits, late_join=late_join)
 
     model = _drafted_counting_model(5, wrong_from=wrong_from)
     output, terminal = generate(model, prompts, limits, late_join=late_join)
     assert output == expected
-    drafter = model._omlx_drafter
+    drafter = model._molto_drafter
     assert drafter.jobs > 0
     # Every verify forward asked for the drafter's layers plus the head layer.
     assert all(ids == drafter.target_layer_ids for _, ids in model.captures)
@@ -3472,7 +3476,7 @@ def test_block_drafter_matches_standard_and_feeds_committed_context(
 
 def test_block_drafter_serves_sampled_rows_with_draft_distribution():
     """A sampled row rides Leviathan acceptance against the drafter's q."""
-    from omlx_runtime.utils.sampling import make_sampler
+    from molto_runtime.utils.sampling import make_sampler
 
     mx.random.seed(11)
     model = _drafted_counting_model(3)
@@ -3488,7 +3492,7 @@ def test_block_drafter_serves_sampled_rows_with_draft_distribution():
         0: "length",
         1: "length",
     }
-    assert model._omlx_drafter.jobs > 0
+    assert model._molto_drafter.jobs > 0
 
 
 @pytest.mark.parametrize("unequal_acceptance", [False, True])
@@ -3636,7 +3640,7 @@ def test_pooling_rollback_preserves_each_rows_window_phase(ratio, accepted):
     import copy
 
     import numpy as np
-    from omlx_runtime.patches.deepseek_v4.cache_extras import (
+    from molto_runtime.patches.deepseek_v4.cache_extras import (
         BatchPoolingCache,
         PoolingCache,
     )
@@ -3704,8 +3708,8 @@ def test_fixed_depth_survivor_does_not_cache_past_length_limit(monkeypatch):
 @pytest.mark.parametrize("prompts", [[[1, 2]], [[1, 2], [10, 11]]])
 def test_fixed_depth_drafts_the_full_depth_every_cycle(prompts):
     model = CountingModel()
-    model._omlx_mtp_depth = 4
-    model._omlx_mtp_depth_fixed = True
+    model._molto_mtp_depth = 4
+    model._molto_mtp_depth_fixed = True
     output, _ = generate(model, prompts, [24] * len(prompts))
     for uid, prompt in enumerate(prompts):
         assert output[uid] == list(range(prompt[-1] + 1, prompt[-1] + 25))
@@ -3726,7 +3730,7 @@ def test_unrecoverable_batch_cache_failure_does_not_resume_decode(monkeypatch):
 
 def test_dspark_quantized_output_projection_keeps_each_batch_row():
     from mlx_lm.models.mla import MultiLinear
-    from omlx_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
+    from molto_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
 
     apply_deepseek_v4_patch()
     from mlx_lm.models.deepseek_v4 import (
@@ -3785,7 +3789,7 @@ def test_eight_requests_share_verification_and_finish_independently():
 def test_singleton_performance_parking_does_not_disable_shared_mtp():
     bg.apply()
     model = CountingModel()
-    model._omlx_mtp_decode_enabled = False
+    model._molto_mtp_decode_enabled = False
     gen = BatchGenerator(model, sampler=lambda lp: mx.argmax(lp, -1), max_tokens=16)
     try:
         gen.insert([[1, 2], [10, 11]], max_tokens=[12, 16])
@@ -3794,14 +3798,14 @@ def test_singleton_performance_parking_does_not_disable_shared_mtp():
             if len(gen._generation_batch.uids) == 2:
                 break
         active = gen._generation_batch
-        active._omlx_mtp_park_state = bg._MtpParkState(uid=0)
-        model._omlx_mtp_decode_enabled = True
+        active._molto_mtp_park_state = bg._MtpParkState(uid=0)
+        model._molto_mtp_decode_enabled = True
         for _ in range(6):
             gen.next()
-            if getattr(active, "_omlx_mtp_batch_state", None) is not None:
+            if getattr(active, "_molto_mtp_batch_state", None) is not None:
                 break
-        assert set(active._omlx_mtp_batch_state.states) == {0, 1}
-        assert not hasattr(active, "_omlx_mtp_park_state")
+        assert set(active._molto_mtp_batch_state.states) == {0, 1}
+        assert not hasattr(active, "_molto_mtp_park_state")
         for _ in range(32):
             gen.next()
             if not len(gen._generation_batch):
@@ -3835,7 +3839,7 @@ def test_shared_acceptance_preserves_different_prefix_lengths(monkeypatch):
     prompts = [[1, 2], [3, 4, 5], [6, 7], [8, 9, 10, 11]]
     limits = [12, 15, 18, 20]
     reference = CountingModel()
-    reference._omlx_mtp_decode_enabled = False
+    reference._molto_mtp_decode_enabled = False
     expected, _ = generate(reference, prompts, limits)
     actual, _ = generate(IntermittentDrafts(), prompts, limits)
     assert actual == expected
@@ -3844,7 +3848,7 @@ def test_shared_acceptance_preserves_different_prefix_lengths(monkeypatch):
 
 @pytest.mark.parametrize("batch_size", [2, 4])
 def test_stochastic_shared_acceptance_keeps_row_ownership(batch_size, monkeypatch):
-    from omlx_runtime.utils.sampling import make_sampler
+    from molto_runtime.utils.sampling import make_sampler
 
     monkeypatch.setattr(bg, "_DepthController", lambda *args, **kwargs: None)
     monkeypatch.setattr(bg, "_batch_policy_for_next", lambda batch: None)
@@ -3884,7 +3888,7 @@ def test_stochastic_shared_acceptance_keeps_row_ownership(batch_size, monkeypatc
     ],
 )
 def test_draft_distribution_matches_request_sampling(settings):
-    from omlx_runtime.utils.sampling import make_sampler
+    from molto_runtime.utils.sampling import make_sampler
 
     target = make_sampler(**settings)
     row = SimpleNamespace(samplers=[target], fallback_sampler=target)
@@ -3896,7 +3900,7 @@ def test_draft_distribution_matches_request_sampling(settings):
 
 
 def test_stochastic_acceptance_preserves_target_marginal():
-    from omlx_runtime.utils.sampling import make_sampler
+    from molto_runtime.utils.sampling import make_sampler
 
     previous_device = mx.default_device()
     mx.set_default_device(mx.cpu)
@@ -3924,7 +3928,7 @@ def test_stochastic_acceptance_preserves_target_marginal():
 
 
 def test_sparse_stochastic_acceptance_preserves_filtered_target_marginal():
-    from omlx_runtime.utils.sampling import make_sampler
+    from molto_runtime.utils.sampling import make_sampler
 
     previous_device = mx.default_device()
     mx.set_default_device(mx.cpu)
@@ -3957,7 +3961,7 @@ def test_sparse_stochastic_acceptance_preserves_filtered_target_marginal():
 @pytest.mark.parametrize("dtype", [mx.bfloat16, mx.float16])
 @pytest.mark.parametrize("temperature", [0.7, 1.0])
 def test_acceptance_density_matches_low_precision_sampler(dtype, temperature):
-    from omlx_runtime.utils.sampling import make_sampler
+    from molto_runtime.utils.sampling import make_sampler
 
     previous_device = mx.default_device()
     mx.set_default_device(mx.cpu)
@@ -3977,7 +3981,7 @@ def test_acceptance_density_matches_low_precision_sampler(dtype, temperature):
 
 
 def _adapter(language):
-    from omlx_runtime.models.vlm import VLMModelAdapter
+    from molto_runtime.models.vlm import VLMModelAdapter
 
     return VLMModelAdapter(SimpleNamespace(language_model=language))
 
@@ -3986,7 +3990,7 @@ def _model(family):
     if family == "qwen_vlm":
         from mlx_vlm.models.qwen3_5.config import ModelConfig, TextConfig, VisionConfig
         from mlx_vlm.models.qwen3_5.language import LanguageModel
-        from omlx_runtime.patches.mlx_vlm_mtp import qwen35_vlm_runtime
+        from molto_runtime.patches.mlx_vlm_mtp import qwen35_vlm_runtime
 
         qwen35_vlm_runtime.apply()
         config = TextConfig.from_dict(vars(_model("qwen").args))
@@ -3995,7 +3999,7 @@ def _model(family):
             LanguageModel(config, ModelConfig(config, VisionConfig(), "qwen3_5"))
         )
     if family == "qwen":
-        from omlx_runtime.patches.mlx_lm_mtp import qwen35_model
+        from molto_runtime.patches.mlx_lm_mtp import qwen35_model
 
         qwen35_model.apply()
         from mlx_lm.models.qwen3_5 import TextModel, TextModelArgs
@@ -4025,8 +4029,8 @@ def _model(family):
         model.configure_mtp(True, 2)
         return model
     if family == "v4_dspark":
-        from omlx_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
-        from omlx_runtime.patches.mlx_lm_mtp import deepseek_v4_model
+        from molto_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
+        from molto_runtime.patches.mlx_lm_mtp import deepseek_v4_model
         from test_deepseek_v4_dspark import _tiny_config
 
         apply_deepseek_v4_patch()
@@ -4035,14 +4039,14 @@ def _model(family):
 
         return dsv4.Model(_tiny_config(dsv4))
     if family == "inkling":
-        from omlx_runtime.patches.mlx_vlm_mtp import inkling_vlm_runtime
+        from molto_runtime.patches.mlx_vlm_mtp import inkling_vlm_runtime
 
         inkling_vlm_runtime.apply()
         from test_inkling_vlm_mtp import _mtp_language_model
 
         return _adapter(_mtp_language_model())
     if family == "gemma":
-        from omlx_runtime.patches.mlx_vlm_mtp import gemma4_vlm_runtime
+        from molto_runtime.patches.mlx_vlm_mtp import gemma4_vlm_runtime
         from test_gemma4_vlm_mtp_runtime import (
             TINY_ASSISTANT_CONFIG,
             _language_model,
@@ -4056,7 +4060,7 @@ def _model(family):
             )
         )
     if family == "nemotron":
-        from omlx_runtime.patches.mlx_lm_mtp import nemotron_h_chain, nemotron_h_model
+        from molto_runtime.patches.mlx_lm_mtp import nemotron_h_chain, nemotron_h_model
         from test_nemotron_mtp_patch import TINY_CONFIG
 
         nemotron_h_model.apply()
@@ -4065,8 +4069,8 @@ def _model(family):
 
         return nh.Model(nh.ModelArgs.from_dict(TINY_CONFIG))
     if family == "glm":
-        from omlx_runtime.patches.glm_moe_dsa import apply_glm_moe_dsa_patch
-        from omlx_runtime.patches.mlx_lm_mtp import glm_moe_dsa_model
+        from molto_runtime.patches.glm_moe_dsa import apply_glm_moe_dsa_patch
+        from molto_runtime.patches.mlx_lm_mtp import glm_moe_dsa_model
         from test_glm_mtp_patch import TINY_CFG
 
         apply_glm_moe_dsa_patch()
@@ -4197,14 +4201,14 @@ def test_qwen_late_join_preserves_cache_without_history_replay(family, monkeypat
         first = gen.insert([[3, 4, 5], [7, 8, 9, 10, 11]])
         for _ in range(12):
             gen.next()
-            if getattr(gen._generation_batch, "_omlx_mtp_batch_state", None):
+            if getattr(gen._generation_batch, "_molto_mtp_batch_state", None):
                 break
-        assert getattr(gen._generation_batch, "_omlx_mtp_batch_state", None)
+        assert getattr(gen._generation_batch, "_molto_mtp_batch_state", None)
         new_uid = gen.insert([[12, 13, 14, 15]])[0]
         for _ in range(12):
             gen.next()
             active = gen._generation_batch
-            state = getattr(active, "_omlx_mtp_batch_state", None)
+            state = getattr(active, "_molto_mtp_batch_state", None)
             if state is not None and new_uid in state.states:
                 break
         assert tuple(first) in handoffs
@@ -4279,9 +4283,9 @@ def test_multi_request_mtp_or_singleton_only_matches_standard(
             [7, 8, 9, 10, 11, 12],
         ][:batch_size]
         limits = [12, 16, 9, 20][:batch_size]
-        host._omlx_mtp_decode_enabled = False
+        host._molto_mtp_decode_enabled = False
         expected, _ = generate(model, prompts, limits, late_join=late_join)
-        host._omlx_mtp_decode_enabled = True
+        host._molto_mtp_decode_enabled = True
         calls = []
         draft_depths = set()
         shared_shapes = []
@@ -4371,7 +4375,7 @@ def test_initialization_uses_one_forward_without_cache_extraction(
 
         def prepare(batch):
             nonlocal checking
-            if getattr(batch, "_omlx_mtp_batch_state", None) is not None:
+            if getattr(batch, "_molto_mtp_batch_state", None) is not None:
                 return original(batch)
             cache = batch.prompt_cache
             before = len(calls)
@@ -4396,7 +4400,7 @@ def test_initialization_uses_one_forward_without_cache_extraction(
         prompts = [[3, 4, 5], [3, 6, 7, 8], [4, 5, 6], [7, 8, 9, 10]][:size]
         actual, _ = generate(model, prompts, [20] * size, late_join=late_join)
         assert shared
-        model._language_model._omlx_mtp_decode_enabled = False
+        model._language_model._molto_mtp_decode_enabled = False
         expected, _ = generate(model, prompts, [20] * size, late_join=late_join)
         assert actual == expected
     finally:
@@ -4578,7 +4582,7 @@ def test_batched_head_matches_row_caches_across_depth_changes(size, family, stoc
                 state.draft_sampler = ref.draft_sampler = sampler
                 row.samplers = [sampler]
         owner = bg._MtpBatchState(states=dict(enumerate(states)))
-        batch = SimpleNamespace(model=model, _omlx_mtp_batch_state=owner)
+        batch = SimpleNamespace(model=model, _molto_mtp_batch_state=owner)
         cache_identity = None
         for cycle, depth in enumerate([2, 4, 1, 3]):
             jobs = []
@@ -4648,14 +4652,14 @@ def test_batched_head_survives_join_and_staggered_finish(
         host = model._language_model
         prompts = [[3, 4, 5], [3, 6, 7, 8], [4, 5, 6], [7, 8, 9, 10]][:size]
         limits = [18, 26, 33, 40][:size]
-        host._omlx_mtp_decode_enabled = False
+        host._molto_mtp_decode_enabled = False
         expected, _ = generate(model, prompts, limits, late_join=late_join)
-        host._omlx_mtp_decode_enabled = True
+        host._molto_mtp_decode_enabled = True
         owners, reused = [], []
         original = batched_head.draft
 
         def traced(batch, jobs):
-            owner = batch._omlx_mtp_batch_state
+            owner = batch._molto_mtp_batch_state
             previous = owner.head
             result = original(batch, jobs)
             owners.append(owner)
@@ -4700,7 +4704,7 @@ def test_cancel_restores_surviving_head_cache(monkeypatch, family):
                     break
             else:
                 batch = gen._generation_batch
-                owner = getattr(batch, "_omlx_mtp_batch_state", None)
+                owner = getattr(batch, "_molto_mtp_batch_state", None)
                 if owner is not None and owner.head is not None:
                     survivor = owner.states[uids[0]]
                     assert survivor.mtp_cache is None
@@ -4725,7 +4729,7 @@ def test_cancel_restores_surviving_head_cache(monkeypatch, family):
     "mode", ["matching", "mixed", "unfiltered", "greedy", "custom"]
 )
 def test_draft_filter_batching_preserves_rows_and_rng(dtype, mode):
-    from omlx_runtime.utils.sampling import make_sampler
+    from molto_runtime.utils.sampling import make_sampler
 
     mx.random.seed(718)
     logits = (mx.random.normal((4, 257)) * 3).astype(dtype)
@@ -4771,7 +4775,7 @@ def test_draft_filter_batching_preserves_rows_and_rng(dtype, mode):
 def test_unsupported_adapter_remains_singleton_only(monkeypatch):
     monkeypatch.setattr(bg, "_mtp_common_eligible", lambda _: True)
     model = CountingModel()
-    model._omlx_mtp_multi_request = False
+    model._molto_mtp_multi_request = False
     batch = SimpleNamespace(model=model, uids=[1, 2])
     assert not bg._is_mtp_batch_eligible(batch)
     assert "single-request" in bg._ineligibility_reason(batch)
@@ -4786,7 +4790,7 @@ def test_singleton_only_model_decodes_multirow_without_mtp(monkeypatch, late_joi
     monkeypatch.setattr(bg, "_DepthController", lambda *args, **kwargs: None)
     try:
         model = CountingModel()
-        model._omlx_mtp_multi_request = False
+        model._molto_mtp_multi_request = False
         singleton_uids = []
         singleton_next = bg._mtp_next
 
@@ -4802,9 +4806,9 @@ def test_singleton_only_model_decodes_multirow_without_mtp(monkeypatch, late_joi
         monkeypatch.setattr(bg, "_mtp_batch_next", forbidden_batch)
         prompts = [[1, 2], [4, 5, 6]]
         limits = [8, 24]
-        model._omlx_mtp_decode_enabled = False
+        model._molto_mtp_decode_enabled = False
         expected, _ = generate(model, prompts, limits)
-        model._omlx_mtp_decode_enabled = True
+        model._molto_mtp_decode_enabled = True
         model.calls.clear()
         singleton_uids.clear()
         if late_join:
@@ -4885,8 +4889,8 @@ def test_batch_linear_matches_standard_projection(dtype, bits, batch, length):
 @pytest.mark.parametrize("size", [2, 4])
 def test_quantized_qwen_batch_matches_standard(bits, size, monkeypatch):
 
-    from omlx_runtime.patches import mlx_lm_mtp
-    from omlx_runtime.patches.mlx_lm_mtp import batch_generator as bg
+    from molto_runtime.patches import mlx_lm_mtp
+    from molto_runtime.patches.mlx_lm_mtp import batch_generator as bg
 
     active = mlx_lm_mtp.is_mtp_active()
     mlx_lm_mtp.set_mtp_active(True)
@@ -4900,9 +4904,9 @@ def test_quantized_qwen_batch_matches_standard(bits, size, monkeypatch):
         host = model._language_model
         prompts = [[3, 4, 5], [3, 6, 7, 8], [4, 5, 6], [7, 8, 9, 10]][:size]
         limits = [18, 26, 22, 30][:size]
-        host._omlx_mtp_decode_enabled = False
+        host._molto_mtp_decode_enabled = False
         expected, _ = generate(model, prompts, limits)
-        host._omlx_mtp_decode_enabled = True
+        host._molto_mtp_decode_enabled = True
         from mlx_vlm.speculative.ops import linear as ops
 
         gate = ops._use_target_verify_dense
@@ -4961,9 +4965,9 @@ def test_vector_commit_matches_scalar_states_and_ordinary_tokens(
             [7, 8, 9, 10, 11, 12],
         ][:batch_size]
         limits = [18, 22, 17, 26][:batch_size]
-        host._omlx_mtp_decode_enabled = False
+        host._molto_mtp_decode_enabled = False
         expected, _ = generate(model, prompts, limits, late_join=late_join)
-        host._omlx_mtp_decode_enabled = True
+        host._molto_mtp_decode_enabled = True
         original = model.rollback_speculative_cache
         checked = []
 
@@ -5023,11 +5027,11 @@ def test_shared_verify_boundary_emit_uses_private_row_cache(monkeypatch, family)
         mx.eval(model.parameters())
         prompts = [[3, 4, 5, 6, 7], [3, 6, 7, 8, 4, 5, 6], [4, 5, 6]]
         limits = [18, 22, 17]
-        host._omlx_mtp_decode_enabled = False
+        host._molto_mtp_decode_enabled = False
         expected, _ = generate(model, prompts, limits)
-        host._omlx_mtp_decode_enabled = True
+        host._molto_mtp_decode_enabled = True
         # Force boundary crossings within the short generation.
-        model._omlx_mtp_commit_align = 4
+        model._molto_mtp_commit_align = 4
         materialized = []
         last_verify_rows = [0]
         original_materialize = bg._materialize_mtp_boundary_emit
@@ -5059,7 +5063,7 @@ def test_shared_verify_boundary_emit_uses_private_row_cache(monkeypatch, family)
 def test_lightning_verify_preserves_quantized_linear_dispatch(monkeypatch, batch):
     from mlx_vlm.models.qwen3_5 import speculative_verifier
     from mlx_vlm.speculative.ops import linear as ops
-    from omlx_runtime.patches import qwen35_verify_qmm
+    from molto_runtime.patches import qwen35_verify_qmm
 
     qwen35_verify_linear.apply()
     monkeypatch.setattr(qwen35_verify_qmm, "_is_armed", lambda: True)
@@ -5083,7 +5087,7 @@ def test_lightning_verify_preserves_quantized_linear_dispatch(monkeypatch, batch
 
 def _nax_available() -> bool:
     try:
-        from omlx_runtime.custom_kernels.nax import is_nax_available
+        from molto_runtime.custom_kernels.nax import is_nax_available
 
         return bool(is_nax_available())
     except Exception:
@@ -5119,7 +5123,7 @@ def _close(actual, expected, tol=1e-2):
 
 @pytest.mark.skipif(not _nax_available(), reason="needs the M5 tensor unit")
 def test_packed_linear_replaces_4bit_projections(monkeypatch):
-    from omlx_runtime.patches import qwen35_packed_linear as packed
+    from molto_runtime.patches import qwen35_packed_linear as packed
 
     # GDN input projections: 4-bit qkv/z pack together, 5-bit b/a stay.
     gdn = nn.Module()
@@ -5179,7 +5183,7 @@ def test_verify_qmm_routes_batched_rows_through_mma_kernel(
     monkeypatch, batch, length, bits
 ):
     """rows = batch x block share one weight pass and match stock numerics."""
-    from omlx_runtime.patches import qwen35_verify_qmm
+    from molto_runtime.patches import qwen35_verify_qmm
 
     qwen35_verify_qmm.apply_verify_qmm_patch()
     monkeypatch.setattr(qwen35_verify_qmm, "_is_armed", lambda: True)
@@ -5223,7 +5227,7 @@ def test_verify_qmm_routes_batched_rows_through_mma_kernel(
 @pytest.mark.parametrize("rows", [4, 8])
 def test_sg8_kernels_match_quantized_matmul(bits, rows, dtype):
     """Plain, gate/up swiglu and grouped sg8 launches against stock qmm."""
-    from omlx_runtime.patches import qwen35_verify_qmm as vq
+    from molto_runtime.patches import qwen35_verify_qmm as vq
 
     x = (mx.random.normal((rows, 1024)) * 0.5).astype(dtype)
     # Producer-written per-64 sums replace the in-kernel accumulation.
@@ -5255,7 +5259,7 @@ def test_sg8_kernels_match_quantized_matmul(bits, rows, dtype):
 
 @pytest.mark.parametrize("dtype", [mx.bfloat16, mx.float16])
 def test_add_rms_norm_is_bitwise_add_then_rms_norm(dtype):
-    from omlx_runtime.patches import qwen35_verify_qmm as vq
+    from molto_runtime.patches import qwen35_verify_qmm as vq
 
     mx.random.seed(3)
     a = (mx.random.normal((2, 8, 5120)) * 3).astype(dtype)
@@ -5273,7 +5277,7 @@ def test_add_rms_norm_is_bitwise_add_then_rms_norm(dtype):
 @pytest.mark.parametrize("top_p", [0.0, 0.9])
 def test_sparse_mtp_draft_density_matches_dense_sampler(top_p):
     """The top-k draft path draws from the dense sampler's distribution."""
-    from omlx_runtime.utils.sampling import make_sampler
+    from molto_runtime.utils.sampling import make_sampler
 
     sampler = make_sampler(temp=0.7, top_p=top_p, top_k=20)
     mx.random.seed(2)
@@ -5314,7 +5318,7 @@ def test_sparse_draft_q_matches_dense_rows_in_verify():
 
 @pytest.mark.parametrize("top_p", [0.0, 0.95])
 def test_fused_candidate_sampler_matches_sparse_sampler(top_p):
-    from omlx_runtime.utils.sampling import make_sampler
+    from molto_runtime.utils.sampling import make_sampler
 
     sampler = make_sampler(temp=0.8, top_p=top_p, top_k=20)
     mx.random.seed(4)
@@ -5330,7 +5334,7 @@ def test_fused_candidate_sampler_matches_sparse_sampler(top_p):
 @pytest.mark.parametrize("packed", [False, True])
 def test_coarse_draft_head_rescores_candidates_with_exact_weights(packed):
     """Candidates are rescored with the lm_head rows, also from M5's packed layout."""
-    from omlx_runtime.patches import qwen35_packed_linear
+    from molto_runtime.patches import qwen35_packed_linear
 
     class Mtp(nn.Module):
         def __init__(self):
@@ -5347,7 +5351,7 @@ def test_coarse_draft_head_rescores_candidates_with_exact_weights(packed):
         def mtp_forward(self):
             pass
 
-    Language.mtp_forward._omlx_lm_head_logits = True
+    Language.mtp_forward._molto_lm_head_logits = True
     mx.random.seed(8)
     lang = Language()
     lang.mtp.fc.weight = lang.mtp.fc.weight.astype(mx.bfloat16)
@@ -5392,7 +5396,7 @@ def test_coarse_draft_head_splits_qwen4_logits_source_from_chain_hidden():
         def mtp_forward(self):
             pass
 
-    Language.mtp_forward._omlx_lm_head_logits = True
+    Language.mtp_forward._molto_lm_head_logits = True
     mx.random.seed(9)
     lang = Language(Head())
     head = bg._coarse_draft_head(lang)
@@ -5407,7 +5411,7 @@ def test_coarse_draft_head_splits_qwen4_logits_source_from_chain_hidden():
 @pytest.mark.parametrize("raised", [True, False])
 def test_spec_command_buffers_restore_caps_after_the_step(monkeypatch, raised):
     """Speculative steps raise MLX's buffer caps where measured and always restore them."""
-    from omlx_runtime.custom_kernels.qwen35_prefill import fast
+    from molto_runtime.custom_kernels.qwen35_prefill import fast
 
     caps = [(50, 50)]
 

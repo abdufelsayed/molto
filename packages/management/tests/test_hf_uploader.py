@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from omlx_management.hf_uploader import (
+from molto_management.hf_uploader import (
     HFUploader,
     UploadStatus,
     UploadTask,

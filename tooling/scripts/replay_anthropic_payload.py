@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Replay a captured Anthropic /v1/messages payload against an oMLX server."""
+"""Replay a captured Anthropic /v1/messages payload against a Molto server."""
 
 from __future__ import annotations
 
@@ -147,7 +147,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--url", default="http://127.0.0.1:18150/v1/messages")
     parser.add_argument("--api-key")
     parser.add_argument(
-        "--output-dir", default=Path("/tmp/omlx_repro_outputs"), type=Path
+        "--output-dir", default=Path("/tmp/molto_repro_outputs"), type=Path
     )
     parser.add_argument("--repeat", default=1, type=int)
     parser.add_argument("--concurrency", default=1, type=int)

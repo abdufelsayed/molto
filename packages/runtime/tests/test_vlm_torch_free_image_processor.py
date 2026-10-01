@@ -4,7 +4,7 @@ Background: transformers 5.5+ ships ``AutoImageProcessor`` as a torch-gated
 ``DummyObject`` that raises ``ImportError`` on attribute access when torch
 or torchvision is missing. mlx-vlm's ``GlmOcrProcessor.from_pretrained`` /
 ``DotsOcrProcessor.from_pretrained`` call ``AutoImageProcessor.from_pretrained``
-internally, so they fail silently in oMLX's torch-free env — see #1131, #1175.
+internally, so they fail silently in Molto's torch-free env — see #1131, #1175.
 
 ``_patch_torch_free_image_processor`` routes those processors to transformers'
 PIL-backend image processor classes (``Glm46VImageProcessorPil``,
@@ -20,8 +20,8 @@ from collections import OrderedDict
 from unittest.mock import patch
 
 import pytest
-from omlx_runtime.engine import vlm as vlm_mod
-from omlx_runtime.engine.vlm import (
+from molto_runtime.engine import vlm as vlm_mod
+from molto_runtime.engine.vlm import (
     _build_processor_via_pil_image_processor,
     _patch_torch_free_image_processor,
     _resolve_pil_image_processor_class,
@@ -316,7 +316,7 @@ def test_patch_skips_missing_mlx_vlm_modules():
 
     with patch.dict(sys.modules, {"transformers": fake_transformers}):
         with patch(
-            "omlx_runtime.engine.vlm.importlib.import_module", side_effect=fake_import
+            "molto_runtime.engine.vlm.importlib.import_module", side_effect=fake_import
         ):
             # Must not raise
             _patch_torch_free_image_processor()
@@ -358,13 +358,13 @@ def test_patch_wraps_target_processors():
 
     with patch.dict(sys.modules, {"transformers": fake_transformers}):
         with patch(
-            "omlx_runtime.engine.vlm.importlib.import_module", side_effect=fake_import
+            "molto_runtime.engine.vlm.importlib.import_module", side_effect=fake_import
         ):
             _patch_torch_free_image_processor()
 
     assert getattr(
-        FakeGlmOcrProcessor.from_pretrained, "_omlx_torch_free_patched", False
+        FakeGlmOcrProcessor.from_pretrained, "_molto_torch_free_patched", False
     )
     assert getattr(
-        FakeDotsVLProcessor.from_pretrained, "_omlx_torch_free_patched", False
+        FakeDotsVLProcessor.from_pretrained, "_molto_torch_free_patched", False
     )

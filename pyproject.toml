@@ -1,12 +1,12 @@
 [project]
-name = "omlx-workspace"
-version = "0.7.0rc1"
+name = "molto-workspace"
+version = "0.1.0.dev0"
 requires-python = ">=3.11,<3.14"
 dependencies = []
 description = "LLM inference server, optimized for your Mac"
 readme = "README.md"
 license = "Apache-2.0"
-authors = [{ name = "omlx contributors" }]
+authors = [{ name = "molto contributors" }]
 keywords = ["llm", "mlx", "apple-silicon", "vllm", "inference", "transformers"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -21,9 +21,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/jundot/omlx"
-Documentation = "https://github.com/jundot/omlx#readme"
-Repository = "https://github.com/jundot/omlx"
+Homepage = "https://github.com/abdufelsayed/molto"
+Documentation = "https://github.com/abdufelsayed/molto#readme"
+Repository = "https://github.com/abdufelsayed/molto"
 
 
 [dependency-groups]
@@ -52,12 +52,12 @@ line-length = 88
 target-version = "py311"
 # Upstream model files are loaded with mlx_lm's package context and kept verbatim.
 extend-exclude = [
-  "packages/runtime/src/omlx_runtime/patches/*/vendor",
-  "packages/runtime/src/omlx_runtime/patches/bailing_hybrid/bailing_hybrid_model.py",
-  "packages/runtime/src/omlx_runtime/patches/hy_v3/hy_v3_model.py",
-  "packages/runtime/src/omlx_runtime/patches/hy_v3/hy_v3_opensource_tool_parser.py",
-  "packages/runtime/src/omlx_runtime/patches/mimo_v2/mimo_v2_model.py",
-  "packages/runtime/src/omlx_runtime/patches/deepseek_v4/deepseek_v4_model.py",
+  "packages/runtime/src/molto_runtime/patches/*/vendor",
+  "packages/runtime/src/molto_runtime/patches/bailing_hybrid/bailing_hybrid_model.py",
+  "packages/runtime/src/molto_runtime/patches/hy_v3/hy_v3_model.py",
+  "packages/runtime/src/molto_runtime/patches/hy_v3/hy_v3_opensource_tool_parser.py",
+  "packages/runtime/src/molto_runtime/patches/mimo_v2/mimo_v2_model.py",
+  "packages/runtime/src/molto_runtime/patches/deepseek_v4/deepseek_v4_model.py",
 ]
 
 [tool.mypy]
@@ -134,22 +134,22 @@ markers = [
 addopts = "-v --tb=short -m \"not slow and not integration\""
 filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning"]
 
-[tool.uv.sources.omlx-cli]
+[tool.uv.sources.molto-cli]
 workspace = true
 
-[tool.uv.sources.omlx-server]
+[tool.uv.sources.molto-server]
 workspace = true
 
-[tool.uv.sources.omlx-config]
+[tool.uv.sources.molto-config]
 workspace = true
 
-[tool.uv.sources.omlx-contracts]
+[tool.uv.sources.molto-contracts]
 workspace = true
 
-[tool.uv.sources.omlx-management]
+[tool.uv.sources.molto-management]
 workspace = true
 
-[tool.uv.sources.omlx-runtime]
+[tool.uv.sources.molto-runtime]
 workspace = true
 
 [tool.ruff.lint.flake8-bugbear]

@@ -4,7 +4,7 @@
 import json
 import struct
 
-from omlx_runtime.patches.mlx_vlm_qwen4_exp_compat.residency import (
+from molto_runtime.patches.mlx_vlm_qwen4_exp_compat.residency import (
     qwen4_exp_residency_estimate,
 )
 
@@ -76,7 +76,7 @@ def test_residency_uses_the_stable_ceiling_not_the_instantaneous_one(tmp_path):
     the table is forced to SSD for the rest of that engine's life. Measured
     cost of that mistake on this machine: 35.3 -> 14.1 tok/s.
     """
-    from omlx_runtime.engine_pool import EngineEntry, EnginePool
+    from molto_runtime.engine_pool import EngineEntry, EnginePool
 
     model = tmp_path / "qwen4"
     model.mkdir()

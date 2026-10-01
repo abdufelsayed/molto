@@ -65,7 +65,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   })
   const title =
     navigation.find((item) => item.to === pathname)?.title ??
-    (pathname.startsWith("/models/") ? "Model details" : "oMLX")
+    (pathname.startsWith("/models/") ? "Model details" : "Molto")
   const { resolvedTheme, setTheme } = useTheme()
   const connected = !!status.data && !status.isError
   const connectionLabel = status.isPending
@@ -155,7 +155,7 @@ function DashboardSidebar({
             <CpuIcon className="size-5" />
           </div>
           <div className="flex flex-col gap-0.5">
-            <span className="text-sm font-semibold">oMLX</span>
+            <span className="text-sm font-semibold">Molto</span>
             <span className="text-xs text-muted-foreground">
               Local inference
             </span>

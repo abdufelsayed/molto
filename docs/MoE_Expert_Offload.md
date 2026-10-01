@@ -32,7 +32,7 @@ and at most one. For 25% residency:
 ```bash
 MODEL=your-model-id
 curl -X PATCH "http://127.0.0.1:8000/management/v1/models/$MODEL/settings" \
-  -H "Authorization: Bearer $OMLX_API_KEY" \
+  -H "Authorization: Bearer $MOLTO_API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"moe_expert_offload_enabled":true,"moe_expert_offload_resident_fraction":0.25}'
 ```
@@ -40,14 +40,14 @@ curl -X PATCH "http://127.0.0.1:8000/management/v1/models/$MODEL/settings" \
 This is a load-time transform. The response reports whether the loaded engine
 was unloaded, reloaded, or is waiting for active requests to finish. Check
 `GET /management/v1/state` after a deferred reload. The env
-kill switch `OMLX_MOE_EXPERT_OFFLOAD=0` disables it regardless of settings.
+kill switch `MOLTO_MOE_EXPERT_OFFLOAD=0` disables it regardless of settings.
 
 Two env vars tune the reader, and neither changes what is computed:
 
-| variable                      | default       | effect                                                                                                                  |
-| ----------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `OMLX_MOE_OFFLOAD_IO_WORKERS` | 12            | threads reading missing experts. `1` or less (or an unparseable value) keeps the serial path and starts no threads      |
-| `OMLX_MOE_OFFLOAD_IO_BATCH`   | `4 x workers` | experts whose reads may be in flight at once — the bound on the host memory the pipeline holds ahead of the slot writes |
+| variable                       | default       | effect                                                                                                                  |
+| ------------------------------ | ------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `MOLTO_MOE_OFFLOAD_IO_WORKERS` | 12            | threads reading missing experts. `1` or less (or an unparseable value) keeps the serial path and starts no threads      |
+| `MOLTO_MOE_OFFLOAD_IO_BATCH`   | `4 x workers` | experts whose reads may be in flight at once — the bound on the host memory the pipeline holds ahead of the slot writes |
 
 ## Performance
 
@@ -142,7 +142,7 @@ where the kernel path is identical, rounding-bounded where it is not.
 ## DeepSeek V4.1
 
 DeepSeek V4.1 uses its own expert adapter and loader. The original checkpoint,
-oMLX converted MXFP/oQ checkpoints, and community `mlx_lm` affine conversions
+Molto converted MXFP/oQ checkpoints, and community `mlx_lm` affine conversions
 are supported. Expert weights stay in the existing safetensors files; an
 affine source reports its format in the checkpoint's `quantization` dict and
 counts its packed weight plus BF16 scales and biases toward the resident set.
@@ -187,7 +187,7 @@ prose prompt in one prefill chunk followed by 64 greedy tokens. Single runs:
 |       25% |                96 | 4.5 s |     65.7 GiB |       77.4 GiB | 25 tok/s | 4.2 tok/s |            0.78 |
 
 Both settings produce coherent, on-topic continuations. Served through
-`omlx serve` with the same settings (discovered from the HF cache, Engram
+`molto serve` with the same settings (discovered from the HF cache, Engram
 forced to SSD by admission, 12.5% residency, engine load 4.4 s), two
 64-token chat completions ran at 2.7 tok/s on cold expert slots and
 4.1 tok/s after. Prefill reads every
@@ -221,7 +221,7 @@ The Metal working-set limit on a 128 GB machine with `iogpu.wired_limit_mb`
 unset is about 107 GiB, and KV cache, prefill transients, and the Engram
 page cache share it. `admission_bytes(path, fraction)` and
 `fit_resident_fraction(path, budget_bytes)` in
-`omlx_runtime.patches.deepseek_v41.moe_offload` give the engine pool's admission
+`molto_runtime.patches.deepseek_v41.moe_offload` give the engine pool's admission
 estimate for a fraction and the largest fraction whose estimate fits a byte
 budget.
 
@@ -250,10 +250,10 @@ custom model families receive no offload admission discount.
 
 GLM-5.2 and GLM-5.3 (`model_type: glm_moe_dsa`: 78 layers, the first 3 dense,
 256 routed experts, top-8, one shared expert) run their routed experts
-through oMLX's own GLM SwitchGLU, which fuses the gate and up projections at
+through Molto's own GLM SwitchGLU, which fuses the gate and up projections at
 load and, on sorted calls, returns the routes already weighted and summed by
 the native `glm_moe_weighted_sum` kernel. The adapter in
-`packages/runtime/src/omlx_runtime/patches/glm_moe_dsa/moe_offload.py` keeps that module and its kernels:
+`packages/runtime/src/molto_runtime/patches/glm_moe_dsa/moe_offload.py` keeps that module and its kernels:
 each projection's parameters are replaced by resident slots before lazy
 weights materialize, expert ids are translated to slot ids, and the module's
 own forward runs unchanged on them. Every kernel decision inside it is a
@@ -300,7 +300,7 @@ runs at each residency; between residencies the two texts forked at one
 marginal token (a capitalization), which is the documented behavior of
 over-capacity prefill under a different chunking.
 
-`omlx serve` end to end on the same machine (balanced memory guard, which
+`molto serve` end to end on the same machine (balanced memory guard, which
 puts the dynamic ceiling at 102.5 GB): the checkpoint is discovered from the
 HF cache; at 20% the request is refused with 507 because the 105.0 GB
 estimate does not fit that ceiling (the aggressive tier, or raising

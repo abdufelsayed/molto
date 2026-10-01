@@ -9,10 +9,10 @@ import time
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.cluster.rdma import frames
-from omlx_runtime.cluster.rdma.mailbox import ClientMailbox, ServiceMailbox
-from omlx_runtime.cluster.rdma.stage_plan import StageLink
-from omlx_runtime.cluster.rdma.stage_transport import (
+from molto_runtime.cluster.rdma import frames
+from molto_runtime.cluster.rdma.mailbox import ClientMailbox, ServiceMailbox
+from molto_runtime.cluster.rdma.stage_plan import StageLink
+from molto_runtime.cluster.rdma.stage_transport import (
     LinkDownError,
     StageReceiver,
     StageSender,

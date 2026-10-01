@@ -4,12 +4,12 @@
 from __future__ import annotations
 
 import pytest
-from omlx_runtime.cluster.prefill_guard import (
+from molto_runtime.cluster.prefill_guard import (
     RankPrefillGuard,
     build_guard,
     rank_monitor,
 )
-from omlx_runtime.exceptions import PrefillMemoryExceededError
+from molto_runtime.exceptions import PrefillMemoryExceededError
 
 GiB = 1024**3
 
@@ -172,7 +172,7 @@ def test_no_ceiling_disables_the_guard():
 
 def test_build_guard_uses_this_macs_ceiling(monkeypatch):
     monkeypatch.setattr(
-        "omlx_runtime.cluster.memory_guard.ceiling_breakdown",
+        "molto_runtime.cluster.memory_guard.ceiling_breakdown",
         lambda tier: {"hard_limit": 12 * GiB},
     )
     guard = build_guard(_Model(), rank=0, node_id="mbp", layer_count=32)
@@ -184,5 +184,5 @@ def test_build_guard_survives_a_host_with_no_enforcer(monkeypatch):
     def _boom(_tier):
         raise RuntimeError("no enforcer here")
 
-    monkeypatch.setattr("omlx_runtime.cluster.memory_guard.ceiling_breakdown", _boom)
+    monkeypatch.setattr("molto_runtime.cluster.memory_guard.ceiling_breakdown", _boom)
     assert not build_guard(_Model(), rank=0).active

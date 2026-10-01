@@ -16,9 +16,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.engine.dflash import DFlashEngine, _DFlashPrefillGuard
-from omlx_runtime.exceptions import PrefillMemoryExceededError
-from omlx_runtime.memory_monitor import (
+from molto_runtime.engine.dflash import DFlashEngine, _DFlashPrefillGuard
+from molto_runtime.exceptions import PrefillMemoryExceededError
+from molto_runtime.memory_monitor import (
     MemoryMonitor,
     raise_if_prefill_exceeds,
     set_model_info_from_model,
@@ -59,9 +59,9 @@ def _make_guard(step: int = 2048) -> _DFlashPrefillGuard:
 def _zero_mem():
     """Patch live-memory probes so the estimate alone drives the check."""
     return patch(
-        "omlx_runtime.engine.dflash.get_phys_footprint", return_value=0
+        "molto_runtime.engine.dflash.get_phys_footprint", return_value=0
     ), patch(
-        "omlx_runtime.memory_monitor.mx.get_active_memory",
+        "molto_runtime.memory_monitor.mx.get_active_memory",
         side_effect=AssertionError("preflight must not read MLX directly"),
     )
 
@@ -204,7 +204,7 @@ def test_shared_helper_uses_caller_supplied_usage_without_mlx_probe():
 
     with (
         patch(
-            "omlx_runtime.memory_monitor.mx.get_active_memory",
+            "molto_runtime.memory_monitor.mx.get_active_memory",
             side_effect=AssertionError("preflight must not read MLX directly"),
         ),
         pytest.raises(PrefillMemoryExceededError),
@@ -229,9 +229,9 @@ def test_guard_uses_cached_active_and_physical_usage_without_mlx_probe():
     guard._memory_hard_limit_bytes = int(phys + peak - 1)
 
     with (
-        patch("omlx_runtime.engine.dflash.get_phys_footprint", return_value=phys),
+        patch("molto_runtime.engine.dflash.get_phys_footprint", return_value=phys),
         patch(
-            "omlx_runtime.memory_monitor.mx.get_active_memory",
+            "molto_runtime.memory_monitor.mx.get_active_memory",
             side_effect=AssertionError("preflight must not read MLX directly"),
         ),
         pytest.raises(PrefillMemoryExceededError) as exc,
@@ -252,9 +252,9 @@ def test_guard_uses_cached_active_when_larger_than_physical():
     guard._memory_hard_limit_bytes = int(cached + peak - 1)
 
     with (
-        patch("omlx_runtime.engine.dflash.get_phys_footprint", return_value=phys),
+        patch("molto_runtime.engine.dflash.get_phys_footprint", return_value=phys),
         patch(
-            "omlx_runtime.memory_monitor.mx.get_active_memory",
+            "molto_runtime.memory_monitor.mx.get_active_memory",
             side_effect=AssertionError("preflight must not read MLX directly"),
         ),
         pytest.raises(PrefillMemoryExceededError) as exc,
@@ -284,9 +284,9 @@ def test_guard_excludes_hot_cache_bytes_from_physical_usage():
     guard._memory_hard_limit_bytes = int(phys - hot_used + peak)
 
     with (
-        patch("omlx_runtime.engine.dflash.get_phys_footprint", return_value=phys),
+        patch("molto_runtime.engine.dflash.get_phys_footprint", return_value=phys),
         patch(
-            "omlx_runtime.memory_monitor.mx.get_active_memory",
+            "molto_runtime.memory_monitor.mx.get_active_memory",
             side_effect=AssertionError("preflight must not read MLX directly"),
         ),
     ):
@@ -295,9 +295,9 @@ def test_guard_excludes_hot_cache_bytes_from_physical_usage():
     # Still rejects when genuinely over even after the exclusion.
     guard._memory_hard_limit_bytes = int(phys - hot_used + peak - 1)
     with (
-        patch("omlx_runtime.engine.dflash.get_phys_footprint", return_value=phys),
+        patch("molto_runtime.engine.dflash.get_phys_footprint", return_value=phys),
         patch(
-            "omlx_runtime.memory_monitor.mx.get_active_memory",
+            "molto_runtime.memory_monitor.mx.get_active_memory",
             side_effect=AssertionError("preflight must not read MLX directly"),
         ),
         pytest.raises(PrefillMemoryExceededError) as exc,
@@ -322,9 +322,9 @@ def test_guard_hot_cache_exclusion_clamps_and_keeps_active_floor():
     # of active + peak fits with the clamp applied, not without.
     guard._memory_hard_limit_bytes = int(active + peak)
     with (
-        patch("omlx_runtime.engine.dflash.get_phys_footprint", return_value=phys),
+        patch("molto_runtime.engine.dflash.get_phys_footprint", return_value=phys),
         patch(
-            "omlx_runtime.memory_monitor.mx.get_active_memory",
+            "molto_runtime.memory_monitor.mx.get_active_memory",
             side_effect=AssertionError("preflight must not read MLX directly"),
         ),
     ):
@@ -333,9 +333,9 @@ def test_guard_hot_cache_exclusion_clamps_and_keeps_active_floor():
     # The active floor itself is never reduced by the exclusion.
     guard._memory_hard_limit_bytes = int(active + peak - 1)
     with (
-        patch("omlx_runtime.engine.dflash.get_phys_footprint", return_value=phys),
+        patch("molto_runtime.engine.dflash.get_phys_footprint", return_value=phys),
         patch(
-            "omlx_runtime.memory_monitor.mx.get_active_memory",
+            "molto_runtime.memory_monitor.mx.get_active_memory",
             side_effect=AssertionError("preflight must not read MLX directly"),
         ),
         pytest.raises(PrefillMemoryExceededError) as exc,
@@ -405,7 +405,7 @@ async def test_engine_preflight_chat_delegates_to_fallback_in_fallback_mode():
 
 async def test_engine_preflight_chat_noop_without_guard():
     eng = _bare_engine()  # _prefill_guard is None, not in fallback
-    with patch("omlx_runtime.engine.dflash._warn_scheduler_unreachable_once") as warn:
+    with patch("molto_runtime.engine.dflash._warn_scheduler_unreachable_once") as warn:
         await eng.preflight_chat([{"role": "user", "content": "hi"}])
     warn.assert_called_once()
 

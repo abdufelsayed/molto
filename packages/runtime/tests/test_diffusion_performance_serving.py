@@ -10,10 +10,10 @@ from types import SimpleNamespace
 import httpx
 import pytest
 from fastapi import FastAPI
-from omlx_runtime.engine import base, image_generation
-from omlx_runtime.engine.image_generation import DiffusionImageEngine
-from omlx_runtime.exceptions import InsufficientMemoryError
-from omlx_server.api import image_routes
+from molto_runtime.engine import base, image_generation
+from molto_runtime.engine.image_generation import DiffusionImageEngine
+from molto_runtime.exceptions import InsufficientMemoryError
+from molto_server.api import image_routes
 from PIL import Image
 
 
@@ -76,7 +76,7 @@ def api(checkpoint, monkeypatch):
     monkeypatch.setattr(image_routes, "_get_engine_pool", lambda request: Pool())
     monkeypatch.setattr(image_routes, "_resolve_model", lambda value, request: value)
     app = FastAPI()
-    from omlx_server.state import ServerState
+    from molto_server.state import ServerState
 
     app.state.server_state = ServerState()
     app.include_router(image_routes.router)

@@ -23,7 +23,7 @@ test("guided run request, preserved workload and cooperative cancellation", asyn
   }))
   let run: Run | undefined
   let submitted: unknown
-  await page.route("**/api/omlx/diagnostics/**", async (route) => {
+  await page.route("**/api/molto/diagnostics/**", async (route) => {
     const path = new URL(route.request().url()).pathname
     if (path.endsWith("capabilities"))
       return route.fulfill({
@@ -111,7 +111,7 @@ test("guided accuracy, context and ANE workloads use runner fields", async ({
     kind,
     targets: ["local"],
   }))
-  await page.route("**/api/omlx/diagnostics/**", async (route) => {
+  await page.route("**/api/molto/diagnostics/**", async (route) => {
     const path = new URL(route.request().url()).pathname
     if (path.endsWith("capabilities"))
       return route.fulfill({
@@ -210,7 +210,7 @@ test("external credentials are sent only with explicit run and local-only runner
   page,
 }) => {
   let body: unknown
-  await page.route("**/api/omlx/diagnostics/**", async (route) => {
+  await page.route("**/api/molto/diagnostics/**", async (route) => {
     const path = new URL(route.request().url()).pathname
     if (path.endsWith("capabilities"))
       return route.fulfill({
@@ -359,7 +359,7 @@ test("recommendations preview before applying and report reload failures", async
     request: { model_id: "local-model" },
     results: [{ applied_tokens: 32768 }],
   }
-  await page.route("**/api/omlx/**", async (route) => {
+  await page.route("**/api/molto/**", async (route) => {
     const path = new URL(route.request().url()).pathname
     if (path.endsWith("/models/local-model/settings")) {
       patch = route.request().postDataJSON()

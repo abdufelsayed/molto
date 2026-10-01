@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx_config.utils.proc_memory.get_phys_footprint."""
+"""Tests for molto_config.utils.proc_memory.get_phys_footprint."""
 
 import ctypes
 import os
 import sys
 
 import pytest
-from omlx_config.utils.proc_memory import (
+from molto_config.utils.proc_memory import (
     get_lifetime_max_phys_footprint,
     get_phys_footprint,
 )
@@ -55,7 +55,7 @@ class TestGetPhysFootprintDarwin:
 class TestGetPhysFootprintFallback:
     def test_returns_zero_on_non_darwin(self, monkeypatch):
         # Simulate libproc unavailable.
-        monkeypatch.setattr("omlx_config.utils.proc_memory._proc_pid_rusage", None)
+        monkeypatch.setattr("molto_config.utils.proc_memory._proc_pid_rusage", None)
         assert get_phys_footprint() == 0
         assert get_phys_footprint(pid=12345) == 0
 
@@ -81,7 +81,7 @@ class TestLifetimeMaxPhysFootprintDarwin:
 
 class TestLifetimeMaxPhysFootprintFallback:
     def test_returns_zero_when_libproc_unavailable(self, monkeypatch):
-        monkeypatch.setattr("omlx_config.utils.proc_memory._proc_pid_rusage", None)
+        monkeypatch.setattr("molto_config.utils.proc_memory._proc_pid_rusage", None)
         assert get_lifetime_max_phys_footprint() == 0
 
 
@@ -89,7 +89,7 @@ class TestLifetimeMaxPhysFootprintFallback:
 class TestGraphicsFootprintDarwin:
     def test_kernel_fills_the_graphics_ledger(self):
         """The kernel fills only whole revisions that fit the caller's count."""
-        from omlx_config.utils import proc_memory as pm
+        from molto_config.utils import proc_memory as pm
 
         info = pm._TaskVMInfo()
         count = ctypes.c_uint(pm._TASK_VM_INFO_COUNT)

@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import pytest
-from omlx_runtime.cluster.rdma import frames, layout
+from molto_runtime.cluster.rdma import frames, layout
 
 
 def test_words_pack_sequence_high_and_length_low():

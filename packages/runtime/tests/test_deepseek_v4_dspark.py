@@ -13,8 +13,8 @@ import pytest
 
 @pytest.fixture(scope="module")
 def dsv4():
-    from omlx_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
-    from omlx_runtime.patches.mlx_lm_mtp import apply_mlx_lm_mtp_patch
+    from molto_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
+    from molto_runtime.patches.mlx_lm_mtp import apply_mlx_lm_mtp_patch
 
     apply_deepseek_v4_patch()
     apply_mlx_lm_mtp_patch()
@@ -65,7 +65,7 @@ def test_model_args_preserve_dspark_tail_compress_ratios(dsv4):
 
 
 def test_ratio128_verify_boundary_matches_m1_pooling(dsv4):
-    from omlx_runtime.patches.deepseek_v4.cache_extras import BatchPoolingCache
+    from molto_runtime.patches.deepseek_v4.cache_extras import BatchPoolingCache
 
     config = _tiny_config(dsv4)
     compressor = dsv4.Compressor(config, compress_ratio=128, head_dim=4)
@@ -106,7 +106,7 @@ def test_ratio128_verify_boundary_matches_m1_pooling(dsv4):
 
 
 def test_dspark_wins_over_legacy_nextn_discriminator(dsv4):
-    from omlx_runtime.patches.mlx_lm_mtp import set_mtp_active, set_mtp_depth
+    from molto_runtime.patches.mlx_lm_mtp import set_mtp_active, set_mtp_depth
 
     set_mtp_active(True)
     set_mtp_depth(3)
@@ -115,14 +115,14 @@ def test_dspark_wins_over_legacy_nextn_discriminator(dsv4):
     finally:
         set_mtp_active(False)
 
-    assert model._omlx_dspark_decode_enabled is True
+    assert model._molto_dspark_decode_enabled is True
     assert len(model.mtp) == 3
     assert all(isinstance(stage, dsv4.DSparkBlock) for stage in model.mtp)
     assert not any(isinstance(stage, dsv4.MTPBlock) for stage in model.mtp)
 
 
 def test_dspark_target_tap_and_parallel_draft_shapes(dsv4):
-    from omlx_runtime.patches.mlx_lm_mtp import set_mtp_active, set_mtp_depth
+    from molto_runtime.patches.mlx_lm_mtp import set_mtp_active, set_mtp_depth
 
     set_mtp_active(True)
     set_mtp_depth(3)
@@ -154,7 +154,7 @@ def test_dspark_target_tap_and_parallel_draft_shapes(dsv4):
 
 
 def test_dspark_query_block_matches_requested_depth(dsv4, monkeypatch):
-    from omlx_runtime.patches.mlx_lm_mtp import set_mtp_active, set_mtp_depth
+    from molto_runtime.patches.mlx_lm_mtp import set_mtp_active, set_mtp_depth
 
     set_mtp_active(True)
     set_mtp_depth(3)
@@ -226,8 +226,8 @@ def test_dspark_sanitize_keeps_direct_stage_layout(dsv4):
             o_lora_rank=4,
         ),
         mtp=[object(), object(), object()],
-        _omlx_dspark_decode_enabled=True,
-        _omlx_mtp_decode_enabled=True,
+        _molto_dspark_decode_enabled=True,
+        _molto_mtp_decode_enabled=True,
     )
     weights = {
         "mtp.0.main_proj.weight": mx.zeros((8, 24)),
@@ -254,8 +254,8 @@ def test_dspark_sanitize_keeps_direct_stage_layout(dsv4):
 
 
 def test_dspark_generation_batch_samples_markov_chain(dsv4):
-    from omlx_runtime.patches.mlx_lm_mtp import set_mtp_active, set_mtp_depth
-    from omlx_runtime.patches.mlx_lm_mtp.batch_generator import (
+    from molto_runtime.patches.mlx_lm_mtp import set_mtp_active, set_mtp_depth
+    from molto_runtime.patches.mlx_lm_mtp.batch_generator import (
         _dspark_next_drafts,
         _MtpState,
     )
@@ -298,7 +298,7 @@ def test_dspark_generation_batch_samples_markov_chain(dsv4):
     [("affine", 8, 64), ("mxfp8", 8, 32)],
 )
 def test_verify_singleton_batch_qmv_matches_decode_rows(mode, bits, group_size):
-    from omlx_runtime.patches.deepseek_v4.decode_consistency import (
+    from molto_runtime.patches.deepseek_v4.decode_consistency import (
         _batched_singleton_qmv,
     )
 
@@ -341,7 +341,7 @@ def test_verify_singleton_batch_qmv_matches_decode_rows(mode, bits, group_size):
 )
 @pytest.mark.parametrize("rows", [2, 3, 4, 5, 6])
 def test_verify_exact_qmv_kernel_matches_decode_rows(mode, group_size, rows):
-    from omlx_runtime.patches.deepseek_v4.verify_qmv import exact_verify_qmv
+    from molto_runtime.patches.deepseek_v4.verify_qmv import exact_verify_qmv
 
     mx.random.seed(31 + rows)
     input_dims, output_dims = 4096, 1024
@@ -371,7 +371,7 @@ def test_verify_exact_qmv_kernel_matches_decode_rows(mode, group_size, rows):
 
 @pytest.mark.parametrize("rows", [2, 3, 5, 6])
 def test_verify_exact_mxfp8_qmv_pair_matches_decode_rows(rows):
-    from omlx_runtime.patches.deepseek_v4.verify_qmv import (
+    from molto_runtime.patches.deepseek_v4.verify_qmv import (
         exact_verify_qmv_pair,
         pair_eligible,
     )
@@ -413,14 +413,14 @@ def test_verify_exact_mxfp8_qmv_pair_matches_decode_rows(rows):
 
 
 def test_verify_qmv_pair_rejects_dense_linears():
-    from omlx_runtime.patches.deepseek_v4.verify_qmv import pair_eligible
+    from molto_runtime.patches.deepseek_v4.verify_qmv import pair_eligible
 
     inputs = mx.zeros((1, 3, 512), dtype=mx.bfloat16)
     assert not pair_eligible(nn.Linear(512, 512), nn.Linear(512, 512), inputs)
 
 
 def test_verify_batched_gemv_matches_decode_rows():
-    from omlx_runtime.patches.deepseek_v4.decode_consistency import (
+    from molto_runtime.patches.deepseek_v4.decode_consistency import (
         matmul,
         set_armed,
     )
@@ -444,7 +444,7 @@ def test_verify_batched_gemv_matches_decode_rows():
 
 @pytest.mark.parametrize("rows", [2, 3, 4, 5, 6])
 def test_verify_exact_dense_gemv_matches_decode_rows(rows):
-    from omlx_runtime.patches.deepseek_v4.verify_qmv import exact_verify_gemv
+    from molto_runtime.patches.deepseek_v4.verify_qmv import exact_verify_gemv
 
     mx.random.seed(47 + rows)
     input_dims, output_dims = 512, 4096
@@ -468,7 +468,7 @@ def test_verify_exact_dense_gemv_matches_decode_rows(rows):
 
 @pytest.mark.parametrize("rows", [1, 3, 5])
 def test_dspark_head_gemv_matches_promoted_fp32_projection(rows):
-    from omlx_runtime.patches.deepseek_v4.verify_qmv import dspark_head_gemv
+    from molto_runtime.patches.deepseek_v4.verify_qmv import dspark_head_gemv
 
     mx.random.seed(53 + rows)
     input_dims, output_dims = 512, 4096
@@ -498,7 +498,7 @@ def test_dspark_head_gemv_matches_promoted_fp32_projection(rows):
 @pytest.mark.parametrize("rows", [2, 3, 4, 5, 6])
 def test_verify_exact_multi_qmv_matches_decode_rows(rows):
     from mlx_lm.models.mla import MultiLinear
-    from omlx_runtime.patches.deepseek_v4.verify_qmv import exact_verify_multi_qmv
+    from molto_runtime.patches.deepseek_v4.verify_qmv import exact_verify_multi_qmv
 
     mx.random.seed(59 + rows)
     groups, input_dims, output_dims = 8, 512, 128
@@ -525,7 +525,7 @@ def test_verify_exact_multi_qmv_matches_decode_rows(rows):
 @pytest.mark.parametrize("head_dim", [128, 512])
 @pytest.mark.parametrize("rows", [2, 3, 4, 5, 6])
 def test_dspark_attention_kernel_matches_its_decode_path(head_dim, rows):
-    from omlx_runtime.patches.deepseek_v4.verify_attention import exact_attention
+    from molto_runtime.patches.deepseek_v4.verify_attention import exact_attention
 
     mx.random.seed(71 + head_dim + rows)
     heads, key_length = 64, 128
@@ -559,8 +559,8 @@ def test_dspark_attention_kernel_matches_its_decode_path(head_dim, rows):
 
 @pytest.mark.parametrize("rows", [2, 3, 5, 6])
 def test_dspark_ring_gemm_matches_materialized_decode_rows(rows):
-    from omlx_runtime.custom_kernels.glm_moe_dsa import fast
-    from omlx_runtime.patches.deepseek_v4.verify_attention import rowwise_gemm
+    from molto_runtime.custom_kernels.glm_moe_dsa import fast
+    from molto_runtime.patches.deepseek_v4.verify_attention import rowwise_gemm
 
     if not fast.has_symbol("dspark_ring_gemm"):
         pytest.skip("native DSpark physical-ring GEMM is unavailable")
@@ -591,7 +591,7 @@ def test_dspark_ring_gemm_matches_materialized_decode_rows(rows):
 
 @pytest.mark.parametrize("rows", [2, 3, 5])
 def test_dspark_ring_sparse_attention_matches_materialized_path(dsv4, rows):
-    from omlx_runtime.custom_kernels.glm_moe_dsa import fast
+    from molto_runtime.custom_kernels.glm_moe_dsa import fast
 
     if not fast.has_symbol("dspark_ring_gemm"):
         pytest.skip("native DSpark physical-ring GEMM is unavailable")
@@ -676,7 +676,7 @@ def test_dspark_multitoken_prefill_uses_vectorized_sparse_attention(dsv4):
 
 
 def test_dspark_attention_keeps_pool_boundary_lengths_separate():
-    from omlx_runtime.patches.deepseek_v4.verify_attention import exact_attention
+    from molto_runtime.patches.deepseek_v4.verify_attention import exact_attention
 
     mx.random.seed(907)
     heads, head_dim = 64, 512
@@ -744,7 +744,7 @@ def test_dspark_indexer_batches_adjacent_pool_lengths(dsv4):
 @pytest.mark.parametrize("key_length", [156, 512, 640, 1024])
 @pytest.mark.parametrize("rows", [2, 3, 6])
 def test_dspark_attention_matches_stock_m1_fallback(dsv4, key_length, rows):
-    from omlx_runtime.patches.deepseek_v4.verify_attention import exact_attention
+    from molto_runtime.patches.deepseek_v4.verify_attention import exact_attention
 
     mx.random.seed(811 + key_length + rows)
     heads, head_dim = 64, 512
@@ -839,7 +839,7 @@ def test_vectorized_verify_ring_snapshots_match_m1_updates(dsv4, batch_cache):
     assert len(actual_rows) == len(expected_rows)
     for actual, expected in zip(actual_rows, expected_rows):
         assert mx.array_equal(actual, expected).item()
-    from omlx_runtime.cache.type_registry import CacheTypeRegistry
+    from molto_runtime.cache.type_registry import CacheTypeRegistry
 
     handler = CacheTypeRegistry.get_handler_for_object(actual_cache)
     assert handler.serialize_meta_state(actual_cache) == handler.serialize_meta_state(
@@ -858,7 +858,7 @@ def test_vectorized_verify_ring_snapshots_match_m1_updates(dsv4, batch_cache):
 @pytest.mark.parametrize("batch_cache", [False, True])
 def test_vectorized_verify_ring_rollback_matches_accepted_prefix(dsv4, batch_cache):
     from mlx_lm.models.cache import BatchRotatingKVCache
-    from omlx_runtime.patches.mlx_lm_mtp.cache_rollback import set_undo_armed
+    from molto_runtime.patches.mlx_lm_mtp.cache_rollback import set_undo_armed
 
     def make_cache():
         if batch_cache:
@@ -908,7 +908,7 @@ def test_vectorized_verify_ring_rollback_matches_accepted_prefix(dsv4, batch_cac
     assert actual.trim(2) == 2
     mx.eval(expected.keys, expected.values, actual.keys, actual.values)
 
-    from omlx_runtime.cache.type_registry import CacheTypeRegistry
+    from molto_runtime.cache.type_registry import CacheTypeRegistry
 
     handler = CacheTypeRegistry.get_handler_for_object(actual)
     assert handler.serialize_meta_state(actual) == handler.serialize_meta_state(

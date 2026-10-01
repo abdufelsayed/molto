@@ -7,7 +7,7 @@ from pathlib import Path
 
 import mlx_vlm.utils as mlx_vlm_utils
 import pytest
-from omlx_runtime.engine.vlm import (
+from molto_runtime.engine.vlm import (
     _derive_gemma4_global_kv_on_load,
     _gemma4_global_kv_from_per_layer_config,
 )

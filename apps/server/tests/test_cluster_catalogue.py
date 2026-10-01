@@ -5,13 +5,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from omlx_runtime.cluster.catalogue import (
+from molto_runtime.cluster.catalogue import (
     ModelFit,
     assess_model,
     catalogue_for_cluster,
     largest_context_that_fits,
 )
-from omlx_runtime.cluster.planner import ModelLayout, NodeBudget, synthetic_model_layout
+from molto_runtime.cluster.planner import (
+    ModelLayout,
+    NodeBudget,
+    synthetic_model_layout,
+)
 
 GiB = 1024**3
 
@@ -186,14 +190,14 @@ def test_the_biggest_runnable_model_is_listed_first(tmp_path, monkeypatch):
             reason="",
         )
 
-    monkeypatch.setattr("omlx_runtime.cluster.catalogue.assess_model_path", _fake)
+    monkeypatch.setattr("molto_runtime.cluster.catalogue.assess_model_path", _fake)
     catalogue = catalogue_for_cluster(["a", "b", "c"], _nodes(128))
     assert [fit.model_id for fit in catalogue] == ["b", "a", "c"]
     assert catalogue[-1].fits is False
 
 
 def test_an_unreadable_model_is_reported_not_raised(tmp_path):
-    from omlx_runtime.cluster.catalogue import assess_model_path
+    from molto_runtime.cluster.catalogue import assess_model_path
 
     fit = assess_model_path(tmp_path / "not-a-model", _nodes(128))
     assert not fit.fits
@@ -232,7 +236,7 @@ CATALOGUE = "/admin/api/cluster/catalogue"
 def _client():
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
-    from omlx_server.cluster.routes import router
+    from molto_server.cluster.routes import router
 
     app = FastAPI()
     app.include_router(router)
@@ -294,7 +298,7 @@ def test_the_endpoint_answers_for_every_model_it_was_given(monkeypatch, tmp_path
             max_context_tokens=32768,
         )
 
-    monkeypatch.setattr("omlx_runtime.cluster.catalogue.assess_model_path", _fake)
+    monkeypatch.setattr("molto_runtime.cluster.catalogue.assess_model_path", _fake)
     response = _client().post(
         CATALOGUE,
         json={
@@ -439,15 +443,15 @@ def test_requested_links_fast(tmp_path):
     from types import SimpleNamespace
 
     from cluster_app import cluster_app
-    from omlx_runtime.cluster.identity import (
+    from molto_runtime.cluster.identity import (
         configure_node_identity,
         reset_configured_identity,
     )
-    from omlx_runtime.cluster.registry import (
+    from molto_runtime.cluster.registry import (
         configure_device_registry,
         reset_configured_device_registry,
     )
-    from omlx_server.cluster import routes as cluster_routes
+    from molto_server.cluster import routes as cluster_routes
 
     configure_node_identity(tmp_path / "identity.json")
     registry = configure_device_registry(tmp_path / "devices.json")

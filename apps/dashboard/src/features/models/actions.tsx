@@ -88,7 +88,7 @@ export function ModelActions({
           <AlertDialogHeader>
             <AlertDialogTitle>Unload {model.id}?</AlertDialogTitle>
             <AlertDialogDescription>
-              oMLX will release the model after active work finishes. A later
+              Molto will release the model after active work finishes. A later
               inference request can load it again.
             </AlertDialogDescription>
           </AlertDialogHeader>

@@ -6,15 +6,15 @@ import mlx.core as mx
 import mlx.nn as nn
 import numpy as np
 import pytest
-from omlx_runtime.oq import (
+from molto_runtime.oq import (
     OQ_LEVELS,
     OQImatrixCollector,
     _collect_k2_horizon_lm_head_imatrix,
     quantize_oq_streaming,
     universal_quant_predicate,
 )
-from omlx_runtime.patches.k2_horizon import apply_k2_horizon_patch
-from omlx_runtime.patches.k2_horizon.k2_horizon_model import Model, ModelArgs
+from molto_runtime.patches.k2_horizon import apply_k2_horizon_patch
+from molto_runtime.patches.k2_horizon.k2_horizon_model import Model, ModelArgs
 from test_k2_horizon import small_config
 
 

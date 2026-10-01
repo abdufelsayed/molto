@@ -3,9 +3,9 @@
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.models.vlm import VLMModelAdapter
-from omlx_runtime.patches.deepseek_v41.language import Attention
-from omlx_runtime.patches.deepseek_v41.model import Model
+from molto_runtime.models.vlm import VLMModelAdapter
+from molto_runtime.patches.deepseek_v41.language import Attention
+from molto_runtime.patches.deepseek_v41.model import Model
 from test_deepseek_v41 import load_reference_weights, tiny_ced
 
 
@@ -34,8 +34,8 @@ def test_short_suffix_preserves_positions_and_window(suffix, monkeypatch):
     model = make_model().language_model
     prefix = mx.array([[5, 9, 3, 12, 20, 7]])
     cache, baseline = model.make_cache(), model.make_cache()
-    model._omlx_prefill(prefix, cache=cache)
-    model._omlx_prefill(prefix, cache=baseline)
+    model._molto_prefill(prefix, cache=cache)
+    model._molto_prefill(prefix, cache=baseline)
     ids = mx.array([[21 + i for i in range(suffix)]])
     expected = model(ids, cache=baseline)
     seen = []
@@ -46,7 +46,7 @@ def test_short_suffix_preserves_positions_and_window(suffix, monkeypatch):
         return original(self, x, cache, shared, start, **kwargs)
 
     monkeypatch.setattr(Attention, "__call__", observe)
-    actual = model._omlx_prefill(ids, cache=cache)
+    actual = model._molto_prefill(ids, cache=cache)
     np.testing.assert_array_equal(actual, expected)
     assert seen == [(i, 6, suffix) for i in range(6)]
     for a, b in zip(cache, baseline):
@@ -65,7 +65,7 @@ def test_scoring_and_explicit_capture_are_full_depth():
     expected = adapter(ids, cache=adapter.make_cache())
     np.testing.assert_array_equal(baseline, expected)
     model.config.ced_prefill = True
-    tail = adapter._omlx_prefill(ids, cache=adapter.make_cache())
+    tail = adapter._molto_prefill(ids, cache=adapter.make_cache())
     assert tail.shape == (1, 4, 64)
     logits, hidden = model.language_model(
         ids, cache=adapter.make_cache(), return_hidden=True
@@ -73,7 +73,7 @@ def test_scoring_and_explicit_capture_are_full_depth():
     assert logits.shape[1] == hidden.shape[1] == 13
     cache = adapter.make_cache()
     with pytest.raises(ValueError, match="full hidden/verify"):
-        adapter._omlx_prefill(ids, cache=cache, return_hidden=True)
+        adapter._molto_prefill(ids, cache=cache, return_hidden=True)
     assert all(c.size() == 0 for c in cache)
 
 
@@ -81,8 +81,10 @@ def test_dspark_ring_and_rollback_after_ced_prefill():
     model = make_model(mtp=True).language_model
     cache = model.make_cache()
     for start, count in [(0, 13), (13, 9), (22, 2)]:
-        model._omlx_prefill(mx.array([[3 + i % 20 for i in range(count)]]), cache=cache)
-        context = model._omlx_mtp_prime_ctx
+        model._molto_prefill(
+            mx.array([[3 + i % 20 for i in range(count)]]), cache=cache
+        )
+        context = model._molto_mtp_prime_ctx
         assert context.expected_target_offset == start + count
         assert all(
             c.offset == start + count and c.keys.shape[2] == 4 for c in context.caches
@@ -109,7 +111,7 @@ async def test_clear_ssd_removes_both_modes_when_model_is_unloaded(
 ):
     from types import SimpleNamespace
 
-    from omlx_management.management import ManagementContext, ManagementService
+    from molto_management.management import ManagementContext, ManagementService
 
     files = []
     for root in (tmp_path, tmp_path / "deepseek_v41_ced_v1"):
@@ -126,7 +128,7 @@ async def test_clear_ssd_removes_both_modes_when_model_is_unloaded(
             get_ssd_cache_max_size_bytes=lambda _: 1024,
         ),
     )
-    from omlx_runtime.cache_operations import clear_cache
+    from molto_runtime.cache_operations import clear_cache
 
     pool = SimpleNamespace(
         get_loaded_model_ids=lambda: [], management_operation_allowed=lambda: True

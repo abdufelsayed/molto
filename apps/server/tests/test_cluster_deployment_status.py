@@ -10,10 +10,10 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
-from omlx_runtime.cluster.deployment import ClusterDeployment, ClusterHost
-from omlx_runtime.cluster.planner import PipelineAssignment
-from omlx_runtime.engine.distributed import DistributedBatchedEngine
-from omlx_runtime.engine_pool import EngineEntry, EnginePool
+from molto_runtime.cluster.deployment import ClusterDeployment, ClusterHost
+from molto_runtime.cluster.planner import PipelineAssignment
+from molto_runtime.engine.distributed import DistributedBatchedEngine
+from molto_runtime.engine_pool import EngineEntry, EnginePool
 from repo_paths import repository_root
 
 ROOT = repository_root(__file__)

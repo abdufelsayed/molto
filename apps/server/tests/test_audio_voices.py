@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 def voices_client(tmp_path):
     """TestClient for the audio router with a pool entry backed by tmp_path."""
     from fastapi import FastAPI
-    from omlx_server.api.audio_routes import router
+    from molto_server.api.audio_routes import router
 
     app = FastAPI()
     app.include_router(router)
@@ -29,9 +29,9 @@ def voices_client(tmp_path):
     pool.get_entry = MagicMock(return_value=MagicMock(model_path=str(model_dir)))
 
     with (
-        patch("omlx_server.api.audio_routes._get_engine_pool", return_value=pool),
+        patch("molto_server.api.audio_routes._get_engine_pool", return_value=pool),
         patch(
-            "omlx_server.api.audio_routes._resolve_model",
+            "molto_server.api.audio_routes._resolve_model",
             side_effect=lambda m, request: m,
         ),
         TestClient(app, raise_server_exceptions=False) as client,

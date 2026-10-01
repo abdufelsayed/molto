@@ -1,4 +1,4 @@
-"""Assemble the workspace into the single installable oMLX distribution."""
+"""Assemble the workspace into the single installable Molto distribution."""
 
 import argparse
 import json
@@ -49,7 +49,7 @@ def stage(destination: Path) -> None:
     runtime_project = next(
         project["project"]
         for project in projects
-        if project["project"]["name"] == "omlx-runtime"
+        if project["project"]["name"] == "molto-runtime"
     )
     declared = {}
     for requirement in runtime_project.get("dependencies", []):
@@ -63,7 +63,7 @@ def stage(destination: Path) -> None:
     # The standalone distribution installs these exact VCS requirements; record
     # their immutable pins so provenance survives missing dependency metadata.
     provenance = {"declared_dependencies": declared, "commits": declared}
-    (destination / "omlx_runtime/_version_sources.json").write_text(
+    (destination / "molto_runtime/_version_sources.json").write_text(
         json.dumps(provenance, indent=2, sort_keys=True) + "\n"
     )
     shutil.copy2(ROOT / "LICENSE", destination / "LICENSE")
@@ -76,12 +76,12 @@ def stage(destination: Path) -> None:
     product = workspace["project"]
     readme = product.get("readme")
     metadata = dict(
-        name="omlx",
+        name="molto",
         version=workspace["project"]["version"],
         python_requires=workspace["project"]["requires-python"],
         install_requires=sorted(dependencies),
         extras_require={k: sorted(v) for k, v in extras.items()},
-        entry_points={"console_scripts": ["omlx=omlx_cli.cli:main"]},
+        entry_points={"console_scripts": ["molto=molto_cli.cli:main"]},
         license=product.get("license", "Apache-2.0"),
         description=product.get("description", ""),
         author=", ".join(
@@ -125,7 +125,7 @@ setup(packages=find_packages(), include_package_data=True, **metadata, **kwargs)
 """
     (destination / "setup.py").write_text(setup)
     (destination / "MANIFEST.in").write_text(
-        "recursive-include omlx_* *\nglobal-exclude *.pyc\nglobal-exclude __pycache__\n"
+        "recursive-include molto_* *\nglobal-exclude *.pyc\nglobal-exclude __pycache__\n"
     )
 
 
@@ -143,7 +143,7 @@ def main() -> None:
             [sys.executable, str(ROOT / "tooling/release/build_dashboard_bundle.py")],
             check=True,
         )
-    bundle = ROOT / "apps/cli/src/omlx_cli/_dashboard"
+    bundle = ROOT / "apps/cli/src/molto_cli/_dashboard"
     for resource in (
         "server/index.mjs",
         "runtime/node",
@@ -156,7 +156,11 @@ def main() -> None:
     if manifest.get("platform") != "darwin-arm64":
         parser.error("The release bundle must contain the Darwin arm64 runtime")
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="omlx-release-") as temporary:
+    workspace = tomllib.loads((ROOT / "pyproject.toml").read_text())
+    (args.output_dir / "molto-overrides.txt").write_text(
+        "\n".join(workspace["tool"]["uv"].get("override-dependencies", [])) + "\n"
+    )
+    with tempfile.TemporaryDirectory(prefix="molto-release-") as temporary:
         destination = Path(temporary)
         stage(destination)
         subprocess.run(

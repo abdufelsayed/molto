@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import mlx.core as mx
 import mlx.nn as nn
-import omlx_runtime.patches.qwen35_moe_routed_decode as routed
+import molto_runtime.patches.qwen35_moe_routed_decode as routed
 import pytest
 
 pytestmark = pytest.mark.skipif(not mx.metal.is_available(), reason="requires Metal")
@@ -26,24 +26,24 @@ _FakeQwen4Model.__module__ = "mlx_vlm.models.qwen4_exp.qwen4_exp"
 def _patched_block(monkeypatch):
     """Apply router + routed patches, restore the class afterwards."""
     from mlx_vlm.models.qwen3_5_moe import language as vlm_moe
-    from omlx_runtime.patches.qwen35_moe_router import apply_qwen35_moe_router_patch
+    from molto_runtime.patches.qwen35_moe_router import apply_qwen35_moe_router_patch
 
     cls = vlm_moe.Qwen3_5MoeSparseMoeBlock
     apply_qwen35_moe_router_patch()  # process-wide and idempotent
-    assert cls._omlx_router_fused
+    assert cls._molto_router_fused
     call = cls.__call__
-    original = getattr(call, "_omlx_routed_decode_original", call)
+    original = getattr(call, "_molto_routed_decode_original", call)
     monkeypatch.setattr(routed, "_DISABLED", False)
     monkeypatch.setattr(routed, "_PROVEN", False)
     cls.__call__ = original
-    if "_omlx_routed_decode" in cls.__dict__:
-        delattr(cls, "_omlx_routed_decode")
+    if "_molto_routed_decode" in cls.__dict__:
+        delattr(cls, "_molto_routed_decode")
     assert routed.apply_qwen35_moe_routed_decode_patch()
     yield cls
     cls.__call__ = original
-    cls._omlx_router_fused = True
-    if "_omlx_routed_decode" in cls.__dict__:
-        delattr(cls, "_omlx_routed_decode")
+    cls._molto_router_fused = True
+    if "_molto_routed_decode" in cls.__dict__:
+        delattr(cls, "_molto_routed_decode")
 
 
 def _block(
@@ -61,7 +61,7 @@ def _block(
     shared-expert gate, bf16 router. ``quantized_shared=False`` keeps the
     shared expert and its gate in bf16."""
     from mlx_vlm.models.qwen3_5_moe.language import Qwen3_5MoeSparseMoeBlock
-    from omlx_runtime.patches.qwen35_moe_gate_up import apply_qwen35_moe_gate_up_fusion
+    from molto_runtime.patches.qwen35_moe_gate_up import apply_qwen35_moe_gate_up_fusion
 
     mx.random.seed(seed)
     args = SimpleNamespace(
@@ -265,7 +265,7 @@ def test_fp32_kernels_match_mlx_mat_vecs(bits):
 def test_experts_past_the_bound_view_are_read_from_the_stacked_weights():
     """The kernels bind a one-expert view and index the rest; a view copied
     out of the stacked buffer would read the wrong bytes for high experts."""
-    from omlx_runtime.patches.qwen35_moe_router import fused_moe_combine
+    from molto_runtime.patches.qwen35_moe_router import fused_moe_combine
 
     block = _block(1024, 320, bits=5, experts=512)
     plan = routed.routed_decode_plan(block, mx.zeros((1, 1, 1024), mx.bfloat16))
@@ -289,7 +289,7 @@ def test_tied_router_logits_route_like_the_served_block():
     """Duplicated router rows give exactly tied probabilities; ties must pick
     the same experts, in the same order, with the same scores as the served
     router launches."""
-    from omlx_runtime.patches.qwen35_moe_router import (
+    from molto_runtime.patches.qwen35_moe_router import (
         router_logits_row,
         softmax_topk_row,
     )
@@ -398,8 +398,8 @@ def test_kernel_failure_falls_back_once(monkeypatch):
 
 def test_apply_requires_the_fused_router(_patched_block):
     cls = _patched_block
-    del cls._omlx_routed_decode
-    cls._omlx_router_fused = False
+    del cls._molto_routed_decode
+    cls._molto_router_fused = False
     assert not routed.apply_qwen35_moe_routed_decode_patch()
 
 

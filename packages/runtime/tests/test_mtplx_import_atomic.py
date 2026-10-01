@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-from omlx_runtime import oq
+from molto_runtime import oq
 
 
 @pytest.fixture

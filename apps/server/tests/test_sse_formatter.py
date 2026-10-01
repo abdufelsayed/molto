@@ -9,7 +9,7 @@ OpenAI and Anthropic API formats.
 import json
 
 import pytest
-from omlx_server.api.adapters.sse_formatter import (
+from molto_server.api.adapters.sse_formatter import (
     AnthropicSSEFormatter,
     OpenAISSEFormatter,
     SSEFormatter,

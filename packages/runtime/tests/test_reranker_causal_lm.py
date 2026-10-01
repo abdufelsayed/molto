@@ -15,7 +15,7 @@ try:
 except ImportError:
     HAS_MLX = False
 
-from omlx_runtime.models.reranker import MLXRerankerModel, RerankOutput
+from molto_runtime.models.reranker import MLXRerankerModel, RerankOutput
 
 
 class TestXLMRobertaReranker:
@@ -25,7 +25,7 @@ class TestXLMRobertaReranker:
     def test_load_xlm_roberta_switches_to_eval_mode(self, tmp_path):
         """Native reranker load must disable dropout for deterministic scores."""
         from mlx.utils import tree_flatten
-        from omlx_runtime.models.xlm_roberta import Model, ModelArgs
+        from molto_runtime.models.xlm_roberta import Model, ModelArgs
 
         config = {
             "model_type": "xlm-roberta",
@@ -1167,8 +1167,8 @@ class TestRerankerClose:
         model._compiled_seq_logits = MagicMock()
 
         with (
-            patch("omlx_runtime.models.reranker.gc.collect") as collect,
-            patch("omlx_runtime.models.reranker.mx") as mock_mx,
+            patch("molto_runtime.models.reranker.gc.collect") as collect,
+            patch("molto_runtime.models.reranker.mx") as mock_mx,
         ):
             model.close()
 

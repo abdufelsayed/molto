@@ -23,9 +23,9 @@ pytestmark = [pytest.mark.slow, pytest.mark.integration]
 
 
 def test_gemma_backend_text_vision_and_streaming(tmp_path: Path) -> None:
-    configured = os.environ.get("OMLX_TEST_GEMMA_VLM")
+    configured = os.environ.get("MOLTO_TEST_GEMMA_VLM")
     if not configured:
-        pytest.skip("Set OMLX_TEST_GEMMA_VLM to a complete local Gemma VLM checkpoint")
+        pytest.skip("Set MOLTO_TEST_GEMMA_VLM to a complete local Gemma VLM checkpoint")
     checkpoint = Path(configured).expanduser().resolve()
     assert (checkpoint / "config.json").is_file()
     root = tmp_path
@@ -38,8 +38,8 @@ def test_gemma_backend_text_vision_and_streaming(tmp_path: Path) -> None:
     env = os.environ.copy()
     env.update(
         HOME=str(root),
-        OMLX_BASE_PATH=str(root / "state"),
-        OMLX_API_KEY="probe-only-key",
+        MOLTO_BASE_PATH=str(root / "state"),
+        MOLTO_API_KEY="probe-only-key",
         HF_HUB_OFFLINE="1",
         TRANSFORMERS_OFFLINE="1",
     )
@@ -49,7 +49,7 @@ def test_gemma_backend_text_vision_and_streaming(tmp_path: Path) -> None:
             [
                 sys.executable,
                 "-m",
-                "omlx_cli.cli",
+                "molto_cli.cli",
                 "serve",
                 "--model-dir",
                 str(models),

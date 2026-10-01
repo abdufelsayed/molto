@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx_runtime.patches.mlx_vlm_mtp.glm5_next_vlm_runtime.
+"""Tests for molto_runtime.patches.mlx_vlm_mtp.glm5_next_vlm_runtime.
 
 Covers nextn key matching, MTP block structure, the cache pair the head
 needs, and two sanitize paths: a raw checkpoint whose head lives at
@@ -16,7 +16,7 @@ import pytest
 
 pytest.importorskip("mlx_vlm.models.deepseek_v4")
 
-from omlx_runtime.patches.mlx_vlm_glm5_next_compat import (
+from molto_runtime.patches.mlx_vlm_glm5_next_compat import (
     apply_mlx_vlm_glm5_next_compat_patch,
 )
 
@@ -32,12 +32,12 @@ from types import MethodType, SimpleNamespace
 
 from mlx.utils import tree_flatten
 from mlx_vlm.models.glm5_next import language
-from omlx_runtime.patches.mlx_lm_mtp import batch_generator as bg
-from omlx_runtime.patches.mlx_lm_mtp import batched_head
-from omlx_runtime.patches.mlx_lm_mtp import prompt_priming as pp
-from omlx_runtime.patches.mlx_vlm_glm5_next_compat import decode_kernels as dk
-from omlx_runtime.patches.mlx_vlm_mtp import glm5_next_vlm_runtime  # noqa: E402
-from omlx_runtime.patches.mlx_vlm_mtp.glm5_next_batch_rollback import rollback_rows
+from molto_runtime.patches.mlx_lm_mtp import batch_generator as bg
+from molto_runtime.patches.mlx_lm_mtp import batched_head
+from molto_runtime.patches.mlx_lm_mtp import prompt_priming as pp
+from molto_runtime.patches.mlx_vlm_glm5_next_compat import decode_kernels as dk
+from molto_runtime.patches.mlx_vlm_mtp import glm5_next_vlm_runtime  # noqa: E402
+from molto_runtime.patches.mlx_vlm_mtp.glm5_next_batch_rollback import rollback_rows
 
 N_MAIN = 45
 N_MTP = 1
@@ -460,7 +460,7 @@ def test_chain_depth_stays_inside_the_pooling_undo_window(applied, config):
     """PoolingCache stashes its undo log only for updates of 8 rows or fewer,
     and a depth-k chain verifies k+1 rows.
     """
-    from omlx_runtime.patches import mlx_lm_mtp
+    from molto_runtime.patches import mlx_lm_mtp
 
     prev_depth, prev_active = mlx_lm_mtp.get_mtp_depth(), mlx_lm_mtp.is_mtp_active()
     try:
@@ -471,7 +471,7 @@ def test_chain_depth_stays_inside_the_pooling_undo_window(applied, config):
         mlx_lm_mtp.set_mtp_depth(prev_depth)
         mlx_lm_mtp.set_mtp_active(prev_active)
 
-    assert model._omlx_mtp_depth == 7
+    assert model._molto_mtp_depth == 7
 
 
 def test_head_cache_is_committed_only(applied, config):
@@ -482,8 +482,10 @@ def test_head_cache_is_committed_only(applied, config):
     with head_clone False the paired KVCache rewinds every cycle while the
     indexer pool keeps the rejected draft rows.
     """
-    from omlx_runtime.patches import mlx_lm_mtp
-    from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _resolve_mtp_chain_depth
+    from molto_runtime.patches import mlx_lm_mtp
+    from molto_runtime.patches.mlx_lm_mtp.batch_generator import (
+        _resolve_mtp_chain_depth,
+    )
 
     prev_active = mlx_lm_mtp.is_mtp_active()
     try:
@@ -492,7 +494,7 @@ def test_head_cache_is_committed_only(applied, config):
     finally:
         mlx_lm_mtp.set_mtp_active(prev_active)
 
-    assert model._omlx_mtp_head_clone is True
+    assert model._molto_mtp_head_clone is True
     assert _resolve_mtp_chain_depth(model)[2] is True
 
     head_cache = model.make_mtp_cache()
@@ -510,7 +512,7 @@ def test_priming_captures_ordinary_text_but_not_verify_or_embedded_inputs(
 ):
     from types import SimpleNamespace
 
-    from omlx_runtime.patches.mlx_lm_mtp import prompt_priming
+    from molto_runtime.patches.mlx_lm_mtp import prompt_priming
 
     hidden = mx.ones((1, 2, config.hidden_size))
     captures = []
@@ -526,8 +528,8 @@ def test_priming_captures_ordinary_text_but_not_verify_or_embedded_inputs(
         model=Trunk(),
         lm_head=lambda value: value,
         mtp=object(),
-        _omlx_mtp_decode_enabled=True,
-        _omlx_mtp_chain=True,
+        _molto_mtp_decode_enabled=True,
+        _molto_mtp_chain=True,
     )
     monkeypatch.setattr(
         prompt_priming, "maybe_capture", lambda *args: captures.append(args)
@@ -588,7 +590,7 @@ def _record_runtime_applies(monkeypatch):
 
     applied = []
     for name in _RUNTIME_MODULES:
-        module = importlib.import_module(f"omlx_runtime.patches.mlx_vlm_mtp.{name}")
+        module = importlib.import_module(f"molto_runtime.patches.mlx_vlm_mtp.{name}")
         monkeypatch.setattr(
             module, "apply", lambda n=name: (applied.append(n), True)[1]
         )
@@ -617,7 +619,7 @@ def test_runtime_sweep_applies_only_the_loaded_architecture(
     classes. A qwen4_exp model resident when a glm5_next model loaded then
     failed on its next request until the server restarted.
     """
-    from omlx_runtime.patches.mlx_vlm_mtp import apply_mlx_vlm_mtp_runtime_patch
+    from molto_runtime.patches.mlx_vlm_mtp import apply_mlx_vlm_mtp_runtime_patch
 
     applied = _record_runtime_applies(monkeypatch)
     apply_mlx_vlm_mtp_runtime_patch(model_type)
@@ -627,7 +629,7 @@ def test_runtime_sweep_applies_only_the_loaded_architecture(
 
 def test_runtime_sweep_applies_everything_for_an_unknown_model_type(monkeypatch):
     """The historical behaviour is kept for architectures not in the table."""
-    from omlx_runtime.patches.mlx_vlm_mtp import apply_mlx_vlm_mtp_runtime_patch
+    from molto_runtime.patches.mlx_vlm_mtp import apply_mlx_vlm_mtp_runtime_patch
 
     applied = _record_runtime_applies(monkeypatch)
     apply_mlx_vlm_mtp_runtime_patch(None)
@@ -841,7 +843,7 @@ def test_masked_replay_restores_metadata(size, dtype):
 
 def test_invalid_vector_does_not_mutate_any_cache():
     from mlx_vlm.models.cache import ArraysCache, BatchKVCache, CacheList
-    from omlx_runtime.patches.deepseek_v4.cache_extras import BatchPoolingCache
+    from molto_runtime.patches.deepseek_v4.cache_extras import BatchPoolingCache
 
     cache = ArraysCache(2)
     cache[0] = mx.zeros((2, 3, 32))
@@ -870,7 +872,7 @@ def test_invalid_vector_does_not_mutate_any_cache():
 
 
 def test_pool_vector_preserves_scalar_cross_row_replay_decision():
-    from omlx_runtime.patches.deepseek_v4.cache_extras import BatchPoolingCache
+    from molto_runtime.patches.deepseek_v4.cache_extras import BatchPoolingCache
 
     mx.random.seed(173)
     pool = BatchPoolingCache(4, [0, 0])
@@ -926,7 +928,7 @@ def test_history_and_clone_match_independent_heads(size, stochastic, quantized):
             norm=nn.RMSNorm(config.hidden_size),
         ),
         lm_head=nn.Linear(config.hidden_size, config.vocab_size, bias=False),
-        _omlx_mtp_batch_rollback=True,
+        _molto_mtp_batch_rollback=True,
     )
     host.mtp_forward = MethodType(language.LanguageModel.mtp_forward, host)
     host.make_mtp_cache = MethodType(language.LanguageModel.make_mtp_cache, host)
@@ -961,7 +963,7 @@ def test_history_and_clone_match_independent_heads(size, stochastic, quantized):
             state.draft_sampler = ref.draft_sampler = sampler
             row.samplers = [sampler]
     owner = bg._MtpBatchState(states=dict(enumerate(states)))
-    batch = SimpleNamespace(model=model, _omlx_mtp_batch_state=owner)
+    batch = SimpleNamespace(model=model, _molto_mtp_batch_state=owner)
     for cycle, depth in enumerate([2, 4, 1, 3]):
         jobs = []
         for index, (state, ref, row) in enumerate(zip(states, refs, rows)):
@@ -986,7 +988,7 @@ def test_history_and_clone_match_independent_heads(size, stochastic, quantized):
             for layer, reference in zip(owner.head.cache, ref.mtp_cache):
                 actual = layer.extract(index)
                 assert actual.offset == reference.offset
-                from omlx_runtime.cache.type_registry import CacheTypeRegistry
+                from molto_runtime.cache.type_registry import CacheTypeRegistry
 
                 handler = CacheTypeRegistry.get_handler_for_object(actual)
                 actual_state = dict(tree_flatten(handler.serialize_state(actual)))
@@ -1077,7 +1079,7 @@ KDA_BITS = {
 
 def _runtime():
     apply_mlx_vlm_glm5_next_compat_patch()
-    from omlx_runtime.patches.mlx_vlm_mtp import glm5_next_vlm_runtime as rt
+    from molto_runtime.patches.mlx_vlm_mtp import glm5_next_vlm_runtime as rt
 
     assert rt.apply()
     from mlx_vlm.models.glm5_next import language
@@ -1107,8 +1109,8 @@ def _model(seed, kda_bits, heads=16):
     """A small quantized GLM-5.3 with one MTP layer whose shapes engage every
     fused decode/verify path (KDA: 8 heads of 128)."""
     from mlx_vlm.models import glm5_next
-    from omlx_runtime.patches.deepseek_v4.switch_layers import SwitchLinear
-    from omlx_runtime.patches.mlx_vlm_mtp import (
+    from molto_runtime.patches.deepseek_v4.switch_layers import SwitchLinear
+    from molto_runtime.patches.mlx_vlm_mtp import (
         is_mtp_attach_enabled,
         set_mtp_attach_enabled,
     )
@@ -1272,8 +1274,8 @@ def check_verify_matches_reference(
     """
     from collections import Counter
 
-    from omlx_runtime.patches import qwen35_verify_qmm as verify_qmm
-    from omlx_runtime.patches.mlx_lm_mtp import cache_rollback
+    from molto_runtime.patches import qwen35_verify_qmm as verify_qmm
+    from molto_runtime.patches.mlx_lm_mtp import cache_rollback
 
     if armed:
         assert verify_qmm.apply_verify_qmm_patch()
@@ -1415,7 +1417,7 @@ _CYCLES = [
 
 def _native_indexer_available() -> bool:
     try:
-        from omlx_runtime.custom_kernels.glm_moe_dsa import fast
+        from molto_runtime.custom_kernels.glm_moe_dsa import fast
 
         return bool(
             fast.has_symbol("dsa_indexer_scores")
@@ -1465,7 +1467,7 @@ def test_fused_verify_cycles_are_bitwise_reference_with_nax_tf32():
     code = (
         "import sys; sys.path[:0] = [%r, %r]\n"
         "import test_glm5_next_mtp as t\n"
-        "from omlx_runtime.patches.mlx_vlm_glm5_next_compat import decode_kernels as dk\n"
+        "from molto_runtime.patches.mlx_vlm_glm5_next_compat import decode_kernels as dk\n"
         "used = []\n"
         "for seed, ctx in ((5, 300), (11, 2101)):\n"
         "    for bits in t.KDA_BITS.values():\n"
@@ -1499,7 +1501,7 @@ def test_verify_early_eval_only_schedules(every, monkeypatch):
     """Verify blocks evaluate every few layers while the forward is still
     being built; logits, hidden states and rolled-back caches are those of
     the lazy forward."""
-    from omlx_runtime.patches.mlx_lm_mtp import cache_rollback
+    from molto_runtime.patches.mlx_lm_mtp import cache_rollback
 
     rt, language = _runtime()
     model = _model(13, KDA_BITS["8-bit/5-bit"])
@@ -1544,16 +1546,16 @@ def test_verify_early_eval_only_schedules(every, monkeypatch):
 
 
 def _generate(model, prompt, count, fused, use_mtp):
-    """Greedy tokens from mlx-lm's BatchGenerator with oMLX's MTP loop."""
+    """Greedy tokens from mlx-lm's BatchGenerator with Molto's MTP loop."""
     from types import SimpleNamespace
 
     from mlx_lm.generate import BatchGenerator
-    from omlx_runtime.models.vlm import VLMModelAdapter
+    from molto_runtime.models.vlm import VLMModelAdapter
 
     _, language = _runtime()
     saved = language._DECODE_FUSION
     language._DECODE_FUSION = fused
-    model._omlx_mtp_decode_enabled = use_mtp
+    model._molto_mtp_decode_enabled = use_mtp
     adapter = VLMModelAdapter(
         SimpleNamespace(
             config=SimpleNamespace(model_type="glm5_next"), language_model=model
@@ -1587,8 +1589,8 @@ def test_mtp_generation_emits_the_reference_path_tokens(seed, kda, depth, monkey
     """End to end through the MTP loop (verify, accept, rollback, head fold
     and chain): the fused verify path emits the reference path's tokens."""
     from mlx_vlm.models.cache import ArraysCache
-    from omlx_runtime.patches import mlx_lm_mtp
-    from omlx_runtime.patches.mlx_lm_mtp import batch_generator
+    from molto_runtime.patches import mlx_lm_mtp
+    from molto_runtime.patches.mlx_lm_mtp import batch_generator
 
     _, language = _runtime()
     assert batch_generator.apply()
@@ -1659,7 +1661,7 @@ def test_rollback_of_a_fused_block_replays_only_partial_accepts(monkeypatch):
 
     monkeypatch.setattr(language.KdaStepCapture, "replay", replay)
     for accepted, expected in ((3, []), (1, [2, 2])):
-        from omlx_runtime.patches.mlx_lm_mtp import cache_rollback
+        from molto_runtime.patches.mlx_lm_mtp import cache_rollback
 
         cache_rollback.set_undo_armed(True)
         try:
@@ -1679,7 +1681,7 @@ def test_rollback_of_a_fused_block_replays_only_partial_accepts(monkeypatch):
 def test_fused_capture_refuses_a_mismatched_block_before_touching_caches():
     """A capture whose width is not the verify block's is refused before
     any layer (sparse ones included) is trimmed or rewritten."""
-    from omlx_runtime.patches.mlx_lm_mtp import cache_rollback
+    from molto_runtime.patches.mlx_lm_mtp import cache_rollback
 
     _runtime()
     model = _model(9, KDA_BITS["8-bit/5-bit"])
@@ -1701,7 +1703,7 @@ def test_fused_capture_refuses_a_mismatched_block_before_touching_caches():
 def test_batched_rollback_rejects_a_fused_capture():
     _, language = _runtime()
     from mlx_vlm.models.cache import ArraysCache
-    from omlx_runtime.patches.mlx_vlm_mtp.glm5_next_batch_rollback import rollback_rows
+    from molto_runtime.patches.mlx_vlm_mtp.glm5_next_batch_rollback import rollback_rows
 
     cache = ArraysCache(size=2)
     cache[0], cache[1] = mx.zeros((2, 3, 8)), mx.zeros((2, 1, 1, 1))

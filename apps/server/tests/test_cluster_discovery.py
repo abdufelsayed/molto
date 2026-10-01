@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
-from omlx_runtime.cluster.discovery import (
+from molto_runtime.cluster.discovery import (
     BonjourPublisher,
     DiscoveryOutput,
     clear_peer_transport_cache,
     discover_all_peers,
-    discover_omlx_peers,
+    discover_molto_peers,
     discover_ssh_peers,
     generate_pairing_token,
     parse_browse_instances,
@@ -60,8 +60,8 @@ def test_bonjour_publisher_advertises_api_identity_and_stops():
         (
             "/usr/bin/dns-sd",
             "-R",
-            "oMLX on peer-studio",
-            "_omlx._tcp.",
+            "Molto on peer-studio",
+            "_molto._tcp.",
             "local.",
             "8000",
             "hostname=peer-studio",
@@ -138,7 +138,7 @@ def test_discovery_returns_untrusted_suggestions():
 
 def test_ssh_discovery_does_not_rediscover_internal_fqdn_as_local(monkeypatch):
     monkeypatch.setattr(
-        "omlx_runtime.cluster.discovery.socket.gethostname",
+        "molto_runtime.cluster.discovery.socket.gethostname",
         lambda: "local-mac.example.internal",
     )
 
@@ -154,22 +154,22 @@ def test_ssh_discovery_does_not_rediscover_internal_fqdn_as_local(monkeypatch):
     assert discover_ssh_peers(runner=runner)["peers"] == []
 
 
-def test_omlx_discovery_does_not_rediscover_internal_fqdn_as_local(monkeypatch):
+def test_molto_discovery_does_not_rediscover_internal_fqdn_as_local(monkeypatch):
     monkeypatch.setattr(
-        "omlx_runtime.cluster.discovery.socket.gethostname",
+        "molto_runtime.cluster.discovery.socket.gethostname",
         lambda: "local-mac.example.internal",
     )
 
     def runner(args, timeout):
         if "-B" in args:
             return DiscoveryOutput(
-                "12:00 Add 2 14 local. _omlx._tcp. oMLX on Local Mac Studio\n"
+                "12:00 Add 2 14 local. _molto._tcp. Molto on Local Mac Studio\n"
             )
         return DiscoveryOutput(
             "service can be reached at local-mac.local.:8000 (interface 14)\n"
         )
 
-    assert discover_omlx_peers(runner=runner)["peers"] == []
+    assert discover_molto_peers(runner=runner)["peers"] == []
 
 
 def test_pairing_token_generation_and_verification():
@@ -195,13 +195,13 @@ def test_pairing_token_rejects_invalid():
     assert verify_pairing_token("", shared_secret=_PAIRING_SECRET) is False
 
 
-def test_discover_all_peers_merges_ssh_and_omlx():
+def test_discover_all_peers_merges_ssh_and_molto():
     def runner(args, timeout):
-        # Check for oMLX service type in args
-        if "_omlx._tcp" in " ".join(args):
+        # Check for Molto service type in args
+        if "_molto._tcp" in " ".join(args):
             if "-B" in args:
                 return DiscoveryOutput(
-                    "12:00 Add 2 14 local. _omlx._tcp. oMLX Studio\n"
+                    "12:00 Add 2 14 local. _molto._tcp. Molto Studio\n"
                 )
             return DiscoveryOutput(
                 "service can be reached at studio.local.:22 (interface 14)\n"
@@ -229,11 +229,11 @@ def test_discover_all_peers_merges_ssh_and_omlx():
 
     # Nothing has been probed, so transport is pending rather than "unknown" —
     # "unknown" would claim we looked and could not tell.
-    omlx_peer = next(p for p in result["peers"] if p["ssh"] == "studio.local")
-    assert omlx_peer["transport"] == "detecting"
-    assert omlx_peer["link_speed_gbps"] is None
-    assert omlx_peer["rdma_available"] is False
-    assert omlx_peer["service"] == "oMLX Distributed"
+    molto_peer = next(p for p in result["peers"] if p["ssh"] == "studio.local")
+    assert molto_peer["transport"] == "detecting"
+    assert molto_peer["link_speed_gbps"] is None
+    assert molto_peer["rdma_available"] is False
+    assert molto_peer["service"] == "Molto Distributed"
 
 
 def _single_peer_runner(args, timeout):

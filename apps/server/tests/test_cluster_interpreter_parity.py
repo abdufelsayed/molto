@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Report interpreter differences alongside package parity checks (#2695).
 
-The runtime gate compared omlx/mlx/mlx-lm and the cluster protocol, but never
+The runtime gate compared molto/mlx/mlx-lm and the cluster protocol, but never
 the interpreter underneath them.  ``runtime.python_version`` was collected and
 carried all the way into the status payload, and nothing read it.
 
@@ -15,18 +15,18 @@ import platform
 import subprocess
 
 import pytest
-from omlx_runtime.cluster import launch
-from omlx_runtime.cluster.launch import (
+from molto_runtime.cluster import launch
+from molto_runtime.cluster.launch import (
     DistributedLaunchError,
     _local_probe_versions,
     _local_runtime_versions,
     preflight_remote_hosts,
     probe_remote_host,
 )
-from omlx_runtime.cluster.models import CLUSTER_PROTOCOL_VERSION
+from molto_runtime.cluster.models import CLUSTER_PROTOCOL_VERSION
 from test_cluster_launch import _deployment
 
-PEER_PYTHON = "/opt/omlx/bin/python"
+PEER_PYTHON = "/opt/molto/bin/python"
 
 
 def _status(python_version: str | None) -> dict:
@@ -34,7 +34,7 @@ def _status(python_version: str | None) -> dict:
     # must mirror that source and not dist-info (#2726).
     versions = _local_probe_versions()
     runtime = {
-        "omlx_version": versions["omlx"],
+        "molto_version": versions["molto"],
         "mlx_version": versions["mlx"],
         "mlx_lm_version": versions["mlx-lm"],
         "python_executable": PEER_PYTHON,
@@ -132,20 +132,20 @@ def test_probe_still_reports_package_mismatches_alongside_the_interpreter(monkey
     ]
 
 
-def test_probe_ignores_stale_local_omlx_metadata(monkeypatch):
+def test_probe_ignores_stale_local_molto_metadata(monkeypatch):
     real_version = launch.importlib.metadata.version
 
     def stale_metadata(name):
-        if name == "omlx":
+        if name == "molto":
             return "0.0.0-stale"
         return real_version(name)
 
     monkeypatch.setattr(launch.importlib.metadata, "version", stale_metadata)
     payload = _status(platform.python_version())
 
-    from omlx_config._version import __version__
+    from molto_config._version import __version__
 
-    payload["runtime"]["omlx_version"] = __version__
+    payload["runtime"]["molto_version"] = __version__
 
     def runner(argv, **_kwargs):
         return subprocess.CompletedProcess(argv, 0, json.dumps(payload), "")
@@ -156,9 +156,9 @@ def test_probe_ignores_stale_local_omlx_metadata(monkeypatch):
     assert result["runtime_mismatches"] == []
 
 
-def test_probe_still_rejects_a_genuine_omlx_source_version_difference():
+def test_probe_still_rejects_a_genuine_molto_source_version_difference():
     payload = _status(platform.python_version())
-    payload["runtime"]["omlx_version"] = "0.0.0-other"
+    payload["runtime"]["molto_version"] = "0.0.0-other"
 
     def runner(argv, **_kwargs):
         return subprocess.CompletedProcess(argv, 0, json.dumps(payload), "")
@@ -167,7 +167,7 @@ def test_probe_still_rejects_a_genuine_omlx_source_version_difference():
 
     assert result["runtime_compatible"] is False
     assert result["runtime_mismatches"] == [
-        f"omlx local={_local_probe_versions()['omlx']} remote=0.0.0-other"
+        f"molto local={_local_probe_versions()['molto']} remote=0.0.0-other"
     ]
 
 
@@ -188,7 +188,7 @@ def stub_admission(monkeypatch):
         raising=False,
     )
     monkeypatch.setattr(
-        "omlx_runtime.cluster.memory_guard.ceiling_breakdown",
+        "molto_runtime.cluster.memory_guard.ceiling_breakdown",
         lambda *_a, **_k: {"hard_limit": 512 * 1024**3},
     )
 
@@ -267,10 +267,10 @@ def test_preflight_asks_the_rank_for_its_interpreter_version():
     assert "v['python']" in launch._PREFLIGHT_SCRIPT
 
 
-def test_preflight_reads_omlx_source_version_before_installed_metadata():
+def test_preflight_reads_molto_source_version_before_installed_metadata():
     script = launch._PREFLIGHT_SCRIPT
 
-    assert script.index("if name == 'omlx':") < script.index("return m.version(name)")
+    assert script.index("if name == 'molto':") < script.index("return m.version(name)")
 
 
 # --- the parity rule itself -------------------------------------------------
@@ -332,14 +332,16 @@ def test_every_probe_branch_returns_the_same_result_keys():
                 0,
                 json.dumps(
                     {
-                        "node": {"worker_runtime_evidence": ["/Applications/oMLX.app"]},
+                        "node": {
+                            "worker_runtime_evidence": ["/Applications/Molto.app"]
+                        },
                         "runtime": {},
                         "transport": {},
                     }
                 ),
                 "",
             )
-        return subprocess.CompletedProcess(argv, 1, "", "No module named 'omlx'")
+        return subprocess.CompletedProcess(argv, 1, "", "No module named 'molto'")
 
     bootstrap = launch.probe_remote_system_host(
         "studio", preferred_python=PEER_PYTHON, runner=bootstrap_runner

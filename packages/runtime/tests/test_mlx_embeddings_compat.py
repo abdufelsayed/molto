@@ -6,8 +6,8 @@ import sys
 import types
 
 import pytest
-from omlx_runtime.exceptions import InvalidRequestError
-from omlx_runtime.models.mlx_embeddings_compat import (
+from molto_runtime.exceptions import InvalidRequestError
+from molto_runtime.models.mlx_embeddings_compat import (
     _build_contract_compliant_processor,
     _flatten_images,
 )
@@ -85,10 +85,10 @@ def test_qwen3_vl_auto_image_processor_uses_mlx_vlm_torch_free_loader(monkeypatc
 
     module_path = (
         repository_root(__file__)
-        / "packages/runtime/src/omlx_runtime/models/mlx_embeddings_compat.py"
+        / "packages/runtime/src/molto_runtime/models/mlx_embeddings_compat.py"
     )
     spec = importlib.util.spec_from_file_location(
-        "omlx_runtime.models.mlx_embeddings_compat_under_test", module_path
+        "molto_runtime.models.mlx_embeddings_compat_under_test", module_path
     )
     mlx_embeddings_compat = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mlx_embeddings_compat)
@@ -173,10 +173,10 @@ def test_qwen3_vl_build_processor_gets_multimodal_token_id_fields(monkeypatch):
 
     module_path = (
         repository_root(__file__)
-        / "packages/runtime/src/omlx_runtime/models/mlx_embeddings_compat.py"
+        / "packages/runtime/src/molto_runtime/models/mlx_embeddings_compat.py"
     )
     spec = importlib.util.spec_from_file_location(
-        "omlx_runtime.models.mlx_embeddings_compat_under_test_mm_ids", module_path
+        "molto_runtime.models.mlx_embeddings_compat_under_test_mm_ids", module_path
     )
     mlx_embeddings_compat = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mlx_embeddings_compat)
@@ -224,7 +224,7 @@ def test_contract_compliant_processor_loads_images_before_the_torch_free_port():
 
 
 def test_contract_compliant_processor_keeps_rejecting_non_data_uri_images():
-    """Loading stays on omlx's data-URI-only path, so paths and URLs are still refused."""
+    """Loading stays on molto's data-URI-only path, so paths and URLs are still refused."""
 
     class TorchFreeImageProcessor:
         def __call__(self, images, **kwargs):

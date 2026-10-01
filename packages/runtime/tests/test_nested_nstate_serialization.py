@@ -26,7 +26,7 @@ from __future__ import annotations
 import time
 
 import mlx.core as mx
-from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
 
 
 def _make_manager(tmp_path):
@@ -208,7 +208,7 @@ class TestNestedNStateElements:
     def test_format_version_unchanged(self):
         """The fix is additive; existing v2/v3 caches stay readable and the
         write version is not bumped (no mass cache invalidation)."""
-        from omlx_runtime.cache.paged_ssd_cache import (
+        from molto_runtime.cache.paged_ssd_cache import (
             _CACHE_FORMAT_VERSION,
             _READABLE_CACHE_FORMAT_VERSIONS,
         )

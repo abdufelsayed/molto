@@ -10,7 +10,7 @@ unknown values fall back to the default with a warning.
 """
 
 import pytest
-from omlx_runtime.patches.deepseek_v4.chat_template_v4 import (
+from molto_runtime.patches.deepseek_v4.chat_template_v4 import (
     DEFAULT_REASONING_EFFORT,
     apply_chat_template,
     normalize_reasoning_effort,

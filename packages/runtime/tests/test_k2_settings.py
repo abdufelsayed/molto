@@ -4,14 +4,14 @@
 import json
 
 import pytest
-from omlx_config.model_settings import ModelSettings, ModelSettingsManager
-from omlx_contracts.management import ModelSettingsPatch
-from omlx_management.management import (
+from molto_config.model_settings import ModelSettings, ModelSettingsManager
+from molto_contracts.management import ModelSettingsPatch
+from molto_management.management import (
     ManagementContext,
     ManagementError,
     ManagementService,
 )
-from omlx_runtime.engine_pool import EnginePool
+from molto_runtime.engine_pool import EnginePool
 from pydantic import ValidationError
 
 
@@ -57,8 +57,8 @@ def test_k2_rejects_unsupported_kwargs_before_template_fallback(kwargs):
     from types import SimpleNamespace
     from unittest.mock import MagicMock
 
-    from omlx_runtime.engine.batched import BatchedEngine
-    from omlx_runtime.exceptions import InvalidRequestError
+    from molto_runtime.engine.batched import BatchedEngine
+    from molto_runtime.exceptions import InvalidRequestError
 
     for engine in (BatchedEngine("base"),):
         engine._tokenizer = MagicMock()
@@ -70,7 +70,7 @@ def test_k2_rejects_unsupported_kwargs_before_template_fallback(kwargs):
 
 
 def test_k2_ane_setting_roundtrip_and_reservation(models, tmp_path):
-    from omlx_runtime.patches.k2_horizon.ane_prefill import prefill_memory_reservation
+    from molto_runtime.patches.k2_horizon.ane_prefill import prefill_memory_reservation
 
     base = models
     assert ModelSettings(qwen35_ane_prefill_enabled=True).qwen35_ane_prefill_enabled
@@ -130,16 +130,16 @@ async def test_k2_unload_checks_weights_not_ane_admission_reserve(
     settings = ModelSettings(qwen35_ane_prefill_enabled=ane_enabled)
     reservation = 20 * gib if ane_enabled else 0
     with (
-        patch("omlx_runtime.engine_pool.BatchedEngine", return_value=engine),
-        patch("omlx_runtime.engine_pool.mx") as mlx,
-        patch("omlx_runtime.engine_pool.gc"),
+        patch("molto_runtime.engine_pool.BatchedEngine", return_value=engine),
+        patch("molto_runtime.engine_pool.mx") as mlx,
+        patch("molto_runtime.engine_pool.gc"),
         patch(
-            "omlx_runtime.engine_pool.get_phys_footprint", side_effect=lambda: active
+            "molto_runtime.engine_pool.get_phys_footprint", side_effect=lambda: active
         ),
-        patch("omlx_runtime.engine_pool.get_mlx_executor", return_value=None),
+        patch("molto_runtime.engine_pool.get_mlx_executor", return_value=None),
         patch("asyncio.sleep", new_callable=AsyncMock) as sleep,
         patch(
-            "omlx_runtime.patches.k2_horizon.ane_prefill.prefill_memory_reservation",
+            "molto_runtime.patches.k2_horizon.ane_prefill.prefill_memory_reservation",
             return_value=20 * gib,
         ),
     ):
@@ -181,7 +181,7 @@ async def test_management_rejects_invalid_k2_ane_settings(models, tmp_path, enab
 
 
 def test_k2_ane_profile_persists_without_becoming_a_global_template(tmp_path):
-    from omlx_config.model_profiles import filter_universal_fields
+    from molto_config.model_profiles import filter_universal_fields
 
     fields = dict(
         qwen35_ane_prefill_enabled=True,
@@ -200,7 +200,7 @@ def test_k2_ane_profile_persists_without_becoming_a_global_template(tmp_path):
     "model_type,default", [("k2_horizon", 1 / 3), ("qwen3_5", 0.53)]
 )
 def test_shared_ane_defaults_and_explicit_settings(model_type, default):
-    from omlx_config.model_settings import ane_prefill_fraction, validate_ane_prefill
+    from molto_config.model_settings import ane_prefill_fraction, validate_ane_prefill
 
     settings = ModelSettings(qwen35_ane_prefill_enabled=True)
     validate_ane_prefill(settings.to_dict(), model_type)
@@ -287,7 +287,7 @@ async def test_shared_ane_manual_enable_and_profile_validation(
     "flag", ["dflash_enabled", "specprefill_enabled", "mtp_enabled", "vlm_mtp_enabled"]
 )
 def test_k2_ane_conflicts_checked_with_model_metadata(flag):
-    from omlx_config.model_settings import validate_ane_prefill
+    from molto_config.model_settings import validate_ane_prefill
 
     settings = ModelSettings(qwen35_ane_prefill_enabled=True, **{flag: True})
     with pytest.raises(ValueError, match=flag):

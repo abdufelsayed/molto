@@ -6,10 +6,10 @@ from __future__ import annotations
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
-from omlx_config.model_settings import ModelSettings, ModelSettingsManager
-from omlx_config.settings import GlobalSettings
-from omlx_server.server import create_app
-from omlx_server.state import ServerState
+from molto_config.model_settings import ModelSettings, ModelSettingsManager
+from molto_config.settings import GlobalSettings
+from molto_server.server import create_app
+from molto_server.state import ServerState
 
 
 class _Pool:

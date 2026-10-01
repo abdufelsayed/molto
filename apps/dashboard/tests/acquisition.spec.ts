@@ -24,12 +24,12 @@ test("guided discovery preserves staged input and sends one explicit download", 
   page,
 }) => {
   const downloads: unknown[] = []
-  await page.route("**/api/omlx/server/settings", (route) =>
+  await page.route("**/api/molto/server/settings", (route) =>
     route.fulfill({
       json: { fields: [], sections: {}, effective_model_dirs: ["/models"] },
     })
   )
-  await page.route("**/api/omlx/acquisition/**", async (route) => {
+  await page.route("**/api/molto/acquisition/**", async (route) => {
     const url = new URL(route.request().url())
     if (url.pathname.endsWith("/models"))
       return route.fulfill({ json: catalog })
@@ -62,7 +62,7 @@ test("guided discovery preserves staged input and sends one explicit download", 
       json: { detail: "Unexpected test request" },
     })
   })
-  await page.route("**/api/omlx/diffusion/jobs", (route) =>
+  await page.route("**/api/molto/diffusion/jobs", (route) =>
     route.fulfill({ json: { jobs: [] } })
   )
   await page.goto("/add-model")
@@ -103,7 +103,7 @@ test("activity exposes advertised actions and retries only after confirmation", 
     actions: { cancel: false, retry: true, delete: false },
   }
   const submissions: unknown[] = []
-  await page.route("**/api/omlx/operations**", async (route) => {
+  await page.route("**/api/molto/operations**", async (route) => {
     if (route.request().method() === "POST") {
       submissions.push(route.request().postDataJSON())
       return route.fulfill({
@@ -112,7 +112,7 @@ test("activity exposes advertised actions and retries only after confirmation", 
     }
     return route.fulfill({ json: { operations: [operation] } })
   })
-  await page.route("**/api/omlx/diffusion/jobs", (route) =>
+  await page.route("**/api/molto/diffusion/jobs", (route) =>
     route.fulfill({ json: { jobs: [] } })
   )
   await page.goto("/activity")
@@ -133,15 +133,15 @@ test("publication validates token, reviews visibility, and sends staged fields",
   page,
 }) => {
   const published: unknown[] = []
-  await page.route("**/api/omlx/server/settings", (route) =>
+  await page.route("**/api/molto/server/settings", (route) =>
     route.fulfill({
       json: { fields: [], sections: {}, effective_model_dirs: ["/models"] },
     })
   )
-  await page.route("**/api/omlx/diffusion/jobs", (route) =>
+  await page.route("**/api/molto/diffusion/jobs", (route) =>
     route.fulfill({ json: { jobs: [] } })
   )
-  await page.route("**/api/omlx/acquisition/**", async (route) => {
+  await page.route("**/api/molto/acquisition/**", async (route) => {
     const path = new URL(route.request().url()).pathname
     if (path.endsWith("/models")) return route.fulfill({ json: catalog })
     if (path.endsWith("/validate"))
@@ -197,15 +197,15 @@ test("quantization requires an estimate and submits source options", async ({
   page,
 }) => {
   const quantized: unknown[] = []
-  await page.route("**/api/omlx/server/settings", (route) =>
+  await page.route("**/api/molto/server/settings", (route) =>
     route.fulfill({
       json: { fields: [], sections: {}, effective_model_dirs: ["/models"] },
     })
   )
-  await page.route("**/api/omlx/diffusion/jobs", (route) =>
+  await page.route("**/api/molto/diffusion/jobs", (route) =>
     route.fulfill({ json: { jobs: [] } })
   )
-  await page.route("**/api/omlx/acquisition/**", async (route) => {
+  await page.route("**/api/molto/acquisition/**", async (route) => {
     const path = new URL(route.request().url()).pathname
     if (path.endsWith("/models")) return route.fulfill({ json: catalog })
     if (path.endsWith("/estimate"))

@@ -38,7 +38,7 @@ import mlx.core as mx
 # ---------------------------------------------------------------------------
 
 try:
-    import omlx_runtime.custom_kernels.bonsai.fast as bf
+    import molto_runtime.custom_kernels.bonsai.fast as bf
 
     _NATIVE = bf.has_native()
 except ImportError:
@@ -424,7 +424,7 @@ def measure_dispatch_overhead(
     (a) patched call time, (b) raw C++ kernel time, (c) Python no-op overhead.
     """
 
-    from omlx_runtime.patches.bonsai_qmv import _is_symmetric, _is_t5_format
+    from molto_runtime.patches.bonsai_qmv import _is_symmetric, _is_t5_format
 
     _T = DTYPE_BYTES[dtype]
 
@@ -433,7 +433,7 @@ def measure_dispatch_overhead(
     M = 1
 
     # Create a QuantizedLinear with our construct patch active
-    from omlx_runtime.patches.bonsai_qmv import apply_bonsai_construct_patch
+    from molto_runtime.patches.bonsai_qmv import apply_bonsai_construct_patch
 
     apply_bonsai_construct_patch()
 
@@ -462,7 +462,7 @@ def measure_dispatch_overhead(
     t_patched = (time.perf_counter() - t0) / iters
 
     # (b) Raw C++ kernel (bypassing the patch)
-    from omlx_runtime.custom_kernels.bonsai.fast import (
+    from molto_runtime.custom_kernels.bonsai.fast import (
         bonsai_q2_affine_qmv,
         bonsai_q2_affine_qmv_sym,
     )

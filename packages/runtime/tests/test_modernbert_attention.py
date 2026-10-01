@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import mlx.core as mx
 import pytest
 from mlx_embeddings.models.modernbert import Model, ModelArgs, ModernBertModel
-from omlx_runtime.patches.modernbert_attention import (
+from molto_runtime.patches.modernbert_attention import (
     _update_attention_mask,
     patch_modernbert_attention,
 )

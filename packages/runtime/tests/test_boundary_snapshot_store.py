@@ -19,7 +19,7 @@ except ImportError:
 
 pytestmark = pytest.mark.skipif(not HAS_MLX, reason="MLX not available")
 
-from omlx_runtime.cache.boundary_snapshot_store import (
+from molto_runtime.cache.boundary_snapshot_store import (
     BoundarySnapshotSSDStore,
     reset_boundary_snapshot_root,
 )
@@ -126,7 +126,7 @@ class TestBoundarySnapshotSSDStore:
         import time
         from unittest.mock import patch
 
-        from omlx_runtime.cache import boundary_snapshot_store as mod
+        from molto_runtime.cache import boundary_snapshot_store as mod
 
         request_id = "req-duplicate"
         token_count = 1024
@@ -304,7 +304,7 @@ class TestBoundarySnapshotSSDStore:
         """Promoting one boundary must not remove the directory a queued write stages into."""
         from unittest.mock import patch
 
-        from omlx_runtime.cache import boundary_snapshot_store as mod
+        from molto_runtime.cache import boundary_snapshot_store as mod
 
         request_id = "req-staging"
         last_tmp = self.store._file_path(request_id, 3072)
@@ -344,7 +344,7 @@ class TestBoundarySnapshotSSDStore:
         import threading
         from unittest.mock import patch
 
-        from omlx_runtime.cache import boundary_snapshot_store as mod
+        from molto_runtime.cache import boundary_snapshot_store as mod
 
         request_id = "req-promote"
         token_count = 1024
@@ -404,7 +404,7 @@ class TestBoundarySnapshotSSDStore:
     def test_invalid_disk_metadata_is_rejected_before_materialization(
         self, monkeypatch
     ):
-        from omlx_runtime.cache import boundary_snapshot_store as mod
+        from molto_runtime.cache import boundary_snapshot_store as mod
 
         request_id = "invalid-metadata"
         token_count = 1024
@@ -611,7 +611,7 @@ class TestBoundarySnapshotSSDStore:
             release_writer.wait(timeout=5.0)
             return original_write(*args, **kwargs)
 
-        from omlx_runtime.cache import boundary_snapshot_store as mod
+        from molto_runtime.cache import boundary_snapshot_store as mod
 
         original_write = mod._write_safetensors_no_mx
 
@@ -667,7 +667,7 @@ class TestBoundarySnapshotSSDStore:
             release_writer.wait(timeout=5.0)
             return original_write(*args, **kwargs)
 
-        from omlx_runtime.cache import boundary_snapshot_store as mod
+        from molto_runtime.cache import boundary_snapshot_store as mod
 
         original_write = mod._write_safetensors_no_mx
 
@@ -722,7 +722,7 @@ class TestBoundarySnapshotSSDStore:
             release_writer.wait(timeout=10.0)
             return original_write(*args, **kwargs)
 
-        from omlx_runtime.cache import boundary_snapshot_store as mod
+        from molto_runtime.cache import boundary_snapshot_store as mod
 
         original_write = mod._write_safetensors_no_mx
 
@@ -787,7 +787,7 @@ class TestBoundarySnapshotSSDStore:
             release_writer.wait(timeout=10.0)
             return original_write(*args, **kwargs)
 
-        from omlx_runtime.cache import boundary_snapshot_store as mod
+        from molto_runtime.cache import boundary_snapshot_store as mod
 
         original_write = mod._write_safetensors_no_mx
 
@@ -867,7 +867,7 @@ class TestBoundarySnapshotSSDStore:
             release_writer.wait(timeout=10.0)
             return original_write(*args, **kwargs)
 
-        from omlx_runtime.cache import boundary_snapshot_store as mod
+        from molto_runtime.cache import boundary_snapshot_store as mod
 
         original_write = mod._write_safetensors_no_mx
 
@@ -1079,7 +1079,7 @@ class TestBoundarySnapshotSSDStore:
 class TestBoundarySnapshotProvider:
     def test_provider_loads_from_store(self, tmp_path):
         """Provider should load snapshots from SSD store on __getitem__."""
-        from omlx_runtime.scheduler import _BoundarySnapshotProvider
+        from molto_runtime.scheduler import _BoundarySnapshotProvider
 
         base_dir = tmp_path / "ssd"
         base_dir.mkdir()
@@ -1109,7 +1109,7 @@ class TestBoundarySnapshotProvider:
 
     def test_provider_uses_pre_extracted_in_memory_snapshot(self):
         """Provider should not extract raw cache objects from the worker path."""
-        from omlx_runtime.scheduler import _BoundarySnapshotProvider
+        from molto_runtime.scheduler import _BoundarySnapshotProvider
 
         extracted = [{"state": ("already",), "cache_type": "ArraysCache"}]
         snapshots = {1024: extracted}
@@ -1127,7 +1127,7 @@ class TestBoundarySnapshotProvider:
 
     def test_provider_empty(self):
         """Empty provider should be falsy."""
-        from omlx_runtime.scheduler import _BoundarySnapshotProvider
+        from molto_runtime.scheduler import _BoundarySnapshotProvider
 
         provider = _BoundarySnapshotProvider(
             store=None,

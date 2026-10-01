@@ -7,8 +7,8 @@ from copy import deepcopy
 
 import mlx_lm.utils as mlx_lm_utils
 import pytest
-from omlx_runtime.utils import model_loading
-from omlx_runtime.utils.model_loading import normalize_hy_v3_rope_config
+from molto_runtime.utils import model_loading
+from molto_runtime.utils.model_loading import normalize_hy_v3_rope_config
 
 
 @pytest.mark.parametrize(
@@ -92,7 +92,7 @@ def test_mlx_lm_load_config_patch_applies_hy_v3_normalization(monkeypatch):
 
 
 def test_oq_sanitizer_normalizes_legacy_hy_v3_config():
-    from omlx_runtime.oq import _build_model_sanitizer
+    from molto_runtime.oq import _build_model_sanitizer
 
     config = {
         "architectures": ["HYV3ForCausalLM"],

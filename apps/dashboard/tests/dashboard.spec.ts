@@ -8,7 +8,7 @@ async function connect(page: Page) {
   await page.getByLabel("API key", { exact: true }).fill("dashboard-test-key")
   await page.getByRole("button", { name: "Connect", exact: true }).click()
   await expect(
-    page.getByRole("dialog", { name: "Connect to oMLX" })
+    page.getByRole("dialog", { name: "Connect to Molto" })
   ).toHaveCount(0)
 }
 test.beforeEach(async ({ request }) => {
@@ -27,7 +27,7 @@ test("main-key authentication, session persistence, overview and signout", async
   await page.getByRole("button", { name: "API access" }).first().click()
   await page.getByLabel("API key", { exact: true }).fill("inference-sub-key")
   await page.getByRole("button", { name: "Connect", exact: true }).click()
-  await expect(page.getByText(/oMLX rejected this key/)).toBeVisible()
+  await expect(page.getByText(/Molto rejected this key/)).toBeVisible()
   await page.getByLabel("API key", { exact: true }).fill("dashboard-test-key")
   await page.getByRole("button", { name: "Connect", exact: true }).click()
   await expect(
@@ -35,7 +35,7 @@ test("main-key authentication, session persistence, overview and signout", async
   ).toBeVisible()
   await expect(page.getByText("45.0 tok/s", { exact: true })).toBeVisible()
   const cookie = (await context.cookies()).find(
-    (value) => value.name === "omlx_dashboard_session"
+    (value) => value.name === "molto_dashboard_session"
   )
   expect(cookie?.httpOnly).toBe(true)
   expect(cookie?.sameSite).toBe("Strict")
@@ -168,7 +168,7 @@ test("global settings report restart requirements", async ({ page }) => {
     page.getByLabel("Max concurrent requests", { exact: true })
   ).toHaveValue("3")
 })
-test("profile create, rename, apply and delete through oMLX persistence", async ({
+test("profile create, rename, apply and delete through Molto persistence", async ({
   page,
 }) => {
   await page.goto(`${modelPath}?tab=profiles`)
@@ -237,7 +237,7 @@ test("stale data recovers, failed save keeps draft, mobile navigation and theme"
   await page.goto(`${modelPath}?tab=settings`)
   await connect(page)
   await page.getByLabel("Temperature", { exact: true }).fill("0.4")
-  await page.route("**/api/omlx/models/**/settings", (route) =>
+  await page.route("**/api/molto/models/**/settings", (route) =>
     route.request().method() === "PATCH"
       ? route.fulfill({
           status: 503,
@@ -258,7 +258,7 @@ test("stale data recovers, failed save keeps draft, mobile navigation and theme"
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true })
   ).toBeVisible()
-  await page.route("**/api/omlx/state", (route) =>
+  await page.route("**/api/molto/state", (route) =>
     route.fulfill({ status: 503, json: { detail: "Server restarting" } })
   )
   await expect(
@@ -280,7 +280,7 @@ test("gateway rejects unauthenticated and cross-origin operations", async ({
   request,
   baseURL,
 }) => {
-  expect((await request.get("/api/omlx/state")).status()).toBe(401)
+  expect((await request.get("/api/molto/state")).status()).toBe(401)
   expect(
     (
       await request.post("/api/connection", {
@@ -297,13 +297,13 @@ test("gateway rejects unauthenticated and cross-origin operations", async ({
       })
     ).status()
   ).toBe(200)
-  expect((await request.get("/api/omlx/state")).status()).toBe(200)
+  expect((await request.get("/api/molto/state")).status()).toBe(200)
   expect(
     (
-      await request.post("/api/omlx/cache/hot/clear", {
+      await request.post("/api/molto/cache/hot/clear", {
         headers: { Origin: "https://foreign.example" },
       })
     ).status()
   ).toBe(403)
-  expect((await request.get("/api/omlx/server/restart")).status()).toBe(404)
+  expect((await request.get("/api/molto/server/restart")).status()).toBe(404)
 })

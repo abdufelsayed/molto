@@ -11,8 +11,8 @@ import time
 
 import mlx.core as mx
 import numpy as np
-from omlx_runtime.custom_kernels.glm_moe_dsa import fast
-from omlx_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
+from molto_runtime.custom_kernels.glm_moe_dsa import fast
+from molto_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
 
 compat.apply_mlx_vlm_qwen4_exp_compat_patch()
 from mlx_vlm.models.qwen4_exp import qsa_fast  # noqa: E402

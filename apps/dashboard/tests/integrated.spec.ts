@@ -10,7 +10,7 @@ async function connect(page: Page, path = "/settings") {
   await page.getByLabel("API key", { exact: true }).fill("dashboard-test-key")
   await page.getByRole("button", { name: "Connect", exact: true }).click()
   await expect(
-    page.getByRole("dialog", { name: "Connect to oMLX" })
+    page.getByRole("dialog", { name: "Connect to Molto" })
   ).toHaveCount(0)
 }
 
@@ -93,10 +93,10 @@ test("subkey lifecycle and main rotation retain only the rotating session", asyn
     await expect(
       page.getByRole("heading", { name: "Server settings", exact: true })
     ).toBeVisible()
-    expect((await page.request.get("/api/omlx/server/settings")).ok()).toBe(
+    expect((await page.request.get("/api/molto/server/settings")).ok()).toBe(
       true
     )
-    expect((await old.request.get("/api/omlx/server/settings")).status()).toBe(
+    expect((await old.request.get("/api/molto/server/settings")).status()).toBe(
       401
     )
   } finally {
@@ -144,7 +144,7 @@ test("nested settings persist and failed persistence keeps drafts", async ({
   await expect(page.getByLabel("Temperature", { exact: true })).toHaveValue(
     "0.42"
   )
-  const settings = await page.request.get("/api/omlx/server/settings")
+  const settings = await page.request.get("/api/molto/server/settings")
   expect((await settings.json()).sections.sampling.temperature).toBe(0.31)
 })
 
@@ -156,7 +156,7 @@ test("retained history and rotated log filters use backend queries", async ({
     page.getByText("Historical usage", { exact: true })
   ).toBeVisible()
   const usage = await page.request.get(
-    `/api/omlx/monitoring/usage?range=today&model=${encodeURIComponent(model)}`
+    `/api/molto/monitoring/usage?range=today&model=${encodeURIComponent(model)}`
   )
   expect(usage.ok()).toBe(true)
   const record = await usage.json()
@@ -210,7 +210,7 @@ test("operation history and local discovery expose real persisted contracts", as
   page,
 }) => {
   await connect(page, "/activity")
-  const operations = await page.request.get("/api/omlx/operations")
+  const operations = await page.request.get("/api/molto/operations")
   expect(operations.ok()).toBe(true)
   expect((await operations.json()).operations).toEqual(
     expect.arrayContaining([
@@ -219,14 +219,16 @@ test("operation history and local discovery expose real persisted contracts", as
   )
   await page.goto("/add-model")
   await page.getByRole("button", { name: "2. Prepare local model" }).click()
-  const catalog = await page.request.get("/api/omlx/acquisition/prepare/models")
+  const catalog = await page.request.get(
+    "/api/molto/acquisition/prepare/models"
+  )
   expect(catalog.ok()).toBe(true)
   expect((await catalog.json()).models.length).toBeGreaterThanOrEqual(4)
-  expect((await page.request.get("/api/omlx/templates")).ok()).toBe(true)
+  expect((await page.request.get("/api/molto/templates")).ok()).toBe(true)
   expect(
     (
       await page.request.get(
-        `/api/omlx/models/${encodeURIComponent(model)}/profiles`
+        `/api/molto/models/${encodeURIComponent(model)}/profiles`
       )
     ).ok()
   ).toBe(true)
@@ -238,10 +240,10 @@ test("templates and profiles preserve explicit field resets through the gateway"
 }) => {
   await connect(page, `${modelPath}?tab=settings`)
   const headers = { Origin: baseURL! }
-  const target = `/api/omlx/models/${encodeURIComponent(model)}`
+  const target = `/api/molto/models/${encodeURIComponent(model)}`
   expect(
     (
-      await page.request.post("/api/omlx/templates", {
+      await page.request.post("/api/molto/templates", {
         headers,
         data: {
           name: "reset-template",
@@ -291,9 +293,9 @@ test("gateway rejects unsupported methods and encoded unsafe paths", async ({
 }) => {
   await connect(page)
   for (const path of [
-    "/api/omlx/server/restart",
-    "/api/omlx/models/local%2F..%2Fescape/settings",
-    "/api/omlx/cluster/arbitrary-command",
+    "/api/molto/server/restart",
+    "/api/molto/models/local%2F..%2Fescape/settings",
+    "/api/molto/cluster/arbitrary-command",
   ]) {
     const response = await page.request.get(path)
     expect(response.status(), path).toBe(404)
@@ -304,13 +306,13 @@ test("gateway rejects unsupported methods and encoded unsafe paths", async ({
   // The HTTP adapter may normalize encoded backslashes to model separators
   // before the handler receives the URL. Either form remains a model lookup.
   const normalized = await page.request.get(
-    "/api/omlx/models/local%5Cescape/settings"
+    "/api/molto/models/local%5Cescape/settings"
   )
   expect(normalized.status()).toBe(404)
   expect((await normalized.json()).detail).toMatch(
     /Unknown management operation|Model not found/
   )
-  const rejected = await page.request.post("/api/omlx/server/settings", {
+  const rejected = await page.request.post("/api/molto/server/settings", {
     headers: { Origin: baseURL! },
     data: { sections: { sampling: { temperature: 0.99 } } },
   })
@@ -318,6 +320,6 @@ test("gateway rejects unsupported methods and encoded unsafe paths", async ({
   expect(await rejected.json()).toEqual({
     detail: "Unknown management operation.",
   })
-  const settings = await page.request.get("/api/omlx/server/settings")
+  const settings = await page.request.get("/api/molto/server/settings")
   expect((await settings.json()).sections.sampling.temperature).not.toBe(0.99)
 })

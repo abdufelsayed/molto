@@ -12,9 +12,9 @@ from types import SimpleNamespace
 import httpx
 import pytest
 from fastapi import FastAPI
-from omlx_runtime.engine import base, image_generation
-from omlx_runtime.engine.image_generation import DiffusionImageEngine, MFluxImageEngine
-from omlx_server.api import image_routes
+from molto_runtime.engine import base, image_generation
+from molto_runtime.engine.image_generation import DiffusionImageEngine, MFluxImageEngine
+from molto_server.api import image_routes
 from PIL import Image
 
 
@@ -217,7 +217,7 @@ def api(monkeypatch, checkpoint):
         lambda value, request: "image" if value == "alias" else value,
     )
     app = FastAPI()
-    from omlx_server.state import ServerState
+    from molto_server.state import ServerState
 
     app.state.server_state = ServerState()
     app.include_router(image_routes.router)
@@ -547,7 +547,7 @@ async def test_inpaint_and_upscale_use_registry_contract(api, checkpoint):
 
 @pytest.mark.asyncio
 async def test_generation_failure_keeps_exception_mapping_and_cleans_media(api):
-    from omlx_runtime.exceptions import ModelBusyError
+    from molto_runtime.exceptions import ModelBusyError
 
     app, calls, state, engine = api
     paths = []
@@ -597,7 +597,7 @@ async def test_upscale_aspect_ratio_cannot_exceed_output_budget(api, checkpoint)
 
 @pytest.mark.asyncio
 async def test_cancelled_multipart_parse_closes_spooled_upload():
-    from omlx_contracts.api.image_models import ImageEditRequest
+    from molto_contracts.api.image_models import ImageEditRequest
     from starlette.datastructures import FormData, UploadFile
 
     entered_form = asyncio.Event()
@@ -785,7 +785,7 @@ def pooled_api(api, checkpoint, executor, tmp_path, monkeypatch):
     """Run actual pool construction/start/acquire paths with a fake native backend."""
     import json
 
-    from omlx_runtime import engine_pool
+    from molto_runtime import engine_pool
 
     app, _, _, _ = api
     path = tmp_path / "image"
@@ -794,7 +794,7 @@ def pooled_api(api, checkpoint, executor, tmp_path, monkeypatch):
         (path / component / "0.safetensors").write_bytes(b"weights")
     (path / "tokenizer").mkdir()
     (path / "tokenizer" / "tokenizer.json").write_text("{}")
-    (path / "omlx-mflux.json").write_text(
+    (path / "molto-mflux.json").write_text(
         json.dumps(
             {
                 "version": 1,
@@ -919,7 +919,7 @@ async def test_cancelled_cold_edit_drains_selected_load_and_can_retry(pooled_api
 
 @pytest.mark.asyncio
 async def test_pool_text_acquisition_keeps_original_call_shape(monkeypatch):
-    from omlx_runtime.engine_pool import EnginePool
+    from molto_runtime.engine_pool import EnginePool
 
     pool = EnginePool()
     calls = []

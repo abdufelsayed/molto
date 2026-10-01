@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from omlx_management.model_control import (
+from molto_management.model_control import (
     ModelControl,
     ModelControlStore,
     artifact_characteristics,
@@ -91,7 +91,7 @@ def test_hf_source_metadata_lists_active_and_rollback_revisions(tmp_path):
 
 
 def test_mflux_source_metadata_exposes_compatible_model_family(tmp_path):
-    (tmp_path / "omlx-mflux.json").write_text(
+    (tmp_path / "molto-mflux.json").write_text(
         json.dumps({"backend": "mflux", "model_family": "z-image-turbo"})
     )
 
@@ -125,7 +125,7 @@ def test_artifact_characteristics_detect_mflux_quantization_metadata(tmp_path):
 def test_image_capabilities_follow_checkpoint_operations(tmp_path):
     import struct
 
-    from omlx_runtime.diffusion import get_pipeline
+    from molto_runtime.diffusion import get_pipeline
 
     spec = get_pipeline("flux2-klein-4b")
     for component in spec.components:
@@ -137,7 +137,7 @@ def test_image_capabilities_follow_checkpoint_operations(tmp_path):
         )
     (tmp_path / "tokenizer").mkdir()
     (tmp_path / "tokenizer" / "tokenizer.json").write_text("{}")
-    (tmp_path / "omlx-mflux.json").write_text(
+    (tmp_path / "molto-mflux.json").write_text(
         json.dumps(
             {
                 "version": 2,
@@ -246,7 +246,7 @@ def test_preparation_catalog_keeps_every_model_in_one_inventory(tmp_path):
     }
 
     with patch(
-        "omlx_management.model_control.importlib.util.find_spec", return_value=object()
+        "molto_management.model_control.importlib.util.find_spec", return_value=object()
     ):
         catalog = build_preparation_catalog(
             records, [oq_text, oq_audio], [oq_text, oq_audio]
@@ -338,7 +338,7 @@ def test_incomplete_model_stays_visible_with_operation_blocker(tmp_path):
     control = ModelControl(tmp_path / "state")
     record = build_registry_record(artifact, control.store)
     with patch(
-        "omlx_management.model_control.importlib.util.find_spec", return_value=object()
+        "molto_management.model_control.importlib.util.find_spec", return_value=object()
     ):
         [prepared] = build_preparation_catalog([record], [], [])
 

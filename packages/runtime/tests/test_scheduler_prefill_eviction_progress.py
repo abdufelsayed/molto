@@ -6,8 +6,8 @@ from types import SimpleNamespace
 import mlx.core as mx
 import pytest
 from mlx_lm.models.cache import KVCache
-from omlx_runtime.request import Request, SamplingParams
-from omlx_runtime.scheduler import Scheduler, SchedulerConfig, _PrefillEvictionNeeded
+from molto_runtime.request import Request, SamplingParams
+from molto_runtime.scheduler import Scheduler, SchedulerConfig, _PrefillEvictionNeeded
 
 
 class _RecordingModel:

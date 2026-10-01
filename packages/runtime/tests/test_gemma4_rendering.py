@@ -10,13 +10,13 @@ import glob
 import os
 
 import pytest
-from omlx_contracts.api.openai_models import Message
-from omlx_runtime.adapter.gemma4 import extract_gemma4_messages
+from molto_contracts.api.openai_models import Message
+from molto_runtime.adapter.gemma4 import extract_gemma4_messages
 
 
 def _find_gemma4_26b_model() -> str | None:
     pattern = os.path.join(
-        os.path.expanduser("~"), ".omlx", "models", "gemma-4-26B-A4B-it*"
+        os.path.expanduser("~"), ".molto", "models", "gemma-4-26B-A4B-it*"
     )
     matches = [p for p in glob.glob(pattern) if os.path.isdir(p)]
     return matches[0] if matches else None
@@ -25,7 +25,7 @@ def _find_gemma4_26b_model() -> str | None:
 MODEL_PATH = _find_gemma4_26b_model()
 
 pytestmark = pytest.mark.skipif(
-    MODEL_PATH is None, reason="No gemma-4-26B-A4B-it* model found in ~/.omlx/models/"
+    MODEL_PATH is None, reason="No gemma-4-26B-A4B-it* model found in ~/.molto/models/"
 )
 
 _TOOLS = [

@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 import mlx.core as mx
 import mlx.nn as nn
 import pytest
-from omlx_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
+from molto_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
 
 
 def _tiny_config():
@@ -579,7 +579,7 @@ def test_qwen4_quantization_sanitize_keeps_mmap_ple_shards(tmp_path):
     runtime_model = SimpleNamespace(config=config)
     quantization_proxy = SimpleNamespace(
         config=config,
-        _omlx_preserve_qwen4_ple_for_quantization=True,
+        _molto_preserve_qwen4_ple_for_quantization=True,
     )
 
     configure_ple_runtime(tmp_path, mode="mmap")
@@ -624,7 +624,7 @@ def test_qwen4_exp_tiny_text_prefill_and_decode():
 def test_qwen4_gathered_qsa_prefill_matches_official_mask_path(
     monkeypatch, prefix, length, gathered_rows
 ):
-    monkeypatch.setenv("OMLX_QWEN4_GATHERED_MIN_QUERY", "2")
+    monkeypatch.setenv("MOLTO_QWEN4_GATHERED_MIN_QUERY", "2")
     config = _tiny_config()
     import mlx_vlm.models.qwen4_exp.language as language
     from mlx_vlm.models.qwen4_exp.language import QSAKVCache, Qwen4ExpAttention
@@ -860,7 +860,7 @@ def test_qwen4_gathered_qsa_chunk_grows_with_context():
 
 def test_qwen4_adapter_cache_only_prefill_skips_vocab_projection():
     from mlx_vlm.models.qwen4_exp import Model
-    from omlx_runtime.models.vlm import VLMModelAdapter
+    from molto_runtime.models.vlm import VLMModelAdapter
 
     model = VLMModelAdapter(Model(_tiny_config()))
     cache = model.make_cache()
@@ -878,7 +878,7 @@ def test_qwen4_adapter_cache_only_prefill_skips_vocab_projection():
 
 def test_qwen4_batch_join_honors_model_owned_cache_conversion():
     compat.apply_mlx_vlm_qwen4_exp_compat_patch()
-    import omlx_runtime.scheduler  # noqa: F401  (installs BatchGenerator cache patches)
+    import molto_runtime.scheduler  # noqa: F401  (installs BatchGenerator cache patches)
     from mlx_vlm.models.qwen4_exp.language import BatchQSAKVCache, QSAKVCache
 
     qsa_cache = QSAKVCache()
@@ -897,7 +897,7 @@ def test_qwen4_batch_join_honors_model_owned_cache_conversion():
 
     generate = importlib.import_module("mlx_lm.generate")
     caches = [
-        omlx_runtime.scheduler._to_batched_cache_layer(c)
+        molto_runtime.scheduler._to_batched_cache_layer(c)
         for c in generate._merge_caches([Model().make_cache()])
     ]
 
@@ -953,7 +953,7 @@ def test_qwen4_sharded_embedding_keeps_token_order_across_shards():
 def test_qwen4_qsa_cache_round_trip_preserves_greedy_decode():
     config = _tiny_config()
     from mlx_vlm.models.qwen4_exp.language import LanguageModel
-    from omlx_runtime.cache.type_registry import CacheTypeRegistry
+    from molto_runtime.cache.type_registry import CacheTypeRegistry
 
     model = LanguageModel(config.text_config, config)
     full_cache = model.make_cache()
@@ -973,7 +973,7 @@ def test_qwen4_qsa_cache_round_trip_preserves_greedy_decode():
 
     from types import SimpleNamespace
 
-    from omlx_runtime.models.vlm import VLMModelAdapter
+    from molto_runtime.models.vlm import VLMModelAdapter
 
     restored = VLMModelAdapter(SimpleNamespace(language_model=model)).restore_cache(
         restored
@@ -1251,7 +1251,7 @@ def test_qwen4_lightning_mtp_fusion_and_runtime_attachment(tmp_path):
         model = Model(config)
         assert isinstance(model.mtp, Qwen4ExpMTPModule)
         assert model.language_model.get_mtp_module() is model.mtp
-        assert model.language_model._omlx_mtp_decode_enabled is True
+        assert model.language_model._molto_mtp_decode_enabled is True
 
         head = model.mtp
         head.fc_embedding.weight = mx.eye(config.text_config.hidden_size)
@@ -1583,7 +1583,7 @@ def test_qwen4_cache_extension_promotes_singletons_to_model_owned_batch():
     Adapted from PR #3215 (DiscoStew6082), which fixes the same seam.
     """
     compat.apply_mlx_vlm_qwen4_exp_compat_patch()
-    import omlx_runtime.scheduler  # noqa: F401  (installs BatchGenerator cache patches)
+    import molto_runtime.scheduler  # noqa: F401  (installs BatchGenerator cache patches)
     from mlx_vlm.models.qwen4_exp.language import BatchQSAKVCache
 
     left = _warm_qsa_row(3, 10)
@@ -1610,7 +1610,7 @@ def test_qwen4_cache_extension_accepts_existing_model_owned_batch():
     Adapted from PR #3214 (HaloFour).
     """
     compat.apply_mlx_vlm_qwen4_exp_compat_patch()
-    import omlx_runtime.scheduler  # noqa: F401  (installs BatchGenerator cache patches)
+    import molto_runtime.scheduler  # noqa: F401  (installs BatchGenerator cache patches)
     from mlx_vlm.models.qwen4_exp.language import BatchQSAKVCache
 
     left = _warm_qsa_row(3, 10)
@@ -1634,7 +1634,7 @@ def test_qwen4_cache_extension_keeps_existing_batch_in_place():
     Adapted from PR #3214 (HaloFour).
     """
     compat.apply_mlx_vlm_qwen4_exp_compat_patch()
-    import omlx_runtime.scheduler  # noqa: F401  (installs BatchGenerator cache patches)
+    import molto_runtime.scheduler  # noqa: F401  (installs BatchGenerator cache patches)
     from mlx_vlm.models.qwen4_exp.language import BatchQSAKVCache
 
     left = BatchQSAKVCache.merge([_warm_qsa_row(3, 10)])
@@ -1752,7 +1752,7 @@ def _assert_qwen4_lightning_mtp_hidden_width(model, text_config):
 
 def test_qwen4_lightning_mtp_isolated_from_dense_qwen35_runtime_patch():
     """Qwen3.5 patching must preserve resident and later Qwen4 MTP models."""
-    from omlx_runtime.patches.mlx_vlm_mtp import apply_mlx_vlm_mtp_runtime_patch
+    from molto_runtime.patches.mlx_vlm_mtp import apply_mlx_vlm_mtp_runtime_patch
 
     config = _tiny_config()
     resident_model, resident_owner = _make_bound_qwen4_language_model(config)
@@ -1949,7 +1949,7 @@ def test_ple_gathers_ahead_only_with_a_prefetching_table():
 
 def test_prompt_lookahead_keeps_the_schedulers_mrope_hook(monkeypatch):
     """The scheduler wraps prompt() to set mRoPE deltas first; the lookahead loop must run under it, not over it."""
-    import omlx_runtime.scheduler as scheduler  # installs the wrapper
+    import molto_runtime.scheduler as scheduler  # installs the wrapper
 
     compat.apply_mlx_vlm_qwen4_exp_compat_patch()
     from mlx_lm.generate import PromptProcessingBatch
@@ -2142,7 +2142,7 @@ def test_ple_depthwise_conv_one_pipeline_serves_every_length(
         mx.eval(
             language._depthwise_conv1d(conv, mx.ones((1, rows + 9, 64), mx.bfloat16))
         )
-    assert names == ["omlx_qwen4_depthwise_conv1d"]
+    assert names == ["molto_qwen4_depthwise_conv1d"]
 
 
 def test_ple_depthwise_conv_unsupported_layouts_use_conv1d(

@@ -24,7 +24,7 @@ const targetSource = (
   )
 )
   .replace(
-    'import openapi from "@omlx/contracts/openapi.json"',
+    'import openapi from "@molto/contracts/openapi.json"',
     `const openapi = ${schema}`
   )
   .replace("export function operationTarget", "function operationTarget")
@@ -53,8 +53,8 @@ async function fixture(upstreamHandler, run) {
   const upstream = createServer(upstreamHandler)
   upstream.listen(0, "127.0.0.1")
   await once(upstream, "listening")
-  const previous = process.env.OMLX_API_URL
-  process.env.OMLX_API_URL = `http://127.0.0.1:${upstream.address().port}`
+  const previous = process.env.MOLTO_API_URL
+  process.env.MOLTO_API_URL = `http://127.0.0.1:${upstream.address().port}`
   const app = new H3()
   app.use(inferenceProxy)
   app.all("/**", () => new Response("dashboard"))
@@ -64,8 +64,8 @@ async function fixture(upstreamHandler, run) {
   try {
     await run(`http://127.0.0.1:${publicServer.address().port}`)
   } finally {
-    if (previous === undefined) delete process.env.OMLX_API_URL
-    else process.env.OMLX_API_URL = previous
+    if (previous === undefined) delete process.env.MOLTO_API_URL
+    else process.env.MOLTO_API_URL = previous
     publicServer.closeAllConnections()
     upstream.closeAllConnections()
     await Promise.all([
@@ -125,7 +125,7 @@ await test("multipart request, binary response, credentials, and errors survive 
           "content-type": "multipart/form-data; boundary=boundary",
           "x-forwarded-for": "forged",
           forwarded: "for=forged",
-          cookie: "omlx_dashboard_session=secret",
+          cookie: "molto_dashboard_session=secret",
         },
       })
       assert.equal(response.status, 422)
@@ -248,7 +248,7 @@ await test("remote cluster protocol has an explicit method inventory and forward
             "x-forwarded-proto": "https",
             forwarded: "for=attacker",
             "x-real-ip": "203.0.113.2",
-            cookie: "omlx_dashboard_session=admin-secret",
+            cookie: "molto_dashboard_session=admin-secret",
           },
         })
         assert.equal(response.status, 200)
@@ -295,7 +295,7 @@ await test("CLI management gateway requires explicit key, blocks browser/setup/u
     async (origin) => {
       const headers = {
         authorization: "Bearer cli-main-key",
-        cookie: "omlx_dashboard_session=admin",
+        cookie: "molto_dashboard_session=admin",
         "content-type": "application/json",
         "x-forwarded-for": "forged",
       }

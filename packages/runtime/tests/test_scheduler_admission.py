@@ -5,8 +5,8 @@ from collections import deque
 from unittest.mock import MagicMock
 
 import pytest
-from omlx_runtime.exceptions import SchedulerQueueFullError
-from omlx_runtime.scheduler import Scheduler
+from molto_runtime.exceptions import SchedulerQueueFullError
+from molto_runtime.scheduler import Scheduler
 
 
 @pytest.fixture

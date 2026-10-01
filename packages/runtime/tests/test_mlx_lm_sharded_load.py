@@ -3,8 +3,8 @@
 rejecting a local checkpoint, and leave every other outcome untouched."""
 
 import pytest
-from omlx_runtime.patches import mlx_lm_sharded_load as patch_module
-from omlx_runtime.patches.mlx_lm_sharded_load import (
+from molto_runtime.patches import mlx_lm_sharded_load as patch_module
+from molto_runtime.patches.mlx_lm_sharded_load import (
     _wrap,
     install_local_sharded_load_fallback,
 )
@@ -62,7 +62,7 @@ def test_install_wraps_both_module_bindings_once(monkeypatch):
 
     assert install_local_sharded_load_fallback() is True
     assert utils_module.sharded_load is server_module.sharded_load
-    assert getattr(utils_module.sharded_load, "_omlx_local_fallback", False)
+    assert getattr(utils_module.sharded_load, "_molto_local_fallback", False)
     assert utils_module.sharded_load("/x") == "loaded"
     # A second install is a no-op, not a double wrap.
     assert install_local_sharded_load_fallback() is False

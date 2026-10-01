@@ -6,8 +6,8 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
-from omlx_cli.cli_output import Output
-from omlx_cli.client import (
+from molto_cli.cli_output import Output
+from molto_cli.client import (
     CLIError,
     ManagementClient,
     resolve_connection,
@@ -15,13 +15,13 @@ from omlx_cli.client import (
     validate_origin,
     validate_path,
 )
-from omlx_cli.connection_options import add_connection_options
-from omlx_config.settings import GlobalSettings
+from molto_cli.connection_options import add_connection_options
+from molto_config.settings import GlobalSettings
 
 
 @pytest.fixture
 def local_args(tmp_path, monkeypatch):
-    for name in ("OMLX_URL", "OMLX_API_KEY", "OMLX_HOST", "OMLX_PORT"):
+    for name in ("MOLTO_URL", "MOLTO_API_KEY", "MOLTO_HOST", "MOLTO_PORT"):
         monkeypatch.delenv(name, raising=False)
     settings = GlobalSettings(base_path=tmp_path)
     settings.auth.api_key = "local-main-key"
@@ -50,7 +50,7 @@ def test_local_credentials_and_explicit_remote_key(local_args):
 
 
 def test_remote_environment_url_does_not_leak_key(local_args, monkeypatch):
-    monkeypatch.setenv("OMLX_URL", "https://remote.example")
+    monkeypatch.setenv("MOLTO_URL", "https://remote.example")
     with pytest.raises(CLIError):
         resolve_connection(local_args)
 
@@ -252,7 +252,7 @@ def test_setup_eof_is_clean_cancellation(local_args, monkeypatch):
     import getpass
     import sys
 
-    from omlx_cli import cli
+    from molto_cli import cli
 
     monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
 
@@ -264,7 +264,7 @@ def test_setup_eof_is_clean_cancellation(local_args, monkeypatch):
         public_request=lambda *a, **k: {"allowed": True, "setup_required": True},
         close=lambda: None,
     )
-    monkeypatch.setattr("omlx_cli.client.ManagementClient", lambda *a, **k: client)
+    monkeypatch.setattr("molto_cli.client.ManagementClient", lambda *a, **k: client)
     with pytest.raises(CLIError) as error:
         cli.init_command(local_args)
     assert error.value.exit_code == 130

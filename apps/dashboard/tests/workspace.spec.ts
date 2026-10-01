@@ -10,7 +10,7 @@ async function openLibrary(page: Page, search = "") {
   await page.getByLabel("API key", { exact: true }).fill("dashboard-test-key")
   await page.getByRole("button", { name: "Connect", exact: true }).click()
   await expect(
-    page.getByRole("dialog", { name: "Connect to oMLX" })
+    page.getByRole("dialog", { name: "Connect to Molto" })
   ).toHaveCount(0)
   await expect(
     page.getByRole("heading", { name: "Model library" })
@@ -94,7 +94,7 @@ test("collection startup preload is explicit and retained when editing", async (
     .getByRole("button", { name: "Save collection", exact: true })
     .click()
   await expect(dialog).toHaveCount(0)
-  const response = await page.request.get("/api/omlx/workspace/collections")
+  const response = await page.request.get("/api/molto/workspace/collections")
   expect(response.ok()).toBe(true)
   const data = (await response.json()) as {
     collections: { name: string; description: string; preload: boolean }[]
@@ -121,7 +121,7 @@ test("configuration file import shows the server field diff before explicit appl
   baseURL,
 }) => {
   await openLibrary(page)
-  const response = await page.request.get("/api/omlx/workspace/export")
+  const response = await page.request.get("/api/molto/workspace/export")
   expect(response.ok()).toBe(true)
   const bundle = (await response.json()) as {
     models: { id: string; settings: Record<string, unknown> }[]
@@ -163,7 +163,7 @@ test("configuration file import shows the server field diff before explicit appl
     page.getByRole("button", { name: "Apply reviewed configuration" })
   ).toBeDisabled()
   const unloadedResponse = await page.request.post(
-    `/api/omlx/models/${encodeURIComponent(model)}/unload`,
+    `/api/molto/models/${encodeURIComponent(model)}/unload`,
     { headers: { Origin: baseURL! } }
   )
   expect(unloadedResponse.ok()).toBe(true)
@@ -185,7 +185,7 @@ test("configuration file import shows the server field diff before explicit appl
     page.getByText("Configuration applied.", { exact: true })
   ).toBeVisible()
   expect(applied).toBe(1)
-  const exported = await page.request.get("/api/omlx/workspace/export")
+  const exported = await page.request.get("/api/molto/workspace/export")
   const result = (await exported.json()) as typeof bundle
   expect(
     result.models.find((item) => item.id === model)?.settings.temperature
@@ -222,7 +222,7 @@ test("deletion preview enforces blockers and a failed delete requires a new prev
   await deletion
     .getByLabel("Type the model identifier to confirm")
     .fill(unloaded)
-  await page.route("**/api/omlx/workspace/models/**/delete", (route) =>
+  await page.route("**/api/molto/workspace/models/**/delete", (route) =>
     route.fulfill({
       status: 503,
       json: { detail: "Fixture deletion unavailable" },

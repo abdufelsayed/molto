@@ -4,7 +4,7 @@ import json
 import stat
 
 import pytest
-from omlx_runtime.cluster.identity import (
+from molto_runtime.cluster.identity import (
     NodeIdentity,
     configure_node_identity,
     get_node_identity,

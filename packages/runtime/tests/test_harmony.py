@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for Harmony streaming parser (omlx_runtime.adapter.harmony)."""
+"""Tests for Harmony streaming parser (molto_runtime.adapter.harmony)."""
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-from omlx_runtime.adapter.harmony import (
+from molto_runtime.adapter.harmony import (
     HarmonyStreamingParser,
     load_harmony_gpt_oss_encoding,
     parse_tool_calls_from_tokens,
@@ -434,7 +434,7 @@ class TestParseToolCallsFromTokens:
                 return messages
 
         monkeypatch.setattr(
-            "omlx_runtime.adapter.harmony.load_harmony_gpt_oss_encoding",
+            "molto_runtime.adapter.harmony.load_harmony_gpt_oss_encoding",
             lambda: FakeEncoding(),
         )
 

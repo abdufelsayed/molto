@@ -43,7 +43,7 @@ export function inferencePathAllowed(path: string, method: string) {
 }
 
 export function inferenceBackendOrigin() {
-  const target = new URL(process.env.OMLX_API_URL ?? "http://127.0.0.1:8000")
+  const target = new URL(process.env.MOLTO_API_URL ?? "http://127.0.0.1:8000")
   if (
     !["http:", "https:"].includes(target.protocol) ||
     target.username ||
@@ -53,7 +53,7 @@ export function inferenceBackendOrigin() {
     target.hash
   )
     throw new Error(
-      "OMLX_API_URL must be an HTTP(S) origin without credentials or a path."
+      "MOLTO_API_URL must be an HTTP(S) origin without credentials or a path."
     )
   return target.origin
 }

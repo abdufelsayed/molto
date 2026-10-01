@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx/mcp/config.py — config file discovery, JSON/YAML
+"""Tests for molto/mcp/config.py — config file discovery, JSON/YAML
 loading, schema validation, and the example-config helper.
 
 MCPConfig / MCPServerConfig / MCPTransport themselves are covered in
@@ -11,20 +11,20 @@ from __future__ import annotations
 import json
 
 import pytest
-from omlx_server.mcp import config as mcp_config
-from omlx_server.mcp.config import (
+from molto_server.mcp import config as mcp_config
+from molto_server.mcp.config import (
     CONFIG_ENV_VAR,
     create_example_config,
     load_mcp_config,
     validate_config,
 )
-from omlx_server.mcp.types import MCPConfig, MCPServerConfig, MCPTransport
+from molto_server.mcp.types import MCPConfig, MCPServerConfig, MCPTransport
 
 
 @pytest.fixture
 def isolated_env(monkeypatch, tmp_path):
     """Run each test in a clean directory with no env var and an empty
-    search-path list. Prevents real ~/.config/omlx/mcp.json or a stray
+    search-path list. Prevents real ~/.config/molto/mcp.json or a stray
     ./mcp.json from leaking into the test."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv(CONFIG_ENV_VAR, raising=False)
@@ -150,7 +150,7 @@ class TestValidateConfigServerLoading:
 
     def test_claude_desktop_mcpServers_format_accepted(self):  # noqa: N802
         """Upstream chose to accept Claude Desktop's ``mcpServers`` key
-        as an alias for oMLX's ``servers``. Drop this and Claude users
+        as an alias for Molto's ``servers``. Drop this and Claude users
         lose drop-in compatibility."""
         cfg = validate_config(
             {"mcpServers": {"claude-srv": {"transport": "stdio", "command": "npx"}}}
@@ -272,11 +272,11 @@ class TestEnvVarPath:
     def test_env_var_missing_file_falls_through(
         self, isolated_env, monkeypatch, caplog
     ):
-        """If OMLX_MCP_CONFIG points at a nonexistent file, the loader
+        """If MOLTO_MCP_CONFIG points at a nonexistent file, the loader
         logs a warning but continues to the search-path fallback rather
         than aborting — broken env vars must not kill the server."""
         monkeypatch.setenv(CONFIG_ENV_VAR, str(isolated_env / "missing.json"))
-        with caplog.at_level("WARNING", logger="omlx_server.mcp.config"):
+        with caplog.at_level("WARNING", logger="molto_server.mcp.config"):
             cfg = load_mcp_config()
         assert isinstance(cfg, MCPConfig)
         assert cfg.servers == {}
@@ -378,7 +378,7 @@ class TestCreateExampleConfig:
         assert isinstance(data, dict)
 
     def test_example_round_trips_through_validate(self):
-        """The example written to disk by ``omlx mcp init`` (or similar)
+        """The example written to disk by ``molto mcp init`` (or similar)
         must be a valid config — otherwise the bootstrap UX is broken."""
         example = create_example_config()
         data = json.loads(example)

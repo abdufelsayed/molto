@@ -13,7 +13,7 @@ from mlx_vlm.models.pixtral.image_processing_pixtral import (
     PixtralImageProcessor,
     split_image_sizes_by_sample,
 )
-from omlx_runtime.patches.mlx_vlm_pixtral_torch_free import (
+from molto_runtime.patches.mlx_vlm_pixtral_torch_free import (
     apply_pixtral_torch_free_patch,
 )
 from PIL import Image

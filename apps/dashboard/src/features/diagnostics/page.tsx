@@ -51,7 +51,7 @@ export function DiagnosticsPage() {
     ),
     enabled: !!selected,
   })
-  const refresh = () => client.invalidateQueries({ queryKey: ["omlx"] })
+  const refresh = () => client.invalidateQueries({ queryKey: ["molto"] })
   const start = useMutation({
     mutationFn: ({
       kind,

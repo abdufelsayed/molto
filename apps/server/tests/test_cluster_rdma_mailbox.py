@@ -6,8 +6,8 @@ from __future__ import annotations
 import time
 
 import pytest
-from omlx_runtime.cluster.rdma import layout
-from omlx_runtime.cluster.rdma.mailbox import (
+from molto_runtime.cluster.rdma import layout
+from molto_runtime.cluster.rdma.mailbox import (
     ClientMailbox,
     MailboxError,
     ServiceMailbox,

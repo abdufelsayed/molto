@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from omlx_runtime.engine.vlm import VLMBatchedEngine
+from molto_runtime.engine.vlm import VLMBatchedEngine
 
 
 @pytest.mark.asyncio

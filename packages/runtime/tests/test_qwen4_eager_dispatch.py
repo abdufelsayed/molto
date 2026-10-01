@@ -7,7 +7,7 @@ import sys
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
+from molto_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
 
 
 @pytest.fixture(autouse=True)

@@ -7,9 +7,9 @@ from concurrent.futures import ThreadPoolExecutor
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.patches.deepseek_v41.convert import convert
-from omlx_runtime.patches.deepseek_v41.loading import load
-from omlx_runtime.patches.deepseek_v41.moe_offload import OffloadedExpert
+from molto_runtime.patches.deepseek_v41.convert import convert
+from molto_runtime.patches.deepseek_v41.loading import load
+from molto_runtime.patches.deepseek_v41.moe_offload import OffloadedExpert
 from test_deepseek_v41 import write_checkpoint
 
 
@@ -77,10 +77,10 @@ def test_quantized_expert_eviction_preserves_arithmetic(
     tmp_path, source_format, sorted_routes
 ):
     from mlx.utils import tree_flatten
-    from omlx_runtime.patches.deepseek_v41.config import ModelConfig
-    from omlx_runtime.patches.deepseek_v41.language import Expert
-    from omlx_runtime.patches.deepseek_v41.moe_offload import ExpertOffloadPlan
-    from omlx_runtime.patches.deepseek_v41.quantization import QuantizedProjection
+    from molto_runtime.patches.deepseek_v41.config import ModelConfig
+    from molto_runtime.patches.deepseek_v41.language import Expert
+    from molto_runtime.patches.deepseek_v41.moe_offload import ExpertOffloadPlan
+    from molto_runtime.patches.deepseek_v41.quantization import QuantizedProjection
 
     mx.random.seed(412)
     config = ModelConfig(
@@ -108,7 +108,7 @@ def test_quantized_expert_eviction_preserves_arithmetic(
     tensors = {prefix + "." + k: v for k, v in tree_flatten(reference.parameters())}
     mx.save_safetensors(str(tmp_path / "model.safetensors"), tensors)
     mapping = {k: "model.safetensors" for k in tensors}
-    raw = {"omlx_deepseek_v41": {"version": 1, "quantized_modules": specs}}
+    raw = {"molto_deepseek_v41": {"version": 1, "quantized_modules": specs}}
     plan = ExpertOffloadPlan(tmp_path, raw, mapping, config, 0.25)
     disk = OffloadedExpert(Expert(config, True), plan, prefix)
     try:
@@ -136,14 +136,14 @@ def test_quantized_expert_eviction_preserves_arithmetic(
 
 @pytest.mark.parametrize("key", ["vlm_mtp_enabled", "dflash_enabled"])
 def test_speculative_offload_conflict(key):
-    from omlx_config.model_settings import ModelSettings
+    from molto_config.model_settings import ModelSettings
 
     with pytest.raises(ValueError, match="MoE expert offload cannot"):
         ModelSettings(moe_expert_offload_enabled=True, **{key: True})
 
 
 def test_lightning_mtp_offload_conflict_is_family_aware():
-    from omlx_config.model_settings import validate_moe_expert_offload
+    from molto_config.model_settings import validate_moe_expert_offload
 
     settings = {"moe_expert_offload_enabled": True, "mtp_enabled": True}
     validate_moe_expert_offload(settings, model_type="deepseek_v41")
@@ -164,7 +164,7 @@ def test_lightning_mtp_offload_conflict_is_family_aware():
 
 
 def test_mtp_offload_pairing_survives_settings_roundtrip():
-    from omlx_config.model_settings import ModelSettings
+    from molto_config.model_settings import ModelSettings
 
     settings = ModelSettings(moe_expert_offload_enabled=True, mtp_enabled=True)
     assert settings.moe_expert_offload_enabled and settings.mtp_enabled
@@ -201,7 +201,7 @@ def test_converted_draft_weights_are_not_loaded_with_offload(tmp_path):
 
 @pytest.mark.parametrize("fraction", [0, -0.25, 1.01, float("nan")])
 def test_offload_settings_reject_invalid_fraction(fraction):
-    from omlx_config.model_settings import validate_moe_expert_offload
+    from molto_config.model_settings import validate_moe_expert_offload
 
     with pytest.raises(ValueError, match="moe_expert_offload_resident_fraction"):
         validate_moe_expert_offload(
@@ -211,9 +211,9 @@ def test_offload_settings_reject_invalid_fraction(fraction):
 
 
 def test_loader_never_reads_nonresident_stacked_experts(tmp_path, monkeypatch):
-    from omlx_runtime.patches.deepseek_v41 import loading
-    from omlx_runtime.patches.deepseek_v41.moe_offload import ExpertOffloadPlan
-    from omlx_runtime.patches.deepseek_v41.storage import TensorFile
+    from molto_runtime.patches.deepseek_v41 import loading
+    from molto_runtime.patches.deepseek_v41.moe_offload import ExpertOffloadPlan
+    from molto_runtime.patches.deepseek_v41.storage import TensorFile
 
     source, _ = write_checkpoint(tmp_path, vision=False, n_routed_experts=8)
     target = tmp_path / "converted"
@@ -250,10 +250,10 @@ def test_loader_never_reads_nonresident_stacked_experts(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("bits", [4, 8])
 def test_original_quantized_expert_reads_repack_only_selected_experts(tmp_path, bits):
-    from omlx_runtime.patches.deepseek_v41.config import ModelConfig
-    from omlx_runtime.patches.deepseek_v41.language import Expert
-    from omlx_runtime.patches.deepseek_v41.moe_offload import ExpertOffloadPlan
-    from omlx_runtime.patches.deepseek_v41.quantization import QuantizedProjection
+    from molto_runtime.patches.deepseek_v41.config import ModelConfig
+    from molto_runtime.patches.deepseek_v41.language import Expert
+    from molto_runtime.patches.deepseek_v41.moe_offload import ExpertOffloadPlan
+    from molto_runtime.patches.deepseek_v41.quantization import QuantizedProjection
     from test_deepseek_v41 import raw_safetensors
 
     mx.random.seed(441)
@@ -301,10 +301,10 @@ def test_original_quantized_expert_reads_repack_only_selected_experts(tmp_path, 
 
 def test_original_affine_expert_reads_repack_only_selected_experts(tmp_path):
     """Affine source experts offload with the packed arithmetic intact."""
-    from omlx_runtime.patches.deepseek_v41.config import ModelConfig
-    from omlx_runtime.patches.deepseek_v41.language import Expert
-    from omlx_runtime.patches.deepseek_v41.moe_offload import ExpertOffloadPlan
-    from omlx_runtime.patches.deepseek_v41.quantization import QuantizedProjection
+    from molto_runtime.patches.deepseek_v41.config import ModelConfig
+    from molto_runtime.patches.deepseek_v41.language import Expert
+    from molto_runtime.patches.deepseek_v41.moe_offload import ExpertOffloadPlan
+    from molto_runtime.patches.deepseek_v41.quantization import QuantizedProjection
     from test_deepseek_v41 import raw_safetensors
 
     def bf16_bytes(array):
@@ -369,10 +369,10 @@ def test_original_affine_expert_reads_repack_only_selected_experts(tmp_path):
 
 
 def test_engram_and_expert_estimates_compose(tmp_path, monkeypatch):
-    from omlx_config.model_settings import ModelSettings
-    from omlx_runtime.engine_pool import EngineEntry
-    from omlx_runtime.patches.deepseek_v41.moe_offload import estimate_expert_savings
-    from omlx_runtime.patches.deepseek_v41.residency import (
+    from molto_config.model_settings import ModelSettings
+    from molto_runtime.engine_pool import EngineEntry
+    from molto_runtime.patches.deepseek_v41.moe_offload import estimate_expert_savings
+    from molto_runtime.patches.deepseek_v41.residency import (
         deepseek_v41_residency_estimate,
     )
     from test_engine_pool import _make_pool
@@ -415,17 +415,17 @@ def test_engram_and_expert_estimates_compose(tmp_path, monkeypatch):
         )
         == expected
     )
-    monkeypatch.setenv("OMLX_MOE_EXPERT_OFFLOAD", "0")
+    monkeypatch.setenv("MOLTO_MOE_EXPERT_OFFLOAD", "0")
     assert pool._entry_runtime_resident_size(entry, settings) == base.mmap_bytes
 
 
 def _synthetic_affine_experts(tmp_path, fraction, seed=412):
     """A one-layer stacked affine checkpoint with a resident reference Expert."""
     from mlx.utils import tree_flatten
-    from omlx_runtime.patches.deepseek_v41.config import ModelConfig
-    from omlx_runtime.patches.deepseek_v41.language import Expert
-    from omlx_runtime.patches.deepseek_v41.moe_offload import ExpertOffloadPlan
-    from omlx_runtime.patches.deepseek_v41.quantization import QuantizedProjection
+    from molto_runtime.patches.deepseek_v41.config import ModelConfig
+    from molto_runtime.patches.deepseek_v41.language import Expert
+    from molto_runtime.patches.deepseek_v41.moe_offload import ExpertOffloadPlan
+    from molto_runtime.patches.deepseek_v41.quantization import QuantizedProjection
 
     mx.random.seed(seed)
     config = ModelConfig(
@@ -452,7 +452,7 @@ def _synthetic_affine_experts(tmp_path, fraction, seed=412):
     tensors = {prefix + "." + k: v for k, v in tree_flatten(reference.parameters())}
     mx.save_safetensors(str(tmp_path / "model.safetensors"), tensors)
     mapping = {k: "model.safetensors" for k in tensors}
-    raw = {"omlx_deepseek_v41": {"version": 1, "quantized_modules": specs}}
+    raw = {"molto_deepseek_v41": {"version": 1, "quantized_modules": specs}}
     plan = ExpertOffloadPlan(tmp_path, raw, mapping, config, fraction)
     return reference, OffloadedExpert(Expert(config, True), plan, prefix), plan
 
@@ -479,7 +479,7 @@ def _lru_reference(sequence, capacity):
 
 @pytest.mark.parametrize("inflight", [1, 1 << 30])
 def test_parallel_reads_install_in_serial_lru_order(tmp_path, monkeypatch, inflight):
-    from omlx_runtime.patches.deepseek_v41 import moe_offload
+    from molto_runtime.patches.deepseek_v41 import moe_offload
 
     monkeypatch.setattr(moe_offload, "INFLIGHT_BYTES", inflight)
     _, disk, plan = _synthetic_affine_experts(tmp_path, 0.375)
@@ -502,7 +502,7 @@ def test_parallel_reads_install_in_serial_lru_order(tmp_path, monkeypatch, infli
 
 
 def test_failed_read_leaves_the_cache_intact(tmp_path, monkeypatch):
-    from omlx_runtime.patches.deepseek_v41.moe_offload import ExpertOffloadPlan
+    from molto_runtime.patches.deepseek_v41.moe_offload import ExpertOffloadPlan
 
     _, disk, plan = _synthetic_affine_experts(tmp_path, 0.375)
     original = ExpertOffloadPlan.read
@@ -536,7 +536,7 @@ def test_failed_read_leaves_the_cache_intact(tmp_path, monkeypatch):
 
 
 def test_sorted_routes_chunk_on_expert_boundaries(tmp_path, monkeypatch):
-    from omlx_runtime.patches.deepseek_v41.language import Expert
+    from molto_runtime.patches.deepseek_v41.language import Expert
 
     reference, disk, plan = _synthetic_affine_experts(tmp_path, 0.25)
     calls = []
@@ -576,10 +576,10 @@ def test_sorted_routes_chunk_on_expert_boundaries(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("engram", [False, True])
 def test_admission_and_fit_match_the_engine_pool(tmp_path, engram):
-    from omlx_config.model_settings import ModelSettings
-    from omlx_runtime.engine_pool import EngineEntry
-    from omlx_runtime.model_discovery import estimate_model_size
-    from omlx_runtime.patches.deepseek_v41.moe_offload import (
+    from molto_config.model_settings import ModelSettings
+    from molto_runtime.engine_pool import EngineEntry
+    from molto_runtime.model_discovery import estimate_model_size
+    from molto_runtime.patches.deepseek_v41.moe_offload import (
         admission_bytes,
         fit_resident_fraction,
     )
@@ -632,7 +632,7 @@ def test_admission_and_fit_match_the_engine_pool(tmp_path, engram):
 def test_consumed_read_buffers_are_released_within_window(
     tmp_path, monkeypatch, window_experts
 ):
-    from omlx_runtime.patches.deepseek_v41 import moe_offload
+    from molto_runtime.patches.deepseek_v41 import moe_offload
 
     _, disk, plan = _synthetic_affine_experts(tmp_path, 1.0)
     budget = window_experts * plan.expert_bytes
@@ -689,7 +689,7 @@ def test_converted_draft_head_stays_resident_with_offload_and_mtp(
     tmp_path, monkeypatch
 ):
     from mlx.utils import tree_flatten
-    from omlx_runtime.patches import mlx_lm_mtp
+    from molto_runtime.patches import mlx_lm_mtp
 
     target = _mtp_checkpoint(tmp_path)
     monkeypatch.setattr(mlx_lm_mtp, "_MTP_ACTIVE", True)
@@ -697,7 +697,7 @@ def test_converted_draft_head_stays_resident_with_offload_and_mtp(
     try:
         assert model.config.preserve_mtp
         assert model.language_model.mtp, "The draft head must stay resident"
-        assert model.language_model._omlx_dspark_decode_enabled
+        assert model.language_model._molto_dspark_decode_enabled
         plan = model._moe_offload_plan
         assert plan.mtp_resident and plan.draft_bytes > 0
         assert isinstance(model.language_model.layers[0].ffn.experts, OffloadedExpert)
@@ -717,8 +717,8 @@ def test_converted_draft_head_stays_resident_with_offload_and_mtp(
 
 
 def test_offloaded_dspark_verify_matches_resident(tmp_path, monkeypatch):
-    from omlx_runtime.patches import mlx_lm_mtp
-    from omlx_runtime.patches.deepseek_v41 import dspark
+    from molto_runtime.patches import mlx_lm_mtp
+    from molto_runtime.patches.deepseek_v41 import dspark
 
     target = _mtp_checkpoint(tmp_path)
     monkeypatch.setattr(mlx_lm_mtp, "_MTP_ACTIVE", True)
@@ -768,9 +768,9 @@ def test_offloaded_dspark_verify_matches_resident(tmp_path, monkeypatch):
 
 
 def test_mtp_resident_savings_excludes_draft_bytes(tmp_path, monkeypatch):
-    from omlx_runtime.patches import mlx_lm_mtp
-    from omlx_runtime.patches.deepseek_v41.config import ModelConfig
-    from omlx_runtime.patches.deepseek_v41.moe_offload import (
+    from molto_runtime.patches import mlx_lm_mtp
+    from molto_runtime.patches.deepseek_v41.config import ModelConfig
+    from molto_runtime.patches.deepseek_v41.moe_offload import (
         ExpertOffloadPlan,
         estimate_expert_savings,
     )
@@ -811,7 +811,7 @@ def _stub_checkpoint(tmp_path, model_type):
 
 
 def test_load_time_gate_allows_v41_rejects_other_lightning_family(tmp_path):
-    from omlx_runtime.utils.model_loading import (
+    from molto_runtime.utils.model_loading import (
         _config_model_type,
         maybe_apply_pre_load_patches,
     )
@@ -827,7 +827,7 @@ def test_load_time_gate_allows_v41_rejects_other_lightning_family(tmp_path):
         vlm_mtp_enabled = False
         dflash_enabled = False
 
-    from omlx_config.model_settings import validate_moe_expert_offload
+    from molto_config.model_settings import validate_moe_expert_offload
 
     validate_moe_expert_offload(
         {
@@ -842,7 +842,7 @@ def test_load_time_gate_allows_v41_rejects_other_lightning_family(tmp_path):
 
 
 def test_offload_mtp_family_gate():
-    from omlx_config.model_settings import validate_moe_expert_offload
+    from molto_config.model_settings import validate_moe_expert_offload
 
     settings = {"moe_expert_offload_enabled": True, "mtp_enabled": True}
     validate_moe_expert_offload(settings, model_type="deepseek-v41")

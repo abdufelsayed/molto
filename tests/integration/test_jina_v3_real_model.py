@@ -3,7 +3,7 @@
 
 Run with a local official checkpoint:
 
-    OMLX_JINA_V3_MODEL_PATH=/absolute/path/to/jina-reranker-v3-mlx \
+    MOLTO_JINA_V3_MODEL_PATH=/absolute/path/to/jina-reranker-v3-mlx \
         pytest tests/integration/test_jina_v3_real_model.py -m slow -q
 """
 
@@ -28,7 +28,7 @@ pytestmark = [
     ),
 ]
 
-_ENV_VAR = "OMLX_JINA_V3_MODEL_PATH"
+_ENV_VAR = "MOLTO_JINA_V3_MODEL_PATH"
 _QUERY = "What are the health benefits of green tea?"
 _DOCUMENTS = [
     "Green tea contains catechin antioxidants that may reduce inflammation.",
@@ -93,7 +93,7 @@ def test_jina_v3_matches_reference_scores_and_ranking():
     model_path = _model_path_from_environment()
     expected_scores = _reference_scores(model_path)
 
-    from omlx_runtime.models.reranker import MLXRerankerModel
+    from molto_runtime.models.reranker import MLXRerankerModel
 
     model = MLXRerankerModel(str(model_path))
     model.load()

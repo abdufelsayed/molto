@@ -4,7 +4,7 @@ const path = `/models/${encodeURIComponent(model)}?tab=settings`
 test("metadata controls preserve typed drafts and send explicit resets", async ({
   page,
 }) => {
-  await page.route("**/api/omlx/models/**/options", (route) =>
+  await page.route("**/api/molto/models/**/options", (route) =>
     route.fulfill({
       json: {
         fields: [
@@ -61,7 +61,7 @@ test("metadata controls preserve typed drafts and send explicit resets", async (
       },
     })
   )
-  await page.route("**/api/omlx/models/**/settings", (route) =>
+  await page.route("**/api/molto/models/**/settings", (route) =>
     route.request().method() === "GET"
       ? route.fulfill({
           json: {
@@ -84,10 +84,10 @@ test("metadata controls preserve typed drafts and send explicit resets", async (
           },
         })
   )
-  await page.route("**/api/omlx/models/**/profiles", (route) =>
+  await page.route("**/api/molto/models/**/profiles", (route) =>
     route.fulfill({ json: { model_id: model, profiles: [] } })
   )
-  await page.route("**/api/omlx/templates", (route) =>
+  await page.route("**/api/molto/templates", (route) =>
     route.fulfill({ json: { templates: [] } })
   )
   await page.goto(path)
@@ -191,7 +191,7 @@ test("MTPLX import requires confirmation and refreshes compatibility readback", 
     capabilities: { mtplx_import: false, mtp: true },
     mtplx_import_reason: "MTPLX weights are already imported.",
   }
-  await page.route("**/api/omlx/models", async (route) => {
+  await page.route("**/api/molto/models", async (route) => {
     const response = await route.fetch()
     if (response.status() !== 200) {
       await route.fulfill({ response })
@@ -213,11 +213,11 @@ test("MTPLX import requires confirmation and refreshes compatibility readback", 
     }))
     await route.fulfill({ response, json: inventory })
   })
-  await page.route("**/api/omlx/models/**/options", (route) =>
+  await page.route("**/api/molto/models/**/options", (route) =>
     route.fulfill({ json: imports > 0 ? after : before })
   )
   let imports = 0
-  await page.route("**/api/omlx/models/**/import-mtplx", (route) => {
+  await page.route("**/api/molto/models/**/import-mtplx", (route) => {
     imports++
     return route.fulfill({
       json: {
@@ -260,7 +260,7 @@ test("MTPLX import requires confirmation and refreshes compatibility readback", 
 })
 
 test("ordinary models do not show MTPLX import controls", async ({ page }) => {
-  await page.route("**/api/omlx/models/**/options", (route) =>
+  await page.route("**/api/molto/models/**/options", (route) =>
     route.fulfill({
       json: {
         fields: [

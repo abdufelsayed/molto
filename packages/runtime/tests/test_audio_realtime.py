@@ -14,14 +14,14 @@ import numpy as np
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from omlx_runtime.engine.stt import (
+from molto_runtime.engine.stt import (
     RealtimeTranscriptionSession,
     STTEngine,
     _split_audio_segments,
     _VoxtralRealtimeBackend,
     _WhisperRealtimeBackend,
 )
-from omlx_runtime.model_discovery import is_realtime_stt_model
+from molto_runtime.model_discovery import is_realtime_stt_model
 
 
 class TestRealtimeSttClassification:
@@ -218,7 +218,7 @@ def _make_realtime_engine(stub):
 
 
 def _ws_client(engine):
-    from omlx_server.api.audio_routes import realtime_router
+    from molto_server.api.audio_routes import realtime_router
 
     app = FastAPI()
     app.include_router(realtime_router)
@@ -226,10 +226,10 @@ def _ws_client(engine):
     pool = MagicMock()
     pool.get_engine = AsyncMock(return_value=engine)
     return (
-        patch("omlx_server.api.audio_routes._get_engine_pool", return_value=pool),
-        patch("omlx_server.api.audio_routes._verify_ws_api_key", return_value=True),
+        patch("molto_server.api.audio_routes._get_engine_pool", return_value=pool),
+        patch("molto_server.api.audio_routes._verify_ws_api_key", return_value=True),
         patch(
-            "omlx_server.api.audio_routes._resolve_model",
+            "molto_server.api.audio_routes._resolve_model",
             side_effect=lambda m, request: m,
         ),
         TestClient(app),
@@ -273,7 +273,7 @@ class TestRealtimeWebSocket:
         with (
             p1,
             patch(
-                "omlx_server.api.audio_routes._verify_ws_api_key", return_value=False
+                "molto_server.api.audio_routes._verify_ws_api_key", return_value=False
             ),
             p3,
             client,
@@ -551,7 +551,7 @@ class TestWhisperWindowRotation:
 class TestSegmentedTranscribeStream:
     @pytest.mark.asyncio
     async def test_whisper_streams_per_segment_with_autodetect(self, monkeypatch):
-        import omlx_runtime.engine.stt as stt_mod
+        import molto_runtime.engine.stt as stt_mod
 
         decoded = []
 
@@ -637,7 +637,7 @@ class TestQwen3TokenIdStreaming:
 
     @pytest.mark.asyncio
     async def test_cjk_chars_never_split(self, monkeypatch):
-        import omlx_runtime.engine.stt as stt_mod
+        import molto_runtime.engine.stt as stt_mod
 
         monkeypatch.setattr(
             stt_mod,
@@ -661,7 +661,7 @@ class TestQwen3TokenIdStreaming:
 
     @pytest.mark.asyncio
     async def test_language_hint_normalized_and_forwarded(self, monkeypatch):
-        import omlx_runtime.engine.stt as stt_mod
+        import molto_runtime.engine.stt as stt_mod
 
         monkeypatch.setattr(
             stt_mod,
@@ -682,7 +682,7 @@ class TestQwen3TokenIdStreaming:
 class TestSegmentedTranscribeStreamLanguage:
     @pytest.mark.asyncio
     async def test_explicit_language_forwarded(self, monkeypatch):
-        import omlx_runtime.engine.stt as stt_mod
+        import molto_runtime.engine.stt as stt_mod
 
         seen = {}
 

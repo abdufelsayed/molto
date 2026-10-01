@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from omlx_runtime.cluster.link_bandwidth import (
+from molto_runtime.cluster.link_bandwidth import (
     GB,
     LinkBandwidth,
     bandwidth_between,

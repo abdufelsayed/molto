@@ -11,8 +11,8 @@ import mlx.core as mx
 import mlx.nn as nn
 import numpy as np
 import pytest
-from omlx_runtime.custom_kernels.nax import is_nax_available
-from omlx_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
+from molto_runtime.custom_kernels.nax import is_nax_available
+from molto_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
 from test_mlx_vlm_qwen4_exp_compat import _tiny_config
 
 
@@ -153,7 +153,7 @@ def test_fused_norm_is_bit_identical_to_rms_norm(hidden):
     x = (mx.random.normal((1, 4, width)) * 3).astype(mx.bfloat16)
     flat = x.reshape(4, width)
     normed = hc_fused._kernel(
-        "omlx_qwen4_hc_fused_norm", ["x", "w", "eps"], ["xn"], hc_fused._N_SOURCE
+        "molto_qwen4_hc_fused_norm", ["x", "w", "eps"], ["xn"], hc_fused._N_SOURCE
     )(
         inputs=[flat, module.hc_norm.weight, hc_fused._eps_array(module)],
         template=[("T", mx.bfloat16), ("K", width), ("H", hidden)],
@@ -222,7 +222,7 @@ def test_fused_path_takes_precedence_over_exact_hybrid_projection(monkeypatch):
     from mlx_vlm.models.qwen4_exp import hc_fused
 
     module = _module(4)
-    module._omlx_exact_hybrid_projection = True
+    module._molto_exact_hybrid_projection = True
     module._compiled_forward = lambda h: pytest.fail(
         "compiled single-token path must not run"
     )
@@ -273,7 +273,7 @@ def test_compatible_fails_closed():
 
 
 def test_kill_switch_disables_fused_path(monkeypatch):
-    monkeypatch.setenv("OMLX_QWEN4_HC_FUSED", "0")
+    monkeypatch.setenv("MOLTO_QWEN4_HC_FUSED", "0")
     from mlx_vlm.models.qwen4_exp import hc_fused
 
     reloaded = importlib.reload(hc_fused)
@@ -284,7 +284,7 @@ def test_kill_switch_disables_fused_path(monkeypatch):
             _module(4), mx.random.normal((1, 4, WIDTH)).astype(mx.bfloat16)
         )
     finally:
-        monkeypatch.delenv("OMLX_QWEN4_HC_FUSED")
+        monkeypatch.delenv("MOLTO_QWEN4_HC_FUSED")
         importlib.reload(hc_fused)
 
 
@@ -494,7 +494,7 @@ def test_prefill_tail_inject_keeps_reference_bits(bits, rows, seed):
         "test_reference_tail_inject", _REFERENCE_TAIL_INJECT, hc_fused._HEADER
     )
     actual = run(
-        "omlx_qwen4_hc_prefill_tail_inject",
+        "molto_qwen4_hc_prefill_tail_inject",
         hc_fused._TI_SOURCE,
         hc_fused._HEADER + hc_fused._TG_HEADER,
     )
@@ -1324,7 +1324,7 @@ def test_two_launch_decode_keeps_three_launch_fp32_sums(bits, rows, monkeypatch)
 
 # Deferred residual writes: a real-shape stack must match eager writes bit for bit.
 # Each layer's tail write is carried into the next hyper-connection norm (and the
-# final mixer); the reference runs with OMLX_QWEN4_HC_FUSED_WRITE off.
+# final mixer); the reference runs with MOLTO_QWEN4_HC_FUSED_WRITE off.
 
 
 def _stack(seed: int):

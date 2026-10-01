@@ -23,19 +23,19 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import mlx.core as mx
-import omlx_runtime.scheduler as scheduler_mod
+import molto_runtime.scheduler as scheduler_mod
 import pytest
-from omlx_runtime.engine_core import EngineConfig, EngineCore
-from omlx_runtime.generation.thinking import ThinkingBudgetProcessor
-from omlx_runtime.output_collector import RequestOutputCollector
-from omlx_runtime.request import Request, RequestStatus, SamplingParams
-from omlx_runtime.scheduler import Scheduler, _VLMMTPDecodeState
-from omlx_runtime.speculative.processing_sampler import (
+from molto_runtime.engine_core import EngineConfig, EngineCore
+from molto_runtime.generation.thinking import ThinkingBudgetProcessor
+from molto_runtime.output_collector import RequestOutputCollector
+from molto_runtime.request import Request, RequestStatus, SamplingParams
+from molto_runtime.scheduler import Scheduler, _VLMMTPDecodeState
+from molto_runtime.speculative.processing_sampler import (
     MTPProcessingSampler,
     MTPProcessorContractError,
     supports_vlm_mtp_processing,
 )
-from omlx_runtime.speculative.vlm_mtp import (
+from molto_runtime.speculative.vlm_mtp import (
     _VLMAdapterMTPProxy,
     vlm_mtp_positioned_sampling_available,
 )
@@ -187,7 +187,7 @@ class TestMTPProcessingSampler:
     def test_missing_positions_fails_closed(self, caplog):
         _, sampler, _ = self._fresh(budget=4)
         with caplog.at_level(
-            logging.ERROR, logger="omlx_runtime.speculative.processing_sampler"
+            logging.ERROR, logger="molto_runtime.speculative.processing_sampler"
         ):
             with pytest.raises(MTPProcessorContractError):
                 sampler.sample_target(_positioned_logprobs(2))
@@ -372,7 +372,7 @@ class TestRouteGate:
             _vlm_mtp_active={},
             model=SimpleNamespace(),
         )
-        with caplog.at_level(logging.INFO, logger="omlx_runtime.scheduler"):
+        with caplog.at_level(logging.INFO, logger="molto_runtime.scheduler"):
             uid = Scheduler._route_to_vlm_mtp(
                 sched,
                 _make_route_request(),
@@ -388,7 +388,7 @@ class TestRouteGate:
 
     def test_unsupported_processor_still_declines(self, caplog):
         sched = SimpleNamespace(_vlm_mtp_drafter=object())
-        with caplog.at_level(logging.INFO, logger="omlx_runtime.scheduler"):
+        with caplog.at_level(logging.INFO, logger="molto_runtime.scheduler"):
             uid = Scheduler._route_to_vlm_mtp(
                 sched,
                 _make_route_request(),
@@ -411,7 +411,7 @@ class TestRouteGate:
             _vlm_mtp_active={},
             model=SimpleNamespace(_language_model=lm),
         )
-        with caplog.at_level(logging.INFO, logger="omlx_runtime.scheduler"):
+        with caplog.at_level(logging.INFO, logger="molto_runtime.scheduler"):
             uid = Scheduler._route_to_vlm_mtp(
                 sched,
                 _make_route_request(),
@@ -560,7 +560,7 @@ class TestPositionedHookVisibility:
             _vlm_mtp_active={},
             model=adapter,
         )
-        with caplog.at_level(logging.INFO, logger="omlx_runtime.scheduler"):
+        with caplog.at_level(logging.INFO, logger="molto_runtime.scheduler"):
             uid = Scheduler._route_to_vlm_mtp(
                 sched,
                 _make_route_request(),
@@ -584,7 +584,7 @@ class TestPositionedHookVisibility:
             _vlm_mtp_active={},
             model=adapter,
         )
-        with caplog.at_level(logging.INFO, logger="omlx_runtime.scheduler"):
+        with caplog.at_level(logging.INFO, logger="molto_runtime.scheduler"):
             uid = Scheduler._route_to_vlm_mtp(
                 sched,
                 _make_route_request(),
@@ -621,7 +621,7 @@ def test_positionless_sampling_without_processors_is_unchanged():
 async def test_contract_error_isolated_in_engine_loop(
     mock_model, mock_tokenizer, peer_waiting
 ):
-    with patch("omlx_runtime.engine_core.get_registry"):
+    with patch("molto_runtime.engine_core.get_registry"):
         engine = EngineCore(
             mock_model, mock_tokenizer, EngineConfig(decode_burst_max_steps=1)
         )

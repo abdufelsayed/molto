@@ -17,7 +17,7 @@ from unittest.mock import MagicMock, patch
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_contracts.api.openai_models import StructuredOutputOptions
+from molto_contracts.api.openai_models import StructuredOutputOptions
 
 try:
     import xgrammar  # noqa: F401
@@ -82,7 +82,7 @@ class TestBuildFormatElement:
 
     @staticmethod
     def _call(**kwargs):
-        from omlx_server.structured_output import _build_format_element
+        from molto_server.structured_output import _build_format_element
 
         return _build_format_element(**kwargs)
 
@@ -169,14 +169,14 @@ class TestNormalizeStructuredOutputs:
     """Tests for guided_grammar compatibility normalization."""
 
     def test_guided_grammar_becomes_structured_outputs_grammar(self):
-        from omlx_server.structured_output import _normalize_structured_outputs
+        from molto_server.structured_output import _normalize_structured_outputs
 
         assert _normalize_structured_outputs(None, 'root ::= "YES"') == {
             "grammar": 'root ::= "YES"',
         }
 
     def test_structured_outputs_takes_precedence_over_guided_grammar(self):
-        from omlx_server.structured_output import _normalize_structured_outputs
+        from molto_server.structured_output import _normalize_structured_outputs
 
         assert _normalize_structured_outputs(
             {"regex": r"\d+"},
@@ -184,7 +184,7 @@ class TestNormalizeStructuredOutputs:
         ) == {"regex": r"\d+"}
 
     def test_empty_guided_grammar_returns_none(self):
-        from omlx_server.structured_output import _normalize_structured_outputs
+        from molto_server.structured_output import _normalize_structured_outputs
 
         assert _normalize_structured_outputs(None, "") is None
 
@@ -193,7 +193,7 @@ class TestSettingsGuidedGrammar:
     """Tests for model-level guided grammar defaults."""
 
     def test_disabled_setting_returns_none(self):
-        from omlx_server.structured_output import _settings_guided_grammar
+        from molto_server.structured_output import _settings_guided_grammar
 
         settings = SimpleNamespace(
             guided_grammar_enabled=False,
@@ -202,7 +202,7 @@ class TestSettingsGuidedGrammar:
         assert _settings_guided_grammar(settings) is None
 
     def test_enabled_empty_setting_returns_none(self):
-        from omlx_server.structured_output import _settings_guided_grammar
+        from molto_server.structured_output import _settings_guided_grammar
 
         settings = SimpleNamespace(
             guided_grammar_enabled=True,
@@ -211,7 +211,7 @@ class TestSettingsGuidedGrammar:
         assert _settings_guided_grammar(settings) is None
 
     def test_enabled_setting_returns_trimmed_grammar(self):
-        from omlx_server.structured_output import _settings_guided_grammar
+        from molto_server.structured_output import _settings_guided_grammar
 
         settings = SimpleNamespace(
             guided_grammar_enabled=True,
@@ -224,7 +224,7 @@ class TestEffectiveGuidedGrammar:
     """Tests for request-vs-settings guided grammar precedence."""
 
     def test_request_guided_grammar_wins(self):
-        from omlx_server.structured_output import _effective_guided_grammar
+        from molto_server.structured_output import _effective_guided_grammar
 
         assert (
             _effective_guided_grammar(
@@ -235,7 +235,7 @@ class TestEffectiveGuidedGrammar:
         )
 
     def test_settings_guided_grammar_used_when_request_unstructured(self):
-        from omlx_server.structured_output import _effective_guided_grammar
+        from molto_server.structured_output import _effective_guided_grammar
 
         assert (
             _effective_guided_grammar(
@@ -245,7 +245,7 @@ class TestEffectiveGuidedGrammar:
         )
 
     def test_settings_guided_grammar_skipped_for_response_format(self):
-        from omlx_server.structured_output import _effective_guided_grammar
+        from molto_server.structured_output import _effective_guided_grammar
 
         assert (
             _effective_guided_grammar(
@@ -256,7 +256,7 @@ class TestEffectiveGuidedGrammar:
         )
 
     def test_settings_guided_grammar_skipped_for_structured_outputs(self):
-        from omlx_server.structured_output import _effective_guided_grammar
+        from molto_server.structured_output import _effective_guided_grammar
 
         assert (
             _effective_guided_grammar(
@@ -277,7 +277,7 @@ class TestPatchOutputFormat:
 
     @staticmethod
     def _call(tag_dict, user_grammar):
-        from omlx_server.structured_output import _patch_output_format
+        from molto_server.structured_output import _patch_output_format
 
         return _patch_output_format(tag_dict, user_grammar)
 
@@ -378,7 +378,7 @@ class TestCompileWithStructuralTag:
 
     @staticmethod
     def _call(compiler, fmt, reasoning_parser, chat_template_kwargs=None):
-        from omlx_server.structured_output import _compile_with_structural_tag
+        from molto_server.structured_output import _compile_with_structural_tag
 
         return _compile_with_structural_tag(
             compiler, fmt, reasoning_parser, chat_template_kwargs
@@ -466,7 +466,7 @@ class TestCompileBareGrammar:
 
     @staticmethod
     def _call(compiler, fmt):
-        from omlx_server.structured_output import _compile_bare_grammar
+        from molto_server.structured_output import _compile_bare_grammar
 
         return _compile_bare_grammar(compiler, fmt)
 
@@ -510,7 +510,7 @@ class TestCompileGrammarForRequest:
 
     @staticmethod
     def _call(engine, **kwargs):
-        from omlx_server.structured_output import _compile_grammar_for_request
+        from molto_server.structured_output import _compile_grammar_for_request
 
         return _compile_grammar_for_request(engine, **kwargs)
 
@@ -723,7 +723,7 @@ class TestResponseFormatRequestsStrict:
 
     @staticmethod
     def _call(response_format):
-        from omlx_server.structured_output import _response_format_requests_strict
+        from molto_server.structured_output import _response_format_requests_strict
 
         return _response_format_requests_strict(response_format)
 
@@ -770,7 +770,7 @@ class TestResponseFormatRequestsStrict:
         )
 
     def test_pydantic_model_strict_true(self):
-        from omlx_contracts.api.openai_models import (
+        from molto_contracts.api.openai_models import (
             ResponseFormat,
             ResponseFormatJsonSchema,
         )
@@ -791,7 +791,7 @@ class TestResponseFormatRequestsGrammar:
 
     @staticmethod
     def _call(response_format):
-        from omlx_server.structured_output import _response_format_requests_grammar
+        from molto_server.structured_output import _response_format_requests_grammar
 
         return _response_format_requests_grammar(response_format)
 
@@ -829,12 +829,12 @@ class TestResponseFormatRequestsGrammar:
         assert self._call({"type": "json"}) is False
 
     def test_pydantic_text_model(self):
-        from omlx_contracts.api.openai_models import ResponseFormat
+        from molto_contracts.api.openai_models import ResponseFormat
 
         assert self._call(ResponseFormat(type="text")) is False
 
     def test_pydantic_json_schema_model(self):
-        from omlx_contracts.api.openai_models import (
+        from molto_contracts.api.openai_models import (
             ResponseFormat,
             ResponseFormatJsonSchema,
         )
@@ -852,7 +852,7 @@ class TestResponseFormatWarningHeader:
 
     @staticmethod
     def _call(response_format):
-        from omlx_server.structured_output import _response_format_warning_header
+        from molto_server.structured_output import _response_format_warning_header
 
         return _response_format_warning_header(response_format)
 
@@ -865,20 +865,20 @@ class TestResponseFormatWarningHeader:
 
     def test_strict_header_names_strict_intent(self):
         header = self._call(self._strict_rf(True))
-        assert header.startswith('199 omlx "')
+        assert header.startswith('199 molto "')
         assert header.endswith('"')
         assert "strict" in header
         assert "NOT schema-enforced" in header
 
     def test_non_strict_header_is_generic(self):
         header = self._call(self._strict_rf(False))
-        assert header.startswith('199 omlx "')
+        assert header.startswith('199 molto "')
         assert "not enforced" in header
         assert "strict" not in header
 
     def test_json_object_header_is_generic(self):
         header = self._call({"type": "json_object"})
-        assert header.startswith('199 omlx "')
+        assert header.startswith('199 molto "')
         assert "strict" not in header
 
     def test_header_value_is_single_line_ascii(self):
@@ -915,7 +915,7 @@ class TestGrammarConstraintProcessor:
 
     def test_masks_invalid_tokens(self, compiler):
         """Bitmask should suppress some tokens for a constrained grammar."""
-        from omlx_runtime.generation.grammar import GrammarConstraintProcessor
+        from molto_runtime.generation.grammar import GrammarConstraintProcessor
 
         comp, vocab_size = compiler
         ebnf = 'root ::= "hello"'
@@ -930,7 +930,7 @@ class TestGrammarConstraintProcessor:
 
     def test_passthrough_after_termination(self, compiler):
         """After grammar terminates, logits should pass through unmodified."""
-        from omlx_runtime.generation.grammar import GrammarConstraintProcessor
+        from molto_runtime.generation.grammar import GrammarConstraintProcessor
 
         comp, vocab_size = compiler
 
@@ -950,7 +950,7 @@ class TestGrammarConstraintProcessor:
 
     def test_first_call_does_not_accept(self, compiler):
         """First call should apply bitmask without accepting any token."""
-        from omlx_runtime.generation.grammar import GrammarConstraintProcessor
+        from molto_runtime.generation.grammar import GrammarConstraintProcessor
 
         comp, vocab_size = compiler
         cg = comp.compile_grammar('root ::= "x"')
@@ -963,7 +963,7 @@ class TestGrammarConstraintProcessor:
         assert not proc.is_terminated
 
     def test_is_terminated_property(self, compiler):
-        from omlx_runtime.generation.grammar import GrammarConstraintProcessor
+        from molto_runtime.generation.grammar import GrammarConstraintProcessor
 
         comp, vocab_size = compiler
         cg = comp.compile_grammar('root ::= ""')
@@ -973,7 +973,7 @@ class TestGrammarConstraintProcessor:
     def test_call_marks_the_row_pending(self, compiler):
         """The scheduler accepts at the top of the *next* step, so the
         processor must remember that a token is in flight for its row."""
-        from omlx_runtime.generation.grammar import GrammarConstraintProcessor
+        from molto_runtime.generation.grammar import GrammarConstraintProcessor
 
         comp, vocab_size = compiler
         cg = comp.compile_grammar('root ::= "{}"')
@@ -986,7 +986,7 @@ class TestGrammarConstraintProcessor:
     def test_accept_token_clears_pending(self, compiler):
         """One accept per sampled token: the flag must not survive it, or a
         later step would feed the matcher the same id twice."""
-        from omlx_runtime.generation.grammar import GrammarConstraintProcessor
+        from molto_runtime.generation.grammar import GrammarConstraintProcessor
 
         comp, vocab_size = compiler
         cg = comp.compile_grammar('root ::= "{}"')
@@ -999,7 +999,7 @@ class TestGrammarConstraintProcessor:
     def test_terminated_row_is_never_pending(self, compiler):
         """A terminated matcher stops masking; it must also stop asking to
         be advanced, because fill_next_token_bitmask would then raise."""
-        from omlx_runtime.generation.grammar import GrammarConstraintProcessor
+        from molto_runtime.generation.grammar import GrammarConstraintProcessor
 
         comp, vocab_size = compiler
         cg = comp.compile_grammar('root ::= "{"')
@@ -1024,7 +1024,7 @@ class TestSchedulerGrammarPath:
     """Tests for grammar processor construction in _build_sampler_and_processors."""
 
     def _make_scheduler(self, *, vocab_size=256, compiled_grammar=None):
-        from omlx_runtime.request import Request, SamplingParams
+        from molto_runtime.request import Request, SamplingParams
 
         scheduler = MagicMock()
         scheduler.model = MagicMock()
@@ -1045,7 +1045,7 @@ class TestSchedulerGrammarPath:
 
     def test_no_grammar_no_processor(self):
         """When compiled_grammar is None, no grammar processor is added."""
-        from omlx_runtime.scheduler import Scheduler
+        from molto_runtime.scheduler import Scheduler
 
         sched, sp, req = self._make_scheduler()
         sched._get_model_vocab_size = Scheduler._get_model_vocab_size.__get__(sched)
@@ -1054,7 +1054,7 @@ class TestSchedulerGrammarPath:
         )
 
         _, processors = sched._build_sampler_and_processors(sp, req)
-        from omlx_runtime.generation.grammar import GrammarConstraintProcessor
+        from molto_runtime.generation.grammar import GrammarConstraintProcessor
 
         grammar_procs = [
             p for p in processors if isinstance(p, GrammarConstraintProcessor)
@@ -1064,7 +1064,7 @@ class TestSchedulerGrammarPath:
     def test_grammar_processor_added_when_compiled_grammar(self):
         """When compiled_grammar is set, a GrammarConstraintProcessor is created."""
         xgr = pytest.importorskip("xgrammar")
-        from omlx_runtime.scheduler import Scheduler
+        from molto_runtime.scheduler import Scheduler
 
         vocab = [f"<tok_{i}>" for i in range(256)]
         ti = xgr.TokenizerInfo(vocab)
@@ -1078,7 +1078,7 @@ class TestSchedulerGrammarPath:
         )
 
         _, processors = sched._build_sampler_and_processors(sp, req)
-        from omlx_runtime.generation.grammar import GrammarConstraintProcessor
+        from molto_runtime.generation.grammar import GrammarConstraintProcessor
 
         grammar_procs = [
             p for p in processors if isinstance(p, GrammarConstraintProcessor)
@@ -1088,7 +1088,7 @@ class TestSchedulerGrammarPath:
     def test_skipped_when_vocab_size_unavailable(self):
         """Grammar processor is skipped when vocab_size cannot be determined."""
         xgr = pytest.importorskip("xgrammar")
-        from omlx_runtime.scheduler import Scheduler
+        from molto_runtime.scheduler import Scheduler
 
         vocab = [f"<tok_{i}>" for i in range(256)]
         ti = xgr.TokenizerInfo(vocab)
@@ -1103,7 +1103,7 @@ class TestSchedulerGrammarPath:
         )
 
         _, processors = sched._build_sampler_and_processors(sp, req)
-        from omlx_runtime.generation.grammar import GrammarConstraintProcessor
+        from molto_runtime.generation.grammar import GrammarConstraintProcessor
 
         grammar_procs = [
             p for p in processors if isinstance(p, GrammarConstraintProcessor)
@@ -1130,14 +1130,14 @@ class TestGrammarProcessorAdvance:
         return xgr.GrammarCompiler(ti), len(vocab)
 
     def test_advance_returns_true_on_first_call(self, compiler):
-        from omlx_runtime.generation.grammar import GrammarConstraintProcessor
+        from molto_runtime.generation.grammar import GrammarConstraintProcessor
 
         comp, vs = compiler
         proc = GrammarConstraintProcessor(comp.compile_grammar('root ::= "ab"'), vs)
         assert proc.advance(mx.array([])) is True
 
     def test_advance_accepts_token(self, compiler):
-        from omlx_runtime.generation.grammar import GrammarConstraintProcessor
+        from molto_runtime.generation.grammar import GrammarConstraintProcessor
 
         comp, vs = compiler
         proc = GrammarConstraintProcessor(comp.compile_grammar('root ::= "ab"'), vs)
@@ -1145,7 +1145,7 @@ class TestGrammarProcessorAdvance:
         assert proc.advance(mx.array([ord("a")])) is True
 
     def test_advance_returns_false_when_terminated(self, compiler):
-        from omlx_runtime.generation.grammar import GrammarConstraintProcessor
+        from molto_runtime.generation.grammar import GrammarConstraintProcessor
 
         comp, vs = compiler
         proc = GrammarConstraintProcessor(comp.compile_grammar('root ::= "a"'), vs)
@@ -1156,7 +1156,7 @@ class TestGrammarProcessorAdvance:
     def test_advance_then_batch_fill(self, compiler):
         """advance + batch_fill_next_token_bitmask produces correct mask."""
         xgr = pytest.importorskip("xgrammar")
-        from omlx_runtime.generation.grammar import GrammarConstraintProcessor
+        from molto_runtime.generation.grammar import GrammarConstraintProcessor
 
         comp, vs = compiler
 
@@ -1184,7 +1184,7 @@ class TestGrammarProcessorAdvance:
         assert not is_allowed(bitmask[1], ord("a")), "proc2 should not allow 'a'"
 
     def test_matcher_property(self, compiler):
-        from omlx_runtime.generation.grammar import GrammarConstraintProcessor
+        from molto_runtime.generation.grammar import GrammarConstraintProcessor
 
         xgr = pytest.importorskip("xgrammar")
         comp, vs = compiler
@@ -1202,7 +1202,7 @@ class TestGetModelVocabSize:
 
     @staticmethod
     def _call(model):
-        from omlx_runtime.scheduler import Scheduler
+        from molto_runtime.scheduler import Scheduler
 
         sched = MagicMock()
         sched.model = model

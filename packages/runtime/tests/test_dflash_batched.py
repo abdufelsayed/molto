@@ -9,8 +9,8 @@ import mlx.nn as nn
 import pytest
 from mlx_vlm.speculative.drafters.dflash2.config import DFlash2Config
 from mlx_vlm.speculative.drafters.dflash2.dflash2 import DFlash2DraftModel
-from omlx_runtime.scheduler import Scheduler
-from omlx_runtime.speculative import dflash_drafter as dd
+from molto_runtime.scheduler import Scheduler
+from molto_runtime.speculative import dflash_drafter as dd
 
 VOCAB = 64
 HIDDEN = 32
@@ -235,7 +235,7 @@ def test_prefill_seed_binds_to_uid_and_window_slicing():
     assert len(drafter._rows[7].pending) == 1
     drafter.release_request("req")
 
-    scheduler = SimpleNamespace(model=SimpleNamespace(_omlx_drafter=drafter))
+    scheduler = SimpleNamespace(model=SimpleNamespace(_molto_drafter=drafter))
     request = SimpleNamespace(prompt_token_ids=list(range(30)), request_id="r")
     kwargs = {}
     # Chunk [0, 10) ends before the last WINDOW=12 tokens: nothing to capture.
@@ -269,7 +269,7 @@ def test_prefill_seed_binds_to_uid_and_window_slicing():
 
 def test_sampled_rows_get_sparse_candidate_distributions():
     """Stochastic rows sample from the selector's candidates and expose q."""
-    from omlx_runtime.utils.sampling import make_sampler
+    from molto_runtime.utils.sampling import make_sampler
 
     mx.random.seed(5)
     drafter = _tiny_drafter()
@@ -322,22 +322,22 @@ def test_short_context_matches_reference_draft_block():
 
 def test_prefill_capture_accepts_bound_prefill_of_the_model():
     class Model:
-        def _omlx_prefill(self, *args, **kwargs):
+        def _molto_prefill(self, *args, **kwargs):
             return None
 
     model = Model()
-    model._omlx_drafter = _tiny_drafter()
+    model._molto_drafter = _tiny_drafter()
     scheduler = SimpleNamespace(model=model)
     request = SimpleNamespace(prompt_token_ids=list(range(30)), request_id="r")
     kwargs = {}
     keep = Scheduler._dflash_prefill_capture(
-        scheduler, request, model._omlx_prefill, 10, 15, kwargs
+        scheduler, request, model._molto_prefill, 10, 15, kwargs
     )
     assert keep == 8 and kwargs["capture_layer_ids"] == TARGET_LAYER_IDS
     other = Model()
     assert (
         Scheduler._dflash_prefill_capture(
-            scheduler, request, other._omlx_prefill, 10, 15, {}
+            scheduler, request, other._molto_prefill, 10, 15, {}
         )
         is None
     )
@@ -354,7 +354,7 @@ class _Selector(nn.Module):
 
 def test_fused_selector_matches_candidate_sampling():
     """One-launch selector: q equals ``_sample_candidates`` on the same path."""
-    from omlx_runtime.utils.sampling import make_sampler, top_k_indices
+    from molto_runtime.utils.sampling import make_sampler, top_k_indices
 
     mx.random.seed(8)
     vocab, rank, hidden, batch, length = 600, 64, 32, 2, BLOCK - 1

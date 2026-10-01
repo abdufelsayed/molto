@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Contract tests for oMLX's MiMo V2 extension to dflash-mlx."""
+"""Contract tests for Molto's MiMo V2 extension to dflash-mlx."""
 
 import json
 import zipfile
@@ -108,7 +108,7 @@ def _write_mask_archive(path, values):
 def test_installer_registers_target_backend_and_mimo_draft_classes():
     from dflash_mlx.engine import target_ops
     from dflash_mlx.runtime import loading
-    from omlx_runtime.patches.dflash_mimo_v2 import (
+    from molto_runtime.patches.dflash_mimo_v2 import (
         MiMoDFlashDraftModel,
         MiMoDFlashDraftModelArgs,
         install_dflash_mimo_v2_backend,
@@ -117,7 +117,7 @@ def test_installer_registers_target_backend_and_mimo_draft_classes():
     install_dflash_mimo_v2_backend()
 
     assert (
-        "omlx_runtime.patches.dflash_mimo_v2:MiMoV2TargetOps"
+        "molto_runtime.patches.dflash_mimo_v2:MiMoV2TargetOps"
         in target_ops.TARGET_BACKENDS
     )
     assert loading._get_dflash_model_classes(_draft_config()) == (
@@ -127,7 +127,7 @@ def test_installer_registers_target_backend_and_mimo_draft_classes():
 
 
 def test_target_ops_matches_native_forward_and_captures_requested_layers():
-    from omlx_runtime.patches.dflash_mimo_v2 import MiMoV2TargetOps
+    from molto_runtime.patches.dflash_mimo_v2 import MiMoV2TargetOps
 
     model = _target_model()
     ops = MiMoV2TargetOps()
@@ -147,7 +147,7 @@ def test_target_ops_matches_native_forward_and_captures_requested_layers():
 
 
 def test_target_ops_rewinds_full_and_rotating_cache_after_rejection():
-    from omlx_runtime.patches.dflash_mimo_v2 import MiMoV2TargetOps
+    from molto_runtime.patches.dflash_mimo_v2 import MiMoV2TargetOps
 
     model = _target_model()
     ops = MiMoV2TargetOps()
@@ -174,7 +174,7 @@ def test_target_ops_rewinds_full_and_rotating_cache_after_rejection():
 
 
 def test_draft_args_keep_mimo_attention_contract():
-    from omlx_runtime.patches.dflash_mimo_v2 import MiMoDFlashDraftModelArgs
+    from molto_runtime.patches.dflash_mimo_v2 import MiMoDFlashDraftModelArgs
 
     args = MiMoDFlashDraftModelArgs.from_dict(_draft_config())
 
@@ -185,7 +185,7 @@ def test_draft_args_keep_mimo_attention_contract():
 
 
 def test_prepare_draft_loads_trained_bfloat16_mask(tmp_path):
-    from omlx_runtime.patches.dflash_mimo_v2 import (
+    from molto_runtime.patches.dflash_mimo_v2 import (
         MiMoDFlashDraftModel,
         MiMoDFlashDraftModelArgs,
         prepare_mimo_draft,
@@ -204,7 +204,7 @@ def test_prepare_draft_loads_trained_bfloat16_mask(tmp_path):
 
 
 def test_mimo_backend_uses_trained_mask_vector(monkeypatch):
-    import omlx_runtime.patches.dflash_mimo_v2 as mimo_patch
+    import molto_runtime.patches.dflash_mimo_v2 as mimo_patch
 
     captured = {}
 
@@ -244,7 +244,7 @@ def test_mimo_backend_uses_trained_mask_vector(monkeypatch):
 
 
 def test_bundled_draft_resolves_only_complete_mimo_payload(tmp_path):
-    from omlx_runtime.patches.dflash_mimo_v2 import resolve_bundled_mimo_draft
+    from molto_runtime.patches.dflash_mimo_v2 import resolve_bundled_mimo_draft
 
     (tmp_path / "config.json").write_text(json.dumps(_target_config()))
     draft = tmp_path / "dflash"
@@ -259,7 +259,7 @@ def test_bundled_draft_resolves_only_complete_mimo_payload(tmp_path):
 
 @pytest.mark.parametrize("model_type", ["mimo_v2", "mimo_v2_flash"])
 def test_dflash_compatibility_gate_accepts_mimo(tmp_path, model_type):
-    from omlx_runtime.engine.dflash import is_dflash_compatible
+    from molto_runtime.engine.dflash import is_dflash_compatible
 
     (tmp_path / "config.json").write_text(json.dumps({"model_type": model_type}))
 

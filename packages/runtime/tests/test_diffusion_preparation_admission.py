@@ -5,8 +5,8 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-from omlx_runtime.engine_pool import EngineEntry, EnginePool
-from omlx_runtime.exceptions import ModelBusyError
+from molto_runtime.engine_pool import EngineEntry, EnginePool
+from molto_runtime.exceptions import ModelBusyError
 
 
 def make_pool():
@@ -119,8 +119,10 @@ async def test_preparation_honors_pool_ceiling_and_releases_on_failure(monkeypat
     pool, _ = make_pool()
     pool._get_final_ceiling = lambda: 1000
     pool._current_model_memory = 400
-    monkeypatch.setattr("omlx_runtime.engine_pool.mx.get_active_memory", lambda: 200)
-    monkeypatch.setattr("omlx_runtime.engine_pool._settled_phys_footprint", lambda: 500)
+    monkeypatch.setattr("molto_runtime.engine_pool.mx.get_active_memory", lambda: 200)
+    monkeypatch.setattr(
+        "molto_runtime.engine_pool._settled_phys_footprint", lambda: 500
+    )
     with pytest.raises(RuntimeError, match="worker failed"):
         async with pool.exclusive_preparation(lambda: None) as allowance:
             assert allowance == 500

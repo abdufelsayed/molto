@@ -18,7 +18,7 @@ from repo_paths import repository_root
 def applied_patch():
     """Apply the patch once for the whole module. The patch itself is
     idempotent so repeated calls are safe."""
-    from omlx_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
+    from molto_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
 
     apply_deepseek_v4_patch()
     return True
@@ -28,7 +28,10 @@ class TestPatchOrchestration:
     """Top-level apply / idempotency / module registration checks."""
 
     def test_apply_returns_true_first_time(self):
-        from omlx_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch, is_applied
+        from molto_runtime.patches.deepseek_v4 import (
+            apply_deepseek_v4_patch,
+            is_applied,
+        )
 
         # The patch may have been applied by a previous test run in the
         # same process; force-reset is_applied to validate the flow.
@@ -41,7 +44,7 @@ class TestPatchOrchestration:
             assert is_applied() is True
 
     def test_apply_is_idempotent(self, applied_patch):
-        from omlx_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
+        from molto_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
 
         # After fixture has applied the patch, a second call must return False.
         assert apply_deepseek_v4_patch() is False
@@ -125,7 +128,7 @@ class TestUtilsPatch:
         assert loaded["x"].shape == (4, 4)
 
     def test_sub4_v4_disables_compressed_native_attention(self):
-        from omlx_runtime.patches.deepseek_v4.utils_patch import (
+        from molto_runtime.patches.deepseek_v4.utils_patch import (
             _native_ratio128_attention_enabled,
         )
 
@@ -172,7 +175,7 @@ class TestUtilsPatch:
     )
     @pytest.mark.parametrize("bits", [2, 3, 3.5])
     def test_nested_sub4_override_disables_native_attention(self, location, bits):
-        from omlx_runtime.patches.deepseek_v4.utils_patch import (
+        from molto_runtime.patches.deepseek_v4.utils_patch import (
             _native_ratio128_attention_enabled,
         )
 
@@ -186,7 +189,7 @@ class TestUtilsPatch:
 
     @pytest.mark.parametrize("bits", [4, 8, True, False, None, "3"])
     def test_nested_non_sub4_values_keep_existing_dispatch(self, bits):
-        from omlx_runtime.patches.deepseek_v4.utils_patch import (
+        from molto_runtime.patches.deepseek_v4.utils_patch import (
             _native_ratio128_attention_enabled,
         )
 
@@ -243,7 +246,7 @@ class TestBatchCacheConversion:
 
     def test_pooling_cache_conversion(self, applied_patch):
         from mlx_lm.models.cache import BatchPoolingCache, PoolingCache
-        from omlx_runtime.scheduler import _patched_merge_caches
+        from molto_runtime.scheduler import _patched_merge_caches
 
         class FakeModel:
             def __init__(self):
@@ -260,17 +263,17 @@ class TestBatchCacheConversion:
     def test_deepseek_patch_preserves_mixed_model_owned_conversion(self, patch_order):
         if patch_order == "scheduler-first":
             patch_setup = (
-                "import omlx_runtime.scheduler\n            apply_deepseek_v4_patch()"
+                "import molto_runtime.scheduler\n            apply_deepseek_v4_patch()"
             )
         else:
             patch_setup = (
-                "apply_deepseek_v4_patch()\n            import omlx_runtime.scheduler"
+                "apply_deepseek_v4_patch()\n            import molto_runtime.scheduler"
             )
         script = textwrap.dedent(f"""
             import importlib
 
-            from omlx_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
-            from omlx_runtime.patches.mlx_vlm_qwen4_exp_compat import (
+            from molto_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
+            from molto_runtime.patches.mlx_vlm_qwen4_exp_compat import (
                 apply_mlx_vlm_qwen4_exp_compat_patch,
             )
 
@@ -321,7 +324,7 @@ class TestTokenizerPatch:
         must return its result unmodified — no fallback path taken."""
         from unittest.mock import patch as mock_patch
 
-        from omlx_runtime.patches.deepseek_v4 import tokenizer_patch
+        from molto_runtime.patches.deepseek_v4 import tokenizer_patch
 
         sentinel = object()
 
@@ -348,7 +351,7 @@ class TestTokenizerPatch:
         from unittest.mock import patch as mock_patch
 
         import pytest as _pytest
-        from omlx_runtime.patches.deepseek_v4 import tokenizer_patch
+        from molto_runtime.patches.deepseek_v4 import tokenizer_patch
 
         class _FakeUpstream:
             calls = []
@@ -380,7 +383,7 @@ class TestTokenizerPatch:
         from unittest.mock import patch as mock_patch
 
         import pytest as _pytest
-        from omlx_runtime.patches.deepseek_v4 import tokenizer_patch
+        from molto_runtime.patches.deepseek_v4 import tokenizer_patch
 
         class _FakeUpstream:
             calls = []
@@ -408,7 +411,7 @@ class TestTokenizerPatch:
         from unittest.mock import patch as mock_patch
 
         import pytest as _pytest
-        from omlx_runtime.patches.deepseek_v4 import tokenizer_patch
+        from molto_runtime.patches.deepseek_v4 import tokenizer_patch
 
         class _FakeUpstream:
             @staticmethod
@@ -426,7 +429,7 @@ class TestTokenizerPatch:
         from unittest.mock import patch as mock_patch
 
         import pytest as _pytest
-        from omlx_runtime.patches.deepseek_v4 import tokenizer_patch
+        from molto_runtime.patches.deepseek_v4 import tokenizer_patch
 
         class _FakeUpstream:
             @staticmethod
@@ -459,7 +462,7 @@ class TestDSMLToolParser:
     """tool_parser_v4 — DSML invoke / parameter grammar parsing."""
 
     def test_single_invoke_typed_args(self, applied_patch):
-        from omlx_runtime.patches.deepseek_v4 import tool_parser_v4 as tp
+        from molto_runtime.patches.deepseek_v4 import tool_parser_v4 as tp
 
         text = (
             '<｜DSML｜invoke name="get_weather">\n'
@@ -477,7 +480,7 @@ class TestDSMLToolParser:
         }
 
     def test_multiple_invokes_returns_list(self, applied_patch):
-        from omlx_runtime.patches.deepseek_v4 import tool_parser_v4 as tp
+        from molto_runtime.patches.deepseek_v4 import tool_parser_v4 as tp
 
         text = (
             '<｜DSML｜invoke name="a">'
@@ -494,7 +497,7 @@ class TestDSMLToolParser:
         assert result[1] == {"name": "b", "arguments": {"y": "hello"}}
 
     def test_object_and_array_parameters(self, applied_patch):
-        from omlx_runtime.patches.deepseek_v4 import tool_parser_v4 as tp
+        from molto_runtime.patches.deepseek_v4 import tool_parser_v4 as tp
 
         text = (
             '<｜DSML｜invoke name="search">\n'
@@ -510,13 +513,13 @@ class TestDSMLToolParser:
 
     def test_no_invoke_raises(self, applied_patch):
         import pytest as _pytest
-        from omlx_runtime.patches.deepseek_v4 import tool_parser_v4 as tp
+        from molto_runtime.patches.deepseek_v4 import tool_parser_v4 as tp
 
         with _pytest.raises(ValueError, match="No.*invoke.*block"):
             tp.parse_tool_call("just some plain text without DSML markup")
 
     def test_outer_markers_exposed(self, applied_patch):
-        from omlx_runtime.patches.deepseek_v4 import tool_parser_v4 as tp
+        from molto_runtime.patches.deepseek_v4 import tool_parser_v4 as tp
 
         # mlx-lm reads these as module attributes for stream detection.
         assert tp.tool_call_start == "<｜DSML｜tool_calls>"
@@ -527,14 +530,14 @@ class TestChatTemplateV4:
     """Official DeepSeek V4 0731 encoding plus the mlx-lm adapter."""
 
     def test_outer_marker_uses_tool_calls_not_function_calls(self, applied_patch):
-        from omlx_runtime.patches.deepseek_v4 import chat_template_v4 as ct
+        from molto_runtime.patches.deepseek_v4 import chat_template_v4 as ct
 
         assert "function_calls" not in ct.tool_calls_template
         assert "tool_calls" in ct.tool_calls_template
         assert "function_calls" not in ct.TOOLS_TEMPLATE
 
     def test_inner_grammar_unchanged_from_v32(self, applied_patch):
-        from omlx_runtime.patches.deepseek_v4 import chat_template_v4 as ct
+        from molto_runtime.patches.deepseek_v4 import chat_template_v4 as ct
 
         # Inner markers must still be invoke / parameter — V4 reuses V3.2's
         # invoke/parameter grammar.
@@ -544,8 +547,8 @@ class TestChatTemplateV4:
         )
 
     def test_round_trip_encode_then_parse(self, applied_patch):
-        from omlx_runtime.patches.deepseek_v4 import chat_template_v4 as ct
-        from omlx_runtime.patches.deepseek_v4 import tool_parser_v4 as tp
+        from molto_runtime.patches.deepseek_v4 import chat_template_v4 as ct
+        from molto_runtime.patches.deepseek_v4 import tool_parser_v4 as tp
 
         encoded_args = ct.encode_arguments_to_dsml(
             {"name": "f", "arguments": '{"a": 1, "b": "hi", "c": [1, 2]}'}
@@ -576,7 +579,7 @@ class TestChatTemplateV4:
         omits the ``<functions>`` schema entirely and the model never
         emits a tool_calls block.
         """
-        from omlx_runtime.patches.deepseek_v4 import chat_template_v4 as ct
+        from molto_runtime.patches.deepseek_v4 import chat_template_v4 as ct
 
         tools = [
             {
@@ -606,7 +609,7 @@ class TestChatTemplateV4:
         path must not fire — the rendered prompt keeps the original system
         content verbatim and only injects the tools schema once.
         """
-        from omlx_runtime.patches.deepseek_v4 import chat_template_v4 as ct
+        from molto_runtime.patches.deepseek_v4 import chat_template_v4 as ct
 
         tools = [
             {
@@ -637,7 +640,7 @@ class TestChatTemplateV4:
     def test_user_only_no_tools_no_prepend(self, applied_patch):
         """No tools → no synthetic system. Plain user-only request renders
         with just the BOS + user wrapper, matching V3.2 baseline."""
-        from omlx_runtime.patches.deepseek_v4 import chat_template_v4 as ct
+        from molto_runtime.patches.deepseek_v4 import chat_template_v4 as ct
 
         prompt = ct.apply_chat_template(
             [{"role": "user", "content": "Hi"}],
@@ -647,7 +650,7 @@ class TestChatTemplateV4:
         assert "## Tools" not in prompt
 
     def test_official_basic_thinking_prompt(self, applied_patch):
-        from omlx_runtime.patches.deepseek_v4 import chat_template_v4 as ct
+        from molto_runtime.patches.deepseek_v4 import chat_template_v4 as ct
 
         prompt = ct.apply_chat_template(
             [
@@ -662,7 +665,7 @@ class TestChatTemplateV4:
         )
 
     def test_official_latest_reminder_before_user(self, applied_patch):
-        from omlx_runtime.patches.deepseek_v4 import chat_template_v4 as ct
+        from molto_runtime.patches.deepseek_v4 import chat_template_v4 as ct
 
         prompt = ct.apply_chat_template(
             [
@@ -680,7 +683,7 @@ class TestChatTemplateV4:
         )
 
     def test_official_tool_result_is_merged_into_user_turn(self, applied_patch):
-        from omlx_runtime.patches.deepseek_v4 import chat_template_v4 as ct
+        from molto_runtime.patches.deepseek_v4 import chat_template_v4 as ct
 
         prompt = ct.apply_chat_template(
             [
@@ -694,7 +697,7 @@ class TestChatTemplateV4:
                             "type": "function",
                             "function": {
                                 "name": "lookup",
-                                "arguments": {"query": "oMLX"},
+                                "arguments": {"query": "Molto"},
                             },
                         }
                     ],
@@ -712,13 +715,13 @@ class TestChatTemplateV4:
         assert prompt.endswith("<｜Assistant｜><think>")
 
     def test_declares_generic_mid_system_unsupported(self, applied_patch):
-        from omlx_runtime.patches.deepseek_v4 import chat_template_v4 as ct
+        from molto_runtime.patches.deepseek_v4 import chat_template_v4 as ct
 
         assert ct.supports_mid_system_messages is False
         assert ct.apply_chat_template.supports_mid_system_messages is False
 
     def test_relocates_claude_tail_system_before_its_user(self, applied_patch):
-        from omlx_runtime.patches.deepseek_v4 import chat_template_v4 as ct
+        from molto_runtime.patches.deepseek_v4 import chat_template_v4 as ct
 
         messages = [
             {"role": "system", "content": "Be helpful."},
@@ -742,7 +745,7 @@ class TestChatTemplateV4:
         )
 
     def test_relocation_merges_system_run_before_same_user(self, applied_patch):
-        from omlx_runtime.patches.deepseek_v4 import chat_template_v4 as ct
+        from molto_runtime.patches.deepseek_v4 import chat_template_v4 as ct
 
         relocated = ct.relocate_mid_system_messages(
             [
@@ -763,7 +766,7 @@ class TestChatTemplateV4:
         ]
 
     def test_relocation_refuses_ambiguous_system_placement(self, applied_patch):
-        from omlx_runtime.patches.deepseek_v4 import chat_template_v4 as ct
+        from molto_runtime.patches.deepseek_v4 import chat_template_v4 as ct
 
         assert (
             ct.relocate_mid_system_messages(
@@ -779,7 +782,7 @@ class TestChatTemplateV4:
     def test_relocates_tool_adjacent_system_in_place(self, applied_patch):
         # Claude Code's periodic reminders arrive after the Anthropic
         # adapter split tool_result blocks, i.e. tool -> system -> assistant.
-        from omlx_runtime.patches.deepseek_v4 import chat_template_v4 as ct
+        from molto_runtime.patches.deepseek_v4 import chat_template_v4 as ct
 
         tool_call = {
             "id": "call_1",
@@ -812,7 +815,7 @@ class TestChatTemplateV4:
         )
 
     def test_relocates_tool_adjacent_system_at_tail(self, applied_patch):
-        from omlx_runtime.patches.deepseek_v4 import chat_template_v4 as ct
+        from molto_runtime.patches.deepseek_v4 import chat_template_v4 as ct
 
         relocated = ct.relocate_mid_system_messages(
             [
@@ -838,7 +841,7 @@ class TestChatTemplateV4:
         OpenAI JSON-string convention — so multi-turn renders don't
         raise TypeError when the assistant history is from Claude Code.
         """
-        from omlx_runtime.patches.deepseek_v4 import chat_template_v4 as ct
+        from molto_runtime.patches.deepseek_v4 import chat_template_v4 as ct
 
         encoded = ct.encode_arguments_to_dsml(
             {"name": "f", "arguments": {"location": "Seoul", "n": 3}}
@@ -856,7 +859,7 @@ class TestChatTemplateV4:
         block in DSML form so the model can continue the conversation
         coherently.
         """
-        from omlx_runtime.patches.deepseek_v4 import chat_template_v4 as ct
+        from molto_runtime.patches.deepseek_v4 import chat_template_v4 as ct
 
         messages = [
             {"role": "user", "content": "Weather in Seoul?"},
@@ -911,9 +914,9 @@ class TestChatTemplateV4:
         "\\n\\n" restores it on re-render -- prompts stay append-only
         across tool hops.
         """
-        from omlx_runtime.generation.tool_calling import ToolCallStreamFilter
-        from omlx_runtime.patches.deepseek_v4 import chat_template_v4 as ct
-        from omlx_runtime.patches.deepseek_v4 import tool_parser_v4 as tp
+        from molto_runtime.generation.tool_calling import ToolCallStreamFilter
+        from molto_runtime.patches.deepseek_v4 import chat_template_v4 as ct
+        from molto_runtime.patches.deepseek_v4 import tool_parser_v4 as tp
 
         tools = [
             {
@@ -1107,7 +1110,7 @@ class TestPatchedLoadModelTrustRemoteCode:
         (tmp_path / "model.safetensors").write_bytes(b"not opened")
 
         from mlx_lm import utils
-        from omlx_runtime.patches.deepseek_v4 import utils_patch
+        from molto_runtime.patches.deepseek_v4 import utils_patch
 
         load_weights = MagicMock(side_effect=AssertionError("weights were opened"))
         monkeypatch.setattr(utils_patch, "_load_safetensors", load_weights)
@@ -1119,36 +1122,36 @@ class TestPatchedLoadModelTrustRemoteCode:
 
 
 class TestCacheHandlerRegistration:
-    """omlx CacheTypeRegistry resolves the new cache types to their handlers."""
+    """molto CacheTypeRegistry resolves the new cache types to their handlers."""
 
     def test_pooling_cache_resolves_to_handler(self, applied_patch):
-        from omlx_runtime.cache.type_registry import CacheTypeRegistry
+        from molto_runtime.cache.type_registry import CacheTypeRegistry
 
         handler = CacheTypeRegistry.get_handler_by_class_name("PoolingCache")
         assert type(handler).__name__ == "PoolingCacheHandler"
 
     def test_batch_pooling_cache_resolves_to_handler(self, applied_patch):
-        from omlx_runtime.cache.type_registry import CacheTypeRegistry
+        from molto_runtime.cache.type_registry import CacheTypeRegistry
 
         handler = CacheTypeRegistry.get_handler_by_class_name("BatchPoolingCache")
         assert type(handler).__name__ == "BatchPoolingCacheHandler"
 
     def test_pooling_cache_not_block_sliceable(self, applied_patch):
-        from omlx_runtime.cache.type_registry import CacheTypeRegistry
+        from molto_runtime.cache.type_registry import CacheTypeRegistry
 
         handler = CacheTypeRegistry.get_handler_by_class_name("PoolingCache")
         assert handler.supports_block_slicing is False
 
     def test_batch_pooling_cache_not_block_sliceable(self, applied_patch):
-        from omlx_runtime.cache.type_registry import CacheTypeRegistry
+        from molto_runtime.cache.type_registry import CacheTypeRegistry
 
         handler = CacheTypeRegistry.get_handler_by_class_name("BatchPoolingCache")
         assert handler.supports_block_slicing is False
 
     def test_detect_cache_type_pooling(self, applied_patch):
         from mlx_lm.models.cache import PoolingCache
-        from omlx_runtime.cache.type_handlers import CacheType
-        from omlx_runtime.cache.type_registry import CacheTypeRegistry
+        from molto_runtime.cache.type_handlers import CacheType
+        from molto_runtime.cache.type_registry import CacheTypeRegistry
 
         cache = PoolingCache(ratio=4)
         assert CacheTypeRegistry.detect_cache_type(cache) == CacheType.POOLING_CACHE
@@ -1160,7 +1163,7 @@ class TestPoolingCacheStateRoundTrip:
     def test_round_trip_with_pooled_tensor(self, applied_patch):
         import mlx.core as mx
         from mlx_lm.models.cache import PoolingCache
-        from omlx_runtime.cache.type_registry import CacheTypeRegistry
+        from molto_runtime.cache.type_registry import CacheTypeRegistry
 
         # Build a PoolingCache with a known pool.
         ratio = 4
@@ -1185,7 +1188,7 @@ class TestPoolingCacheStateRoundTrip:
 
     def test_round_trip_empty_cache(self, applied_patch):
         from mlx_lm.models.cache import PoolingCache
-        from omlx_runtime.cache.type_registry import CacheTypeRegistry
+        from molto_runtime.cache.type_registry import CacheTypeRegistry
 
         cache = PoolingCache(ratio=8)
         handler = CacheTypeRegistry.get_handler_by_class_name("PoolingCache")
@@ -1201,7 +1204,7 @@ class TestPoolingCacheStateRoundTrip:
     def test_seq_len_from_state(self, applied_patch):
         import mlx.core as mx
         from mlx_lm.models.cache import PoolingCache
-        from omlx_runtime.cache.type_registry import CacheTypeRegistry
+        from molto_runtime.cache.type_registry import CacheTypeRegistry
 
         cache = PoolingCache(ratio=4)
         cache.pooled = mx.zeros((1, 12, 16), dtype=mx.float32)
@@ -1264,7 +1267,7 @@ class TestDeepseekV4SwitchGLU:
         self, applied_patch, monkeypatch
     ):
         mx = pytest.importorskip("mlx.core")
-        from omlx_runtime.patches.deepseek_v4 import switch_layers
+        from molto_runtime.patches.deepseek_v4 import switch_layers
 
         mx.random.seed(17)
         layer = switch_layers.SwitchGLU(
@@ -1344,7 +1347,7 @@ class TestDeepseekV4SwitchGLU:
         self, applied_patch, monkeypatch
     ):
         mx = pytest.importorskip("mlx.core")
-        from omlx_runtime.patches.deepseek_v4 import switch_layers
+        from molto_runtime.patches.deepseek_v4 import switch_layers
 
         monkeypatch.setattr(
             switch_layers.glm_fast,
@@ -1427,7 +1430,7 @@ class TestDeepseekV4CompressedNativeAttention:
         self, applied_patch, monkeypatch
     ):
         import mlx.core as mx
-        from omlx_runtime.custom_kernels.glm_moe_dsa import fast
+        from molto_runtime.custom_kernels.glm_moe_dsa import fast
 
         dsv4 = sys.modules["mlx_lm.models.deepseek_v4"]
         layer = dsv4.CompressedAttention(self._attention_config(dsv4), 0)
@@ -1563,7 +1566,7 @@ class TestDeepseekV4CompressedNativeAttention:
         self, applied_patch, dtype_name, max_tolerance, offset, length
     ):
         import mlx.core as mx
-        from omlx_runtime.custom_kernels.glm_moe_dsa import fast
+        from molto_runtime.custom_kernels.glm_moe_dsa import fast
 
         dsv4 = sys.modules["mlx_lm.models.deepseek_v4"]
         mx.random.seed(41)
@@ -1644,7 +1647,7 @@ class TestPreLoadDispatch:
         config_path = tmp_path / "config.json"
         config_path.write_text('{"model_type": "llama"}')
 
-        from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+        from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
         # Should be a no-op (no exception). We can't easily assert that
         # apply_deepseek_v4_patch was NOT called because earlier tests
@@ -1653,7 +1656,7 @@ class TestPreLoadDispatch:
 
     def test_no_dispatch_for_missing_config(self, tmp_path):
         # No config.json present.
-        from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+        from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
         maybe_apply_pre_load_patches(str(tmp_path))
 
@@ -1661,8 +1664,8 @@ class TestPreLoadDispatch:
         config_path = tmp_path / "config.json"
         config_path.write_text('{"model_type": "deepseek_v4"}')
 
-        from omlx_runtime.patches.deepseek_v4 import is_applied
-        from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+        from molto_runtime.patches.deepseek_v4 import is_applied
+        from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
         maybe_apply_pre_load_patches(str(tmp_path))
         # Patch must be applied after this dispatch (or already applied).
@@ -1672,8 +1675,8 @@ class TestPreLoadDispatch:
         config_path = tmp_path / "config.json"
         config_path.write_text('{"model_type": "deepseek_v4_mtp"}')
 
-        from omlx_runtime.patches.deepseek_v4 import is_applied
-        from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+        from molto_runtime.patches.deepseek_v4 import is_applied
+        from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
         maybe_apply_pre_load_patches(str(tmp_path))
         assert is_applied() is True
@@ -1854,7 +1857,7 @@ class TestMtpSanitizeWoAReshape:
 
     @pytest.fixture()
     def patched_sanitize(self, applied_patch):
-        import omlx_runtime.patches.mlx_lm_mtp.deepseek_v4_model as mtp_dsv4
+        import molto_runtime.patches.mlx_lm_mtp.deepseek_v4_model as mtp_dsv4
 
         mtp_dsv4.apply()
         dsv4 = sys.modules["mlx_lm.models.deepseek_v4"]
@@ -1917,7 +1920,7 @@ class TestMtpBackboneInterface:
     MTP verify cycles (crashed with TypeError before the fix)."""
 
     def test_call_accepts_n_confirmed(self, applied_patch):
-        import omlx_runtime.patches.mlx_lm_mtp.deepseek_v4_model as mtp_dsv4
+        import molto_runtime.patches.mlx_lm_mtp.deepseek_v4_model as mtp_dsv4
 
         mtp_dsv4.apply()
         dsv4 = sys.modules["mlx_lm.models.deepseek_v4"]
@@ -2115,7 +2118,7 @@ class TestNaxMoEStockRouting:
 
     @pytest.fixture(autouse=True)
     def _nax_off_by_default(self, monkeypatch):
-        from omlx_runtime.patches.deepseek_v4 import switch_layers as sl
+        from molto_runtime.patches.deepseek_v4 import switch_layers as sl
 
         # Pin detection off so the block-kernel tests behave identically on
         # M5-family machines; each test overrides what it needs.
@@ -2124,7 +2127,7 @@ class TestNaxMoEStockRouting:
         yield
 
     def test_prefers_stock_for_prefill_route_counts_only(self, monkeypatch):
-        from omlx_runtime.patches.deepseek_v4 import switch_layers as sl
+        from molto_runtime.patches.deepseek_v4 import switch_layers as sl
 
         monkeypatch.setattr(sl, "is_nax_available", lambda: True)
         assert not sl._nax_prefers_stock(8)
@@ -2133,19 +2136,19 @@ class TestNaxMoEStockRouting:
         assert sl._nax_prefers_stock(1 << 20)
 
     def test_no_stock_routing_without_nax(self, monkeypatch):
-        from omlx_runtime.patches.deepseek_v4 import switch_layers as sl
+        from molto_runtime.patches.deepseek_v4 import switch_layers as sl
 
         assert not sl._nax_prefers_stock(1 << 20)
 
     def test_env_kill_switch_keeps_block_kernels(self, monkeypatch):
-        from omlx_runtime.patches.deepseek_v4 import switch_layers as sl
+        from molto_runtime.patches.deepseek_v4 import switch_layers as sl
 
         monkeypatch.setattr(sl, "is_nax_available", lambda: True)
         monkeypatch.setattr(sl, "_NAX_STOCK_MODE", "0")
         assert not sl._nax_prefers_stock(1 << 20)
 
     def test_env_force_routes_everything(self, monkeypatch):
-        from omlx_runtime.patches.deepseek_v4 import switch_layers as sl
+        from molto_runtime.patches.deepseek_v4 import switch_layers as sl
 
         monkeypatch.setattr(sl, "is_nax_available", lambda: True)
         monkeypatch.setattr(sl, "_NAX_STOCK_MODE", "1")
@@ -2153,7 +2156,7 @@ class TestNaxMoEStockRouting:
 
     def test_native_block_kind_short_circuits_on_nax_prefill(self, monkeypatch):
         import mlx.core as mx
-        from omlx_runtime.patches.deepseek_v4 import switch_layers as sl
+        from molto_runtime.patches.deepseek_v4 import switch_layers as sl
 
         linear = sl.QuantizedSwitchLinear(
             64, 64, num_experts=2, bias=False, group_size=64, bits=4
@@ -2392,7 +2395,7 @@ class TestAffineBlockRouteThreshold:
 
     def _linear(self):
         import mlx.core as mx
-        from omlx_runtime.patches.deepseek_v4 import switch_layers as sl
+        from molto_runtime.patches.deepseek_v4 import switch_layers as sl
 
         linear = sl.QuantizedSwitchLinear(
             64, 64, num_experts=2, bias=False, group_size=64, bits=2
@@ -2406,7 +2409,7 @@ class TestAffineBlockRouteThreshold:
 
     def test_affine_blocks_engage_only_from_the_route_threshold(self, monkeypatch):
         import mlx.core as mx
-        from omlx_runtime.patches.deepseek_v4 import switch_layers as sl
+        from molto_runtime.patches.deepseek_v4 import switch_layers as sl
 
         monkeypatch.setattr(sl.glm_fast, "has_symbol", lambda name: True)
         linear = self._linear()
@@ -2418,7 +2421,7 @@ class TestAffineBlockRouteThreshold:
         assert linear._can_use_affine_blocks(at, sorted_indices=False) is False
 
     def test_thresholds_default_to_the_measured_crossovers(self):
-        from omlx_runtime.patches.deepseek_v4 import switch_layers as sl
+        from molto_runtime.patches.deepseek_v4 import switch_layers as sl
 
         assert sl._SORT_MIN_ROUTES == 32
         assert sl._AFFINE_NATIVE_MIN_ROUTES == 1024
@@ -2439,7 +2442,7 @@ def test_switch_sorting_preserves_other_formats(
     monkeypatch, family, mode, bits, group, sort_at_32, tokens
 ):
     import mlx.core as mx
-    from omlx_runtime.patches.deepseek_v4 import switch_layers as sl
+    from molto_runtime.patches.deepseek_v4 import switch_layers as sl
 
     mx.random.seed(3409)
     if family == "glu":

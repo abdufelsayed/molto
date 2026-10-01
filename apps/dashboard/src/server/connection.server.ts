@@ -1,12 +1,12 @@
 import { randomBytes } from "node:crypto"
 import { operationTarget } from "./management-target.server"
 
-const cookieName = "omlx_dashboard_session"
+const cookieName = "molto_dashboard_session"
 const lifetime = 8 * 60 * 60 * 1000
 const sessions = new Map<string, { key: string; expires: number }>()
 
 export function backendUrl() {
-  const url = new URL(process.env.OMLX_API_URL ?? "http://127.0.0.1:8000")
+  const url = new URL(process.env.MOLTO_API_URL ?? "http://127.0.0.1:8000")
   if (
     !["http:", "https:"].includes(url.protocol) ||
     url.username ||
@@ -16,7 +16,7 @@ export function backendUrl() {
     url.pathname !== "/"
   )
     throw new Error(
-      "OMLX_API_URL must be an HTTP(S) origin without credentials or a path."
+      "MOLTO_API_URL must be an HTTP(S) origin without credentials or a path."
     )
   return url.origin
 }
@@ -63,7 +63,7 @@ export async function connect(request: Request) {
     typeof payload.key !== "string" ||
     payload.key.length > 4096
   )
-    return json({ detail: "Enter your oMLX main API key." }, 400)
+    return json({ detail: "Enter your Molto main API key." }, 400)
   try {
     const response = await fetch(`${backendUrl()}/management/v1/state`, {
       headers: { Authorization: `Bearer ${payload.key}` },
@@ -75,8 +75,8 @@ export async function connect(request: Request) {
         {
           detail:
             response.status === 401
-              ? "oMLX rejected this key. Use the main key, not an inference subkey."
-              : `oMLX returned HTTP ${response.status}.`,
+              ? "Molto rejected this key. Use the main key, not an inference subkey."
+              : `Molto returned HTTP ${response.status}.`,
         },
         response.status
       )
@@ -96,7 +96,7 @@ export async function connect(request: Request) {
     })
   } catch {
     return json(
-      { detail: "Could not reach oMLX. Check the server and OMLX_API_URL." },
+      { detail: "Could not reach Molto. Check the server and MOLTO_API_URL." },
       502
     )
   }
@@ -115,7 +115,7 @@ export async function forward(request: Request, path: string) {
     return json({ detail: "Cross-origin requests are forbidden." }, 403)
   const credential = session(request)
   if (!credential)
-    return json({ detail: "Connect to oMLX with the main API key." }, 401)
+    return json({ detail: "Connect to Molto with the main API key." }, 401)
   const target = operationTarget(request.method, path)
   let parts: string[]
   try {
@@ -149,7 +149,7 @@ export async function forward(request: Request, path: string) {
     })
     const data: unknown = await response
       .json()
-      .catch(() => ({ detail: "oMLX returned an invalid response." }))
+      .catch(() => ({ detail: "Molto returned an invalid response." }))
     if (
       response.ok &&
       request.method === "PATCH" &&
@@ -176,8 +176,8 @@ export async function forward(request: Request, path: string) {
       {
         detail:
           request.method === "GET"
-            ? "Could not reach oMLX."
-            : "Lost contact with oMLX. The operation may still be running; check current model state before retrying.",
+            ? "Could not reach Molto."
+            : "Lost contact with Molto. The operation may still be running; check current model state before retrying.",
       },
       502
     )

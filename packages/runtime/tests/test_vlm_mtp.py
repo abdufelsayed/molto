@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx_runtime.speculative.vlm_mtp.
+"""Tests for molto_runtime.speculative.vlm_mtp.
 
 Phase 2A: covers drafter validation, lazy bind, and wrapper-level dispatch
 to mlx-vlm's ``_mtp_rounds`` / ``_mtp_rounds_batch``. The actual mlx-vlm
@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.speculative import vlm_mtp
+from molto_runtime.speculative import vlm_mtp
 
 
 def test_mtp_rounds_share_the_wrapper_generation_stream():
@@ -29,7 +29,7 @@ def test_mtp_rounds_share_the_wrapper_generation_stream():
 
 
 def test_qwen38_block_fp8_dequantization():
-    from omlx_runtime.patches.mlx_vlm_mtp.qwen38_fp8 import dequantize_fp8_weights
+    from molto_runtime.patches.mlx_vlm_mtp.qwen38_fp8 import dequantize_fp8_weights
 
     weight_key = "model.language_model.layers.0.self_attn.q_proj.weight"
     weights = {
@@ -52,7 +52,7 @@ def test_qwen38_block_fp8_dequantization():
 
 
 def test_qwen38_block_fp8_rejects_invalid_scale_grid():
-    from omlx_runtime.patches.mlx_vlm_mtp.qwen38_fp8 import dequantize_fp8_weights
+    from molto_runtime.patches.mlx_vlm_mtp.qwen38_fp8 import dequantize_fp8_weights
 
     with pytest.raises(ValueError, match="Invalid FP8 scale shape"):
         dequantize_fp8_weights(
@@ -349,7 +349,7 @@ class TestMTPRoundClearDrainsGPUWork:
 def test_model_settings_vlm_mtp_mutex(vlm_mtp_kw, other_kw):
     """ModelSettings.__post_init__ raises when vlm_mtp_enabled overlaps
     with any other speculative / cache-mutating toggle."""
-    from omlx_config.model_settings import ModelSettings
+    from molto_config.model_settings import ModelSettings
 
     with pytest.raises(ValueError, match="vlm_mtp_enabled"):
         ModelSettings(vlm_mtp_enabled=True, **{other_kw: True})
@@ -452,13 +452,13 @@ def _qwen_vlm_with_attached_mtp(*, decode_enabled=True):
     return SimpleNamespace(
         language_model=SimpleNamespace(
             mtp=object(),
-            _omlx_mtp_decode_enabled=decode_enabled,
+            _molto_mtp_decode_enabled=decode_enabled,
         )
     )
 
 
 def test_root_mtp_weights_remap_to_attached_language_model():
-    from omlx_runtime.patches.mlx_vlm_mtp.qwen35_vlm_runtime import (
+    from molto_runtime.patches.mlx_vlm_mtp.qwen35_vlm_runtime import (
         _remap_root_mtp_weights,
     )
 
@@ -480,7 +480,7 @@ def test_root_mtp_weights_remap_to_attached_language_model():
 
 
 def test_root_mtp_weights_remap_when_decode_is_disabled():
-    from omlx_runtime.patches.mlx_vlm_mtp.qwen35_vlm_runtime import (
+    from molto_runtime.patches.mlx_vlm_mtp.qwen35_vlm_runtime import (
         _remap_root_mtp_weights,
     )
 
@@ -493,7 +493,7 @@ def test_root_mtp_weights_remap_when_decode_is_disabled():
 
 
 def test_canonical_mtp_weights_pass_through_unchanged():
-    from omlx_runtime.patches.mlx_vlm_mtp.qwen35_vlm_runtime import (
+    from molto_runtime.patches.mlx_vlm_mtp.qwen35_vlm_runtime import (
         _remap_root_mtp_weights,
     )
 
@@ -503,7 +503,7 @@ def test_canonical_mtp_weights_pass_through_unchanged():
 
 
 def test_root_mtp_weights_without_attached_module_pass_through():
-    from omlx_runtime.patches.mlx_vlm_mtp.qwen35_vlm_runtime import (
+    from molto_runtime.patches.mlx_vlm_mtp.qwen35_vlm_runtime import (
         _remap_root_mtp_weights,
     )
 
@@ -514,7 +514,7 @@ def test_root_mtp_weights_without_attached_module_pass_through():
 
 
 def test_root_and_canonical_mtp_weights_are_rejected():
-    from omlx_runtime.patches.mlx_vlm_mtp.qwen35_vlm_runtime import (
+    from molto_runtime.patches.mlx_vlm_mtp.qwen35_vlm_runtime import (
         _remap_root_mtp_weights,
     )
 
@@ -529,7 +529,7 @@ def test_root_and_canonical_mtp_weights_are_rejected():
 
 def test_qwen_vlm_outer_load_weights_remaps_root_mtp(monkeypatch):
     from mlx_vlm.models import qwen3_5 as q35_outer
-    from omlx_runtime.patches.mlx_vlm_mtp import qwen35_vlm_runtime
+    from molto_runtime.patches.mlx_vlm_mtp import qwen35_vlm_runtime
 
     class FakeModel:
         def load_weights(self, weights, strict=True):
@@ -551,7 +551,7 @@ def test_qwen_vlm_outer_load_weights_remaps_root_mtp(monkeypatch):
 def test_dense_vlm_runtime_return_hidden_uses_language_model_output_contract():
     """Dense Qwen3.5 VLM MTP verify must satisfy mlx-vlm's output contract."""
     from mlx_vlm.models.base import LanguageModelOutput
-    from omlx_runtime.patches.mlx_vlm_mtp import qwen35_vlm_runtime
+    from molto_runtime.patches.mlx_vlm_mtp import qwen35_vlm_runtime
 
     logits = mx.zeros((1, 2, 16))
     hidden = mx.zeros((1, 2, 8))
@@ -636,7 +636,7 @@ def test_batch_cache_finalize_refreshes_identity_cached_padding(
     import importlib
 
     from mlx_vlm.models.qwen3_5 import language as q35_lang
-    from omlx_runtime.patches.mlx_vlm_mtp import qwen35_vlm_runtime
+    from molto_runtime.patches.mlx_vlm_mtp import qwen35_vlm_runtime
 
     qwen35_vlm_runtime._patch_batch_cache_padding_identity()
 
@@ -666,7 +666,7 @@ def test_batch_cache_finalize_refreshes_identity_cached_padding(
 
 def test_dense_vlm_runtime_delegates_foreign_subclasses_unchanged():
     """The dense Qwen3.5 runtime patch must not wire foreign subclasses."""
-    from omlx_runtime.patches.mlx_vlm_mtp import qwen35_vlm_runtime
+    from molto_runtime.patches.mlx_vlm_mtp import qwen35_vlm_runtime
 
     class FakeLanguageModel:
         def __init__(self, args, config=None):
@@ -709,7 +709,7 @@ def test_dense_vlm_runtime_delegates_foreign_subclasses_unchanged():
 
     assert result == "stock-subclass-output"
     assert not hasattr(model, "mtp")
-    assert not hasattr(model, "_omlx_mtp_decode_enabled")
+    assert not hasattr(model, "_molto_mtp_decode_enabled")
     assert model.forward_kwargs == {
         "return_hidden": True,
         "return_shared_kv": True,
@@ -721,11 +721,11 @@ def test_dense_vlm_runtime_delegates_foreign_subclasses_unchanged():
 def test_moe_vlm_sanitize_unfuses_gate_up_by_midpoint(monkeypatch):
     """The VLM MoE sanitize patch must preserve upstream midpoint slicing."""
     from mlx_vlm.models.qwen3_5_moe import qwen3_5_moe
-    from omlx_runtime.patches.mlx_vlm_mtp import qwen35_moe_vlm_model
+    from molto_runtime.patches.mlx_vlm_mtp import qwen35_moe_vlm_model
 
     monkeypatch.setattr(qwen35_moe_vlm_model, "_APPLIED", False)
-    if hasattr(qwen3_5_moe.Model, "_omlx_mtp_vlm_patched"):
-        monkeypatch.delattr(qwen3_5_moe.Model, "_omlx_mtp_vlm_patched")
+    if hasattr(qwen3_5_moe.Model, "_molto_mtp_vlm_patched"):
+        monkeypatch.delattr(qwen3_5_moe.Model, "_molto_mtp_vlm_patched")
 
     assert qwen35_moe_vlm_model.apply() is True
 
@@ -754,7 +754,7 @@ def test_moe_vlm_sanitize_unfuses_gate_up_by_midpoint(monkeypatch):
 
 def test_moe_vlm_runtime_sanitize_unfuses_gate_up_by_midpoint():
     """The runtime sanitize wrapper must not reintroduce the old split path."""
-    from omlx_runtime.patches.mlx_vlm_mtp import qwen35_moe_vlm_runtime
+    from molto_runtime.patches.mlx_vlm_mtp import qwen35_moe_vlm_runtime
 
     class FakeModel:
         pass
@@ -801,11 +801,11 @@ def test_moe_vlm_sanitize_stacks_per_expert_backbone(monkeypatch):
     """Ornith / raw Qwen3.5 ship backbone MoE layers as per-expert tensors.
     The model-level sanitize must stack them into switch_mlp form."""
     from mlx_vlm.models.qwen3_5_moe import qwen3_5_moe
-    from omlx_runtime.patches.mlx_vlm_mtp import qwen35_moe_vlm_model
+    from molto_runtime.patches.mlx_vlm_mtp import qwen35_moe_vlm_model
 
     monkeypatch.setattr(qwen35_moe_vlm_model, "_APPLIED", False)
-    if hasattr(qwen3_5_moe.Model, "_omlx_mtp_vlm_patched"):
-        monkeypatch.delattr(qwen3_5_moe.Model, "_omlx_mtp_vlm_patched")
+    if hasattr(qwen3_5_moe.Model, "_molto_mtp_vlm_patched"):
+        monkeypatch.delattr(qwen3_5_moe.Model, "_molto_mtp_vlm_patched")
     assert qwen35_moe_vlm_model.apply() is True
 
     pfx_in = "model.language_model.layers.0.mlp"
@@ -827,11 +827,11 @@ def test_moe_vlm_sanitize_stacks_per_expert_backbone_quantized(monkeypatch):
     """A per-expert *quantized* backbone carries .scales/.biases. The
     model-level sanitize must stack all three, leaving no orphan keys."""
     from mlx_vlm.models.qwen3_5_moe import qwen3_5_moe
-    from omlx_runtime.patches.mlx_vlm_mtp import qwen35_moe_vlm_model
+    from molto_runtime.patches.mlx_vlm_mtp import qwen35_moe_vlm_model
 
     monkeypatch.setattr(qwen35_moe_vlm_model, "_APPLIED", False)
-    if hasattr(qwen3_5_moe.Model, "_omlx_mtp_vlm_patched"):
-        monkeypatch.delattr(qwen3_5_moe.Model, "_omlx_mtp_vlm_patched")
+    if hasattr(qwen3_5_moe.Model, "_molto_mtp_vlm_patched"):
+        monkeypatch.delattr(qwen3_5_moe.Model, "_molto_mtp_vlm_patched")
     assert qwen35_moe_vlm_model.apply() is True
 
     pfx_in = "model.language_model.layers.0.mlp"
@@ -858,11 +858,11 @@ def test_moe_vlm_sanitize_stacks_per_expert_mtp_quantized(monkeypatch):
     The model-level VLM sanitize path must keep parity with the runtime
     sanitize path and stack all three suffixes."""
     from mlx_vlm.models.qwen3_5_moe import qwen3_5_moe
-    from omlx_runtime.patches.mlx_vlm_mtp import qwen35_moe_vlm_model
+    from molto_runtime.patches.mlx_vlm_mtp import qwen35_moe_vlm_model
 
     monkeypatch.setattr(qwen35_moe_vlm_model, "_APPLIED", False)
-    if hasattr(qwen3_5_moe.Model, "_omlx_mtp_vlm_patched"):
-        monkeypatch.delattr(qwen3_5_moe.Model, "_omlx_mtp_vlm_patched")
+    if hasattr(qwen3_5_moe.Model, "_molto_mtp_vlm_patched"):
+        monkeypatch.delattr(qwen3_5_moe.Model, "_molto_mtp_vlm_patched")
     assert qwen35_moe_vlm_model.apply() is True
 
     pfx_in = "mtp.layers.0.mlp"
@@ -887,7 +887,7 @@ def test_moe_vlm_sanitize_stacks_per_expert_mtp_quantized(monkeypatch):
 def test_moe_vlm_runtime_sanitize_stacks_per_expert_backbone():
     """The runtime sanitize wrapper must also stack per-expert backbone
     layers (parity with the model-level patch and the LLM patch)."""
-    from omlx_runtime.patches.mlx_vlm_mtp import qwen35_moe_vlm_runtime
+    from molto_runtime.patches.mlx_vlm_mtp import qwen35_moe_vlm_runtime
 
     class FakeModel:
         pass
@@ -922,7 +922,7 @@ class TestCallBackbone:
     def test_tuple_2_return(self):
         """mlx-lm dense path returns (logits, hidden) 2-tuple."""
         import mlx.core as mx
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _call_backbone
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _call_backbone
 
         logits = mx.zeros((1, 1, 100))
         hidden = mx.zeros((1, 1, 64))
@@ -936,7 +936,7 @@ class TestCallBackbone:
     def test_tuple_3_return(self):
         """mlx-vlm MoE path returns (logits, hidden, gdn_states) 3-tuple."""
         import mlx.core as mx
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _call_backbone
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _call_backbone
 
         logits = mx.zeros((1, 1, 100))
         hidden = mx.zeros((1, 1, 64))
@@ -952,7 +952,7 @@ class TestCallBackbone:
         """LanguageModelOutput is correctly unpacked."""
         import mlx.core as mx
         from mlx_vlm.models.base import LanguageModelOutput
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _call_backbone
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _call_backbone
 
         logits = mx.zeros((1, 1, 100))
         hidden = mx.zeros((1, 1, 64))

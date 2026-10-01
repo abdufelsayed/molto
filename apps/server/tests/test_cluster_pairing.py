@@ -16,7 +16,7 @@ from types import SimpleNamespace
 import pytest
 from cluster_app import cluster_app
 from fastapi.testclient import TestClient
-from omlx_runtime.cluster.pairing import (
+from molto_runtime.cluster.pairing import (
     CODE_TTL_SECONDS,
     LOCKOUT_SECONDS,
     MAX_CODE_ATTEMPTS,
@@ -39,7 +39,7 @@ from omlx_runtime.cluster.pairing import (
     unwrap_cluster_key,
     wrap_cluster_key,
 )
-from omlx_server.cluster import pairing_routes
+from molto_server.cluster import pairing_routes
 
 
 class _Clock:
@@ -463,7 +463,7 @@ def test_enrollment_failure_does_not_pair(tmp_path):
     code = joiner.start_join()["code"]
     coordinator.handle_join_request(joiner.build_join_request(code))
 
-    from omlx_runtime.cluster.pairing import EnrollmentDriveError
+    from molto_runtime.cluster.pairing import EnrollmentDriveError
 
     with pytest.raises(EnrollmentDriveError, match="not paired"):
         coordinator.approve("join-node", code)
@@ -647,7 +647,7 @@ def test_approval_requires_coordinator_ssh_material(tmp_path):
 
 
 def test_default_enrollment_requires_key_and_verified_address(monkeypatch):
-    from omlx_runtime.cluster import ssh_keys
+    from molto_runtime.cluster import ssh_keys
 
     monkeypatch.setattr(
         ssh_keys,
@@ -667,7 +667,7 @@ def test_default_enrollment_requires_key_and_verified_address(monkeypatch):
 
 
 def test_default_enrollment_propagates_host_key_failure(monkeypatch):
-    from omlx_runtime.cluster import ssh_keys
+    from molto_runtime.cluster import ssh_keys
 
     monkeypatch.setattr(
         ssh_keys,
@@ -699,7 +699,7 @@ def test_default_enrollment_propagates_host_key_failure(monkeypatch):
 
 
 def test_default_enrollment_formats_ipv6_known_host_target(monkeypatch):
-    from omlx_runtime.cluster import ssh_keys
+    from molto_runtime.cluster import ssh_keys
 
     targets: list[str] = []
     monkeypatch.setattr(
@@ -844,7 +844,7 @@ def test_fallback_identity_persists_node_id(tmp_path):
 
 
 def pairing_load(base_path):
-    from omlx_runtime.cluster.pairing import load_node_identity
+    from molto_runtime.cluster.pairing import load_node_identity
 
     return load_node_identity(base_path)
 
@@ -892,7 +892,7 @@ def test_registry_bridge_against_real_module_a_registry(tmp_path):
     leave a newly approved device memory-only.
     """
 
-    from omlx_runtime.cluster.registry import DeviceRegistry
+    from molto_runtime.cluster.registry import DeviceRegistry
 
     registry = DeviceRegistry(tmp_path / "devices.json")
     bridge = DeviceRegistryBridge(registry)
@@ -1117,7 +1117,7 @@ def test_unconfigured_manager_returns_503(tmp_path):
 
 
 def test_legacy_pairing_endpoints_still_registered():
-    from omlx_server.cluster import routes
+    from molto_server.cluster import routes
 
     paths = {
         (route.path, tuple(sorted(route.methods)))
@@ -1141,7 +1141,7 @@ def test_legacy_pairing_endpoints_still_registered():
 
 
 def test_legacy_pairing_token_flow_still_works():
-    from omlx_runtime.cluster.discovery import (
+    from molto_runtime.cluster.discovery import (
         generate_pairing_token,
         verify_pairing_token,
     )
@@ -1193,9 +1193,9 @@ def test_join_status_rejects_substituted_coordinator_identity(tmp_path):
 def test_pairing_preserves_ports_for_both_nodes_after_restart(
     tmp_path, coord_port, join_port
 ):
-    from omlx_runtime.cluster.discovery import DiscoveryConfig, DiscoveryService
-    from omlx_runtime.cluster.identity import NodeIdentity
-    from omlx_runtime.cluster.registry import DeviceRegistry
+    from molto_runtime.cluster.discovery import DiscoveryConfig, DiscoveryService
+    from molto_runtime.cluster.identity import NodeIdentity
+    from molto_runtime.cluster.registry import DeviceRegistry
 
     coord_registry = DeviceRegistry(tmp_path / "coord.json")
     join_registry = DeviceRegistry(tmp_path / "join.json")
@@ -1225,7 +1225,7 @@ def test_pairing_preserves_ports_for_both_nodes_after_restart(
 
 
 def test_sender_local_ipv6_scope_does_not_block_ipv4_enrollment(tmp_path, monkeypatch):
-    from omlx_runtime.cluster import ssh_keys
+    from molto_runtime.cluster import ssh_keys
 
     manager = _manager(tmp_path, node_id="local", name="Local")
     manager._address_provider = lambda: ["fe80::1%en0", "192.168.1.2"]

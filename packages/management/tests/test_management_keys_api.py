@@ -4,8 +4,8 @@ import json
 from unittest.mock import Mock
 
 import pytest
-from omlx_config.settings import GlobalSettings
-from omlx_management.management_server import ServerManagementService
+from molto_config.settings import GlobalSettings
+from molto_management.management_server import ServerManagementService
 
 pytest_plugins = ("test_management_server_api",)
 
@@ -202,7 +202,7 @@ def test_live_rotation_callback_failure_restores_memory_and_disk(setup):
             raise RuntimeError("callback failed")
 
     svc = ServerManagementService(replace(setup.context, set_api_key=rotate))
-    from omlx_management.management import ManagementError
+    from molto_management.management import ManagementError
 
     with pytest.raises(ManagementError, match="settings restored"):
         svc.main_key("failing-main")
@@ -217,7 +217,7 @@ def test_live_rotation_callback_failure_restores_memory_and_disk(setup):
 
 
 def test_legacy_subkey_id_survives_edit_and_registry_reload(setup):
-    from omlx_config.settings import SubKeyEntry
+    from molto_config.settings import SubKeyEntry
 
     setup.settings.auth.sub_keys.append(SubKeyEntry(key="legacy-key"))
     old_id = setup.svc.keys()["sub_keys"][0]["id"]
@@ -227,7 +227,7 @@ def test_legacy_subkey_id_survives_edit_and_registry_reload(setup):
 
 
 def test_revoke_removes_inference_authorization(setup):
-    from omlx_server.auth import verify_any_api_key
+    from molto_server.auth import verify_any_api_key
 
     entry = setup.svc.subkey({"key": "inference-sub"})["sub_key"]
     assert verify_any_api_key(
@@ -242,7 +242,7 @@ def test_revoke_removes_inference_authorization(setup):
 def test_repeated_rotation_callback_failure_still_restores_disk(setup):
     from dataclasses import replace
 
-    from omlx_management.management import ManagementError
+    from molto_management.management import ManagementError
 
     setup.settings.save()
     path = setup.settings.base_path / "settings.json"

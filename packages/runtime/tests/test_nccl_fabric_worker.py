@@ -7,7 +7,7 @@ import argparse
 import os
 
 import pytest
-from omlx_runtime.cluster.nccl_fabric_worker import (
+from molto_runtime.cluster.nccl_fabric_worker import (
     _configure_nccl_fabric_environment,
     _rank_device_lists,
 )

@@ -14,7 +14,7 @@ import pytest
 # should skip these, not error collecting them.
 pytest.importorskip("mlx_vlm")
 
-from omlx_runtime.patches.minimax_m3_mlx_lm import (
+from molto_runtime.patches.minimax_m3_mlx_lm import (
     apply_minimax_m3_mlx_lm_patch,
     is_minimax_m3,
 )
@@ -151,7 +151,7 @@ def test_adapter_exposes_an_explicit_rank_zero_logits_contract():
         skip_logits=True,
     )
 
-    assert model_cls._omlx_supports_rank_zero_logits is True
+    assert model_cls._molto_supports_rank_zero_logits is True
     assert result is None
     assert calls == [
         {
@@ -172,7 +172,7 @@ def test_a_failed_registration_leaves_no_broken_module_behind(monkeypatch):
 
     import sys
 
-    from omlx_runtime.patches import minimax_m3_mlx_lm as patch
+    from molto_runtime.patches import minimax_m3_mlx_lm as patch
 
     sys.modules.pop(patch._QUALNAME, None)
 

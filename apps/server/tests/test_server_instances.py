@@ -3,8 +3,8 @@
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
-from omlx_server.server import create_app
-from omlx_server.state import ServerState
+from molto_server.server import create_app
+from molto_server.state import ServerState
 
 
 def _tool(name):
@@ -92,7 +92,7 @@ def test_health_readiness_and_stored_responses_do_not_cross_instances():
 
 
 def test_cluster_registry_and_pairing_manager_are_application_owned():
-    from omlx_server.cluster.services import ClusterServices
+    from molto_server.cluster.services import ClusterServices
 
     def application(name):
         state = ServerState(
@@ -122,8 +122,8 @@ def test_cluster_registry_and_pairing_manager_are_application_owned():
 
 
 def test_initialized_pools_forward_their_owned_rdma_stores(monkeypatch, tmp_path):
-    from omlx_config.settings import GlobalSettings
-    from omlx_runtime.cluster import launch
+    from molto_config.settings import GlobalSettings
+    from molto_runtime.cluster import launch
 
     def inspect_owned_services(deployment, *, nodes, store):
         return deployment, (nodes(), store())

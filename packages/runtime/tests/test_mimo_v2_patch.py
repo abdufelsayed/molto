@@ -13,11 +13,11 @@ import pytest
 from mlx.utils import tree_flatten
 from mlx_lm.models.activations import swiglu
 from mlx_lm.models.base import create_causal_mask
-from omlx_runtime.patches.mimo_v2 import decode_fast as df
-from omlx_runtime.patches.mimo_v2 import moe_decode as md
-from omlx_runtime.patches.mimo_v2 import sdpa_flash as sf
-from omlx_runtime.patches.specprefill import _OffsetAdjustedRoPE, _PositionMappedRoPE
-from omlx_runtime.utils import fast_attention, nax_attention
+from molto_runtime.patches.mimo_v2 import decode_fast as df
+from molto_runtime.patches.mimo_v2 import moe_decode as md
+from molto_runtime.patches.mimo_v2 import sdpa_flash as sf
+from molto_runtime.patches.specprefill import _OffsetAdjustedRoPE, _PositionMappedRoPE
+from molto_runtime.utils import fast_attention, nax_attention
 
 
 def _minimal_config(**overrides):
@@ -61,7 +61,7 @@ def _minimal_config(**overrides):
 
 
 def _load_patch_module():
-    from omlx_runtime.patches.mimo_v2 import apply_mimo_v2_patch
+    from molto_runtime.patches.mimo_v2 import apply_mimo_v2_patch
 
     apply_mimo_v2_patch()
     return importlib.import_module("mlx_lm.models.mimo_v2")
@@ -81,7 +81,7 @@ def test_apply_registers_mimo_v2_module():
 
 
 def test_apply_is_idempotent():
-    from omlx_runtime.patches.mimo_v2 import apply_mimo_v2_patch, is_applied
+    from molto_runtime.patches.mimo_v2 import apply_mimo_v2_patch, is_applied
 
     first = apply_mimo_v2_patch()
     second = apply_mimo_v2_patch()
@@ -93,7 +93,7 @@ def test_apply_is_idempotent():
 
 def test_apply_replaces_upstream_module(monkeypatch):
     import mlx_lm.models as models_pkg
-    import omlx_runtime.patches.mimo_v2 as patch
+    import molto_runtime.patches.mimo_v2 as patch
 
     upstream = types.ModuleType("mlx_lm.models.mimo_v2")
     upstream.__file__ = "/tmp/upstream/mlx_lm/models/mimo_v2.py"
@@ -104,7 +104,9 @@ def test_apply_replaces_upstream_module(monkeypatch):
     assert patch.apply_mimo_v2_patch() is True
     registered = sys.modules["mlx_lm.models.mimo_v2"]
     assert registered is not upstream
-    assert registered.__file__.endswith("omlx_runtime/patches/mimo_v2/mimo_v2_model.py")
+    assert registered.__file__.endswith(
+        "molto_runtime/patches/mimo_v2/mimo_v2_model.py"
+    )
     assert models_pkg.mimo_v2 is registered
     assert sys.modules["mlx_lm.models.mimo_v2_flash"] is registered
     assert models_pkg.mimo_v2_flash is registered
@@ -222,7 +224,7 @@ def test_sanitize_handles_fused_fp8_and_text_only_weights():
         moe_layer_freq=[0, 1],
         num_nextn_predict_layers=1,
     )
-    from omlx_runtime.patches.mlx_lm_mtp import set_mtp_active
+    from molto_runtime.patches.mlx_lm_mtp import set_mtp_active
 
     set_mtp_active(True)
     try:
@@ -283,12 +285,12 @@ def test_sanitize_handles_fused_fp8_and_text_only_weights():
 
 def test_sanitize_loads_and_splits_quantized_mtp_sidecar(monkeypatch):
     mimo_v2 = _load_patch_module()
-    from omlx_runtime.patches.mlx_lm_mtp import set_mtp_active
+    from molto_runtime.patches.mlx_lm_mtp import set_mtp_active
 
     sidecar_path = "/models/mimo/mtp/model_mtp.safetensors"
     config = _minimal_config(
         num_nextn_predict_layers=1,
-        omlx_mtp_sidecar=sidecar_path,
+        molto_mtp_sidecar=sidecar_path,
     )
     set_mtp_active(True)
     try:
@@ -329,8 +331,8 @@ def test_sanitize_loads_and_splits_quantized_mtp_sidecar(monkeypatch):
 
 def test_lightning_mtp_heads_forward_and_adapter_contract():
     mimo_v2 = _load_patch_module()
-    from omlx_runtime.patches.mimo_v2.omnimodal import MiMoLanguageAdapter
-    from omlx_runtime.patches.mlx_lm_mtp import (
+    from molto_runtime.patches.mimo_v2.omnimodal import MiMoLanguageAdapter
+    from molto_runtime.patches.mlx_lm_mtp import (
         set_mtp_active,
         set_mtp_depth,
     )
@@ -345,8 +347,8 @@ def test_lightning_mtp_heads_forward_and_adapter_contract():
         set_mtp_depth(1)
 
     assert len(model.mtp.layers) == 3
-    assert model._omlx_mtp_decode_enabled is True
-    assert model._omlx_mtp_depth == 3
+    assert model._molto_mtp_decode_enabled is True
+    assert model._molto_mtp_depth == 3
 
     cache = model.make_cache()
     logits, hidden = model(mx.array([[1, 2]]), cache=cache, return_hidden=True)
@@ -382,8 +384,8 @@ def test_lightning_mtp_heads_forward_and_adapter_contract():
     assert mx.allclose(original_logits[:, :1], changed_logits[:, :1]).item()
 
     adapter = MiMoLanguageAdapter(model)
-    assert adapter._omlx_mtp_decode_enabled is True
-    assert adapter._omlx_mtp_chain is True
+    assert adapter._molto_mtp_decode_enabled is True
+    assert adapter._molto_mtp_chain is True
     adapter.mtp_begin_cycle(mtp_cache, 3)
     assert mtp_cache.layer_idx == 0
     adapter_logits, adapter_hidden = adapter(
@@ -398,14 +400,14 @@ def test_lightning_mtp_heads_forward_and_adapter_contract():
 def test_pre_load_dispatch_calls_mimo_patch(tmp_path, monkeypatch, model_type):
     calls = []
     monkeypatch.setattr(
-        "omlx_runtime.patches.mimo_v2.apply_mimo_v2_patch",
+        "molto_runtime.patches.mimo_v2.apply_mimo_v2_patch",
         lambda: calls.append(True) or True,
     )
     (tmp_path / "config.json").write_text(
         json.dumps(_minimal_config(model_type=model_type))
     )
 
-    from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+    from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
     maybe_apply_pre_load_patches(str(tmp_path))
 
@@ -414,7 +416,7 @@ def test_pre_load_dispatch_calls_mimo_patch(tmp_path, monkeypatch, model_type):
 
 def test_mtp_sidecar_counts_as_checkpoint_weights(tmp_path):
     import numpy as np
-    from omlx_runtime.utils.model_loading import _checkpoint_has_mtp_weights
+    from molto_runtime.utils.model_loading import _checkpoint_has_mtp_weights
     from safetensors.numpy import save_file
 
     sidecar = tmp_path / "mtp" / "model_mtp.safetensors"
@@ -425,7 +427,7 @@ def test_mtp_sidecar_counts_as_checkpoint_weights(tmp_path):
 
 
 def test_load_text_model_injects_mtp_sidecar(tmp_path, monkeypatch):
-    import omlx_runtime.utils.model_loading as ml
+    import molto_runtime.utils.model_loading as ml
 
     sidecar = tmp_path / "mtp" / "model_mtp.safetensors"
     sidecar.parent.mkdir()
@@ -442,11 +444,11 @@ def test_load_text_model_injects_mtp_sidecar(tmp_path, monkeypatch):
     ml.load_text_model(str(tmp_path))
 
     assert captured["model_name"] == str(tmp_path)
-    assert captured["model_config"] == {"omlx_mtp_sidecar": str(sidecar)}
+    assert captured["model_config"] == {"molto_mtp_sidecar": str(sidecar)}
 
 
 def test_multimodal_mimo_is_explicitly_routed_to_text_engine(tmp_path, caplog):
-    from omlx_runtime.model_discovery import detect_model_type
+    from molto_runtime.model_discovery import detect_model_type
 
     config = _minimal_config(
         vision_config={"hidden_size": 32},
@@ -462,7 +464,7 @@ def test_multimodal_mimo_is_explicitly_routed_to_text_engine(tmp_path, caplog):
 
 def test_oq_uses_mlx_lm_sanitizer_for_multimodal_mimo(monkeypatch):
     import mlx_vlm.utils as vlm_utils
-    from omlx_runtime.oq import _build_model_sanitizer
+    from molto_runtime.oq import _build_model_sanitizer
 
     monkeypatch.setattr(
         vlm_utils,
@@ -492,8 +494,8 @@ def _neutralize_sensitivity_deps(monkeypatch):
     which load path a config takes, without loading a real model or running
     calibration.
     """
-    import omlx_runtime.oq as oq
-    import omlx_runtime.utils.model_loading as ml
+    import molto_runtime.oq as oq
+    import molto_runtime.utils.model_loading as ml
 
     monkeypatch.setattr(ml, "_checkpoint_has_mtp_weights", lambda *_a, **_k: False)
     monkeypatch.setattr(ml, "_has_mtp_heads", lambda *_a, **_k: False)
@@ -523,7 +525,7 @@ def _neutralize_sensitivity_deps(monkeypatch):
     ],
 )
 def test_is_vlm_load_predicate(config, expected):
-    from omlx_runtime.oq import _is_vlm_load
+    from molto_runtime.oq import _is_vlm_load
 
     assert _is_vlm_load(config) is expected
 
@@ -534,8 +536,8 @@ def test_measure_sensitivity_routes_multimodal_mimo_to_mlx_lm(monkeypatch):
     # _measure_sensitivity wraps the load in try/except -> {}, so record the
     # loader calls rather than raising (a raise would be swallowed).
     import mlx_vlm.utils as vlm_utils
-    import omlx_runtime.utils.model_loading as ml
-    from omlx_runtime.oq import _measure_sensitivity
+    import molto_runtime.utils.model_loading as ml
+    from molto_runtime.oq import _measure_sensitivity
 
     _neutralize_sensitivity_deps(monkeypatch)
     vlm_calls, lm_calls = [], []
@@ -564,8 +566,8 @@ def test_measure_sensitivity_routes_genuine_vlm_to_mlx_vlm(monkeypatch):
     # loads through mlx-vlm.
     import mlx_lm.tokenizer_utils as tok_utils
     import mlx_vlm.utils as vlm_utils
-    import omlx_runtime.utils.model_loading as ml
-    from omlx_runtime.oq import _measure_sensitivity
+    import molto_runtime.utils.model_loading as ml
+    from molto_runtime.oq import _measure_sensitivity
 
     _neutralize_sensitivity_deps(monkeypatch)
     vlm_calls, lm_calls = [], []
@@ -592,7 +594,7 @@ def test_official_mxfp4_checkpoint_loads_without_requantizing(tmp_path, model_ty
     import mlx.nn as nn
     from mlx.utils import tree_flatten
     from mlx_lm.utils import load_model
-    from omlx_runtime.utils.model_loading import maybe_apply_pre_load_patches
+    from molto_runtime.utils.model_loading import maybe_apply_pre_load_patches
 
     module = _load_patch_module()
     config = _minimal_config(model_type=model_type)
@@ -637,7 +639,7 @@ def test_official_mxfp4_checkpoint_loads_without_requantizing(tmp_path, model_ty
     assert mx.array_equal(original.weight, restored.weight).item()
     assert mx.array_equal(original.scales, restored.scales).item()
 
-    from omlx_runtime.oq import quantize_oq_streaming
+    from molto_runtime.oq import quantize_oq_streaming
 
     output = tmp_path / "oq"
     quantize_oq_streaming(
@@ -655,8 +657,8 @@ def test_official_mxfp4_checkpoint_loads_without_requantizing(tmp_path, model_ty
 
 @pytest.mark.parametrize("accepted", [0, 1, 2])
 def test_mtp_partial_rollback_after_rotation(accepted):
-    from omlx_runtime.patches.mlx_lm_mtp import apply_mlx_lm_mtp_patch, set_mtp_active
-    from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _call_backbone
+    from molto_runtime.patches.mlx_lm_mtp import apply_mlx_lm_mtp_patch, set_mtp_active
+    from molto_runtime.patches.mlx_lm_mtp.batch_generator import _call_backbone
 
     module = _load_patch_module()
     apply_mlx_lm_mtp_patch()
@@ -688,8 +690,8 @@ def test_mtp_partial_rollback_after_rotation(accepted):
 
 
 def test_mtp_draft_clone_preserves_head_index_and_isolates_cache():
-    from omlx_runtime.patches.mlx_lm_mtp import set_mtp_active
-    from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _clone_mtp_head_cache
+    from molto_runtime.patches.mlx_lm_mtp import set_mtp_active
+    from molto_runtime.patches.mlx_lm_mtp.batch_generator import _clone_mtp_head_cache
 
     module = _load_patch_module()
     set_mtp_active(True)
@@ -716,12 +718,12 @@ def test_mtp_draft_clone_preserves_head_index_and_isolates_cache():
 def test_oq_preserves_mtp_shards_and_calibrates_all_heads(tmp_path, layout):
     from mlx.utils import tree_flatten
     from mlx_lm.utils import load_model
-    from omlx_runtime.oq import (
+    from molto_runtime.oq import (
         OQImatrixCollector,
         _collect_mtp_head_imatrix,
         quantize_oq_streaming,
     )
-    from omlx_runtime.patches.mlx_lm_mtp import set_mtp_active
+    from molto_runtime.patches.mlx_lm_mtp import set_mtp_active
 
     module = _load_patch_module()
     config = _minimal_config(
@@ -832,7 +834,7 @@ def test_moe_unsupported_top_k_uses_plain_switch_glu():
     ).item()
 
 
-# --- Prefill attention fast paths (omlx_runtime.utils.fast_attention / nax_attention) ---
+# --- Prefill attention fast paths (molto_runtime.utils.fast_attention / nax_attention) ---
 
 requires_nax = pytest.mark.skipif(
     not mx.metal.is_available() or not nax_attention._nax_available(),
@@ -1080,7 +1082,7 @@ def test_nax_attention_failed_self_check_disables_route(monkeypatch):
         nax_attention._self_check_passed.cache_clear()
 
 
-# --- Decode / short-verify fast path (omlx_runtime.patches.mimo_v2.decode_fast) ---
+# --- Decode / short-verify fast path (molto_runtime.patches.mimo_v2.decode_fast) ---
 
 _DECODE_CONFIG = {
     "model_type": "mimo_v2",
@@ -1216,7 +1218,7 @@ def _clone(caches):
 
 
 def _forward(model, tokens, cache, fast, monkeypatch):
-    monkeypatch.setenv("OMLX_MIMO_DECODE_FAST", "1" if fast else "0")
+    monkeypatch.setenv("MOLTO_MIMO_DECODE_FAST", "1" if fast else "0")
     out = model(tokens, cache=cache)
     mx.eval(out, [c.state for c in cache])
     return out
@@ -1333,7 +1335,7 @@ def test_decode_fast_declines_unsupported_forwards(monkeypatch):
     model = _decode_model(seed=5)
     inner = model.model
     cache = model.make_cache()
-    monkeypatch.setenv("OMLX_MIMO_DECODE_FAST", "1")
+    monkeypatch.setenv("MOLTO_MIMO_DECODE_FAST", "1")
     h1 = inner.embed_tokens(mx.array([[1]]))
     # 8 rows x top-8 would take SwitchGLU's sorted path.
     assert (
@@ -1342,7 +1344,7 @@ def test_decode_fast_declines_unsupported_forwards(monkeypatch):
     )
     assert df.run_layers(inner, h1, [None] * len(cache), None, None) is None
     assert df.run_layers(inner, h1.astype(mx.float32), cache, None, None) is None
-    monkeypatch.setenv("OMLX_MIMO_DECODE_FAST", "0")
+    monkeypatch.setenv("MOLTO_MIMO_DECODE_FAST", "0")
     assert df.run_layers(inner, h1, cache, None, None) is None
 
 
@@ -1362,7 +1364,7 @@ def test_decode_fast_runs_the_reference_under_wrapped_rope(monkeypatch):
         )
     h = inner.embed_tokens(step)
     assert df.run_layers(inner, h, _clone(cache), None, None) is None
-    assert "_omlx_decode_fast_state" not in inner.__dict__  # not latched off
+    assert "_molto_decode_fast_state" not in inner.__dict__  # not latched off
     for layer, rope in zip(inner.layers, originals):
         layer.self_attn.rope = _OffsetAdjustedRoPE(rope, 1000)
     ref = _forward(model, step, _clone(cache), False, monkeypatch)
@@ -1370,7 +1372,7 @@ def test_decode_fast_runs_the_reference_under_wrapped_rope(monkeypatch):
     assert _mismatches(ref, fast) == 0
     for layer, rope in zip(inner.layers, originals):
         layer.self_attn.rope = rope
-    monkeypatch.setenv("OMLX_MIMO_DECODE_FAST", "1")
+    monkeypatch.setenv("MOLTO_MIMO_DECODE_FAST", "1")
     assert df.run_layers(inner, h, _clone(cache), None, None) is not None
 
 
@@ -1392,14 +1394,14 @@ def test_decode_fast_follows_weight_and_module_changes(monkeypatch):
 
     check(tokens[:, 30:31])  # arms the fast path
     attn = inner.layers[1].self_attn
-    old_fused = attn.__dict__["_omlx_qkv"]
+    old_fused = attn.__dict__["_molto_qkv"]
     attn.q_proj.weight = mx.array(np.array(attn.q_proj.weight)[::-1].copy())
     check(tokens[:, 31:33])
-    assert attn.__dict__["_omlx_qkv"] is not old_fused
+    assert attn.__dict__["_molto_qkv"] is not old_fused
     gate = inner.layers[1].mlp.gate
     gate.e_score_correction_bias = gate.e_score_correction_bias + 0.05
     check(tokens[:, 33:34])
-    assert gate.__dict__["_omlx_gate"].source is gate.e_score_correction_bias
+    assert gate.__dict__["_molto_gate"].source is gate.e_score_correction_bias
 
 
 def _mxfp4(e, n, k, seed):
@@ -1464,7 +1466,7 @@ def test_decode_expert_kind_rejects_wrapped_switch_modules():
     assert df._expert_kind(OffloadSwitchGLU(sw)) is None
 
 
-# --- Long-context decode attention (omlx_runtime.patches.mimo_v2.sdpa_flash) ---
+# --- Long-context decode attention (molto_runtime.patches.mimo_v2.sdpa_flash) ---
 
 
 def _flash_inputs(B, H, Hk, L, S, mask_kind, with_sinks, seed):

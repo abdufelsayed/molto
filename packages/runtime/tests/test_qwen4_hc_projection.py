@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 import mlx.core as mx
 import mlx.nn as nn
 import pytest
-from omlx_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
+from molto_runtime.patches import mlx_vlm_qwen4_exp_compat as compat
 
 
 def _production_module(bits: int):
@@ -172,7 +172,7 @@ def test_qwen4_exact_hybrid_preparation_fails_closed_for_other_geometry():
         unsupported.block_inject_weight,
     )
     assert fuse_hyper_connection_projections(unsupported) == 0
-    assert not hasattr(unsupported, "_omlx_exact_hybrid_projection")
+    assert not hasattr(unsupported, "_molto_exact_hybrid_projection")
 
     missing = _production_module(5)
     del missing.input_mix_weight_down.scales

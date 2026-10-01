@@ -8,7 +8,7 @@ and activation steps cannot be followed here. Experimental cluster protocol
 routes remain, but this guide has not been converted into a complete
 backend-only setup procedure.
 
-oMLX can run one downloaded MLX model across two unequal-memory Macs while
+Molto can run one downloaded MLX model across two unequal-memory Macs while
 preserving its existing OpenAI-compatible API. The first implementation uses
 contiguous pipeline stages: each rank loads only its assigned transformer
 layers, while rank zero remains the API coordinator.
@@ -27,7 +27,7 @@ The implementation currently provides:
   default lifetime, pinned bootstrap/source digests, and pinned SSH identities;
 - prompt-free SSH trust-on-first-use: new peer aliases are recorded in the
   user's `known_hosts`, while changed keys are still refused;
-- exact oMLX, MLX, MLX-LM, cluster-protocol, remote model-path, and bounded
+- exact Molto, MLX, MLX-LM, cluster-protocol, remote model-path, and bounded
   model-manifest preflight (config/tokenizer metadata plus weight headers);
 - safetensors-header planning across unequal memory budgets;
 - bounded per-rank MLX compute and collective calibration, followed by
@@ -40,14 +40,14 @@ The implementation currently provides:
 - native MLX-LM asynchronous next-token dispatch, multi-connection Ring tuning,
   cache affinity, and a capability-gated experimental token-only output path;
 - completion, streaming, usage, disconnect cancellation, and error propagation
-  through the normal oMLX engine interface;
+  through the normal Molto engine interface;
 - a Cluster dashboard on every Mac with a full live shard map, local-rank
   highlighting, memory headroom, rank-local KV ownership, TTFT, prefill tok/s,
   per-request and aggregate decode tok/s, pipeline utilization, prompt-cache hit
   rate, measured collective bandwidth, predicted stage time, active requests,
   and cumulative token counts.
 
-oMLX does not enable RDMA without approval, overwrite changed SSH host keys, or
+Molto does not enable RDMA without approval, overwrite changed SSH host keys, or
 install login credentials without pairing. Those remain explicit administrator
 actions. A new hostname or link address is recorded using OpenSSH's
 `accept-new` policy so setup never pauses for a terminal prompt.
@@ -58,7 +58,7 @@ actions. A new hostname or link address is recorded using OpenSSH's
 OpenAI client
      |
      v
-oMLX API + tokenizer/chat template (coordinator Mac)
+Molto API + tokenizer/chat template (coordinator Mac)
      |
      v
 DistributedBatchedEngine
@@ -71,10 +71,10 @@ MLX pipeline group ───────── Thunderbolt RDMA / JACCL ──�
   late layers + KV                                             early layers + KV
 ```
 
-The cluster runtime lives outside oMLX's main MLX scheduler process. This keeps
+The cluster runtime lives outside Molto's main MLX scheduler process. This keeps
 the existing API adapters and model lifecycle intact while allowing MLX-LM to
 own its distributed batch generator and prompt cache. A launcher or rank
-failure tears down the job; oMLX never silently falls back to a local full-model
+failure tears down the job; Molto never silently falls back to a local full-model
 load.
 
 KV cache stays on the rank that owns the corresponding layers. Centralizing KV
@@ -90,22 +90,22 @@ recovery problem.
 
 On every Mac:
 
-1. Run the same oMLX build and matching MLX/MLX-LM versions.
+1. Run the same Molto build and matching MLX/MLX-LM versions.
 2. Keep the downloaded model at the same absolute path.
 3. Enable Remote Login and use key-based SSH for the coordinator account.
-4. Pair the Macs in oMLX. The first connection records a new hostname or
+4. Pair the Macs in Molto. The first connection records a new hostname or
    Thunderbolt address without prompting; an identity change is still refused.
-5. For JACCL, configure Thunderbolt RDMA outside oMLX and confirm `rdma_ctl
+5. For JACCL, configure Thunderbolt RDMA outside Molto and confirm `rdma_ctl
 status` and `ibv_devices` report the link.
 
 Rank zero is the Mac whose coordinator API activates the deployment. It owns the
 late pipeline layers and the private inference coordinator. For a 256 GiB Mac
 paired with a 128 GiB Mac, rank zero should normally be the larger machine.
 
-For an Ubuntu/Debian CUDA worker, no oMLX desktop installation is required.
+For an Ubuntu/Debian CUDA worker, no Molto desktop installation is required.
 Request a join command from `POST /admin/api/cluster/join-keys` on the
 coordinator and paste it into the Linux account the worker should use. The
-installer creates a minimal environment at `/opt/omlx-cluster-worker/venv`,
+installer creates a minimal environment at `/opt/molto-cluster-worker/venv`,
 verifies it, and adds the worker to the pool. Use one newly generated command
 per physical box.
 
@@ -116,14 +116,14 @@ explain the pairing protocol. It is not an operational setup procedure for the
 current backend. The equivalent client must call the retained cluster routes.
 
 Start this source build on both Macs. In **Settings > Advanced**, enable
-**Distributed Inference**, save, and restart oMLX. The **Cluster** tab, cluster
+**Distributed Inference**, save, and restart Molto. The **Cluster** tab, cluster
 API routes, and Bonjour advertisement remain off until this explicit opt-in is
 enabled.
 
 ### Automatic Peer Discovery
 
-oMLX uses Bonjour/mDNS to discover nearby Macs advertising SSH or the oMLX
-specific `_omlx._tcp` service. The discovery is read-only and never implies
+Molto uses Bonjour/mDNS to discover nearby Macs advertising SSH or the Molto
+specific `_molto._tcp` service. The discovery is read-only and never implies
 trust. Discovered peers appear under **Detected nearby** with their hostname
 and service type.
 
@@ -137,8 +137,8 @@ with HMAC-SHA256; an unkeyed or altered token is rejected.
 The CUDA card is the normal Linux path; the older two-dashboard key exchange is
 only for peer Macs. The coordinator must listen on a LAN-reachable address.
 Configure the main API key first, or save it together with **Settings > Server
-host** set to `0.0.0.0`. Then restart oMLX and enter the Studio's private IPv4
-address in the card. oMLX refuses a non-loopback bind until an API key is
+host** set to `0.0.0.0`. Then restart Molto and enter the Studio's private IPv4
+address in the card. Molto refuses a non-loopback bind until an API key is
 configured.
 
 Select **Generate join command**, copy it, and paste it into one CUDA worker. The
@@ -169,7 +169,7 @@ On the coordinator:
    profile. Leave **Auto benchmark & tune** enabled to calibrate both Macs and
    the selected link before the final shard plan is stored.
 5. Review the final measured shard map, then activate.
-6. Load or request that model through the normal oMLX API. If it was already
+6. Load or request that model through the normal Molto API. If it was already
    loaded locally, unload it first so the new deployment applies.
 
 Both dashboards show the complete rank-to-layer map while highlighting the
@@ -182,7 +182,7 @@ TTFT, prefill tok/s, and decode tok/s are end-to-end pipeline measurements.
 They describe the cooperating cluster, not independent per-rank speeds.
 Layer range, planned weights, headroom, and KV ownership remain rank-specific.
 Activation is lazy: it records an approved deployment and starts ranks when
-oMLX next loads that model.
+Molto next loads that model.
 
 Deactivation prevents future distributed loads. An already-loaded engine
 continues until the normal unload lifecycle so an admin click cannot interrupt
@@ -220,14 +220,14 @@ new 1F1B pipeline scheduler. A rotating-KV token limit is optional and remains
 blank by default so full context is preserved.
 
 MLX-LM's pinned generation path already dispatches the next token with
-`mx.async_eval`; oMLX capability-checks and reports that path in the live view.
+`mx.async_eval`; Molto capability-checks and reports that path in the live view.
 Prompt-cache affinity keeps requests for the deployed model on the same
 persistent rank set, allowing each rank's local cache to be reused.
 Multi-connection tuning applies only to the TCP Ring backend. JACCL owns its
 Thunderbolt RDMA connection strategy and never receives Ring-only flags.
 
 **Experimental token-only output** is opt-in. For a model whose pipeline
-forward path matches the pinned, validated contract, oMLX removes the final
+forward path matches the pinned, validated contract, Molto removes the final
 hidden-state all-gather, samples on rank zero, and all-sums only the selected
 token IDs so every rank advances the same local KV state. If source inspection
 does not prove that exact contract, normal all-gather remains active. Seeded
@@ -242,11 +242,11 @@ end-to-end measurements so a poor cut, cache miss, or slow link is visible.
 ## Diagnostics
 
 ```bash
-omlx cluster status --json
-omlx cluster status --route-to 169.254.42.2
-omlx cluster worker-smoke
-omlx cluster collective-smoke
-omlx cluster pipeline-smoke
+molto cluster status --json
+molto cluster status --route-to 169.254.42.2
+molto cluster worker-smoke
+molto cluster collective-smoke
+molto cluster pipeline-smoke
 ```
 
 `collective-smoke` is a two-rank loopback all-sum. `pipeline-smoke` executes a
@@ -256,7 +256,7 @@ produce the same result. Neither proves the physical Thunderbolt path.
 Plan a model before activating it:
 
 ```bash
-omlx cluster plan \
+molto cluster plan \
   --model /absolute/path/to/model \
   --node studio=256GiB \
   --node mobile=128GiB \
@@ -270,7 +270,7 @@ contains a SHA-256 digest checked by every worker before loading.
 
 ## Cluster API
 
-All cluster endpoints use the main oMLX bearer key:
+All cluster endpoints use the main Molto bearer key:
 
 ```text
 GET    /admin/api/cluster/status
@@ -322,7 +322,7 @@ authenticated join command before it is executed.
 
 ## Verification
 
-Run the cluster suite with the same Python environment used by oMLX:
+Run the cluster suite with the same Python environment used by Molto:
 
 ```bash
 uv run --all-packages --inexact pytest \
@@ -331,9 +331,9 @@ uv run --all-packages --inexact pytest \
   -q
 
 uv run --all-packages --inexact ruff check \
-  packages/runtime/src/omlx_runtime/cluster \
-  apps/server/src/omlx_server/cluster \
-  packages/runtime/src/omlx_runtime/engine/distributed.py \
+  packages/runtime/src/molto_runtime/cluster \
+  apps/server/src/molto_server/cluster \
+  packages/runtime/src/molto_runtime/engine/distributed.py \
   apps/server/tests/test_cluster_*.py \
   packages/runtime/tests/test_distributed_engine.py
 ```
@@ -341,7 +341,7 @@ uv run --all-packages --inexact ruff check \
 Before describing JACCL as hardware-validated, record all of the following on
 the two target Macs:
 
-1. exact oMLX, MLX, MLX-LM, Python, and macOS versions;
+1. exact Molto, MLX, MLX-LM, Python, and macOS versions;
 2. Thunderbolt port/speed and `rdma_ctl`/`ibv_devices` output on both nodes;
 3. route-to-peer interface on both nodes;
 4. JACCL collective smoke over the direct link;

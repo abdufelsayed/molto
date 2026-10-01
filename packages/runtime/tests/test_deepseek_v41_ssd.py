@@ -7,14 +7,14 @@ from types import SimpleNamespace
 import mlx.core as mx
 import numpy as np
 import pytest
-from omlx_runtime.cache.boundary_snapshot_store import BoundarySnapshotSSDStore
-from omlx_runtime.cache.deepseek_v41_delta import compact_state, restore_chain
-from omlx_runtime.cache.paged_cache import BlockTable, PagedCacheManager
-from omlx_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
-from omlx_runtime.cache.prefix_cache import BlockAwarePrefixCache
-from omlx_runtime.patches.deepseek_v41 import apply_patch
-from omlx_runtime.patches.deepseek_v41.language import LanguageModel
-from omlx_runtime.scheduler import Scheduler
+from molto_runtime.cache.boundary_snapshot_store import BoundarySnapshotSSDStore
+from molto_runtime.cache.deepseek_v41_delta import compact_state, restore_chain
+from molto_runtime.cache.paged_cache import BlockTable, PagedCacheManager
+from molto_runtime.cache.paged_ssd_cache import PagedSSDCacheManager
+from molto_runtime.cache.prefix_cache import BlockAwarePrefixCache
+from molto_runtime.patches.deepseek_v41 import apply_patch
+from molto_runtime.patches.deepseek_v41.language import LanguageModel
+from molto_runtime.scheduler import Scheduler
 from test_deepseek_v41 import tiny, tiny_ced
 
 META = ("deepseek_v41", "3", "2")
@@ -145,7 +145,7 @@ def test_real_ssd_reopen_full_and_partial_prefix(
         )
         for end in range(block_size, 13, block_size):
             mx.eval(
-                model._omlx_prefill(
+                model._molto_prefill(
                     mx.array([tokens[end - block_size : end]]), cache=state
                 )
             )
@@ -211,7 +211,7 @@ def test_real_ssd_reopen_full_and_partial_prefix(
                 # with the identical uncached execution, not full-depth prefill.
                 fresh_cache = model.make_cache()
                 for start in range(0, count, block_size):
-                    model._omlx_prefill(
+                    model._molto_prefill(
                         mx.array([tokens[start : start + block_size]]),
                         cache=fresh_cache,
                     )
@@ -225,7 +225,7 @@ def test_real_ssd_reopen_full_and_partial_prefix(
 
 
 def test_in_memory_boundary_compacts_and_rejects_corrupt_record():
-    from omlx_runtime.scheduler import _compact_boundary_snapshot_value
+    from molto_runtime.scheduler import _compact_boundary_snapshot_value
 
     layer = {"class_name": "DeepseekV41Cache", "state": _state(6), "meta_state": META}
     value = ("__prefill_extracted__", [layer])
@@ -243,7 +243,7 @@ def test_in_memory_boundary_compacts_and_rejects_corrupt_record():
 
 
 def test_cache_size_single_row_and_unaligned_batch():
-    from omlx_runtime.patches.deepseek_v41.cache import DeepseekV41Cache
+    from molto_runtime.patches.deepseek_v41.cache import DeepseekV41Cache
 
     cache = DeepseekV41Cache()
     assert cache.size() == 0

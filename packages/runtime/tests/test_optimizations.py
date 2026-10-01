@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx/optimizations.py — a thin hardware/MLX status helper.
+"""Tests for molto/optimizations.py — a thin hardware/MLX status helper.
 The re-exported symbols (HardwareInfo, detect_hardware, get_total_memory_gb)
 are covered by test_utils_hardware.py; here we pin the dict shape and the
 flash-attention detection.
@@ -10,22 +10,22 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import mlx.core as mx
-from omlx_runtime import optimizations
-from omlx_runtime.optimizations import (
+from molto_runtime import optimizations
+from molto_runtime.optimizations import (
     HardwareInfo,
     detect_hardware,
     get_optimization_status,
     get_system_memory_gb,
 )
-from omlx_runtime.utils.hardware import HardwareInfo as CanonicalInfo
-from omlx_runtime.utils.hardware import detect_hardware as canonical_detect
-from omlx_runtime.utils.hardware import get_total_memory_gb
+from molto_runtime.utils.hardware import HardwareInfo as CanonicalInfo
+from molto_runtime.utils.hardware import detect_hardware as canonical_detect
+from molto_runtime.utils.hardware import get_total_memory_gb
 
 
 class TestReExports:
     def test_hardware_symbols_importable_from_optimizations(self):
         """The module's docstring promises these names. Removing one
-        would silently break ``from omlx_runtime.optimizations import ...``
+        would silently break ``from molto_runtime.optimizations import ...``
         used by external scripts."""
         assert detect_hardware is canonical_detect
         assert HardwareInfo is CanonicalInfo

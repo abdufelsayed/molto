@@ -11,20 +11,20 @@ from types import SimpleNamespace
 import pytest
 from cluster_app import cluster_app
 from fastapi.testclient import TestClient
-from omlx_runtime.cluster import launch
-from omlx_runtime.cluster.backends import (
+from molto_runtime.cluster import launch
+from molto_runtime.cluster.backends import (
     MemberFabric,
     members_from_host_records,
     select_cluster_backend,
 )
-from omlx_runtime.cluster.deployment import (
+from molto_runtime.cluster.deployment import (
     ClusterDeployment,
     ClusterHost,
     decode_worker_contract,
 )
-from omlx_runtime.cluster.planner import ModelLayout, PipelineAssignment
-from omlx_runtime.cluster.registry import configure_cluster_registry
-from omlx_server.cluster import routes
+from molto_runtime.cluster.planner import ModelLayout, PipelineAssignment
+from molto_runtime.cluster.registry import configure_cluster_registry
+from molto_server.cluster import routes
 
 
 def _client() -> TestClient:

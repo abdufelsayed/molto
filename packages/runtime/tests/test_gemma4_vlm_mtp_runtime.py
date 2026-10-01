@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for omlx_runtime.patches.mlx_vlm_mtp.gemma4_vlm_runtime.
+"""Tests for molto_runtime.patches.mlx_vlm_mtp.gemma4_vlm_runtime.
 
 Covers assistant-config retention through ``TextConfig.from_dict``, head
 attach gating on ``LanguageModel.__init__``, and the Lightning
@@ -18,8 +18,8 @@ import pytest
 pytest.importorskip("mlx_vlm.models.gemma4")
 pytest.importorskip("mlx_vlm.models.gemma4_unified")
 
-from omlx_runtime.patches import mlx_lm_mtp as lm_mtp
-from omlx_runtime.patches.mlx_vlm_mtp import gemma4_vlm_runtime, set_mtp_attach_enabled
+from molto_runtime.patches import mlx_lm_mtp as lm_mtp
+from molto_runtime.patches.mlx_vlm_mtp import gemma4_vlm_runtime, set_mtp_attach_enabled
 
 TINY_ASSISTANT_CONFIG = {
     "model_type": "gemma4_assistant",
@@ -123,7 +123,7 @@ def test_no_attach_without_assistant_config():
     lm_mtp.set_mtp_active(True)
     lm = _language_model(_text_config())
     assert getattr(lm, "mtp", None) is None
-    assert lm._omlx_mtp_decode_enabled is False
+    assert lm._molto_mtp_decode_enabled is False
     assert lm.make_mtp_cache() == []
 
 
@@ -132,8 +132,8 @@ def test_attach_without_decode_when_mtp_inactive():
     # language_model.mtp.* weights bind, but decode stays off.
     lm = _language_model(_text_config({"mtp_assistant_config": TINY_ASSISTANT_CONFIG}))
     assert lm.mtp is not None
-    assert lm._omlx_mtp_decode_enabled is False
-    assert not getattr(lm, "_omlx_mtp_chain", False)
+    assert lm._molto_mtp_decode_enabled is False
+    assert not getattr(lm, "_molto_mtp_chain", False)
 
 
 def test_attach_skipped_when_attach_gate_off():
@@ -141,7 +141,7 @@ def test_attach_skipped_when_attach_gate_off():
     lm_mtp.set_mtp_active(True)
     lm = _language_model(_text_config({"mtp_assistant_config": TINY_ASSISTANT_CONFIG}))
     assert getattr(lm, "mtp", None) is None
-    assert lm._omlx_mtp_decode_enabled is False
+    assert lm._molto_mtp_decode_enabled is False
 
 
 def test_attach_and_chain_flags_when_active():
@@ -149,9 +149,9 @@ def test_attach_and_chain_flags_when_active():
     lm_mtp.set_mtp_depth(3)
     lm = _language_model(_text_config({"mtp_assistant_config": TINY_ASSISTANT_CONFIG}))
     assert lm.mtp is not None
-    assert lm._omlx_mtp_decode_enabled is True
-    assert lm._omlx_mtp_chain is True
-    assert lm._omlx_mtp_depth == 3
+    assert lm._molto_mtp_decode_enabled is True
+    assert lm._molto_mtp_chain is True
+    assert lm._molto_mtp_depth == 3
     assert lm.make_mtp_cache() == []
     # The drafter forces KV sharing across all of its layers.
     assert (
@@ -179,7 +179,7 @@ def _stubbed_mtp_lm(cache_entries):
         mx.zeros((1, 1, 64), dtype=mx.float32),
     )
     lm.mtp = drafter
-    lm._omlx_mtp_cache_ref = cache_entries
+    lm._molto_mtp_cache_ref = cache_entries
     return lm, drafter
 
 
@@ -187,10 +187,10 @@ def test_mtp_forward_position_prefers_rotating_absolute_offset():
     # BatchRotatingKVCache._offset is the absolute committed length; its
     # _idx is a ring index and must NOT be used.
     lm, drafter = _stubbed_mtp_lm([SimpleNamespace(_offset=5, _idx=99, offset="na")])
-    lm._omlx_mtp_shared_kv = {
+    lm._molto_mtp_shared_kv = {
         "full_attention": (mx.zeros((1, 1, 7, 8)), mx.zeros((1, 1, 7, 8)))
     }
-    lm._omlx_mtp_kv_offset = 7
+    lm._molto_mtp_kv_offset = 7
 
     hidden = mx.zeros((1, 3, 24), dtype=mx.float32)
     ids = mx.zeros((1, 3), dtype=mx.uint32)
@@ -211,31 +211,31 @@ def test_mtp_forward_position_prefers_rotating_absolute_offset():
 
 def test_mtp_forward_uses_plain_int_offset_and_batch_idx():
     lm, drafter = _stubbed_mtp_lm([SimpleNamespace(offset=6)])
-    lm._omlx_mtp_shared_kv = {
+    lm._molto_mtp_shared_kv = {
         "full_attention": (mx.zeros((1, 1, 6, 8)), mx.zeros((1, 1, 6, 8)))
     }
-    lm._omlx_mtp_kv_offset = 6
+    lm._molto_mtp_kv_offset = 6
     lm.mtp_forward(mx.zeros((1, 1, 24)), mx.zeros((1, 1), dtype=mx.uint32), [])
     assert drafter._kv_valid_len == 6
 
-    lm._omlx_mtp_cache_ref = [SimpleNamespace(_idx=4)]
-    lm._omlx_mtp_kv_offset = 4
+    lm._molto_mtp_cache_ref = [SimpleNamespace(_idx=4)]
+    lm._molto_mtp_kv_offset = 4
     lm.mtp_forward(mx.zeros((1, 1, 24)), mx.zeros((1, 1), dtype=mx.uint32), [])
     assert drafter._kv_valid_len == 4
 
 
 def test_mtp_forward_rebinds_stale_input_embed():
     lm, drafter = _stubbed_mtp_lm([SimpleNamespace(offset=3)])
-    lm._omlx_mtp_shared_kv = {
+    lm._molto_mtp_shared_kv = {
         "full_attention": (mx.zeros((1, 1, 3, 8)), mx.zeros((1, 1, 3, 8)))
     }
-    lm._omlx_mtp_kv_offset = 3
+    lm._molto_mtp_kv_offset = 3
     lm.mtp_forward(mx.zeros((1, 1, 24)), mx.zeros((1, 1), dtype=mx.uint32), [])
     drafter.bind.assert_called_once_with(lm)
 
 
 def test_mtp_forward_requires_shared_kv_stash():
     lm, _ = _stubbed_mtp_lm([SimpleNamespace(offset=3)])
-    lm._omlx_mtp_shared_kv = None
+    lm._molto_mtp_shared_kv = None
     with pytest.raises(RuntimeError, match="shared K/V stash"):
         lm.mtp_forward(mx.zeros((1, 1, 24)), mx.zeros((1, 1), dtype=mx.uint32), [])

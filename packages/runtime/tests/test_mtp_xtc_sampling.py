@@ -6,16 +6,16 @@ from types import SimpleNamespace
 import mlx.core as mx
 import pytest
 from mlx_lm.models.llama import Model, ModelArgs
-from omlx_runtime.patches.mlx_lm_mtp import batch_generator as mtp
-from omlx_runtime.request import SamplingParams
-from omlx_runtime.scheduler import Scheduler
-from omlx_runtime.utils.sampling import make_sampler
+from molto_runtime.patches.mlx_lm_mtp import batch_generator as mtp
+from molto_runtime.request import SamplingParams
+from molto_runtime.scheduler import Scheduler
+from molto_runtime.utils.sampling import make_sampler
 
 
 @pytest.fixture
 def scheduler_probe(monkeypatch):
     mtp.apply()
-    monkeypatch.setenv("OMLX_MTP_ROWWISE_BATCH", "1")
+    monkeypatch.setenv("MOLTO_MTP_ROWWISE_BATCH", "1")
     model = Model(
         ModelArgs(
             model_type="llama",
@@ -31,7 +31,7 @@ def scheduler_probe(monkeypatch):
     # This small model has no trained MTP head.
     model.mtp = object()
     model.mtp_forward = lambda *args, **kwargs: None
-    model._omlx_mtp_decode_enabled = True
+    model._molto_mtp_decode_enabled = True
     scheduler = Scheduler.__new__(Scheduler)
     scheduler.model = model
     scheduler.config = SimpleNamespace(completion_batch_size=8, prefill_step_size=32)

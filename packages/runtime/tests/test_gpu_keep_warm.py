@@ -7,8 +7,8 @@ import time
 from types import SimpleNamespace
 
 import pytest
-from omlx_config.settings import GlobalSettings, ServerSettings
-from omlx_runtime import engine_pool as ep
+from molto_config.settings import GlobalSettings, ServerSettings
+from molto_runtime import engine_pool as ep
 
 
 def _entry(*, active: bool = False, loaded: bool = True, idle_for: float = 0.0):
@@ -109,9 +109,9 @@ def test_settings_default_roundtrip_and_env(monkeypatch):
     assert ServerSettings.from_dict(s.to_dict()).gpu_keep_warm_interval == 0.0
 
     settings = GlobalSettings()
-    monkeypatch.setenv("OMLX_GPU_KEEP_WARM_INTERVAL", "2")
+    monkeypatch.setenv("MOLTO_GPU_KEEP_WARM_INTERVAL", "2")
     settings._apply_env_overrides()
     assert settings.server.gpu_keep_warm_interval == 2.0
-    monkeypatch.setenv("OMLX_GPU_KEEP_WARM_INTERVAL", "nope")
+    monkeypatch.setenv("MOLTO_GPU_KEEP_WARM_INTERVAL", "nope")
     settings._apply_env_overrides()
     assert settings.server.gpu_keep_warm_interval == 2.0

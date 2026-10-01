@@ -6,7 +6,7 @@ import stat
 from urllib.error import HTTPError
 
 import pytest
-from omlx_runtime.cluster.pairing import PairingRequestError
+from molto_runtime.cluster.pairing import PairingRequestError
 from test_cluster_pairing import _loopback_pair, _manager
 
 

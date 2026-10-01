@@ -19,9 +19,9 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from omlx_runtime.engine.base import _run_scheduler_preflight_with_cleanup_retry
-from omlx_runtime.exceptions import PrefillMemoryExceededError
-from omlx_runtime.scheduler import Scheduler
+from molto_runtime.engine.base import _run_scheduler_preflight_with_cleanup_retry
+from molto_runtime.exceptions import PrefillMemoryExceededError
+from molto_runtime.scheduler import Scheduler
 
 _TINY_PNG_DATA_URI = (
     "data:image/png;base64,"
@@ -49,7 +49,7 @@ class _ModelConfig:
 
 
 def _make_scheduler():
-    from omlx_runtime.scheduler import SchedulerConfig
+    from molto_runtime.scheduler import SchedulerConfig
 
     model = MagicMock()
     model.layers = []
@@ -77,7 +77,7 @@ class TestPreflightOrRaise:
         scheduler._prefill_memory_guard = True
         scheduler._memory_hard_limit_bytes = 1  # any allocation overshoots
 
-        import omlx_runtime.scheduler as scheduler_mod
+        import molto_runtime.scheduler as scheduler_mod
 
         monkeypatch.setattr(scheduler_mod.mx, "get_active_memory", lambda: 0)
         monkeypatch.setattr(scheduler_mod, "get_phys_footprint", lambda: 0)
@@ -92,7 +92,7 @@ class TestPreflightOrRaise:
         scheduler._prefill_memory_guard = True
         scheduler._memory_hard_limit_bytes = 10**18  # effectively unbounded
 
-        import omlx_runtime.scheduler as scheduler_mod
+        import molto_runtime.scheduler as scheduler_mod
 
         monkeypatch.setattr(scheduler_mod.mx, "get_active_memory", lambda: 0)
         monkeypatch.setattr(scheduler_mod, "get_phys_footprint", lambda: 0)
@@ -113,7 +113,7 @@ class TestPreflightOrRaise:
         scheduler._prefill_memory_guard = True
         scheduler._memory_hard_limit_bytes = 1
 
-        import omlx_runtime.scheduler as scheduler_mod
+        import molto_runtime.scheduler as scheduler_mod
 
         monkeypatch.setattr(scheduler_mod.mx, "get_active_memory", lambda: 0)
         monkeypatch.setattr(scheduler_mod, "get_phys_footprint", lambda: 0)
@@ -159,7 +159,7 @@ def _build_engine_with_stub_scheduler(engine_cls, scheduler):
 
 @pytest.mark.asyncio
 async def test_batched_engine_preflight_runs_eviction_before_final_check():
-    from omlx_runtime.engine.batched import BatchedEngine
+    from molto_runtime.engine.batched import BatchedEngine
 
     scheduler = MagicMock()
     eviction_request = SimpleNamespace(request_id="req-evict")
@@ -205,7 +205,7 @@ async def test_batched_engine_retries_transient_rejection_after_cleanup(monkeypa
     remove and deferred Metal clear. It now fits, so no idle model should be
     evicted and the route must not return a false HTTP 400.
     """
-    from omlx_runtime.engine.batched import BatchedEngine
+    from molto_runtime.engine.batched import BatchedEngine
 
     scheduler = MagicMock()
     transient_rejection = SimpleNamespace(request_id="req-cleanup")
@@ -219,7 +219,7 @@ async def test_batched_engine_retries_transient_rejection_after_cleanup(monkeypa
     async def _no_sleep(_delay):
         return None
 
-    monkeypatch.setattr("omlx_runtime.engine.base.asyncio.sleep", _no_sleep)
+    monkeypatch.setattr("molto_runtime.engine.base.asyncio.sleep", _no_sleep)
     evict = AsyncMock(return_value=True)
     engine = BatchedEngine(
         model_name="test-model",
@@ -262,7 +262,7 @@ def test_scheduler_reports_stale_route_preflight_usage(monkeypatch):
     scheduler = _make_scheduler()
     assert scheduler.route_preflight_usage_is_stale() is True
 
-    import omlx_runtime.scheduler as scheduler_mod
+    import molto_runtime.scheduler as scheduler_mod
 
     monkeypatch.setattr(scheduler_mod.mx, "get_active_memory", lambda: 0)
     monkeypatch.setattr(scheduler_mod, "get_phys_footprint", lambda: 0)
@@ -326,13 +326,13 @@ def test_async_remove_schedules_clear_after_extracted_cache_release(monkeypatch)
 
 @pytest.mark.asyncio
 async def test_batched_engine_preflight_chat_raises_for_oversize_prompt(monkeypatch):
-    from omlx_runtime.engine.batched import BatchedEngine
+    from molto_runtime.engine.batched import BatchedEngine
 
     scheduler = _make_scheduler()
     scheduler._prefill_memory_guard = True
     scheduler._memory_hard_limit_bytes = 1  # force rejection
 
-    import omlx_runtime.scheduler as scheduler_mod
+    import molto_runtime.scheduler as scheduler_mod
 
     monkeypatch.setattr(scheduler_mod.mx, "get_active_memory", lambda: 0)
     monkeypatch.setattr(scheduler_mod, "get_phys_footprint", lambda: 0)
@@ -348,13 +348,13 @@ async def test_batched_engine_preflight_chat_raises_for_oversize_prompt(monkeypa
 
 @pytest.mark.asyncio
 async def test_vlm_engine_preflight_chat_raises_for_oversize_prompt(monkeypatch):
-    from omlx_runtime.engine.vlm import VLMBatchedEngine
+    from molto_runtime.engine.vlm import VLMBatchedEngine
 
     scheduler = _make_scheduler()
     scheduler._prefill_memory_guard = True
     scheduler._memory_hard_limit_bytes = 1
 
-    import omlx_runtime.scheduler as scheduler_mod
+    import molto_runtime.scheduler as scheduler_mod
 
     monkeypatch.setattr(scheduler_mod.mx, "get_active_memory", lambda: 0)
     monkeypatch.setattr(scheduler_mod, "get_phys_footprint", lambda: 0)
@@ -367,13 +367,13 @@ async def test_vlm_engine_preflight_chat_raises_for_oversize_prompt(monkeypatch)
 
 @pytest.mark.asyncio
 async def test_preflight_completion_raises_for_oversize_prompt(monkeypatch):
-    from omlx_runtime.engine.batched import BatchedEngine
+    from molto_runtime.engine.batched import BatchedEngine
 
     scheduler = _make_scheduler()
     scheduler._prefill_memory_guard = True
     scheduler._memory_hard_limit_bytes = 1
 
-    import omlx_runtime.scheduler as scheduler_mod
+    import molto_runtime.scheduler as scheduler_mod
 
     monkeypatch.setattr(scheduler_mod.mx, "get_active_memory", lambda: 0)
     monkeypatch.setattr(scheduler_mod, "get_phys_footprint", lambda: 0)
@@ -395,7 +395,7 @@ async def test_vlm_preflight_chat_adds_image_token_budget(monkeypatch):
     """Each decoded image must add
     ``_IMAGE_TOKEN_UPPER_BOUND_FALLBACK`` to the prompt size the scheduler sees,
     so image-heavy borderline requests can't slip past."""
-    from omlx_runtime.engine.vlm import (
+    from molto_runtime.engine.vlm import (
         _IMAGE_TOKEN_UPPER_BOUND_FALLBACK,
         VLMBatchedEngine,
     )
@@ -447,7 +447,7 @@ async def test_vlm_preflight_chat_strips_images_before_template(monkeypatch):
     ``_apply_chat_template``, the same way ``_process_chat_messages``
     does on the execution path.
     """
-    from omlx_runtime.engine.vlm import VLMBatchedEngine
+    from molto_runtime.engine.vlm import VLMBatchedEngine
 
     scheduler = _make_scheduler()
     engine = _build_engine_with_stub_scheduler(VLMBatchedEngine, scheduler)
@@ -487,7 +487,7 @@ async def test_vlm_preflight_chat_converts_pydantic_tools(monkeypatch):
     """``preflight_chat`` must run tools through ``convert_tools_for_template``
     so Pydantic ``ToolDefinition`` callers don't get the silent
     template-retry fallback that drops tools entirely."""
-    from omlx_runtime.engine.vlm import VLMBatchedEngine
+    from molto_runtime.engine.vlm import VLMBatchedEngine
 
     scheduler = _make_scheduler()
     engine = _build_engine_with_stub_scheduler(VLMBatchedEngine, scheduler)
@@ -526,7 +526,7 @@ async def test_batched_engine_preflight_logs_when_scheduler_unreachable(
     silently swallowing the safety check."""
     import logging
 
-    from omlx_runtime.engine.batched import BatchedEngine
+    from molto_runtime.engine.batched import BatchedEngine
 
     engine = BatchedEngine.__new__(BatchedEngine)
     engine._loaded = True
@@ -556,7 +556,7 @@ async def test_preflight_chat_swallows_tokenizer_errors(caplog):
     """
     import logging
 
-    from omlx_runtime.engine.batched import BatchedEngine
+    from molto_runtime.engine.batched import BatchedEngine
 
     scheduler = _make_scheduler()
     engine = _build_engine_with_stub_scheduler(BatchedEngine, scheduler)
@@ -589,7 +589,7 @@ async def test_preflight_completion_swallows_tokenizer_errors(caplog):
     """Same contract on the completion path."""
     import logging
 
-    from omlx_runtime.engine.batched import BatchedEngine
+    from molto_runtime.engine.batched import BatchedEngine
 
     scheduler = _make_scheduler()
     engine = _build_engine_with_stub_scheduler(BatchedEngine, scheduler)
@@ -610,7 +610,7 @@ async def test_vlm_preflight_chat_swallows_tokenizer_errors(caplog):
     """VLM path mirrors BatchedEngine on tokenizer-error handling."""
     import logging
 
-    from omlx_runtime.engine.vlm import VLMBatchedEngine
+    from molto_runtime.engine.vlm import VLMBatchedEngine
 
     scheduler = _make_scheduler()
     engine = _build_engine_with_stub_scheduler(VLMBatchedEngine, scheduler)
@@ -641,7 +641,7 @@ def test_preflight_rejection_carries_estimated_and_limit_bytes(monkeypatch):
     scheduler._prefill_memory_guard = True
     scheduler._memory_hard_limit_bytes = 1024  # tiny — forces rejection
 
-    import omlx_runtime.scheduler as scheduler_mod
+    import molto_runtime.scheduler as scheduler_mod
 
     monkeypatch.setattr(scheduler_mod.mx, "get_active_memory", lambda: 0)
     monkeypatch.setattr(scheduler_mod, "get_phys_footprint", lambda: 0)
@@ -664,7 +664,7 @@ def test_preflight_or_raise_synthesizes_request_id_when_unset(monkeypatch):
     scheduler._prefill_memory_guard = True
     scheduler._memory_hard_limit_bytes = 1
 
-    import omlx_runtime.scheduler as scheduler_mod
+    import molto_runtime.scheduler as scheduler_mod
 
     monkeypatch.setattr(scheduler_mod.mx, "get_active_memory", lambda: 0)
     monkeypatch.setattr(scheduler_mod, "get_phys_footprint", lambda: 0)
@@ -686,7 +686,7 @@ async def test_batched_engine_preflight_chat_threads_request_id(monkeypatch):
     scheduler so the rejection log + exception carry a meaningful trace
     label rather than the synthesized "preflight-XXXX" fallback.
     """
-    from omlx_runtime.engine.batched import BatchedEngine
+    from molto_runtime.engine.batched import BatchedEngine
 
     scheduler = _make_scheduler()
     engine = _build_engine_with_stub_scheduler(BatchedEngine, scheduler)
@@ -719,7 +719,7 @@ async def test_engine_core_add_request_cleans_up_on_scheduler_raise(
     """
     from concurrent.futures import ThreadPoolExecutor
 
-    from omlx_runtime.engine_core import EngineCore
+    from molto_runtime.engine_core import EngineCore
 
     core = EngineCore.__new__(EngineCore)
     core._output_collectors = {}
@@ -772,7 +772,7 @@ def test_scheduler_add_request_cleans_block_table_on_rejection(monkeypatch):
     scheduler._prefill_memory_guard = True
     scheduler._memory_hard_limit_bytes = 1
 
-    import omlx_runtime.scheduler as scheduler_mod
+    import molto_runtime.scheduler as scheduler_mod
 
     monkeypatch.setattr(scheduler_mod.mx, "get_active_memory", lambda: 0)
     monkeypatch.setattr(scheduler_mod, "get_phys_footprint", lambda: 0)
@@ -865,7 +865,7 @@ class TestRejectionMessageNamesBindingCeiling:
         sched.memory_monitor = MagicMock()
         sched.memory_monitor.estimate_resident_kv_bytes.return_value = 512 * 1024**3
 
-        import omlx_runtime.scheduler as scheduler_mod
+        import molto_runtime.scheduler as scheduler_mod
 
         monkeypatch.setattr(scheduler_mod.mx, "get_active_memory", lambda: 0)
         monkeypatch.setattr(scheduler_mod, "get_phys_footprint", lambda: 0)

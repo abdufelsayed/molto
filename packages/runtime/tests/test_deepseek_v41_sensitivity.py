@@ -5,8 +5,8 @@ from types import SimpleNamespace
 import mlx.core as mx
 import mlx.nn as nn
 import pytest
-from omlx_runtime.patches.deepseek_v41.cache import DeepseekV41Cache
-from omlx_runtime.patches.deepseek_v41.sensitivity import measure_sensitivity
+from molto_runtime.patches.deepseek_v41.cache import DeepseekV41Cache
+from molto_runtime.patches.deepseek_v41.sensitivity import measure_sensitivity
 
 
 class Block(nn.Module):
@@ -47,7 +47,7 @@ class Core(nn.Module):
 def test_measure_sensitivity_restores_layers_weights_and_snapshots(
     monkeypatch, cancel_phase
 ):
-    import omlx_runtime.oq as oq
+    import molto_runtime.oq as oq
 
     with mx.stream(mx.cpu):
         model = SimpleNamespace(language_model=Core())
@@ -81,7 +81,7 @@ def test_measure_sensitivity_restores_layers_weights_and_snapshots(
 
 
 def test_cancellation_during_second_projection_restores_first():
-    from omlx_runtime.patches.deepseek_v41.sensitivity import _quantized_block
+    from molto_runtime.patches.deepseek_v41.sensitivity import _quantized_block
 
     with mx.stream(mx.cpu):
         block = nn.Module()

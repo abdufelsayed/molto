@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-from omlx_runtime.cluster.pipeline_smoke_worker import _smoke_assignments
+from molto_runtime.cluster.pipeline_smoke_worker import _smoke_assignments
 
 
 def test_smoke_assignments_cover_layers_in_reverse_pipeline_order():

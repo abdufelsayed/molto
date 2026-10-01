@@ -11,10 +11,10 @@ from types import SimpleNamespace
 
 import mlx.core as mx
 import mlx.nn as nn
-import omlx_runtime.patches.qwen35_moe_routed_decode as routed
+import molto_runtime.patches.qwen35_moe_routed_decode as routed
 import pytest
-from omlx_runtime.patches import qwen35_moe_router as router
-from omlx_runtime.patches import qwen35_verify_qmm
+from molto_runtime.patches import qwen35_moe_router as router
+from molto_runtime.patches import qwen35_verify_qmm
 
 pytestmark = pytest.mark.skipif(not mx.metal.is_available(), reason="requires Metal")
 
@@ -38,14 +38,14 @@ def _patched(monkeypatch):
     """Served patch chain: verify linears, fused router, fused routed decode
     (which installs the verify-window entry). Restores the block class."""
     from mlx_vlm.models.qwen3_5_moe import language as vlm_moe
-    from omlx_runtime.patches.mlx_vlm_mtp import qwen35_verify_linear
+    from molto_runtime.patches.mlx_vlm_mtp import qwen35_verify_linear
 
     qwen35_verify_qmm.apply_verify_qmm_patch()
     qwen35_verify_linear.apply()
     assert router.apply_qwen35_moe_router_patch()
     cls = vlm_moe.Qwen3_5MoeSparseMoeBlock
     call = cls.__call__
-    had_flag = "_omlx_routed_decode" in cls.__dict__
+    had_flag = "_molto_routed_decode" in cls.__dict__
     for name in ("_DISABLED", "_PROVEN", "_WINDOW_DISABLED", "_WINDOW_PROVEN"):
         monkeypatch.setattr(routed, name, False)
     monkeypatch.setattr(routed, "_VERIFY_WINDOW", True)
@@ -53,8 +53,8 @@ def _patched(monkeypatch):
     yield
     qwen35_verify_qmm.set_verify_qmm_armed(False)
     cls.__call__ = call
-    if not had_flag and "_omlx_routed_decode" in cls.__dict__:
-        delattr(cls, "_omlx_routed_decode")
+    if not had_flag and "_molto_routed_decode" in cls.__dict__:
+        delattr(cls, "_molto_routed_decode")
 
 
 _BLOCKS: dict = {}
@@ -81,7 +81,7 @@ def _block(seed=0, bits=5, experts=BLOCK_EXPERTS):
     if key in _BLOCKS:
         return _BLOCKS[key]
     from mlx_vlm.models.qwen3_5_moe.language import Qwen3_5MoeSparseMoeBlock
-    from omlx_runtime.patches.qwen35_moe_gate_up import apply_qwen35_moe_gate_up_fusion
+    from molto_runtime.patches.qwen35_moe_gate_up import apply_qwen35_moe_gate_up_fusion
 
     mx.random.seed(seed)
     args = SimpleNamespace(

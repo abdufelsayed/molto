@@ -10,8 +10,8 @@ far too early or, when it didn't fire in time, allowing the real prompt to
 exceed the real context window before Claude Code intervened.
 """
 
-import omlx_server.server as server_module
-from omlx_config.settings import ClaudeCodeSettings
+import molto_server.server as server_module
+from molto_config.settings import ClaudeCodeSettings
 
 
 class TestScalingMechanismRemoved:

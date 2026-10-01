@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """
-CLI tests for oMLX.
+CLI tests for Molto.
 
 Tests CLI argument parsing, command setup, and help text.
 Note: Configuration validation tests are in test_config.py.
@@ -16,8 +16,8 @@ from types import ModuleType, SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-from omlx_config._version import __version__
-from omlx_config.settings import GlobalSettings
+from molto_config._version import __version__
+from molto_config.settings import GlobalSettings
 
 
 class TestCLIModule:
@@ -25,13 +25,13 @@ class TestCLIModule:
 
     def test_cli_module_importable(self):
         """Test that CLI module can be imported."""
-        from omlx_cli import cli
+        from molto_cli import cli
 
         assert hasattr(cli, "main")
 
     def test_cli_has_serve_command(self):
         """Test that CLI has serve command setup."""
-        from omlx_cli import cli
+        from molto_cli import cli
 
         # The module should have the main entry point
         assert callable(cli.main)
@@ -43,7 +43,7 @@ class TestCLIHelp:
     def test_main_help(self):
         """Test main CLI help output."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -56,7 +56,7 @@ class TestCLIHelp:
     def test_main_version(self):
         """Test main CLI version output."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "--version"],
+            [sys.executable, "-m", "molto_cli.cli", "--version"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -68,7 +68,7 @@ class TestCLIHelp:
     def test_serve_help(self):
         """Test serve command help output."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "serve", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "serve", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -84,7 +84,7 @@ class TestCLIHelp:
     def test_lifecycle_commands_in_main_help(self):
         """Homebrew service commands remain available."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -98,7 +98,7 @@ class TestCLIHelp:
 
     def test_start_help_has_readiness_and_local_options(self):
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "start", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "start", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -121,7 +121,7 @@ class TestLifecycleCommand:
 
     @pytest.mark.parametrize("command", ["start", "stop", "restart", "status"])
     def test_lifecycle_delegates_to_owned_manager(self, command, monkeypatch, capsys):
-        from omlx_cli import cli, cli_lifecycle
+        from molto_cli import cli, cli_lifecycle
 
         manager = MagicMock(return_value={"manager": "local", "state": "running"})
         monkeypatch.setattr(cli_lifecycle, "run", manager)
@@ -139,7 +139,7 @@ class TestCLIEntryPoint:
         """Test that CLI module is runnable."""
         # Should not crash when running with --help
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -149,7 +149,7 @@ class TestCLIEntryPoint:
     def test_invalid_command_error(self):
         """Test error handling for invalid command."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "invalid_command"],
+            [sys.executable, "-m", "molto_cli.cli", "invalid_command"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -160,7 +160,7 @@ class TestCLIEntryPoint:
     def test_no_command_shows_help(self):
         """Test that no command shows help."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli"],
+            [sys.executable, "-m", "molto_cli.cli"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -175,7 +175,7 @@ class TestServeCommandOptions:
     def test_serve_has_model_dir_option(self):
         """Test that serve command has --model-dir option."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "serve", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "serve", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -185,7 +185,7 @@ class TestServeCommandOptions:
     def test_serve_has_no_max_memory_options(self):
         """The --max-model-memory and --max-process-memory CLI flags are removed."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "serve", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "serve", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -196,7 +196,7 @@ class TestServeCommandOptions:
     def test_serve_has_memory_guard_options(self):
         """Test that serve command exposes memory guard controls."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "serve", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "serve", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -210,7 +210,7 @@ class TestServeCommandOptions:
     def test_serve_no_model_specific_options(self):
         """Test that serve command does not have model-specific options (managed via admin page)."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "serve", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "serve", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -227,7 +227,7 @@ class TestServeCommandOptions:
     def test_serve_has_host_port_options(self):
         """Test that serve command has --host and --port options."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "serve", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "serve", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -238,7 +238,7 @@ class TestServeCommandOptions:
     def test_serve_has_scheduler_options(self):
         """Test that serve command has scheduler options."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "serve", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "serve", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -252,7 +252,7 @@ class TestServeCommandOptions:
     def test_serve_has_cache_options(self):
         """Test that serve command has cache options."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "serve", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "serve", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -264,7 +264,7 @@ class TestServeCommandOptions:
     def test_serve_has_mcp_option(self):
         """Test that serve command has --mcp-config option."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "serve", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "serve", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -274,7 +274,7 @@ class TestServeCommandOptions:
     def test_serve_has_base_path_option(self):
         """Test that serve command has --base-path option."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "serve", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "serve", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -284,7 +284,7 @@ class TestServeCommandOptions:
     def test_serve_has_api_key_option(self):
         """Test that serve command has --api-key option."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "serve", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "serve", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -298,7 +298,7 @@ class TestLaunchCommandOptions:
     def test_launch_has_host_port_options(self):
         """Test that launch command has --host and --port options."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "launch", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "launch", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -310,7 +310,7 @@ class TestLaunchCommandOptions:
     def test_launch_has_model_option(self):
         """Test that launch command has --model option."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "launch", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "launch", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -320,7 +320,7 @@ class TestLaunchCommandOptions:
     def test_launch_has_claude_tier_options(self):
         """Claude tier options should remain accepted for copied app commands."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "launch", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "launch", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -331,7 +331,7 @@ class TestLaunchCommandOptions:
 
     def test_launch_has_cross_session_option(self):
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "launch", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "launch", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -341,7 +341,7 @@ class TestLaunchCommandOptions:
     def test_launch_lists_hermes(self):
         """Test that launch help lists Hermes as an available integration."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "launch", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "launch", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -353,7 +353,7 @@ class TestLaunchCommandOptions:
     def test_launch_lists_codex_app(self):
         """Test that launch help lists the Codex Desktop App target."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "launch", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "launch", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -368,7 +368,7 @@ class TestLaunchCommandFunction:
 
     def test_launch_command_passes_model_type_to_integration(self):
         """VLM model metadata should be forwarded to integrations."""
-        from omlx_cli.cli import launch_command
+        from molto_cli.cli import launch_command
 
         integration = MagicMock()
         integration.display_name = "OpenCode"
@@ -405,8 +405,8 @@ class TestLaunchCommandFunction:
 
         with (
             patch("requests.get", side_effect=[health_response, status_response]),
-            patch("omlx_cli.integrations.get_integration", return_value=integration),
-            patch("omlx_config.settings.GlobalSettings.load", return_value=settings),
+            patch("molto_cli.integrations.get_integration", return_value=integration),
+            patch("molto_config.settings.GlobalSettings.load", return_value=settings),
         ):
             launch_command(args)
 
@@ -424,7 +424,7 @@ class TestLaunchCommandFunction:
         assert ctx.extra_args == ()
 
     def test_launch_command_passes_cross_session_flag_to_integration(self):
-        from omlx_cli.cli import launch_command
+        from molto_cli.cli import launch_command
 
         integration = MagicMock()
         integration.display_name = "Claude Code"
@@ -457,8 +457,8 @@ class TestLaunchCommandFunction:
 
         with (
             patch("requests.get", side_effect=[health_response, status_response]),
-            patch("omlx_cli.integrations.get_integration", return_value=integration),
-            patch("omlx_config.settings.GlobalSettings.load", return_value=settings),
+            patch("molto_cli.integrations.get_integration", return_value=integration),
+            patch("molto_config.settings.GlobalSettings.load", return_value=settings),
         ):
             launch_command(args)
 
@@ -467,7 +467,7 @@ class TestLaunchCommandFunction:
 
     def test_launch_command_resolves_alias_status_metadata(self):
         """Alias model IDs should keep status metadata from the real model."""
-        from omlx_cli.cli import launch_command
+        from molto_cli.cli import launch_command
 
         integration = MagicMock()
         integration.display_name = "OpenCode"
@@ -506,8 +506,8 @@ class TestLaunchCommandFunction:
 
         with (
             patch("requests.get", side_effect=[health_response, status_response]),
-            patch("omlx_cli.integrations.get_integration", return_value=integration),
-            patch("omlx_config.settings.GlobalSettings.load", return_value=settings),
+            patch("molto_cli.integrations.get_integration", return_value=integration),
+            patch("molto_config.settings.GlobalSettings.load", return_value=settings),
         ):
             launch_command(args)
 
@@ -520,7 +520,7 @@ class TestLaunchCommandFunction:
 
     def test_launch_command_forwards_extra_args(self):
         """Unknown CLI tokens (e.g. --resume <id>) should reach integration.launch."""
-        from omlx_cli.cli import launch_command
+        from molto_cli.cli import launch_command
 
         integration = MagicMock()
         integration.display_name = "Claude Code"
@@ -557,8 +557,8 @@ class TestLaunchCommandFunction:
 
         with (
             patch("requests.get", side_effect=[health_response, status_response]),
-            patch("omlx_cli.integrations.get_integration", return_value=integration),
-            patch("omlx_config.settings.GlobalSettings.load", return_value=settings),
+            patch("molto_cli.integrations.get_integration", return_value=integration),
+            patch("molto_config.settings.GlobalSettings.load", return_value=settings),
         ):
             launch_command(args, extra_args=["--resume", "abc123"])
 
@@ -567,7 +567,7 @@ class TestLaunchCommandFunction:
 
     def test_launch_command_rejects_small_explicit_claude_model(self, capsys):
         """--model must not bypass Claude Code's minimum context check."""
-        from omlx_cli.cli import launch_command
+        from molto_cli.cli import launch_command
 
         integration = MagicMock()
         integration.display_name = "Claude Code"
@@ -607,8 +607,8 @@ class TestLaunchCommandFunction:
 
         with (
             patch("requests.get", side_effect=[health_response, status_response]),
-            patch("omlx_cli.integrations.get_integration", return_value=integration),
-            patch("omlx_config.settings.GlobalSettings.load", return_value=settings),
+            patch("molto_cli.integrations.get_integration", return_value=integration),
+            patch("molto_config.settings.GlobalSettings.load", return_value=settings),
             pytest.raises(SystemExit) as exc,
         ):
             launch_command(args)
@@ -621,7 +621,7 @@ class TestLaunchCommandFunction:
 
     def test_launch_command_rejects_small_claude_tier_model(self, capsys):
         """Explicit tier flags must all satisfy the same context requirement."""
-        from omlx_cli.cli import launch_command
+        from molto_cli.cli import launch_command
 
         integration = MagicMock()
         integration.display_name = "Claude Code"
@@ -664,8 +664,8 @@ class TestLaunchCommandFunction:
 
         with (
             patch("requests.get", side_effect=[health_response, status_response]),
-            patch("omlx_cli.integrations.get_integration", return_value=integration),
-            patch("omlx_config.settings.GlobalSettings.load", return_value=settings),
+            patch("molto_cli.integrations.get_integration", return_value=integration),
+            patch("molto_config.settings.GlobalSettings.load", return_value=settings),
             pytest.raises(SystemExit) as exc,
         ):
             launch_command(args)
@@ -678,7 +678,7 @@ class TestLaunchCommandFunction:
 
     def test_launch_command_rejects_small_auto_selected_claude_model(self, capsys):
         """A single available model must not bypass the minimum context check."""
-        from omlx_cli.cli import launch_command
+        from molto_cli.cli import launch_command
 
         integration = MagicMock()
         integration.display_name = "Claude Code"
@@ -726,8 +726,8 @@ class TestLaunchCommandFunction:
                 "requests.get",
                 side_effect=[health_response, status_response, models_response],
             ),
-            patch("omlx_cli.integrations.get_integration", return_value=integration),
-            patch("omlx_config.settings.GlobalSettings.load", return_value=settings),
+            patch("molto_cli.integrations.get_integration", return_value=integration),
+            patch("molto_config.settings.GlobalSettings.load", return_value=settings),
             pytest.raises(SystemExit) as exc,
         ):
             launch_command(args)
@@ -739,8 +739,8 @@ class TestLaunchCommandFunction:
         assert "Cannot launch Claude Code with model 'only-32k'" in output
 
     def test_launch_command_shows_picker_and_keeps_saved_tiers(self):
-        """Bare `omlx launch claude` shows the picker for the default model and keeps the saved tier models (#3543)."""
-        from omlx_cli.cli import launch_command
+        """Bare `molto launch claude` shows the picker for the default model and keeps the saved tier models (#3543)."""
+        from molto_cli.cli import launch_command
 
         integration = MagicMock()
         integration.display_name = "Claude Code"
@@ -790,8 +790,8 @@ class TestLaunchCommandFunction:
                 "requests.get",
                 side_effect=[health_response, status_map_response, models_response],
             ),
-            patch("omlx_cli.integrations.get_integration", return_value=integration),
-            patch("omlx_config.settings.GlobalSettings.load", return_value=settings),
+            patch("molto_cli.integrations.get_integration", return_value=integration),
+            patch("molto_config.settings.GlobalSettings.load", return_value=settings),
         ):
             launch_command(args)
 
@@ -805,7 +805,7 @@ class TestLaunchCommandFunction:
 
     def test_launch_command_claude_cli_tiers_override_saved_settings(self):
         """Explicit --opus/--sonnet/--haiku should win over saved settings."""
-        from omlx_cli.cli import launch_command
+        from molto_cli.cli import launch_command
 
         integration = MagicMock()
         integration.display_name = "Claude Code"
@@ -842,8 +842,8 @@ class TestLaunchCommandFunction:
 
         with (
             patch("requests.get", side_effect=[health_response, status_response]),
-            patch("omlx_cli.integrations.get_integration", return_value=integration),
-            patch("omlx_config.settings.GlobalSettings.load", return_value=settings),
+            patch("molto_cli.integrations.get_integration", return_value=integration),
+            patch("molto_config.settings.GlobalSettings.load", return_value=settings),
         ):
             launch_command(args)
 
@@ -855,17 +855,17 @@ class TestLaunchCommandFunction:
 
 
 class TestLaunchArgvParsing:
-    """Tests for top-level argv parsing of `omlx launch ...`."""
+    """Tests for top-level argv parsing of `molto launch ...`."""
 
     def test_launch_removes_forwarding_separator_after_known_option(self, monkeypatch):
-        """The oMLX separator must not reach the launched tool."""
-        from omlx_cli import cli
+        """The Molto separator must not reach the launched tool."""
+        from molto_cli import cli
 
         monkeypatch.setattr(
             sys,
             "argv",
             [
-                "omlx",
+                "molto",
                 "launch",
                 "claude",
                 "--cross-session",
@@ -884,12 +884,12 @@ class TestLaunchArgvParsing:
 
     def test_launch_preserves_separator_intended_for_tool(self, monkeypatch):
         """A second separator belongs to the launched tool's argv."""
-        from omlx_cli import cli
+        from molto_cli import cli
 
         monkeypatch.setattr(
             sys,
             "argv",
-            ["omlx", "launch", "claude", "--", "--", "--literal-prompt"],
+            ["molto", "launch", "claude", "--", "--", "--literal-prompt"],
         )
         with patch.object(cli, "launch_command") as launch:
             cli.main()
@@ -899,7 +899,7 @@ class TestLaunchArgvParsing:
     def test_serve_still_rejects_unknown_args(self):
         """Non-launch commands must keep strict argparse rejection."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "serve", "--bogus-flag"],
+            [sys.executable, "-m", "molto_cli.cli", "serve", "--bogus-flag"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -1002,22 +1002,22 @@ class TestServeCommandFunctions:
 
     def test_serve_command_exists(self):
         """Test that serve_command function exists."""
-        from omlx_cli.cli import serve_command
+        from molto_cli.cli import serve_command
 
         assert callable(serve_command)
 
     def test_serve_model_dir_optional_with_default(self):
-        """Test that serve --model-dir is optional with default ~/.omlx/models."""
+        """Test that serve --model-dir is optional with default ~/.molto/models."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "serve", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "serve", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
         )
         # Should show that model-dir has a default
         assert "default" in result.stdout.lower()
-        # Help text should mention ~/.omlx/models or similar
-        assert ".omlx" in result.stdout or "model" in result.stdout.lower()
+        # Help text should mention ~/.molto/models or similar
+        assert ".molto" in result.stdout or "model" in result.stdout.lower()
 
     def test_invalid_embedding_batch_size_is_not_persisted(self, tmp_path):
         """Invalid CLI scheduler values should fail before saving settings.json."""
@@ -1025,7 +1025,7 @@ class TestServeCommandFunctions:
             [
                 sys.executable,
                 "-m",
-                "omlx_cli.cli",
+                "molto_cli.cli",
                 "serve",
                 "--base-path",
                 str(tmp_path),
@@ -1046,7 +1046,7 @@ class TestServeCommandFunctions:
             [
                 sys.executable,
                 "-m",
-                "omlx_cli.cli",
+                "molto_cli.cli",
                 "serve",
                 "--base-path",
                 str(tmp_path),
@@ -1068,7 +1068,7 @@ class TestServeCommandFunctions:
             [
                 sys.executable,
                 "-m",
-                "omlx_cli.cli",
+                "molto_cli.cli",
                 "serve",
                 "--base-path",
                 str(tmp_path),
@@ -1090,7 +1090,7 @@ class TestServeCommandFunctions:
             [
                 sys.executable,
                 "-m",
-                "omlx_cli.cli",
+                "molto_cli.cli",
                 "serve",
                 "--base-path",
                 str(tmp_path),
@@ -1110,16 +1110,16 @@ class TestServeCommandFunctions:
         self, tmp_path, monkeypatch
     ):
         """Port conflicts should fail before server import can preload pinned models."""
-        from omlx_cli.cli import serve_command
+        from molto_cli.cli import serve_command
 
         listener = self._reserve_port()
         host, port = listener.getsockname()
         settings = self._make_settings(tmp_path, host=host, port=port)
         args = self._make_serve_args(tmp_path, host=host, port=port)
-        previous_server = sys.modules.pop("omlx_server.server", None)
+        previous_server = sys.modules.pop("molto_server.server", None)
         events = []
 
-        from omlx_cli import application
+        from molto_cli import application
 
         original_bind = application.bind_public
 
@@ -1127,9 +1127,9 @@ class TestServeCommandFunctions:
             events.append("bind")
             return original_bind(host, port)
 
-        monkeypatch.delenv("OMLX_INTERNAL_FD", raising=False)
+        monkeypatch.delenv("MOLTO_INTERNAL_FD", raising=False)
         monkeypatch.setattr(
-            "omlx_config.settings.init_settings", lambda **kwargs: settings
+            "molto_config.settings.init_settings", lambda **kwargs: settings
         )
         monkeypatch.setattr(
             application, "dashboard_command", lambda: ["node", "index.mjs"]
@@ -1143,19 +1143,19 @@ class TestServeCommandFunctions:
             assert events == ["bind"]
             settings.save_cli_overrides.assert_not_called()
             settings.save.assert_not_called()
-            assert "omlx_server.server" not in sys.modules
+            assert "molto_server.server" not in sys.modules
         finally:
             listener.close()
             if previous_server is not None:
-                sys.modules["omlx_server.server"] = previous_server
+                sys.modules["molto_server.server"] = previous_server
 
     @pytest.mark.parametrize("restarted", [False, True])
     def test_serve_hands_prebound_socket_to_uvicorn(
         self, tmp_path, monkeypatch, restarted
     ):
         """Successful serve startup should pass the pre-bound socket into uvicorn."""
-        import omlx
-        from omlx_cli.cli import serve_command
+        import molto
+        from molto_cli.cli import serve_command
 
         host, port = "127.0.0.1", 0
         settings = self._make_settings(tmp_path, host=host, port=port)
@@ -1173,13 +1173,13 @@ class TestServeCommandFunctions:
         persistent.auth.api_key = "runtime-secret"
         settings.save_cli_overrides = MagicMock(wraps=persistent.save_cli_overrides)
         if restarted:
-            monkeypatch.setenv("OMLX_BACKEND_RESTART", "1")
+            monkeypatch.setenv("MOLTO_BACKEND_RESTART", "1")
         else:
-            monkeypatch.delenv("OMLX_BACKEND_RESTART", raising=False)
+            monkeypatch.delenv("MOLTO_BACKEND_RESTART", raising=False)
         monkeypatch.setenv("FORWARDED_ALLOW_IPS", "*")
         events = []
 
-        fake_server = ModuleType("omlx_server.server")
+        fake_server = ModuleType("molto_server.server")
 
         async def app(scope, receive, send):
             return None
@@ -1191,11 +1191,11 @@ class TestServeCommandFunctions:
         initialize = MagicMock(side_effect=fake_init_server)
         app.state = SimpleNamespace(controller=SimpleNamespace(initialize=initialize))
         fake_server.create_app = lambda: app
-        adapter = ModuleType("omlx_runtime.settings_adapter")
+        adapter = ModuleType("molto_runtime.settings_adapter")
         adapter.scheduler_config = lambda value: value.to_scheduler_config()
-        monkeypatch.setitem(sys.modules, "omlx_runtime.settings_adapter", adapter)
-        monkeypatch.setitem(sys.modules, "omlx_server.server", fake_server)
-        monkeypatch.setattr(omlx, "server", fake_server, raising=False)
+        monkeypatch.setitem(sys.modules, "molto_runtime.settings_adapter", adapter)
+        monkeypatch.setitem(sys.modules, "molto_server.server", fake_server)
+        monkeypatch.setattr(molto, "server", fake_server, raising=False)
 
         fake_mlx = ModuleType("mlx")
         fake_mlx_core = ModuleType("mlx.core")
@@ -1206,10 +1206,10 @@ class TestServeCommandFunctions:
         monkeypatch.setitem(sys.modules, "mlx.core", fake_mlx_core)
 
         monkeypatch.setattr(
-            "omlx_config.settings.init_settings", lambda **kwargs: settings
+            "molto_config.settings.init_settings", lambda **kwargs: settings
         )
         monkeypatch.setattr(
-            "omlx_config.logging_config.configure_file_logging",
+            "molto_config.logging_config.configure_file_logging",
             lambda **kwargs: None,
         )
         monkeypatch.setattr("faulthandler.enable", lambda *args, **kwargs: None)
@@ -1217,7 +1217,7 @@ class TestServeCommandFunctions:
         listener = socket.socket()
         listener.bind((host, port))
         listener.listen(128)
-        monkeypatch.setenv("OMLX_INTERNAL_FD", str(os.dup(listener.fileno())))
+        monkeypatch.setenv("MOLTO_INTERNAL_FD", str(os.dup(listener.fileno())))
 
         def fake_run(self, sockets=None):
             self.config.load()
@@ -1256,18 +1256,18 @@ class TestCLIDocstrings:
     def test_main_has_description(self):
         """Test that main help has description."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
         )
         # Should have some description
-        assert "omlx" in result.stdout.lower() or "llm" in result.stdout.lower()
+        assert "molto" in result.stdout.lower() or "llm" in result.stdout.lower()
 
     def test_serve_has_description(self):
         """Test that serve command has description."""
         result = subprocess.run(
-            [sys.executable, "-m", "omlx_cli.cli", "serve", "--help"],
+            [sys.executable, "-m", "molto_cli.cli", "serve", "--help"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -1282,7 +1282,7 @@ class TestLaunchClaudeTierPrecedence:
     def _run(
         self, *, args_model, settings_tiers, cli_tiers=None, picked="picked-model"
     ):
-        from omlx_cli.cli import launch_command
+        from molto_cli.cli import launch_command
 
         integration = MagicMock()
         integration.display_name = "Claude Code"
@@ -1339,8 +1339,8 @@ class TestLaunchClaudeTierPrecedence:
                 "requests.get",
                 side_effect=[health_response, status_response, models_response],
             ),
-            patch("omlx_cli.integrations.get_integration", return_value=integration),
-            patch("omlx_config.settings.GlobalSettings.load", return_value=settings),
+            patch("molto_cli.integrations.get_integration", return_value=integration),
+            patch("molto_config.settings.GlobalSettings.load", return_value=settings),
         ):
             launch_command(args)
         integration.launch.assert_called_once()
@@ -1404,8 +1404,8 @@ class TestLaunchClaudeTierPrecedence:
     def test_launch_passes_initial_model_and_shared_context_limit(
         self, windows, expected_window
     ):
-        from omlx_cli.cli import launch_command
-        from omlx_cli.integrations.claude import ClaudeCodeIntegration
+        from molto_cli.cli import launch_command
+        from molto_cli.integrations.claude import ClaudeCodeIntegration
 
         integration = ClaudeCodeIntegration()
         model_ids = ("picked-model", "opus-cfg", "sonnet-cfg", "haiku-cfg")
@@ -1430,13 +1430,13 @@ class TestLaunchClaudeTierPrecedence:
         )
         with (
             patch("requests.get", side_effect=responses),
-            patch("omlx_config.settings.GlobalSettings.load", return_value=settings),
-            patch("omlx_cli.integrations.get_integration", return_value=integration),
+            patch("molto_config.settings.GlobalSettings.load", return_value=settings),
+            patch("molto_cli.integrations.get_integration", return_value=integration),
             patch.object(integration, "is_installed", return_value=True),
             patch.object(integration, "select_model", return_value="picked-model"),
             patch.object(integration, "_find_claude_binary", return_value="claude"),
             patch.dict("os.environ", {"ANTHROPIC_MODEL": "old-model"}, clear=True),
-            patch("omlx_cli.integrations.claude.os.execvpe") as execute,
+            patch("molto_cli.integrations.claude.os.execvpe") as execute,
         ):
             launch_command(args, extra_args=["--resume", "session-id"])
 
@@ -1462,13 +1462,13 @@ class TestLaunchClaudeTierPrecedence:
 
 
 def test_dashboard_dev_is_parsed_and_not_persisted(monkeypatch):
-    from omlx_cli import cli
+    from molto_cli import cli
 
     observed = []
-    monkeypatch.setattr(sys, "argv", ["omlx", "serve", "--dashboard-dev"])
+    monkeypatch.setattr(sys, "argv", ["molto", "serve", "--dashboard-dev"])
     monkeypatch.setattr(cli, "serve_command", lambda args: observed.append(args))
     cli.main()
     assert observed[0].dashboard_dev is True
-    from omlx_config.startup import _has_cli_overrides
+    from molto_config.startup import _has_cli_overrides
 
     assert _has_cli_overrides(observed[0]) is False

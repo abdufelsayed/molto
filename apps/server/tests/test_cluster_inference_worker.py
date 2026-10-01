@@ -16,10 +16,10 @@ from types import SimpleNamespace
 from typing import Any
 
 import mlx_lm.server as mlx_server
-import omlx_runtime.cluster.inference_worker as inference_worker
+import molto_runtime.cluster.inference_worker as inference_worker
 import pytest
 from mlx_lm.generate import DEFAULT_QUANTIZED_KV_START
-from omlx_runtime.cluster.inference_worker import (
+from molto_runtime.cluster.inference_worker import (
     _bind_generation_thread_stream,
     _cross_thread_generation_stream,
     _execution_settings,
@@ -33,7 +33,7 @@ from omlx_runtime.cluster.inference_worker import (
     _write_cancel_request,
     build_parser,
 )
-from omlx_runtime.cluster.planner import PipelineAssignment
+from molto_runtime.cluster.planner import PipelineAssignment
 
 GiB = 1024**3
 
@@ -560,7 +560,7 @@ def test_the_loaded_stage_survives_into_the_marker_a_reader_sees(tmp_path):
 #
 # These drive ``run_worker`` end to end with fakes at the process boundaries
 # (MLX's distributed init, mlx-lm's ModelProvider and server loop, the Metal
-# wired limit) and let everything oMLX owns run for real: the argument parser,
+# wired limit) and let everything Molto owns run for real: the argument parser,
 # the runtime marker, the admission arithmetic, the stage pin and its guard.
 # ---------------------------------------------------------------------------
 
@@ -698,11 +698,11 @@ def _run_rank(
 
     import mlx.core as mx
     import mlx_lm.server as mlx_server
-    import omlx_runtime._torch_stub as torch_stub
-    import omlx_runtime.patches.mlx_lm_pipeline_index as pipeline_index
-    import omlx_runtime.process_memory_enforcer as enforcer
-    import omlx_runtime.utils.model_loading as model_loading
-    from omlx_runtime.patches.minimax_m3_mlx_lm import pipeline_patch
+    import molto_runtime._torch_stub as torch_stub
+    import molto_runtime.patches.mlx_lm_pipeline_index as pipeline_index
+    import molto_runtime.process_memory_enforcer as enforcer
+    import molto_runtime.utils.model_loading as model_loading
+    from molto_runtime.patches.minimax_m3_mlx_lm import pipeline_patch
 
     assignments = assignments or _uneven_plan()
     assignment = assignments[rank]
@@ -782,7 +782,7 @@ def _run_rank(
     monkeypatch.setattr(mlx_server, "ModelProvider", FakeProvider)
     monkeypatch.setattr(mlx_server, "run", fake_run)
 
-    # --- oMLX seams we want to observe rather than execute -----------------
+    # --- Molto seams we want to observe rather than execute -----------------
     monkeypatch.setattr(
         inference_worker,
         "decode_worker_contract",
@@ -928,7 +928,7 @@ def test_an_idle_deployment_survives_past_the_stale_window(monkeypatch, tmp_path
     its own watchdog.
     """
 
-    from omlx_runtime.cluster.liveness import check_peers, raise_if_peer_lost
+    from molto_runtime.cluster.liveness import check_peers, raise_if_peer_lost
 
     record = _run_rank(monkeypatch, tmp_path, rank=0)
     idle_marker = dict(record["marker_while_serving"])
@@ -1038,7 +1038,7 @@ def test_the_stage_guard_answers_the_same_question_from_either_side_of_the_pin(
     the one state a real launch guarantees is impossible.
     """
 
-    from omlx_runtime.patches.minimax_m3_mlx_lm import pipeline_patch
+    from molto_runtime.patches.minimax_m3_mlx_lm import pipeline_patch
 
     assignments = _uneven_plan()
     calls: list[int] = []
@@ -1072,7 +1072,7 @@ def test_the_wired_limit_is_not_raised_before_anything_admits_the_rank(
     """It ran 36 lines before the guard, unconditionally, at Apple's maximum.
 
     Wired memory is not pageable, so this is the difference between "the model
-    dies" and "the Mac cannot be typed on" — and single-node oMLX on the same
+    dies" and "the Mac cannot be typed on" — and single-node Molto on the same
     machine leaves the limit alone entirely.
     """
 
@@ -1097,7 +1097,7 @@ def test_the_wired_limit_asks_for_the_admission_budget_not_apples_maximum(
     is retuned rather than being pinned here.
     """
 
-    from omlx_runtime.cluster.memory_guard import admission_budget
+    from molto_runtime.cluster.memory_guard import admission_budget
 
     record = _run_rank(monkeypatch, tmp_path, ceiling=107 * GiB)
 
@@ -1129,7 +1129,7 @@ def test_a_host_without_the_enforcer_loads_rather_than_failing(monkeypatch):
     real_import = builtins.__import__
 
     def refuse(name, *args, **kwargs):
-        if name == "omlx_runtime.process_memory_enforcer":
+        if name == "molto_runtime.process_memory_enforcer":
             raise ImportError("no engine stack on this Mac")
         return real_import(name, *args, **kwargs)
 
@@ -1248,7 +1248,7 @@ def test_the_prefill_guard_is_sized_from_the_step_this_server_will_use(
 def test_the_rank_reaches_ready_and_records_what_bounded_it(monkeypatch, tmp_path):
     """The whole path, once, so the marker a reader sees is the one that ran."""
 
-    from omlx_runtime.cluster.memory_guard import admission_budget
+    from molto_runtime.cluster.memory_guard import admission_budget
 
     record = _run_rank(monkeypatch, tmp_path, rank=0)
 
@@ -1626,7 +1626,7 @@ def test_think_token_ids_returns_empty_when_unsupported():
 
 
 def test_install_thinking_budget_support_appends_processor_per_request():
-    from omlx_runtime.generation.thinking import ThinkingBudgetProcessor
+    from molto_runtime.generation.thinking import ThinkingBudgetProcessor
 
     calls = []
 
@@ -1720,7 +1720,7 @@ def test_install_thinking_budget_support_does_not_need_the_http_stack():
 
         sys.meta_path.insert(0, NoHttpStack())
 
-        from omlx_runtime.cluster import inference_worker
+        from molto_runtime.cluster import inference_worker
 
 
         class Tokenizer:

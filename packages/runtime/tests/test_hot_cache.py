@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from omlx_runtime.cache.paged_ssd_cache import (
+from molto_runtime.cache.paged_ssd_cache import (
     PagedSSDBlockMetadata,
     PagedSSDCacheManager,
     SharedHotCacheBudget,
@@ -1007,7 +1007,7 @@ class TestHotCacheWriteBack:
         block_count = 12  # 3x the queue depth
 
         with patch(
-            "omlx_runtime.cache.paged_ssd_cache._MAX_PENDING_WRITES", queue_depth
+            "molto_runtime.cache.paged_ssd_cache._MAX_PENDING_WRITES", queue_depth
         ):
             mgr = PagedSSDCacheManager(
                 cache_dir=tmp_path / "wb_queue_full_test",
@@ -1307,7 +1307,7 @@ class TestSSDWriteBackSaturation:
 
     def test_paged_ssd_cache_stats_default_and_reset(self):
         """Dataclass: write-back counters default to 0 and reset to 0."""
-        from omlx_runtime.cache.stats import PagedSSDCacheStats
+        from molto_runtime.cache.stats import PagedSSDCacheStats
 
         # Default is zero.
         stats = PagedSSDCacheStats()
@@ -1718,7 +1718,7 @@ class TestHotCacheWriteThrough:
     def test_settings_round_trip_and_scheduler_mapping(self):
         """The flag must survive settings.json serialization and reach
         SchedulerConfig via GlobalSettings.scheduler_config()."""
-        from omlx_config.settings import CacheSettings, GlobalSettings
+        from molto_config.settings import CacheSettings, GlobalSettings
 
         cache = CacheSettings(hot_cache_write_through=True)
         restored = CacheSettings.from_dict(cache.to_dict())
@@ -1730,7 +1730,7 @@ class TestHotCacheWriteThrough:
 
         settings = GlobalSettings()
         settings.cache.hot_cache_write_through = True
-        from omlx_runtime.settings_adapter import scheduler_config
+        from molto_runtime.settings_adapter import scheduler_config
 
         config = scheduler_config(settings)
         assert config.hot_cache_write_through is True

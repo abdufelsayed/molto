@@ -8,8 +8,8 @@ import mlx.core as mx
 import numpy as np
 import pytest
 from mlx import nn
-from omlx_runtime.diffusion import ImageTask, get_pipeline
-from omlx_runtime.diffusion.batching import generate_batch
+from molto_runtime.diffusion import ImageTask, get_pipeline
+from molto_runtime.diffusion.batching import generate_batch
 from PIL import Image
 
 

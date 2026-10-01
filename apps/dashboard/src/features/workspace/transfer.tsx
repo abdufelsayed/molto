@@ -61,7 +61,7 @@ export function TransferPanel() {
     onSuccess: () => {
       setBundle(null)
       preview.reset()
-      void client.invalidateQueries({ queryKey: ["omlx"] })
+      void client.invalidateQueries({ queryKey: ["molto"] })
     },
   })
   const exporting = useMutation({
@@ -72,7 +72,7 @@ export function TransferPanel() {
       )
       const a = document.createElement("a")
       a.href = url
-      a.download = "omlx-workspace.json"
+      a.download = "molto-workspace.json"
       a.click()
       URL.revokeObjectURL(url)
     },

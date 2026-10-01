@@ -14,9 +14,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from omlx_runtime.cluster import launch
-from omlx_runtime.cluster.deployment import ClusterDeployment, ClusterHost
-from omlx_runtime.cluster.launch import (
+from molto_runtime.cluster import launch
+from molto_runtime.cluster.deployment import ClusterDeployment, ClusterHost
+from molto_runtime.cluster.launch import (
     CudaFabricProbeHost,
     DistributedLaunchError,
     _available_launch_ports,
@@ -33,8 +33,8 @@ from omlx_runtime.cluster.launch import (
     probe_remote_system_host,
     run_cuda_fabric_probe,
 )
-from omlx_runtime.cluster.models import CLUSTER_PROTOCOL_VERSION
-from omlx_runtime.cluster.planner import PipelineAssignment
+from molto_runtime.cluster.models import CLUSTER_PROTOCOL_VERSION
+from molto_runtime.cluster.planner import PipelineAssignment
 
 
 def _deployment(model: str = "org/model") -> ClusterDeployment:
@@ -134,15 +134,15 @@ def test_launcher_argv_keeps_model_as_one_argument(tmp_path):
         hostfile=hostfile,
         api_port=32100,
         collective_port=32120,
-        python_executable="/opt/omlx/bin/python",
-        cwd=Path("/opt/omlx"),
+        python_executable="/opt/molto/bin/python",
+        cwd=Path("/opt/molto"),
         control_host="10.0.0.1",
         control_port=32140,
         control_token="e" * 64,
         load_timeout=2400.0,
     )
 
-    assert argv[0] == "/opt/omlx/bin/python"
+    assert argv[0] == "/opt/molto/bin/python"
     assert argv[argv.index("--model") + 1] == model
     assert argv[argv.index("--backend") + 1] == "ring"
     assert argv[argv.index("--starting-port") + 1] == "32120"
@@ -168,7 +168,7 @@ def test_launcher_rejects_overlapping_api_and_collective_ports(tmp_path):
             hostfile=(tmp_path / "hosts.json").resolve(),
             api_port=32100,
             collective_port=32100,
-            python_executable="/opt/omlx/bin/python",
+            python_executable="/opt/molto/bin/python",
         )
 
 
@@ -177,7 +177,7 @@ def test_launcher_requires_an_explicit_random_control_token(tmp_path):
         "hostfile": (tmp_path / "hosts.json").resolve(),
         "api_port": 32100,
         "collective_port": 32120,
-        "python_executable": "/opt/omlx/bin/python",
+        "python_executable": "/opt/molto/bin/python",
         "control_host": "10.0.0.1",
         "control_port": 32140,
     }
@@ -232,7 +232,7 @@ def test_cuda_fabric_probe_launches_a_real_two_rank_nccl_job():
                 ("mlx5_0", "mlx5_1"),
             ),
         ),
-        python_executable="/opt/omlx/bin/python",
+        python_executable="/opt/molto/bin/python",
         runner=runner,
     )
 
@@ -246,7 +246,7 @@ def test_cuda_fabric_probe_launches_a_real_two_rank_nccl_job():
         ["192.168.100.2", "192.168.101.2"],
     ]
     assert captured["argv"][captured["argv"].index("--backend") + 1] == "nccl"
-    assert "omlx_runtime.cluster.nccl_fabric_worker" in captured["argv"]
+    assert "molto_runtime.cluster.nccl_fabric_worker" in captured["argv"]
 
 
 def test_cuda_fabric_member_rejects_an_interface_shell_fragment():
@@ -265,8 +265,10 @@ def test_launcher_selects_the_probed_python_path_for_each_rank(tmp_path):
     deployment = replace(
         deployment,
         hosts=(
-            replace(deployment.hosts[0], python_executable="/Applications/oMLX/python"),
-            replace(deployment.hosts[1], python_executable="/opt/omlx/bin/python"),
+            replace(
+                deployment.hosts[0], python_executable="/Applications/Molto/python"
+            ),
+            replace(deployment.hosts[1], python_executable="/opt/molto/bin/python"),
         ),
     )
 
@@ -275,18 +277,18 @@ def test_launcher_selects_the_probed_python_path_for_each_rank(tmp_path):
         hostfile=(tmp_path / "hosts.json").resolve(),
         api_port=32100,
         collective_port=32120,
-        python_executable="/Applications/oMLX/python",
+        python_executable="/Applications/Molto/python",
     )
     worker = argv[argv.index("--") + 1 :]
 
     assert worker[:2] == ["/bin/sh", "-c"]
     assert "${MLX_RANK:-}" in worker[2]
-    assert "/Applications/oMLX/python" in worker[2]
-    assert "/opt/omlx/bin/python" in worker[2]
+    assert "/Applications/Molto/python" in worker[2]
+    assert "/opt/molto/bin/python" in worker[2]
     assert worker[3:6] == [
-        "omlx-rank-python",
+        "molto-rank-python",
         "-m",
-        "omlx_runtime.cluster.inference_worker",
+        "molto_runtime.cluster.inference_worker",
     ]
 
 
@@ -566,7 +568,7 @@ def test_remote_preflight_uses_prompt_free_noninteractive_ssh():
 
     result = preflight_remote_hosts(
         _deployment(),
-        python_executable="/opt/omlx/bin/python",
+        python_executable="/opt/molto/bin/python",
         runner=runner,
     )
 
@@ -584,12 +586,12 @@ def test_remote_preflight_uses_prompt_free_noninteractive_ssh():
     # Target and command close the argv; asserting position of the target
     # relative to one option broke every time an option was added.
     assert argv[-2] == "user@studio.local"
-    # A source wrapper can import oMLX without having wheel/editable metadata.
+    # A source wrapper can import Molto without having wheel/editable metadata.
     # Preflight must accept that supported deployment shape and read the
     # package's canonical source version instead.
-    assert "from omlx_config._version import __version__" in argv[-1]
+    assert "from molto_config._version import __version__" in argv[-1]
     assert "package_version(n)" in argv[-1]
-    assert "import omlx_runtime.adapter.output_parser" in argv[-1]
+    assert "import molto_runtime.adapter.output_parser" in argv[-1]
     assert kwargs["timeout"] == 8.0
     assert kwargs["check"] is False
 
@@ -600,16 +602,16 @@ def test_local_runtime_version_ignores_stale_installed_metadata(monkeypatch):
 
     def stale_metadata(name):
         metadata_lookups.append(name)
-        if name == "omlx":
+        if name == "molto":
             return "0.0.0-stale"
         return real_version(name)
 
     monkeypatch.setattr(launch.importlib.metadata, "version", stale_metadata)
 
-    from omlx_config._version import __version__
+    from molto_config._version import __version__
 
-    assert launch._local_runtime_versions()["omlx"] == __version__
-    assert "omlx" not in metadata_lookups
+    assert launch._local_runtime_versions()["molto"] == __version__
+    assert "molto" not in metadata_lookups
 
 
 def test_remote_memory_probe_is_fast_and_uses_prompt_free_ssh():
@@ -626,7 +628,7 @@ def test_remote_memory_probe_is_fast_and_uses_prompt_free_ssh():
 
     ceiling = launch.probe_remote_admission_ceiling(
         "user@studio.local",
-        python_executable="/opt/omlx/bin/python",
+        python_executable="/opt/molto/bin/python",
         runner=runner,
     )
 
@@ -699,7 +701,7 @@ def test_remote_preflight_rejects_runtime_drift():
     with pytest.raises(DistributedLaunchError, match="runtime mismatch.*mlx"):
         preflight_remote_hosts(
             _deployment(),
-            python_executable="/opt/omlx/bin/python",
+            python_executable="/opt/molto/bin/python",
             runner=runner,
         )
 
@@ -722,7 +724,7 @@ def test_remote_preflight_requires_same_model_path():
     with pytest.raises(DistributedLaunchError, match="model directory is missing"):
         preflight_remote_hosts(
             _deployment("/models/nemotron"),
-            python_executable="/opt/omlx/bin/python",
+            python_executable="/opt/molto/bin/python",
             runner=runner,
         )
 
@@ -760,7 +762,7 @@ def test_remote_preflight_requires_matching_model_identity(
     with pytest.raises(DistributedLaunchError, match="model identity differs"):
         preflight_remote_hosts(
             _deployment(str(model)),
-            python_executable="/opt/omlx/bin/python",
+            python_executable="/opt/molto/bin/python",
             runner=runner,
         )
 
@@ -799,7 +801,7 @@ def test_remote_preflight_rejects_an_incomplete_rank_stage(
     with pytest.raises(DistributedLaunchError, match="model stage is incomplete"):
         preflight_remote_hosts(
             _deployment(str(model)),
-            python_executable="/opt/omlx/bin/python",
+            python_executable="/opt/molto/bin/python",
             runner=runner,
         )
 
@@ -811,7 +813,7 @@ def test_peer_probe_is_prompt_free_and_reports_runtime_compatibility():
         "protocol_version": "1.0",
         "node": {"hostname": "studio", "recommended_working_set_bytes": 123},
         "runtime": {
-            "omlx_version": versions["omlx"],
+            "molto_version": versions["molto"],
             "mlx_version": versions["mlx"],
             "mlx_lm_version": versions["mlx-lm"],
             "python_version": platform.python_version(),
@@ -833,7 +835,7 @@ def test_peer_probe_is_prompt_free_and_reports_runtime_compatibility():
     result = probe_remote_host(
         "user@studio.local",
         route_to="192.168.5.1",
-        python_executable="/opt/omlx/bin/python",
+        python_executable="/opt/molto/bin/python",
         runner=runner,
     )
 
@@ -853,7 +855,7 @@ def test_peer_probe_rejects_protocol_drift():
         "protocol_version": "future",
         "node": {},
         "runtime": {
-            "omlx_version": versions["omlx"],
+            "molto_version": versions["molto"],
             "mlx_version": versions["mlx"],
             "mlx_lm_version": versions["mlx-lm"],
             "python_version": platform.python_version(),
@@ -872,7 +874,7 @@ def test_peer_probe_rejects_protocol_drift():
     with pytest.raises(DistributedLaunchError, match="protocol mismatch"):
         probe_remote_host(
             "studio.local",
-            python_executable="/opt/omlx/bin/python",
+            python_executable="/opt/molto/bin/python",
             runner=runner,
         )
 
@@ -883,11 +885,11 @@ def test_peer_probe_discovers_a_different_linux_python_path():
         "protocol_version": CLUSTER_PROTOCOL_VERSION,
         "node": {"hostname": "spark-a"},
         "runtime": {
-            "omlx_version": versions["omlx"],
+            "molto_version": versions["molto"],
             "mlx_version": versions["mlx"],
             "mlx_lm_version": versions["mlx-lm"],
             "python_version": platform.python_version(),
-            "python_executable": "/opt/omlx/bin/python",
+            "python_executable": "/opt/molto/bin/python",
         },
         "transport": {},
     }
@@ -896,26 +898,26 @@ def test_peer_probe_discovers_a_different_linux_python_path():
     def runner(argv, **_kwargs):
         command = argv[-1]
         commands.append(command)
-        if "omlx.cli" in command and command.startswith("/opt/omlx/bin/python"):
+        if "molto.cli" in command and command.startswith("/opt/molto/bin/python"):
             return subprocess.CompletedProcess(argv, 0, json.dumps(status), "")
-        # Path-shaped candidates echo themselves (import os,omlx_runtime) so a
+        # Path-shaped candidates echo themselves (import os,molto_runtime) so a
         # launcher path survives discovery instead of being unwrapped to the
         # bare interpreter it fronts.
-        if "import os,omlx_runtime" in command and command.startswith(
-            "/opt/omlx/bin/python"
+        if "import os,molto_runtime" in command and command.startswith(
+            "/opt/molto/bin/python"
         ):
-            return subprocess.CompletedProcess(argv, 0, "/opt/omlx/bin/python\n", "")
+            return subprocess.CompletedProcess(argv, 0, "/opt/molto/bin/python\n", "")
         return subprocess.CompletedProcess(argv, 127, "", "not found")
 
     result = probe_remote_host(
         "spark-a.local",
-        python_executable="/Applications/oMLX/python",
+        python_executable="/Applications/Molto/python",
         runner=runner,
     )
 
     assert result["runtime_compatible"] is True
-    assert commands[-1].startswith("/opt/omlx/bin/python")
-    assert result["status"]["runtime"]["python_executable"] == ("/opt/omlx/bin/python")
+    assert commands[-1].startswith("/opt/molto/bin/python")
+    assert result["status"]["runtime"]["python_executable"] == ("/opt/molto/bin/python")
 
 
 def test_peer_probe_preserves_packaged_cluster_wrapper_path():
@@ -924,11 +926,11 @@ def test_peer_probe_preserves_packaged_cluster_wrapper_path():
         "protocol_version": CLUSTER_PROTOCOL_VERSION,
         "node": {"hostname": "studio"},
         "runtime": {
-            "omlx_version": versions["omlx"],
+            "molto_version": versions["molto"],
             "mlx_version": versions["mlx"],
             "mlx_lm_version": versions["mlx-lm"],
             "python_version": platform.python_version(),
-            "python_executable": "/Applications/oMLX.app/Contents/Python/python3",
+            "python_executable": "/Applications/Molto.app/Contents/Python/python3",
         },
         "transport": {},
     }
@@ -936,16 +938,16 @@ def test_peer_probe_preserves_packaged_cluster_wrapper_path():
     def runner(argv, **_kwargs):
         command = argv[-1]
         if (
-            command.startswith("~/.omlx/bin/omlx-cluster-python")
-            and "import os,omlx_runtime" in command
+            command.startswith("~/.molto/bin/molto-cluster-python")
+            and "import os,molto_runtime" in command
         ):
             return subprocess.CompletedProcess(
                 argv,
                 0,
-                "/Users/test/.omlx/bin/omlx-cluster-python\n",
+                "/Users/test/.molto/bin/molto-cluster-python\n",
                 "",
             )
-        if command.startswith("/Users/test/.omlx/bin/omlx-cluster-python"):
+        if command.startswith("/Users/test/.molto/bin/molto-cluster-python"):
             return subprocess.CompletedProcess(argv, 0, json.dumps(status), "")
         return subprocess.CompletedProcess(argv, 127, "", "not found")
 
@@ -957,7 +959,7 @@ def test_peer_probe_preserves_packaged_cluster_wrapper_path():
 
     assert result["runtime_compatible"] is True
     assert result["status"]["runtime"]["python_executable"] == (
-        "/Users/test/.omlx/bin/omlx-cluster-python"
+        "/Users/test/.molto/bin/molto-cluster-python"
     )
 
 
@@ -967,11 +969,11 @@ def test_remote_python_discovery_prefers_packaged_cluster_launcher():
     def runner(argv, **_kwargs):
         command = argv[-1]
         commands.append(command)
-        if command.startswith("~/.omlx/bin/omlx-cluster-python"):
+        if command.startswith("~/.molto/bin/molto-cluster-python"):
             return subprocess.CompletedProcess(
                 argv,
                 0,
-                "/Users/test/.omlx/bin/omlx-cluster-python\n",
+                "/Users/test/.molto/bin/molto-cluster-python\n",
                 "",
             )
         return subprocess.CompletedProcess(argv, 127, "", "not found")
@@ -982,7 +984,7 @@ def test_remote_python_discovery_prefers_packaged_cluster_launcher():
         runner=runner,
     )
 
-    assert discovered == "/Users/test/.omlx/bin/omlx-cluster-python"
+    assert discovered == "/Users/test/.molto/bin/molto-cluster-python"
     assert "os.path.expanduser" in commands[1]
 
 
@@ -992,11 +994,11 @@ def test_remote_python_discovery_falls_back_to_packaged_source_launcher():
     def runner(argv, **_kwargs):
         command = argv[-1]
         commands.append(command)
-        if command.startswith("~/.omlx/bin/omlx-source-python"):
+        if command.startswith("~/.molto/bin/molto-source-python"):
             return subprocess.CompletedProcess(
                 argv,
                 0,
-                "/Users/test/.omlx/bin/omlx-source-python\n",
+                "/Users/test/.molto/bin/molto-source-python\n",
                 "",
             )
         return subprocess.CompletedProcess(argv, 127, "", "not found")
@@ -1007,9 +1009,9 @@ def test_remote_python_discovery_falls_back_to_packaged_source_launcher():
         runner=runner,
     )
 
-    assert discovered == "/Users/test/.omlx/bin/omlx-source-python"
+    assert discovered == "/Users/test/.molto/bin/molto-source-python"
     assert any(
-        command.startswith("~/.omlx/bin/omlx-source-python") for command in commands
+        command.startswith("~/.molto/bin/molto-source-python") for command in commands
     )
 
 
@@ -1019,11 +1021,11 @@ def test_remote_python_discovery_finds_gui_bootstrapped_cuda_worker():
     def runner(argv, **_kwargs):
         command = argv[-1]
         commands.append(command)
-        if command.startswith("/opt/omlx-cluster-worker/venv/bin/python"):
+        if command.startswith("/opt/molto-cluster-worker/venv/bin/python"):
             return subprocess.CompletedProcess(
                 argv,
                 0,
-                "/opt/omlx-cluster-worker/venv/bin/python\n",
+                "/opt/molto-cluster-worker/venv/bin/python\n",
                 "",
             )
         return subprocess.CompletedProcess(argv, 127, "", "not found")
@@ -1034,9 +1036,9 @@ def test_remote_python_discovery_finds_gui_bootstrapped_cuda_worker():
         runner=runner,
     )
 
-    assert discovered == "/opt/omlx-cluster-worker/venv/bin/python"
+    assert discovered == "/opt/molto-cluster-worker/venv/bin/python"
     assert any(
-        command.startswith("/opt/omlx-cluster-worker/venv/bin/python")
+        command.startswith("/opt/molto-cluster-worker/venv/bin/python")
         for command in commands
     )
 
@@ -1090,7 +1092,7 @@ def test_preinstall_cuda_host_remains_visible_but_not_runnable():
         },
         "runtime": {
             "python_executable": "/usr/bin/python3",
-            "omlx_version": "",
+            "molto_version": "",
             "mlx_version": "",
             "mlx_lm_version": "",
         },
@@ -1111,11 +1113,11 @@ def test_preinstall_cuda_host_remains_visible_but_not_runnable():
             return subprocess.CompletedProcess(argv, 0, "/usr/bin/python3\n", "")
         if "worker_runtime_ready" in command:
             return subprocess.CompletedProcess(argv, 0, json.dumps(payload), "")
-        return subprocess.CompletedProcess(argv, 1, "", "No module named 'omlx'")
+        return subprocess.CompletedProcess(argv, 1, "", "No module named 'molto'")
 
     result = probe_remote_system_host(
         "cuda-worker-1",
-        preferred_python="/Applications/oMLX/python",
+        preferred_python="/Applications/Molto/python",
         runner=runner,
     )
 
@@ -1133,7 +1135,7 @@ def test_peer_probe_falls_back_to_preinstall_hardware_inventory(monkeypatch):
         "ssh_reachable": True,
         "status": {"node": {"accelerator": "cuda"}},
         "runtime_compatible": False,
-        "runtime_mismatches": ["oMLX worker runtime is not installed"],
+        "runtime_mismatches": ["Molto worker runtime is not installed"],
         "bootstrap_required": True,
     }
     monkeypatch.setattr(
@@ -1151,9 +1153,9 @@ def test_peer_probe_falls_back_to_preinstall_hardware_inventory(monkeypatch):
 
     result = probe_remote_host(
         "cuda-worker-1",
-        python_executable="/Applications/oMLX/python",
+        python_executable="/Applications/Molto/python",
         runner=lambda argv, **_kwargs: subprocess.CompletedProcess(
-            argv, 1, "", "No module named 'omlx'"
+            argv, 1, "", "No module named 'molto'"
         ),
     )
 
@@ -1167,16 +1169,16 @@ def test_peer_probe_keeps_legacy_packaged_worker_visible(monkeypatch):
         "ssh_reachable": True,
         "status": {
             "node": {"accelerator": "metal"},
-            "warnings": ["oMLX worker runtime is not installed on this node."],
+            "warnings": ["Molto worker runtime is not installed on this node."],
         },
         "runtime_compatible": False,
-        "runtime_mismatches": ["oMLX worker runtime is not installed"],
+        "runtime_mismatches": ["Molto worker runtime is not installed"],
         "bootstrap_required": True,
     }
     monkeypatch.setattr(
         launch,
         "discover_remote_python_executable",
-        lambda *_args, **_kwargs: "/Users/test/.omlx/bin/omlx-source-python",
+        lambda *_args, **_kwargs: "/Users/test/.molto/bin/molto-source-python",
     )
     monkeypatch.setattr(
         launch,
@@ -1191,17 +1193,17 @@ def test_peer_probe_keeps_legacy_packaged_worker_visible(monkeypatch):
             argv,
             2,
             "",
-            "omlx: error: invalid choice: 'cluster'",
+            "molto: error: invalid choice: 'cluster'",
         ),
     )
 
     assert result["ssh_reachable"] is True
     assert result["runtime_compatible"] is False
     assert result["runtime_mismatches"] == [
-        "installed oMLX worker does not support the cluster protocol"
+        "installed Molto worker does not support the cluster protocol"
     ]
     assert result["status"]["warnings"] == [
-        "Update the installed oMLX worker to enable cluster execution."
+        "Update the installed Molto worker to enable cluster execution."
     ]
 
 
@@ -1210,17 +1212,17 @@ def test_peer_probe_keeps_legacy_packaged_worker_visible(monkeypatch):
 # The coordinator runs inside the .app, so sys.executable is the bundled
 # interpreter.  That exact path exists on the peer too and is therefore tried
 # first, but without the launcher's PYTHONHOME/PYTHONPATH it cannot import
-# omlx.  The peer was then declared "worker runtime is not installed" while the
+# molto.  The peer was then declared "worker runtime is not installed" while the
 # app sat in /Applications.  These reproduce the reported host exactly.
 
 _BUNDLED_PYTHON = (
-    "/Applications/oMLX.app/Contents/Resources/Python/cpython-3.11/bin/python3.11"
+    "/Applications/Molto.app/Contents/Resources/Python/cpython-3.11/bin/python3.11"
 )
-_PEER_SHIM = "/Users/test/.omlx/bin/omlx-cluster-python"
+_PEER_SHIM = "/Users/test/.molto/bin/molto-cluster-python"
 
 
 def _packaged_app_peer_runner(status: dict) -> tuple[list[str], object]:
-    """A peer where only the shipped cluster shim can import oMLX."""
+    """A peer where only the shipped cluster shim can import Molto."""
 
     commands: list[str] = []
 
@@ -1229,9 +1231,9 @@ def _packaged_app_peer_runner(status: dict) -> tuple[list[str], object]:
         commands.append(command)
         if command.startswith(_BUNDLED_PYTHON):
             return subprocess.CompletedProcess(
-                argv, 1, "", "ModuleNotFoundError: No module named 'omlx'"
+                argv, 1, "", "ModuleNotFoundError: No module named 'molto'"
             )
-        if command.startswith("~/.omlx/bin/omlx-cluster-python"):
+        if command.startswith("~/.molto/bin/molto-cluster-python"):
             return subprocess.CompletedProcess(argv, 0, f"{_PEER_SHIM}\n", "")
         if command.startswith(_PEER_SHIM):
             return subprocess.CompletedProcess(argv, 0, json.dumps(status), "")
@@ -1246,7 +1248,7 @@ def test_packaged_app_peer_is_runtime_ready_without_a_hand_made_shim():
         "protocol_version": CLUSTER_PROTOCOL_VERSION,
         "node": {"hostname": "studio", "distributed_backends": ["ring", "jaccl"]},
         "runtime": {
-            "omlx_version": versions["omlx"],
+            "molto_version": versions["molto"],
             "mlx_version": versions["mlx"],
             "mlx_lm_version": versions["mlx-lm"],
             "python_version": platform.python_version(),
@@ -1324,7 +1326,7 @@ def test_admission_ceiling_probe_rediscovers_when_the_known_interpreter_broke():
 def test_admission_ceiling_probe_reports_the_original_failure_when_no_peer_python():
     def runner(argv, **_kwargs):
         return subprocess.CompletedProcess(
-            argv, 1, "", "ModuleNotFoundError: No module named 'omlx'"
+            argv, 1, "", "ModuleNotFoundError: No module named 'molto'"
         )
 
     with pytest.raises(DistributedLaunchError, match="memory ceiling probe failed"):
@@ -1347,7 +1349,7 @@ def _system_probe_runner(payload: dict, *, evidence: list[str]):
             body = json.loads(json.dumps(payload))
             body["node"]["worker_runtime_evidence"] = evidence
             return subprocess.CompletedProcess(argv, 0, json.dumps(body), "")
-        return subprocess.CompletedProcess(argv, 1, "", "No module named 'omlx'")
+        return subprocess.CompletedProcess(argv, 1, "", "No module named 'molto'")
 
     return runner
 
@@ -1370,25 +1372,27 @@ def test_preinstall_inventory_confirms_a_genuinely_absent_runtime():
 
     assert result["bootstrap_required"] is True
     assert result["runtime_compatible"] is False
-    assert result["runtime_mismatches"] == ["oMLX worker runtime is not installed"]
+    assert result["runtime_mismatches"] == ["Molto worker runtime is not installed"]
     assert result["worker_runtime_evidence"] == []
 
 
-def test_preinstall_inventory_will_not_claim_missing_when_omlx_is_installed():
+def test_preinstall_inventory_will_not_claim_missing_when_molto_is_installed():
     result = probe_remote_system_host(
         "studio",
         preferred_python=_BUNDLED_PYTHON,
         runner=_system_probe_runner(
-            _SYSTEM_PROBE_PAYLOAD, evidence=["/Applications/oMLX.app"]
+            _SYSTEM_PROBE_PAYLOAD, evidence=["/Applications/Molto.app"]
         ),
     )
 
     assert result["bootstrap_required"] is True
     assert result["runtime_compatible"] is False
-    assert result["runtime_mismatches"] == ["oMLX worker runtime could not be verified"]
-    assert result["worker_runtime_evidence"] == ["/Applications/oMLX.app"]
+    assert result["runtime_mismatches"] == [
+        "Molto worker runtime could not be verified"
+    ]
+    assert result["worker_runtime_evidence"] == ["/Applications/Molto.app"]
     assert result["status"]["warnings"] == [
-        "oMLX is installed on this node but its worker runtime could not be run."
+        "Molto is installed on this node but its worker runtime could not be run."
     ]
 
 
@@ -1396,13 +1400,13 @@ def test_preinstall_probe_measures_installation_instead_of_hardcoding_it():
     """The script itself must look; the verdict is not a constant."""
 
     assert "worker_runtime_evidence" in launch._REMOTE_SYSTEM_PROBE
-    assert "/Applications/oMLX.app" in launch._REMOTE_SYSTEM_PROBE
-    assert ".omlx/bin/omlx" in launch._REMOTE_SYSTEM_PROBE
+    assert "/Applications/Molto.app" in launch._REMOTE_SYSTEM_PROBE
+    assert ".molto/bin/molto" in launch._REMOTE_SYSTEM_PROBE
     assert "find_spec" in launch._REMOTE_SYSTEM_PROBE
 
 
 def test_preinstall_probe_reports_its_own_failures_on_stderr():
-    """A swallowed error here reads as 'oMLX is absent'. Say what broke.
+    """A swallowed error here reads as 'Molto is absent'. Say what broke.
 
     stdout carries the JSON the caller parses, so diagnostics must go to
     stderr or they corrupt the payload.
@@ -1416,18 +1420,18 @@ def test_preinstall_probe_reports_its_own_failures_on_stderr():
     assert body.count("except ") == body.count("note(")
     assert "except (OSError, ValueError) as exc" in body
     assert "cannot test %s" in body
-    assert "cannot look up the omlx package" in body
+    assert "cannot look up the molto package" in body
     assert "sys.stderr.write" in script
 
 
 def test_preinstall_probe_keeps_stdout_clean_when_every_lookup_fails():
-    """Run the real script under an interpreter that cannot import omlx."""
+    """Run the real script under an interpreter that cannot import molto."""
 
     completed = subprocess.run(
         [sys.executable, "-c", launch._REMOTE_SYSTEM_PROBE],
         capture_output=True,
         text=True,
-        env={"PATH": "/usr/bin:/bin", "HOME": "/nonexistent-omlx-home"},
+        env={"PATH": "/usr/bin:/bin", "HOME": "/nonexistent-molto-home"},
     )
 
     assert completed.returncode == 0, completed.stderr
@@ -1501,7 +1505,7 @@ def _worker_argv(deployment: ClusterDeployment, tmp_path) -> list[str]:
         hostfile=(tmp_path / "hosts.json").resolve(),
         api_port=32100,
         collective_port=32120,
-        python_executable="/opt/omlx/bin/python",
+        python_executable="/opt/molto/bin/python",
     )
     return argv[argv.index("--") + 1 :]
 
@@ -1509,8 +1513,8 @@ def _worker_argv(deployment: ClusterDeployment, tmp_path) -> list[str]:
 def _parsed_plan(deployment: ClusterDeployment, tmp_path):
     """Decode the plan exactly as a rank does: parser first, then --plan."""
 
-    from omlx_runtime.cluster.deployment import decode_worker_contract
-    from omlx_runtime.cluster.inference_worker import build_parser
+    from molto_runtime.cluster.deployment import decode_worker_contract
+    from molto_runtime.cluster.inference_worker import build_parser
 
     worker_argv = _worker_argv(deployment, tmp_path)
     # argv[0..2] are the interpreter, -m and the module; argparse sees the rest.
@@ -1520,7 +1524,7 @@ def _parsed_plan(deployment: ClusterDeployment, tmp_path):
 
 
 def test_prompt_cache_ssd_reaches_the_rank_and_scopes_its_directory(tmp_path):
-    from omlx_runtime.cluster.inference_worker import _prompt_cache_ssd_dir
+    from molto_runtime.cluster.inference_worker import _prompt_cache_ssd_dir
 
     deployment = _deployment()
     args, _plan_hash, _assignments = _parsed_plan(deployment, tmp_path)
@@ -1542,7 +1546,7 @@ def test_prompt_cache_ssd_reaches_the_rank_and_scopes_its_directory(tmp_path):
 def test_prompt_cache_ssd_can_be_turned_off(tmp_path):
     from types import SimpleNamespace
 
-    from omlx_runtime.cluster.inference_worker import _prompt_cache_ssd_dir
+    from molto_runtime.cluster.inference_worker import _prompt_cache_ssd_dir
 
     off = SimpleNamespace(
         prompt_cache_ssd=False, state_dir=str(tmp_path), deployment_id="d"
@@ -1586,8 +1590,8 @@ def test_the_launched_argv_resolves_a_different_budget_for_each_rank(tmp_path):
     working on, from nothing but the argv the launcher produced.
     """
 
-    from omlx_runtime.cluster.memory_guard import admission_budget
-    from omlx_runtime.cluster.node_role import HEADLESS, WORKSTATION, role_for
+    from molto_runtime.cluster.memory_guard import admission_budget
+    from molto_runtime.cluster.node_role import HEADLESS, WORKSTATION, role_for
 
     _args, _plan_hash, assignments = _parsed_plan(_mixed_role_deployment(), tmp_path)
 
@@ -1616,12 +1620,12 @@ def test_the_stage_that_took_the_macbook_down_is_refused_off_the_launched_argv(
     here supplies a role by hand; it comes out of the argv.
     """
 
-    from omlx_runtime.cluster.memory_guard import (
+    from molto_runtime.cluster.memory_guard import (
         admission_budget,
         check_rank_fits,
         load_peak_bytes,
     )
-    from omlx_runtime.exceptions import InsufficientMemoryError
+    from molto_runtime.exceptions import InsufficientMemoryError
 
     _args, _plan_hash, assignments = _parsed_plan(_mixed_role_deployment(), tmp_path)
     macbook = assignments[0]
@@ -1664,7 +1668,7 @@ def test_the_stage_that_took_the_macbook_down_is_refused_off_the_launched_argv(
 def test_a_plan_with_no_role_still_launches_and_reads_as_headless(tmp_path):
     """Older plans, and callers that never chose: unchanged behaviour."""
 
-    from omlx_runtime.cluster.node_role import HEADLESS, role_for
+    from molto_runtime.cluster.node_role import HEADLESS, role_for
 
     _args, _plan_hash, assignments = _parsed_plan(_deployment(), tmp_path)
 
@@ -1682,8 +1686,8 @@ def test_a_planned_workstation_reaches_the_rank_as_a_workstation(tmp_path):
     other stayed invisible.
     """
 
-    from omlx_runtime.cluster.node_role import HEADLESS, WORKSTATION, role_for
-    from omlx_runtime.cluster.planner import (
+    from molto_runtime.cluster.node_role import HEADLESS, WORKSTATION, role_for
+    from molto_runtime.cluster.planner import (
         ModelLayout,
         NodeBudget,
         plan_unequal_pipeline,
@@ -1758,13 +1762,13 @@ def test_supervisor_reaps_remote_ranks_via_ssh_sigterm(monkeypatch, tmp_path):
 
     monkeypatch.setattr(launch, "_run_cluster_ssh", fake_ssh)
 
-    marker_dir = tmp_path / ".omlx" / "cluster" / "runtime"
+    marker_dir = tmp_path / ".molto" / "cluster" / "runtime"
     marker_dir.mkdir(parents=True)
     marker_file = marker_dir / "cluster-test-rank-1.json"
 
     victim_code = (
         "import sys, time\n"
-        "sys.argv = ['omlx_runtime.cluster.inference_worker', '--deployment-id', 'cluster-test']\n"
+        "sys.argv = ['molto_runtime.cluster.inference_worker', '--deployment-id', 'cluster-test']\n"
         "time.sleep(30)\n"
     )
     victim = subprocess.Popen(
@@ -1827,14 +1831,14 @@ def test_supervisor_reaps_remote_ranks_escalates_to_sigkill(monkeypatch, tmp_pat
 
     monkeypatch.setattr(launch, "_run_cluster_ssh", fake_ssh)
 
-    marker_dir = tmp_path / ".omlx" / "cluster" / "runtime"
+    marker_dir = tmp_path / ".molto" / "cluster" / "runtime"
     marker_dir.mkdir(parents=True)
     marker_file = marker_dir / "cluster-test-rank-1.json"
 
     # Process that ignores SIGTERM
     victim_code = (
         "import sys, signal, time\n"
-        "sys.argv = ['omlx_runtime.cluster.inference_worker', '--deployment-id', 'cluster-test']\n"
+        "sys.argv = ['molto_runtime.cluster.inference_worker', '--deployment-id', 'cluster-test']\n"
         "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
         "time.sleep(30)\n"
     )
@@ -1895,7 +1899,7 @@ def test_supervisor_reap_rejects_pid_reuse_command_mismatch(monkeypatch, tmp_pat
 
     monkeypatch.setattr(launch, "_run_cluster_ssh", fake_ssh)
 
-    marker_dir = tmp_path / ".omlx" / "cluster" / "runtime"
+    marker_dir = tmp_path / ".molto" / "cluster" / "runtime"
     marker_dir.mkdir(parents=True)
     marker_file = marker_dir / "cluster-test-rank-1.json"
 
@@ -1951,13 +1955,13 @@ def test_supervisor_reap_rejects_mismatched_deployment_or_plan(monkeypatch, tmp_
 
     monkeypatch.setattr(launch, "_run_cluster_ssh", fake_ssh)
 
-    marker_dir = tmp_path / ".omlx" / "cluster" / "runtime"
+    marker_dir = tmp_path / ".molto" / "cluster" / "runtime"
     marker_dir.mkdir(parents=True)
     marker_file = marker_dir / "cluster-test-rank-1.json"
 
     victim_code = (
         "import sys, time\n"
-        "sys.argv = ['omlx_runtime.cluster.inference_worker', '--deployment-id', 'cluster-test']\n"
+        "sys.argv = ['molto_runtime.cluster.inference_worker', '--deployment-id', 'cluster-test']\n"
         "time.sleep(30)\n"
     )
     victim = subprocess.Popen(
@@ -2208,7 +2212,7 @@ def test_teardown_sweep_kills_leftover_local_rank_by_marker_pid(tmp_path, monkey
         424242,
         "S",
         1024,
-        "python -m omlx_runtime.cluster.inference_worker --deployment-id cluster-test",
+        "python -m molto_runtime.cluster.inference_worker --deployment-id cluster-test",
     )
     monkeypatch.setattr(
         launch,
@@ -2256,7 +2260,7 @@ def test_teardown_sweep_reports_an_unkillable_rank(tmp_path, monkeypatch):
         424242,
         "D",
         1024,
-        "python -m omlx_runtime.cluster.inference_worker --deployment-id cluster-test",
+        "python -m molto_runtime.cluster.inference_worker --deployment-id cluster-test",
     )
     monkeypatch.setattr(
         launch,
@@ -2369,7 +2373,7 @@ def test_reap_orphaned_launches_reaps_ranks_of_a_dead_coordinator(
         424243,
         "S",
         1024,
-        "python -m omlx_runtime.cluster.inference_worker --deployment-id cluster-test",
+        "python -m molto_runtime.cluster.inference_worker --deployment-id cluster-test",
     )
     monkeypatch.setattr(
         launch,

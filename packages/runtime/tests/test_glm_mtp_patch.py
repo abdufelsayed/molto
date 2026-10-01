@@ -6,8 +6,8 @@ import sys
 import mlx.core as mx
 import mlx.utils as mu
 import pytest
-from omlx_runtime.patches.glm_moe_dsa import apply_glm_moe_dsa_patch
-from omlx_runtime.patches.mlx_lm_mtp import apply_mlx_lm_mtp_patch, set_mtp_active
+from molto_runtime.patches.glm_moe_dsa import apply_glm_moe_dsa_patch
+from molto_runtime.patches.mlx_lm_mtp import apply_mlx_lm_mtp_patch, set_mtp_active
 
 
 @pytest.fixture(scope="module")
@@ -224,7 +224,7 @@ class TestQuantInference:
         return glm.Model(args), cfg["quantization"]
 
     def test_inferred_override_published(self, glm, mtp_active):
-        from omlx_runtime.patches.mlx_lm_mtp.glm_moe_dsa_model import (
+        from molto_runtime.patches.mlx_lm_mtp.glm_moe_dsa_model import (
             _infer_mtp_quant_overrides,
         )
 
@@ -241,7 +241,7 @@ class TestQuantInference:
         assert quant[self.DP] == {"group_size": 32, "bits": 3, "mode": "affine"}
 
     def test_global_matching_module_not_written(self, glm, mtp_active):
-        from omlx_runtime.patches.mlx_lm_mtp.glm_moe_dsa_model import (
+        from molto_runtime.patches.mlx_lm_mtp.glm_moe_dsa_model import (
             _infer_mtp_quant_overrides,
         )
 
@@ -256,7 +256,7 @@ class TestQuantInference:
         assert self.DP not in quant
 
     def test_existing_override_and_bogus_path_untouched(self, glm, mtp_active):
-        from omlx_runtime.patches.mlx_lm_mtp.glm_moe_dsa_model import (
+        from molto_runtime.patches.mlx_lm_mtp.glm_moe_dsa_model import (
             _infer_mtp_quant_overrides,
         )
 
@@ -299,16 +299,16 @@ class TestModelInit:
         args = glm.ModelArgs.from_dict(TINY_CFG)
         model = glm.Model(args)
         assert hasattr(model, "mtp") and len(model.mtp) == 1
-        assert model._omlx_mtp_decode_enabled
-        assert model._omlx_mtp_chain
-        assert model._omlx_mtp_head_clone is False
+        assert model._molto_mtp_decode_enabled
+        assert model._molto_mtp_chain
+        assert model._molto_mtp_head_clone is False
 
     def test_mtp_skipped_when_inactive(self, glm):
         set_mtp_active(False)
         args = glm.ModelArgs.from_dict(TINY_CFG)
         model = glm.Model(args)
         assert not hasattr(model, "mtp")
-        assert model._omlx_mtp_decode_enabled is False
+        assert model._molto_mtp_decode_enabled is False
 
 
 class TestSanitize:
@@ -371,7 +371,7 @@ class TestSanitize:
         model2 = glm.Model(args)
         out = model2.sanitize(stripped)
         assert not hasattr(model2, "mtp")
-        assert model2._omlx_mtp_decode_enabled is False
+        assert model2._molto_mtp_decode_enabled is False
         model2.load_weights(list(out.items()), strict=True)
 
 
@@ -502,7 +502,7 @@ class TestForward:
         mx.eval(lg2)
         assert mtp_cache[0].offset == 5
 
-        from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _mtp_head_trim_to
+        from molto_runtime.patches.mlx_lm_mtp.batch_generator import _mtp_head_trim_to
 
         _mtp_head_trim_to(mtp_cache, 4)
         assert mtp_cache[0].offset == 4 and mtp_cache[1].offset == 4
@@ -536,7 +536,7 @@ class TestForward:
 class TestSmallLRouting:
     def test_absorbed_matches_materialized(self, glm, mtp_active, strict_math_device):
         """The widened L<=8 absorbed path equals the legacy materialize path."""
-        import omlx_runtime.patches.glm_moe_dsa.glm_moe_dsa_model as gm
+        import molto_runtime.patches.glm_moe_dsa.glm_moe_dsa_model as gm
         from mlx_lm.models.base import create_attention_mask
         from mlx_lm.models.cache import KVCache
 
@@ -574,7 +574,7 @@ class TestSmallLRouting:
     ):
         """With the DSA indexer active (K > index_topk), the decode-shape
         per-row gather path must equal the legacy masked full-K path."""
-        import omlx_runtime.patches.glm_moe_dsa.glm_moe_dsa_model as gm
+        import molto_runtime.patches.glm_moe_dsa.glm_moe_dsa_model as gm
         from mlx_lm.models.base import create_attention_mask
         from mlx_lm.models.cache import KVCache
 

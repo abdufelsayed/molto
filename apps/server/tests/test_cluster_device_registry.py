@@ -3,7 +3,7 @@
 import stat
 
 import pytest
-from omlx_runtime.cluster.registry import (
+from molto_runtime.cluster.registry import (
     DeviceRegistry,
     configure_device_registry,
     get_device_registry,

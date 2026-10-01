@@ -28,8 +28,8 @@ def strict_math_device():
 
 @pytest.fixture(scope="module")
 def runtime():
-    from omlx_runtime.patches.mlx_lm_mtp import set_mtp_active, set_mtp_depth
-    from omlx_runtime.patches.mlx_vlm_mtp import inkling_vlm_runtime
+    from molto_runtime.patches.mlx_lm_mtp import set_mtp_active, set_mtp_depth
+    from molto_runtime.patches.mlx_vlm_mtp import inkling_vlm_runtime
 
     assert inkling_vlm_runtime.apply()
     set_mtp_active(True)
@@ -124,14 +124,14 @@ def test_config_plumb_and_attach(runtime):
     model = _mtp_language_model()
     assert hasattr(model, "mtp")
     assert len(model.mtp.blocks) == 3
-    assert model._omlx_mtp_decode_enabled
-    assert model._omlx_mtp_chain
-    assert model._omlx_mtp_head_prenorm
+    assert model._molto_mtp_decode_enabled
+    assert model._molto_mtp_chain
+    assert model._molto_mtp_head_prenorm
     # No per-cycle clone and no row-wise batch path: provisional rows live
     # on the persistent caches and the next fold trims them.
-    assert model._omlx_mtp_head_clone is False
-    assert model._omlx_mtp_rowwise_unsupported is True
-    assert model._omlx_mtp_depth == 3  # clamped to the shipped block count
+    assert model._molto_mtp_head_clone is False
+    assert model._molto_mtp_rowwise_unsupported is True
+    assert model._molto_mtp_depth == 3  # clamped to the shipped block count
     assert all(
         hasattr(block.transformer_block.self_attn, "qkvr_proj")
         for block in model.mtp.blocks
@@ -329,7 +329,7 @@ def test_prompt_priming_capture_and_take(runtime):
     """Chunked prefill captures the pair window (no head forwards); at
     activation mtp_take_primed folds every block with the lag invariant
     end_j = F - j."""
-    from omlx_runtime.patches.mlx_lm_mtp import prompt_priming
+    from molto_runtime.patches.mlx_lm_mtp import prompt_priming
 
     model = _mtp_language_model()
     cache = model.make_cache()
@@ -355,7 +355,7 @@ def test_prompt_priming_capture_and_take(runtime):
     assert hist == 12  # 11 prompt pairs + seam pair
     assert head_cache.frontier == 12
     assert head_cache.base == [0] * len(head_cache)
-    for j in range(model._omlx_mtp_depth):
+    for j in range(model._molto_mtp_depth):
         assert head_cache[j][0].offset == 12 - j, f"block {j} lag broken"
 
     # The primed cache must drive a normal cycle.
@@ -374,9 +374,9 @@ def test_prompt_priming_capture_and_take(runtime):
 def test_prompt_priming_window_slides(runtime, monkeypatch):
     """Prompts longer than the priming window slide chunks out instead of
     invalidating the context."""
-    from omlx_runtime.patches.mlx_lm_mtp import prompt_priming
+    from molto_runtime.patches.mlx_lm_mtp import prompt_priming
 
-    monkeypatch.setenv("OMLX_INKLING_MTP_PRIME_WINDOW", "8")
+    monkeypatch.setenv("MOLTO_INKLING_MTP_PRIME_WINDOW", "8")
     model = _mtp_language_model()
     cache = model.make_cache()
     ids = mx.array([[(i * 3 + 1) % 128 for i in range(18)]])
@@ -395,7 +395,7 @@ def test_prompt_priming_window_slides(runtime, monkeypatch):
     w_eff = 8
     assert hist == ctx.total + 1
     assert all(b == hist - w_eff for b in head_cache.base)
-    for j in range(model._omlx_mtp_depth):
+    for j in range(model._molto_mtp_depth):
         assert head_cache[j][0].offset == w_eff - j
 
 
@@ -403,7 +403,7 @@ def test_keepalive_refolds_lagging_blocks(runtime):
     """A shallow cruise lets deep blocks lag; once the lag crosses the
     threshold the next fold refolds every reachable block from the ring
     (no clamp, honest deep probes afterwards)."""
-    from omlx_runtime.patches.mlx_vlm_mtp.inkling_vlm_runtime import _KEEPALIVE_LAG
+    from molto_runtime.patches.mlx_vlm_mtp.inkling_vlm_runtime import _KEEPALIVE_LAG
 
     model = _mtp_language_model()
     cache = model.make_mtp_cache()
@@ -488,7 +488,7 @@ def test_keepalive_resets_unreachable_block(runtime):
 
 
 def test_controller_observe_time_sample_gate():
-    from omlx_runtime.patches.mlx_lm_mtp.batch_generator import _DepthController
+    from molto_runtime.patches.mlx_lm_mtp.batch_generator import _DepthController
 
     c = _DepthController(4)
     c._warmup = []

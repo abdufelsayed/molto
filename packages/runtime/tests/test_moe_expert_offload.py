@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for MoE expert offloading (omlx/patches/moe_expert_offload.py).
+"""Tests for MoE expert offloading (molto/patches/moe_expert_offload.py).
 
 Assertion policy (measured against the pinned mlx-lm, see module docstring):
 decode and unsorted/chunked prefill are BIT-EXACT at any residency; the
@@ -27,7 +27,7 @@ except ImportError:
 pytestmark = pytest.mark.skipif(not HAS_MLX, reason="MLX not available")
 
 if HAS_MLX:
-    from omlx_runtime.patches.moe_expert_offload import (
+    from molto_runtime.patches.moe_expert_offload import (
         CheckpointExpertStore,
         OffloadSwitchGLU,
         _io_pool,
@@ -165,7 +165,7 @@ class TestApplyAndForward:
         wrapped layer and leave its arrays evaluated."""
         import threading
 
-        from omlx_runtime.patches.moe_expert_offload import materialize_offload_state
+        from molto_runtime.patches.moe_expert_offload import materialize_offload_state
 
         holder = {}
 
@@ -285,7 +285,7 @@ class TestApplyAndForward:
     def test_padded_prefill_on_concurrent_streams(self, tmp_path, monkeypatch):
         from concurrent.futures import ThreadPoolExecutor
 
-        from omlx_runtime.patches import moe_expert_offload as offload
+        from molto_runtime.patches import moe_expert_offload as offload
 
         glu = _make_glu(seed=42)
         _save_checkpoint(tmp_path, _glu_tensors(glu, "layers.0.experts.switch_glu"))
@@ -506,7 +506,7 @@ class TestApplyAndForward:
         """Offload-aware admission: expert bytes scale by the resident
         fraction; non-expert bytes are untouched; failures fall back to the
         plain size."""
-        from omlx_runtime.patches.moe_expert_offload import (
+        from molto_runtime.patches.moe_expert_offload import (
             estimate_offload_admission_bytes,
         )
 
@@ -533,7 +533,7 @@ class TestApplyAndForward:
         """Layouts the wrapper rejects must discount nothing: the estimate
         may never promise savings that wrap zero layers (reported on the
         carry PR: a w1/w2/w3 checkpoint estimated at 44% of full size)."""
-        from omlx_runtime.patches.moe_expert_offload import (
+        from molto_runtime.patches.moe_expert_offload import (
             estimate_offload_admission_bytes,
         )
 
@@ -554,7 +554,7 @@ class TestApplyAndForward:
         verifies every expert's tensors, so a container with any incomplete
         expert wraps zero layers and must discount nothing (reported: 1
         complete + 31 gate-only experts estimated at 97% of full size)."""
-        from omlx_runtime.patches.moe_expert_offload import (
+        from molto_runtime.patches.moe_expert_offload import (
             estimate_offload_admission_bytes,
         )
 
@@ -578,7 +578,7 @@ class TestApplyAndForward:
     def test_admission_estimate_per_expert_complete_discounts(self, tmp_path):
         """Control: a fully-complete per-expert container discounts with the
         capacity floor (16 experts at 0.25 -> capacity 8 -> 50% resident)."""
-        from omlx_runtime.patches.moe_expert_offload import (
+        from molto_runtime.patches.moe_expert_offload import (
             estimate_offload_admission_bytes,
         )
 
@@ -600,7 +600,7 @@ class TestApplyAndForward:
 
     def test_admission_estimate_unquantized_discounts_nothing(self, tmp_path):
         """No scales -> the wrapper skips the layer -> no discount."""
-        from omlx_runtime.patches.moe_expert_offload import (
+        from molto_runtime.patches.moe_expert_offload import (
             estimate_offload_admission_bytes,
         )
 
@@ -616,7 +616,7 @@ class TestApplyAndForward:
 
     def test_kill_switch(self, tmp_path, monkeypatch):
         model, _ = self._wrapped_model(tmp_path)
-        monkeypatch.setenv("OMLX_MOE_EXPERT_OFFLOAD", "0")
+        monkeypatch.setenv("MOLTO_MOE_EXPERT_OFFLOAD", "0")
         assert apply_moe_expert_offload(model, tmp_path, 0.25) == 0
         assert type(model.layers[0].experts.switch_glu) is SwitchGLU
 
@@ -643,9 +643,9 @@ class TestParallelFetch:
 
     def _wrap(self, tmp_path, glu, workers, monkeypatch, fraction=0.25):
         if workers is None:
-            monkeypatch.delenv("OMLX_MOE_OFFLOAD_IO_WORKERS", raising=False)
+            monkeypatch.delenv("MOLTO_MOE_OFFLOAD_IO_WORKERS", raising=False)
         else:
-            monkeypatch.setenv("OMLX_MOE_OFFLOAD_IO_WORKERS", workers)
+            monkeypatch.setenv("MOLTO_MOE_OFFLOAD_IO_WORKERS", workers)
         _shutdown_io_pool()
         model = _MiniMoE([glu])
         assert apply_moe_expert_offload(model, tmp_path, fraction) == 1
@@ -778,7 +778,7 @@ class TestParallelFetch:
     def test_single_expert_window_keeps_reads_on_pool(self, tmp_path, monkeypatch):
         glu = _make_glu(seed=10)
         _save_checkpoint(tmp_path, _glu_tensors(glu, "layers.0.experts.switch_glu"))
-        monkeypatch.setenv("OMLX_MOE_OFFLOAD_IO_BATCH", "1")
+        monkeypatch.setenv("MOLTO_MOE_OFFLOAD_IO_BATCH", "1")
         _, cache = self._wrap(tmp_path, glu, "4", monkeypatch)
         read = CheckpointExpertStore.read
         threads = []
@@ -818,7 +818,7 @@ class TestParallelFetch:
         buffering a whole layer's expert table in host memory."""
         glu = _make_glu(seed=7)
         _save_checkpoint(tmp_path, _glu_tensors(glu, "layers.0.experts.switch_glu"))
-        monkeypatch.setenv("OMLX_MOE_OFFLOAD_IO_BATCH", "4")
+        monkeypatch.setenv("MOLTO_MOE_OFFLOAD_IO_BATCH", "4")
         real_read, real_to_mx = CheckpointExpertStore.read, CheckpointExpertStore.to_mx
         lock = threading.Lock()
         live = {"now": 0, "peak": 0}
@@ -920,7 +920,7 @@ def test_qwen38_flash_next_routing_and_eviction(tmp_path, length, batch):
     import json
     from types import SimpleNamespace
 
-    from omlx_runtime.patches.mlx_vlm_qwen4_exp_compat import (
+    from molto_runtime.patches.mlx_vlm_qwen4_exp_compat import (
         apply_mlx_vlm_qwen4_exp_compat_patch,
     )
 

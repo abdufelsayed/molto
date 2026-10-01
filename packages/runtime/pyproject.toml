@@ -9,12 +9,12 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "omlx-runtime"
-version = "0.7.0rc1"
+name = "molto-runtime"
+version = "0.1.0.dev0"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-  "omlx-config",
-  "omlx-contracts",
+  "molto-config",
+  "molto-contracts",
   "pydantic>=2",
   "mlx==0.32.2",
   "mlx-lm @ git+https://github.com/ml-explore/mlx-lm@872ae88d1fac77350db23c8c04fe8dd372a9e3e8",
@@ -68,19 +68,23 @@ image = ["mflux>=0.20.0,<0.21"]
 paroquant = ["paroquant==0.1.16; python_version >= '3.11'"]
 
 [tool.setuptools.package-data]
-omlx_runtime = [
+molto_runtime = [
   "oq_calibration_data.json",
   "oqe_calibration_data.json",
   "diagnostics/bench_corpora/*",
   "_version_sources.json",
 ]
-"omlx_runtime.eval" = ["data/*.jsonl"]
-"omlx_runtime.patches.deepseek_v41" = ["LICENSE"]
-"omlx_runtime.custom_kernels.bonsai" = ["*.metallib", "*.dylib", "*.so"]
-"omlx_runtime.custom_kernels.glm_moe_dsa" = ["*.metallib", "*.dylib", "*.so"]
-"omlx_runtime.custom_kernels.decode_fast" = ["*.metallib", "*.dylib", "*.so"]
-"omlx_runtime.custom_kernels.minimax_m3" = ["*.metallib", "*.dylib", "*.so"]
-"omlx_runtime.custom_kernels.qwen35_prefill" = ["*.metallib", "*.dylib", "*.so"]
+"molto_runtime.eval" = ["data/*.jsonl"]
+"molto_runtime.patches.deepseek_v41" = ["LICENSE"]
+"molto_runtime.custom_kernels.bonsai" = ["*.metallib", "*.dylib", "*.so"]
+"molto_runtime.custom_kernels.glm_moe_dsa" = ["*.metallib", "*.dylib", "*.so"]
+"molto_runtime.custom_kernels.decode_fast" = ["*.metallib", "*.dylib", "*.so"]
+"molto_runtime.custom_kernels.minimax_m3" = ["*.metallib", "*.dylib", "*.so"]
+"molto_runtime.custom_kernels.qwen35_prefill" = [
+  "*.metallib",
+  "*.dylib",
+  "*.so",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

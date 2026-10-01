@@ -12,9 +12,9 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
-from omlx_runtime.cluster import control_plane as control_module
-from omlx_runtime.cluster import system_socket_proxy as proxy_module
-from omlx_runtime.cluster.control_plane import RankControlPlane
+from molto_runtime.cluster import control_plane as control_module
+from molto_runtime.cluster import system_socket_proxy as proxy_module
+from molto_runtime.cluster.control_plane import RankControlPlane
 
 
 def _free_port() -> int:
@@ -259,8 +259,8 @@ def test_auto_transport_falls_back_before_coordinator_deadline(
     monkeypatch, error_number
 ):
     port = _free_port()
-    monkeypatch.setenv("OMLX_CLUSTER_CONTROL_TRANSPORT", "auto")
-    monkeypatch.setenv("OMLX_CLUSTER_CONTROL_PROXY_PYTHON", sys.executable)
+    monkeypatch.setenv("MOLTO_CLUSTER_CONTROL_TRANSPORT", "auto")
+    monkeypatch.setenv("MOLTO_CLUSTER_CONTROL_PROXY_PYTHON", sys.executable)
     # Exercise the non-loopback macOS policy using a real local coordinator.
     monkeypatch.setattr(proxy_module, "sys", SimpleNamespace(platform="darwin"))
     monkeypatch.setattr(
@@ -325,8 +325,8 @@ def test_auto_transport_falls_back_before_coordinator_deadline(
 
 @pytest.mark.parametrize("mode", ["auto", "", "direct", "system-proxy", "invalid"])
 def test_control_transport_overrides_and_validation(monkeypatch, mode):
-    monkeypatch.setenv("OMLX_CLUSTER_CONTROL_TRANSPORT", mode)
-    monkeypatch.setenv("OMLX_CLUSTER_CONTROL_PROXY_PYTHON", sys.executable)
+    monkeypatch.setenv("MOLTO_CLUSTER_CONTROL_TRANSPORT", mode)
+    monkeypatch.setenv("MOLTO_CLUSTER_CONTROL_PROXY_PYTHON", sys.executable)
     monkeypatch.setattr(proxy_module, "sys", SimpleNamespace(platform="darwin"))
     control = RankControlPlane(
         rank=1,
@@ -352,8 +352,8 @@ def test_control_transport_overrides_and_validation(monkeypatch, mode):
 
 @pytest.mark.parametrize("mode", ["auto", "", "direct"])
 def test_transport_fallback_preserves_overall_connection_budget(monkeypatch, mode):
-    monkeypatch.setenv("OMLX_CLUSTER_CONTROL_TRANSPORT", mode)
-    monkeypatch.setenv("OMLX_CLUSTER_CONTROL_PROXY_PYTHON", sys.executable)
+    monkeypatch.setenv("MOLTO_CLUSTER_CONTROL_TRANSPORT", mode)
+    monkeypatch.setenv("MOLTO_CLUSTER_CONTROL_PROXY_PYTHON", sys.executable)
     monkeypatch.setattr(proxy_module, "sys", SimpleNamespace(platform="darwin"))
     now = [100.0]
     monkeypatch.setattr(control_module.time, "monotonic", lambda: now[0])
@@ -388,7 +388,7 @@ def test_auto_transport_does_not_retry_invalid_authentication_via_proxy(monkeypa
     monkeypatch.setattr(
         control_module, "should_proxy_control_socket", lambda host: True
     )
-    monkeypatch.setenv("OMLX_CLUSTER_CONTROL_TRANSPORT", "auto")
+    monkeypatch.setenv("MOLTO_CLUSTER_CONTROL_TRANSPORT", "auto")
     control = RankControlPlane(
         rank=1,
         world_size=2,
@@ -412,7 +412,7 @@ def test_auto_transport_does_not_retry_invalid_authentication_via_proxy(monkeypa
 def test_auto_transport_waits_for_late_listener_without_switching_proxy(
     monkeypatch, listener_delay
 ):
-    monkeypatch.setenv("OMLX_CLUSTER_CONTROL_TRANSPORT", "auto")
+    monkeypatch.setenv("MOLTO_CLUSTER_CONTROL_TRANSPORT", "auto")
     monkeypatch.setattr(
         control_module, "should_proxy_control_socket", lambda host: True
     )

@@ -12,8 +12,8 @@ from __future__ import annotations
 import mlx.core as mx
 import pytest
 from mlx_lm.models.cache import BatchKVCache, KVCache
-from omlx_runtime.patches.mlx_vlm_mtp.qwen35_verify_attention import verify_attention
-from omlx_runtime.patches.qwen35_verify_sdpa_split import (
+from molto_runtime.patches.mlx_vlm_mtp.qwen35_verify_attention import verify_attention
+from molto_runtime.patches.qwen35_verify_sdpa_split import (
     _chunked_causal_sdpa,
     _eligible,
     _gqa_causal_sdpa,
@@ -104,7 +104,7 @@ def test_chain_tail_matches_cache_writes(prefix):
     from types import SimpleNamespace
 
     from mlx_lm.models.qwen3_next import Qwen3NextAttention
-    from omlx_runtime.patches.qwen35_verify_sdpa_split import (
+    from molto_runtime.patches.qwen35_verify_sdpa_split import (
         ChainKVCache,
         install_chain_attention,
     )
@@ -216,7 +216,7 @@ def test_matches_single_query_reductions(
     )
     pads = [0, 3, 7, 11][:batch]
     if cache_kind == "qsa":
-        from omlx_runtime.patches.mlx_vlm_qwen4_exp_compat import (
+        from molto_runtime.patches.mlx_vlm_qwen4_exp_compat import (
             apply_mlx_vlm_qwen4_exp_compat_patch,
         )
 
@@ -276,7 +276,7 @@ def test_future_and_left_padding_are_invisible():
 
 
 def test_cache_buffer_prefix_matches_contiguous_copy():
-    from omlx_runtime.patches.mlx_vlm_mtp.qwen35_verify_attention import _cache_buffers
+    from molto_runtime.patches.mlx_vlm_mtp.qwen35_verify_attention import _cache_buffers
 
     mx.random.seed(21)
     pads = [0, 3, 9]
@@ -356,7 +356,7 @@ def test_causal_padding_and_high_precision_reference(
     )
     pads = [0, 17, size // 3, size - length - 1][:batch]
     if cache_kind == "qsa":
-        from omlx_runtime.patches.mlx_vlm_qwen4_exp_compat import (
+        from molto_runtime.patches.mlx_vlm_qwen4_exp_compat import (
             apply_mlx_vlm_qwen4_exp_compat_patch,
         )
 
@@ -425,7 +425,7 @@ def test_explicit_mask_is_preserved_when_verify_kernel_declines():
     from types import SimpleNamespace
     from unittest.mock import Mock
 
-    from omlx_runtime.patches.mlx_vlm_mtp.qwen35_verify_attention import apply
+    from molto_runtime.patches.mlx_vlm_mtp.qwen35_verify_attention import apply
 
     original = Mock(return_value=mx.ones((2, 1, 1, 64)))
     language = SimpleNamespace(_qwen3_5_left_padded_attention=original)

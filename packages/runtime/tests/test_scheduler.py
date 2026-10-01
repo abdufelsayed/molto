@@ -24,15 +24,15 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
 import mlx.core as mx
-import omlx_runtime.scheduler as scheduler_module
+import molto_runtime.scheduler as scheduler_module
 import pytest
 from mlx_lm.models.cache import CacheList, KVCache
-from omlx_runtime.cache.stats import PrefixCacheStats
-from omlx_runtime.models.vlm import VLMModelAdapter
-from omlx_runtime.patches.deepseek_v41.cache import DeepseekV41Cache
-from omlx_runtime.patches.mlx_lm_mtp import batch_generator as bg
-from omlx_runtime.request import Request, RequestOutput, RequestStatus, SamplingParams
-from omlx_runtime.scheduler import (
+from molto_runtime.cache.stats import PrefixCacheStats
+from molto_runtime.models.vlm import VLMModelAdapter
+from molto_runtime.patches.deepseek_v41.cache import DeepseekV41Cache
+from molto_runtime.patches.mlx_lm_mtp import batch_generator as bg
+from molto_runtime.request import Request, RequestOutput, RequestStatus, SamplingParams
+from molto_runtime.scheduler import (
     Scheduler,
     SchedulerConfig,
     SchedulerOutput,
@@ -85,7 +85,7 @@ class _ParserStopFactory:
 
 class _ParserStopSession:
     def process_token(self, token_id):
-        from omlx_runtime.adapter.output_parser import OutputParserTokenResult
+        from molto_runtime.adapter.output_parser import OutputParserTokenResult
 
         return OutputParserTokenResult(
             stream_text="",
@@ -95,7 +95,7 @@ class _ParserStopSession:
         )
 
     def finalize(self):
-        from omlx_runtime.adapter.output_parser import OutputParserFinalizeResult
+        from molto_runtime.adapter.output_parser import OutputParserFinalizeResult
 
         return OutputParserFinalizeResult()
 
@@ -480,7 +480,7 @@ class TestSchedulerAddRequest:
         self, mock_model, mock_tokenizer
     ):
         """Exact cache hit should use (N-1) cache + last token for kickoff."""
-        from omlx_runtime.cache.paged_cache import BlockTable
+        from molto_runtime.cache.paged_cache import BlockTable
 
         class TrimCache:
             def __init__(self):
@@ -523,7 +523,7 @@ class TestSchedulerAddRequest:
         self, mock_model, mock_tokenizer
     ):
         """Exact cache hit should fallback when any layer cannot trim."""
-        from omlx_runtime.cache.paged_cache import BlockTable
+        from molto_runtime.cache.paged_cache import BlockTable
 
         class NonTrimmableCache:
             pass
@@ -558,7 +558,7 @@ class TestSchedulerAddRequest:
         self, mock_model, mock_tokenizer
     ):
         """Rotating cache exact hit should fallback to full prefill."""
-        from omlx_runtime.cache.paged_cache import BlockTable
+        from molto_runtime.cache.paged_cache import BlockTable
 
         RotatingCacheWithTrim = type(
             "RotatingKVCache",
@@ -596,7 +596,7 @@ class TestSchedulerAddRequest:
         self, mock_model, mock_tokenizer
     ):
         """Reject unknown cache classes before a partial hit loses their state."""
-        from omlx_runtime.cache.paged_cache import BlockTable
+        from molto_runtime.cache.paged_cache import BlockTable
 
         RingSlidingKVCache = type("RingSlidingKVCache", (), {})
         mock_model.make_cache = lambda: [RingSlidingKVCache()]
@@ -629,7 +629,7 @@ class TestSchedulerAddRequest:
         self, mock_model, mock_tokenizer
     ):
         """The guard must not disable prefix reuse for ordinary KVCache models."""
-        from omlx_runtime.cache.paged_cache import BlockTable
+        from molto_runtime.cache.paged_cache import BlockTable
 
         KVCache = type("KVCache", (), {})
         mock_model.make_cache = lambda: [KVCache()]
@@ -671,7 +671,7 @@ class TestSchedulerAddRequest:
         self, mock_model, mock_tokenizer, cache_class_name
     ):
         """Known non-plain cache classes must retain prefix reuse."""
-        from omlx_runtime.cache.paged_cache import BlockTable
+        from molto_runtime.cache.paged_cache import BlockTable
 
         mock_model.make_cache = lambda: [type(cache_class_name, (), {})()]
 
@@ -758,7 +758,7 @@ class TestSchedulerAddRequest:
         self, mock_model, mock_tokenizer
     ):
         """Memory pressure should bypass optional SSD hot-cache RAM copies."""
-        from omlx_runtime.cache.paged_cache import BlockTable
+        from molto_runtime.cache.paged_cache import BlockTable
 
         scheduler = self._scheduler_with_mock_block_cache(
             mock_model,
@@ -797,7 +797,7 @@ class TestSchedulerAddRequest:
         self, mock_model, mock_tokenizer
     ):
         """Normal state promotes while reconstructing, without a duplicate preload."""
-        from omlx_runtime.cache.paged_cache import BlockTable
+        from molto_runtime.cache.paged_cache import BlockTable
 
         scheduler = self._scheduler_with_mock_block_cache(
             mock_model,
@@ -834,7 +834,7 @@ class TestSchedulerAddRequest:
         self, mock_model, mock_tokenizer
     ):
         """hot_cache_only mode must keep RAM hot-cache behavior unchanged."""
-        from omlx_runtime.cache.paged_cache import BlockTable
+        from molto_runtime.cache.paged_cache import BlockTable
 
         scheduler = self._scheduler_with_mock_block_cache(
             mock_model,
@@ -1364,7 +1364,7 @@ class TestSchedulerAddRequest:
         scheduler.paged_cache_manager = MagicMock()
         scheduler.paged_cache_manager.get_block_table.return_value = None
 
-        with patch("omlx_runtime.scheduler._safe_sync_stream"):
+        with patch("molto_runtime.scheduler._safe_sync_stream"):
             scheduler._async_store_cache_worker(
                 "req-store",
                 [1, 2, 3, 4],
@@ -1403,7 +1403,7 @@ class TestSchedulerAddRequest:
             None, "req-store", [], {}, tail_terminal_token_count=4
         )
 
-        with patch("omlx_runtime.scheduler._safe_sync_stream"):
+        with patch("molto_runtime.scheduler._safe_sync_stream"):
             scheduler._async_store_cache_worker(
                 "req-store", [1, 2, 3, 4], [], None, provider, None, None, None
             )
@@ -1462,7 +1462,7 @@ class TestSchedulerAbortRequest:
         path itself must clear the wrapper and the active id, otherwise the
         specprefill guard defers all other requests forever.
         """
-        from omlx_runtime.patches.specprefill import _OffsetAdjustedRoPE
+        from molto_runtime.patches.specprefill import _OffsetAdjustedRoPE
 
         scheduler = Scheduler(model=mock_model, tokenizer=mock_tokenizer)
 
@@ -1672,7 +1672,7 @@ class TestSchedulerAbortRequest:
         scheduler.requests["req-abort-clear"] = request
         scheduler.running["req-abort-clear"] = request
 
-        with patch("omlx_runtime.scheduler.mx") as mock_mx:
+        with patch("molto_runtime.scheduler.mx") as mock_mx:
             assert scheduler._do_abort_request("req-abort-clear") is True
             # Not cleared immediately -- deferred to avoid the IOKit race.
             mock_mx.clear_cache.assert_not_called()
@@ -1745,7 +1745,7 @@ class TestPrefillAbortInterrupt:
         self, mock_model, mock_tokenizer
     ):
         """Aborted external prefill must clear transients before unwinding."""
-        from omlx_runtime.scheduler import _PrefillAbortedError
+        from molto_runtime.scheduler import _PrefillAbortedError
 
         scheduler = Scheduler(
             model=mock_model,
@@ -1811,7 +1811,7 @@ class TestPrefillAbortInterrupt:
         self, mock_model, mock_tokenizer
     ):
         """_PrefillAbortedError in step() resets batch_generator to None."""
-        from omlx_runtime.scheduler import _PrefillAbortedError
+        from molto_runtime.scheduler import _PrefillAbortedError
 
         scheduler = Scheduler(model=mock_model, tokenizer=mock_tokenizer)
         scheduler.batch_generator = MagicMock()
@@ -2240,7 +2240,7 @@ class TestSchedulerReset:
         reset_thread = threading.Thread(target=run_reset)
         try:
             with patch(
-                "omlx_runtime.scheduler.concurrent.futures.wait",
+                "molto_runtime.scheduler.concurrent.futures.wait",
                 side_effect=wait_at_barrier,
             ):
                 reset_thread.start()
@@ -2278,7 +2278,9 @@ class TestSchedulerReset:
 
         with (
             patch("concurrent.futures.wait", return_value=(set(), {future})),
-            patch("omlx_runtime.scheduler.fatal_exit", side_effect=SystemExit) as fatal,
+            patch(
+                "molto_runtime.scheduler.fatal_exit", side_effect=SystemExit
+            ) as fatal,
             pytest.raises(SystemExit),
         ):
             scheduler.reset()
@@ -2376,7 +2378,9 @@ class TestSchedulerReset:
 
         with (
             patch("concurrent.futures.wait", return_value=(set(), {future})),
-            patch("omlx_runtime.scheduler.fatal_exit", side_effect=SystemExit) as fatal,
+            patch(
+                "molto_runtime.scheduler.fatal_exit", side_effect=SystemExit
+            ) as fatal,
             pytest.raises(SystemExit),
         ):
             scheduler.shutdown()
@@ -2621,7 +2625,7 @@ class TestSyncAndClearCache:
         swallow that RuntimeError and still drain the default stream + clear
         the cache.
         """
-        from omlx_runtime import scheduler as sched_mod
+        from molto_runtime import scheduler as sched_mod
 
         calls = []
 
@@ -2653,7 +2657,7 @@ class TestSyncAndClearCache:
 
     @pytest.mark.parametrize("stage", ["generation", "default", "clear"])
     def test_terminal_gpu_error_exits_before_further_cleanup(self, stage):
-        from omlx_runtime.utils import metal_sync
+        from molto_runtime.utils import metal_sync
 
         error = RuntimeError(
             "[METAL] Command buffer execution failed: "
@@ -2672,7 +2676,7 @@ class TestSyncAndClearCache:
                 side_effect=error if stage == "clear" else None,
             ) as clear,
             patch(
-                "omlx_runtime.utils.fatal.fatal_exit", side_effect=SystemExit
+                "molto_runtime.utils.fatal.fatal_exit", side_effect=SystemExit
             ) as fatal,
             pytest.raises(SystemExit),
         ):
@@ -2682,7 +2686,7 @@ class TestSyncAndClearCache:
 
     def test_propagates_default_stream_error(self):
         """Errors on the default stream sync are not swallowed."""
-        from omlx_runtime import scheduler as sched_mod
+        from molto_runtime import scheduler as sched_mod
 
         def dispatch(*args, **kwargs):
             if not args:
@@ -2720,7 +2724,7 @@ class TestStoreCacheWorkerSync:
         path now routes through this helper so the regression has a
         single chokepoint to assert against.
         """
-        from omlx_runtime import scheduler as sched_mod
+        from molto_runtime import scheduler as sched_mod
 
         calls = []
 
@@ -2745,7 +2749,7 @@ class TestStoreCacheWorkerSync:
         condition means there is no in-flight gpu:2 work to drain, so
         it is safe to continue.
         """
-        from omlx_runtime import scheduler as sched_mod
+        from molto_runtime import scheduler as sched_mod
 
         def fake_sync(*args, **kwargs):
             raise RuntimeError("There is no Stream(gpu, 2) in current thread.")
@@ -2755,7 +2759,7 @@ class TestStoreCacheWorkerSync:
 
     def test_safe_sync_propagates_other_runtime_errors(self):
         """Real GPU errors must not be silently swallowed."""
-        from omlx_runtime import scheduler as sched_mod
+        from molto_runtime import scheduler as sched_mod
 
         def fake_sync(*args, **kwargs):
             raise RuntimeError("Metal command buffer execution failed")
@@ -3046,7 +3050,7 @@ class TestSchedulerBoundarySnapshots:
         scheduler.running[request.request_id] = request
         scheduler.requests[request.request_id] = request
 
-        with caplog.at_level("DEBUG", logger="omlx_runtime.scheduler"):
+        with caplog.at_level("DEBUG", logger="molto_runtime.scheduler"):
             scheduler._cleanup_finished({request.request_id})
 
         scheduler.block_aware_cache.store_cache.assert_not_called()
@@ -3101,7 +3105,7 @@ class TestSchedulerBoundarySnapshots:
         scheduler.requests[request.request_id] = request
         scheduler._boundary_cache_snapshots[request.request_id] = {32768: None}
 
-        with caplog.at_level("INFO", logger="omlx_runtime.scheduler"):
+        with caplog.at_level("INFO", logger="molto_runtime.scheduler"):
             scheduler._cleanup_finished({request.request_id})
 
         scheduler.block_aware_cache.store_cache.assert_not_called()
@@ -3444,7 +3448,7 @@ class TestSchedulerBoundarySnapshots:
         self, mock_model, mock_tokenizer
     ):
         """Intermediate boundary snapshot arrays are materialized on engine thread."""
-        from omlx_runtime import scheduler as sched_mod
+        from molto_runtime import scheduler as sched_mod
 
         config = SchedulerConfig(paged_cache_block_size=4)
         scheduler = Scheduler(model=mock_model, tokenizer=mock_tokenizer, config=config)
@@ -3518,7 +3522,7 @@ class TestSchedulerBoundarySnapshots:
         request.num_prompt_tokens = 2
         request.output_token_ids = [3, 4]  # Total = 4 (boundary)
 
-        with patch("omlx_runtime.scheduler.mx") as mock_mx:
+        with patch("molto_runtime.scheduler.mx") as mock_mx:
             scheduler._maybe_capture_boundary_snapshot(request, 42)
             mock_mx.synchronize.assert_called()
             mock_mx.stream.assert_called()
@@ -3551,7 +3555,7 @@ class TestSchedulerBoundarySnapshots:
         scheduler.running["req-cleanup-sync"] = request
         scheduler.requests["req-cleanup-sync"] = request
 
-        with patch("omlx_runtime.scheduler.mx") as mock_mx:
+        with patch("molto_runtime.scheduler.mx") as mock_mx:
             scheduler._cleanup_finished({"req-cleanup-sync"})
             mock_mx.synchronize.assert_called()
             mock_mx.stream.assert_called()
@@ -3599,7 +3603,7 @@ class TestSchedulerBoundarySnapshots:
             scheduler._boundary_cache_snapshots[request.request_id][4] == snapshot_cache
         )
         assert scheduler._boundary_snapshot_required is True
-        assert mock_model._omlx_mtp_commit_align == 4
+        assert mock_model._molto_mtp_commit_align == 4
 
     def test_add_request_arms_mtp_boundary_alignment_before_decode(
         self, mock_model, mock_tokenizer
@@ -3623,7 +3627,7 @@ class TestSchedulerBoundarySnapshots:
         scheduler.add_request(request)
 
         assert scheduler._boundary_snapshot_required is True
-        assert mock_model._omlx_mtp_commit_align == 4
+        assert mock_model._molto_mtp_commit_align == 4
 
     def test_prefill_boundary_snapshot_ignores_non_boundary_token_count(
         self, mock_model, mock_tokenizer
@@ -3671,7 +3675,7 @@ class TestSchedulerBoundarySnapshots:
         RotatingStub = type("RotatingKVCache", (), {})
         snapshot_cache = [RotatingStub()]
         with patch(
-            "omlx_runtime.scheduler._mtp_priming.capture_tail_boundary"
+            "molto_runtime.scheduler._mtp_priming.capture_tail_boundary"
         ) as capture:
             scheduler._emit_prefill_tail_snapshot(request, snapshot_cache, 3)
         capture.assert_called_once_with(mock_model, request.request_id, 3)
@@ -3877,10 +3881,12 @@ class TestSchedulerRotatingBlockAlignment:
         scheduler = self._mimo_scheduler(mock_tokenizer)
         with (
             patch(
-                "omlx_config.settings.get_system_memory",
+                "molto_config.settings.get_system_memory",
                 return_value=memory_gb * 1024**3,
             ),
-            patch("omlx_runtime.custom_kernels.nax.is_nax_available", return_value=nax),
+            patch(
+                "molto_runtime.custom_kernels.nax.is_nax_available", return_value=nax
+            ),
             patch.object(
                 scheduler_module, "_mimo_fused_full_attention", return_value=fused
             ),
@@ -3997,7 +4003,7 @@ class TestSchedulerRotatingBlockAlignment:
         scheduler.running["req-clear-cache"] = request
         scheduler.requests["req-clear-cache"] = request
 
-        with patch("omlx_runtime.scheduler.mx") as mock_mx:
+        with patch("molto_runtime.scheduler.mx") as mock_mx:
             scheduler._cleanup_finished({"req-clear-cache"})
             # Should NOT clear immediately — deferred to avoid IOKit race
             mock_mx.clear_cache.assert_not_called()
@@ -4012,7 +4018,7 @@ class TestSchedulerRotatingBlockAlignment:
         """_cleanup_finished must not schedule deferred clear when no requests finished."""
         scheduler = Scheduler(model=mock_model, tokenizer=mock_tokenizer)
 
-        with patch("omlx_runtime.scheduler.mx") as mock_mx:
+        with patch("molto_runtime.scheduler.mx") as mock_mx:
             scheduler._cleanup_finished(set())
             mock_mx.clear_cache.assert_not_called()
             assert scheduler._deferred_clear_at is None
@@ -4042,7 +4048,7 @@ class TestSchedulerRotatingBlockAlignment:
         scheduler.running["req-concurrent-1"] = req1
         scheduler.requests["req-concurrent-1"] = req1
 
-        with patch("omlx_runtime.scheduler.mx"):
+        with patch("molto_runtime.scheduler.mx"):
             scheduler._cleanup_finished({"req-concurrent-1"})
         first_target = scheduler._deferred_clear_at
         assert first_target == scheduler._step_counter + Scheduler._DEFERRED_CLEAR_DELAY
@@ -4062,7 +4068,7 @@ class TestSchedulerRotatingBlockAlignment:
         scheduler.running["req-concurrent-2"] = req2
         scheduler.requests["req-concurrent-2"] = req2
 
-        with patch("omlx_runtime.scheduler.mx"):
+        with patch("molto_runtime.scheduler.mx"):
             scheduler._cleanup_finished({"req-concurrent-2"})
 
         # Target must be extended to cover the second completion's full window
@@ -4134,9 +4140,9 @@ class TestSchedulerArraysCacheBlockAlignment:
         self, mock_tokenizer, tmp_path, model_type
     ):
         with (
-            patch("omlx_config.settings.get_system_memory", return_value=64 * 1024**3),
+            patch("molto_config.settings.get_system_memory", return_value=64 * 1024**3),
             patch(
-                "omlx_runtime.custom_kernels.nax.is_nax_available", return_value=False
+                "molto_runtime.custom_kernels.nax.is_nax_available", return_value=False
             ),
         ):
             scheduler = Scheduler(
@@ -4160,16 +4166,18 @@ class TestSchedulerArraysCacheBlockAlignment:
         self, mock_tokenizer, tmp_path, model_type
     ):
         with (
-            patch("omlx_config.settings.get_system_memory", return_value=256 * 1024**3),
             patch(
-                "omlx_runtime.custom_kernels.nax.is_nax_available", return_value=False
+                "molto_config.settings.get_system_memory", return_value=256 * 1024**3
             ),
             patch(
-                "omlx_runtime.custom_kernels.glm_moe_dsa.fast.is_native_available",
+                "molto_runtime.custom_kernels.nax.is_nax_available", return_value=False
+            ),
+            patch(
+                "molto_runtime.custom_kernels.glm_moe_dsa.fast.is_native_available",
                 return_value=True,
             ),
             patch(
-                "omlx_runtime.custom_kernels.glm_moe_dsa.fast.has_symbol",
+                "molto_runtime.custom_kernels.glm_moe_dsa.fast.has_symbol",
                 return_value=True,
             ),
         ):
@@ -4201,21 +4209,21 @@ class TestSchedulerArraysCacheBlockAlignment:
         fake = SimpleNamespace(nax_sparse_mla_available=lambda: nax_sparse_mla)
         with (
             patch.dict(
-                sys.modules, {"omlx_runtime.patches.glm_moe_dsa.sparse_mla_nax": fake}
+                sys.modules, {"molto_runtime.patches.glm_moe_dsa.sparse_mla_nax": fake}
             ),
             patch(
-                "omlx_config.settings.get_system_memory",
+                "molto_config.settings.get_system_memory",
                 return_value=memory_gb * 1024**3,
             ),
             patch(
-                "omlx_runtime.custom_kernels.nax.is_nax_available", return_value=True
+                "molto_runtime.custom_kernels.nax.is_nax_available", return_value=True
             ),
             patch(
-                "omlx_runtime.custom_kernels.glm_moe_dsa.fast.is_native_available",
+                "molto_runtime.custom_kernels.glm_moe_dsa.fast.is_native_available",
                 return_value=True,
             ),
             patch(
-                "omlx_runtime.custom_kernels.glm_moe_dsa.fast.has_symbol",
+                "molto_runtime.custom_kernels.glm_moe_dsa.fast.has_symbol",
                 return_value=True,
             ),
         ):
@@ -4250,16 +4258,18 @@ class TestSchedulerArraysCacheBlockAlignment:
         symbol_available,
     ):
         with (
-            patch("omlx_config.settings.get_system_memory", return_value=256 * 1024**3),
             patch(
-                "omlx_runtime.custom_kernels.nax.is_nax_available", return_value=False
+                "molto_config.settings.get_system_memory", return_value=256 * 1024**3
             ),
             patch(
-                "omlx_runtime.custom_kernels.glm_moe_dsa.fast.is_native_available",
+                "molto_runtime.custom_kernels.nax.is_nax_available", return_value=False
+            ),
+            patch(
+                "molto_runtime.custom_kernels.glm_moe_dsa.fast.is_native_available",
                 return_value=native_available,
             ),
             patch(
-                "omlx_runtime.custom_kernels.glm_moe_dsa.fast.has_symbol",
+                "molto_runtime.custom_kernels.glm_moe_dsa.fast.has_symbol",
                 return_value=symbol_available,
             ),
         ):
@@ -4284,16 +4294,18 @@ class TestSchedulerArraysCacheBlockAlignment:
         self, mock_tokenizer, tmp_path, paged
     ):
         with (
-            patch("omlx_config.settings.get_system_memory", return_value=128 * 1024**3),
             patch(
-                "omlx_runtime.custom_kernels.nax.is_nax_available", return_value=True
+                "molto_config.settings.get_system_memory", return_value=128 * 1024**3
             ),
             patch(
-                "omlx_runtime.custom_kernels.glm_moe_dsa.fast.is_native_available",
+                "molto_runtime.custom_kernels.nax.is_nax_available", return_value=True
+            ),
+            patch(
+                "molto_runtime.custom_kernels.glm_moe_dsa.fast.is_native_available",
                 return_value=True,
             ),
             patch(
-                "omlx_runtime.custom_kernels.glm_moe_dsa.fast.has_symbol",
+                "molto_runtime.custom_kernels.glm_moe_dsa.fast.has_symbol",
                 return_value=True,
             ),
         ):
@@ -4338,16 +4350,18 @@ class TestSchedulerArraysCacheBlockAlignment:
         model.prefetch_ple = lambda next_ids, current_ids: None
         model.ple_gathers_ahead = lambda: True
         with (
-            patch("omlx_config.settings.get_system_memory", return_value=128 * 1024**3),
             patch(
-                "omlx_runtime.custom_kernels.nax.is_nax_available", return_value=True
+                "molto_config.settings.get_system_memory", return_value=128 * 1024**3
             ),
             patch(
-                "omlx_runtime.custom_kernels.glm_moe_dsa.fast.is_native_available",
+                "molto_runtime.custom_kernels.nax.is_nax_available", return_value=True
+            ),
+            patch(
+                "molto_runtime.custom_kernels.glm_moe_dsa.fast.is_native_available",
                 return_value=True,
             ),
             patch(
-                "omlx_runtime.custom_kernels.glm_moe_dsa.fast.has_symbol",
+                "molto_runtime.custom_kernels.glm_moe_dsa.fast.has_symbol",
                 return_value=True,
             ),
         ):
@@ -4367,9 +4381,9 @@ class TestSchedulerArraysCacheBlockAlignment:
 
     def test_qwen35_nax_host_keeps_2048_block(self, mock_tokenizer, tmp_path):
         with (
-            patch("omlx_config.settings.get_system_memory", return_value=64 * 1024**3),
+            patch("molto_config.settings.get_system_memory", return_value=64 * 1024**3),
             patch(
-                "omlx_runtime.custom_kernels.nax.is_nax_available", return_value=True
+                "molto_runtime.custom_kernels.nax.is_nax_available", return_value=True
             ),
         ):
             scheduler = Scheduler(
@@ -4389,7 +4403,9 @@ class TestSchedulerArraysCacheBlockAlignment:
             scheduler.shutdown()
 
     def test_qwen35_small_host_keeps_2048_block(self, mock_tokenizer, tmp_path):
-        with patch("omlx_config.settings.get_system_memory", return_value=32 * 1024**3):
+        with patch(
+            "molto_config.settings.get_system_memory", return_value=32 * 1024**3
+        ):
             scheduler = Scheduler(
                 model=self._hybrid_model(),
                 tokenizer=mock_tokenizer,
@@ -4406,7 +4422,9 @@ class TestSchedulerArraysCacheBlockAlignment:
             scheduler.shutdown()
 
     def test_non_qwen_arrays_cache_keeps_2048_block(self, mock_tokenizer, tmp_path):
-        with patch("omlx_config.settings.get_system_memory", return_value=64 * 1024**3):
+        with patch(
+            "molto_config.settings.get_system_memory", return_value=64 * 1024**3
+        ):
             scheduler = Scheduler(
                 model=self._hybrid_model(model_type="other_hybrid"),
                 tokenizer=mock_tokenizer,
@@ -4441,9 +4459,9 @@ class TestSchedulerArraysCacheBlockAlignment:
 
     def test_explicit_larger_block_is_preserved(self, mock_tokenizer, tmp_path):
         with (
-            patch("omlx_config.settings.get_system_memory", return_value=64 * 1024**3),
+            patch("molto_config.settings.get_system_memory", return_value=64 * 1024**3),
             patch(
-                "omlx_runtime.custom_kernels.nax.is_nax_available", return_value=False
+                "molto_runtime.custom_kernels.nax.is_nax_available", return_value=False
             ),
         ):
             scheduler = Scheduler(
@@ -4466,9 +4484,9 @@ class TestSchedulerArraysCacheBlockAlignment:
     ):
         model = self._hybrid_model()
         with (
-            patch("omlx_config.settings.get_system_memory", return_value=64 * 1024**3),
+            patch("molto_config.settings.get_system_memory", return_value=64 * 1024**3),
             patch(
-                "omlx_runtime.custom_kernels.nax.is_nax_available", return_value=False
+                "molto_runtime.custom_kernels.nax.is_nax_available", return_value=False
             ),
         ):
             scheduler = Scheduler(
@@ -4518,7 +4536,7 @@ class TestPeriodicClearGating:
         clear only fires when accumulated cache memory exceeds the
         threshold (memory_limit/3 or absolute 2 GiB floor).
         """
-        from omlx_runtime import scheduler as sched_mod
+        from molto_runtime import scheduler as sched_mod
 
         scheduler = Scheduler(model=mock_model, tokenizer=mock_tokenizer)
         scheduler._step_counter = scheduler.config.mlx_cache_cleanup_interval
@@ -4532,7 +4550,7 @@ class TestPeriodicClearGating:
         self, mock_model, mock_tokenizer
     ):
         """Periodic clear must fire when MLX buffer pool exceeds threshold."""
-        from omlx_runtime import scheduler as sched_mod
+        from molto_runtime import scheduler as sched_mod
 
         scheduler = Scheduler(model=mock_model, tokenizer=mock_tokenizer)
         scheduler._step_counter = scheduler.config.mlx_cache_cleanup_interval
@@ -4567,7 +4585,7 @@ class TestExtractCacheStatesCacheList:
     @pytest.fixture
     def scheduler(self):
         """Create a minimal scheduler mock for testing _extract_cache_states."""
-        from omlx_runtime.scheduler import Scheduler
+        from molto_runtime.scheduler import Scheduler
 
         mock_scheduler = MagicMock(spec=Scheduler)
         mock_scheduler.model_name = "test"
@@ -4635,7 +4653,7 @@ class TestExtractCacheStatesCacheList:
         raw_cache = [mock_cache_list]
 
         # Patch HAS_CACHE_TYPE_HANDLERS to False
-        with patch("omlx_runtime.scheduler.HAS_CACHE_TYPE_HANDLERS", False):
+        with patch("molto_runtime.scheduler.HAS_CACHE_TYPE_HANDLERS", False):
             extracted, config = scheduler._extract_cache_states(raw_cache)
 
         # Must still have 1 extracted entry (Issue #1: no layer count mismatch)
@@ -4768,7 +4786,7 @@ class TestSchedulerSSDLayerSignature:
         self, mock_tokenizer, tmp_path
     ):
         from mlx_lm.models.cache import KVCache
-        from omlx_runtime.cache.paged_ssd_cache import (
+        from molto_runtime.cache.paged_ssd_cache import (
             PagedSSDBlockMetadata,
             _cache_compat_signature,
         )
@@ -4857,7 +4875,7 @@ class TestSchedulerSSDLayerSignature:
         # it a silent no-op for these models, so the manager never learned
         # the TurboQuant bit depth and mixed-width blocks kept loading
         # after a turboquant_kv_bits change (#2045).
-        from omlx_runtime.cache.paged_ssd_cache import (
+        from molto_runtime.cache.paged_ssd_cache import (
             PagedSSDBlockMetadata,
             _cache_compat_signature,
         )
@@ -4971,7 +4989,7 @@ class TestSpecPrefillCaches:
         )
         try:
             with patch(
-                "omlx_runtime.specprefill.target.run_specprefill_target_prefill",
+                "molto_runtime.specprefill.target.run_specprefill_target_prefill",
                 return_value=target_result,
             ):
                 scheduled, rejected = scheduler._schedule_waiting()
@@ -5036,7 +5054,7 @@ class TestSpecPrefillCaches:
 
         try:
             with patch(
-                "omlx_runtime.specprefill.target.run_specprefill_target_prefill",
+                "molto_runtime.specprefill.target.run_specprefill_target_prefill",
                 side_effect=RuntimeError("sparse prefill failed mid-append"),
             ):
                 scheduled, rejected = scheduler._schedule_waiting()
@@ -5117,7 +5135,7 @@ class TestSpecPrefillCaches:
         self, mock_tokenizer, tmp_path
     ):
         from mlx_lm.models.cache import ArraysCache, KVCache
-        from omlx_runtime.cache.paged_ssd_cache import _canonicalize_layer_cache_types
+        from molto_runtime.cache.paged_ssd_cache import _canonicalize_layer_cache_types
 
         class HybridModel:
             def __init__(self, repeats: int):
@@ -5490,9 +5508,9 @@ class TestCacheCorruptionRecovery:
             "kIOGPUCommandBufferCallbackErrorSubmissionsIgnored"
         )
         with (
-            patch("omlx_runtime.utils.metal_sync.mx.synchronize", side_effect=error),
+            patch("molto_runtime.utils.metal_sync.mx.synchronize", side_effect=error),
             patch(
-                "omlx_runtime.utils.fatal.fatal_exit", side_effect=SystemExit
+                "molto_runtime.utils.fatal.fatal_exit", side_effect=SystemExit
             ) as fatal,
             pytest.raises(SystemExit),
         ):
@@ -5534,7 +5552,7 @@ class TestCacheCorruptionRecovery:
         exception types bubble up to fail_all_requests and would leave a
         phantom "PP" row on the dashboard forever (#2126).
         """
-        from omlx_runtime.prefill_progress import get_prefill_tracker
+        from molto_runtime.prefill_progress import get_prefill_tracker
 
         scheduler = self._make_scheduler(mock_model, mock_tokenizer)
         tracker = get_prefill_tracker()
@@ -5695,7 +5713,7 @@ class TestGenerationOverflowRecovery:
         scheduler = self._make_scheduler(mock_model, mock_tokenizer, count=3)
         scheduler.config.max_num_seqs = 8
 
-        with patch("omlx_runtime.scheduler._sync_and_clear_cache"):
+        with patch("molto_runtime.scheduler._sync_and_clear_cache"):
             output = scheduler.step()
 
         assert output.outputs == []
@@ -5723,7 +5741,7 @@ class TestGenerationOverflowRecovery:
         request = next(iter(scheduler.running.values()))
         request.generation_overflow_retries = 1
 
-        with patch("omlx_runtime.scheduler._sync_and_clear_cache"):
+        with patch("molto_runtime.scheduler._sync_and_clear_cache"):
             output = scheduler.step()
 
         assert len(output.outputs) == 1
@@ -5811,7 +5829,7 @@ class TestStoreCacheAdmissionBackpressure:
         scheduler._memory_admission_blocked_request_id = request.request_id
         scheduler._memory_admission_blocked_since = 0.0
 
-        with patch("omlx_runtime.scheduler.time.monotonic", return_value=61.0):
+        with patch("molto_runtime.scheduler.time.monotonic", return_value=61.0):
             scheduled, rejected = scheduler._schedule_waiting()
 
         assert scheduled == []
@@ -5847,7 +5865,7 @@ class TestStoreCacheAdmissionBackpressure:
         scheduler._store_cache_admission_blocked_since = 0.0
         scheduler._ensure_batch_generator = MagicMock()
 
-        with patch("omlx_runtime.scheduler.time.monotonic", return_value=61.0):
+        with patch("molto_runtime.scheduler.time.monotonic", return_value=61.0):
             scheduled, rejected = scheduler._schedule_waiting()
 
         assert scheduled == []
@@ -5876,7 +5894,7 @@ class TestStoreCacheAdmissionBackpressure:
         scheduler._current_usage_bytes = MagicMock(return_value=50)
         scheduler._ensure_batch_generator = MagicMock()
 
-        with patch("omlx_runtime.scheduler.time.monotonic", return_value=0.0):
+        with patch("molto_runtime.scheduler.time.monotonic", return_value=0.0):
             scheduled, rejected = scheduler._schedule_waiting()
 
         assert scheduled == []
@@ -5885,7 +5903,7 @@ class TestStoreCacheAdmissionBackpressure:
 
         gate.note_done()
         scheduler._should_defer_for_cache_freshness = MagicMock(return_value=True)
-        with patch("omlx_runtime.scheduler.time.monotonic", return_value=30.0):
+        with patch("molto_runtime.scheduler.time.monotonic", return_value=30.0):
             scheduled, rejected = scheduler._schedule_waiting()
 
         assert scheduled == []
@@ -5895,7 +5913,7 @@ class TestStoreCacheAdmissionBackpressure:
 
         gate.note_submitted()
         scheduler._should_defer_for_cache_freshness = MagicMock(return_value=False)
-        with patch("omlx_runtime.scheduler.time.monotonic", return_value=61.0):
+        with patch("molto_runtime.scheduler.time.monotonic", return_value=61.0):
             scheduled, rejected = scheduler._schedule_waiting()
 
         assert scheduled == []
@@ -6032,7 +6050,7 @@ class TestStoreCacheAdmissionBackpressure:
             (2, done_request.request_id, done_future)
         )
 
-        with patch("omlx_runtime.scheduler._safe_sync_stream"):
+        with patch("molto_runtime.scheduler._safe_sync_stream"):
             drained = scheduler._drain_pending_async_removes()
 
         assert drained is True
@@ -6258,8 +6276,8 @@ class TestBatchGeneratorAllTokens:
         )
         scheduled = []
 
-        with patch("omlx_runtime.scheduler._materialize_cache_storage") as materialize:
-            with patch("omlx_runtime.scheduler._sync_and_clear_cache") as sync_clear:
+        with patch("molto_runtime.scheduler._materialize_cache_storage") as materialize:
+            with patch("molto_runtime.scheduler._sync_and_clear_cache") as sync_clear:
                 scheduler._insert_prefilled_request(request, state, scheduled)
 
         call_kwargs = scheduler.batch_generator.insert.call_args.kwargs
@@ -6276,7 +6294,7 @@ class TestBatchGeneratorAllTokens:
         """Restored ArraysCache wrappers must not skip the TQ epilogue."""
         from mlx_lm.models.cache import ArraysCache, KVCache
         from mlx_vlm.turboquant import TurboQuantKVCache
-        from omlx_runtime.cache.type_handlers import SizedArraysCache
+        from molto_runtime.cache.type_handlers import SizedArraysCache
 
         scheduler = self._make_scheduler(mock_model, mock_tokenizer)
         scheduler._turboquant_kv_bits = 4.0
@@ -6318,8 +6336,8 @@ class TestBatchGeneratorAllTokens:
         )
         scheduled = []
 
-        with patch("omlx_runtime.scheduler._materialize_cache_storage") as materialize:
-            with patch("omlx_runtime.scheduler._sync_and_clear_cache") as sync_clear:
+        with patch("molto_runtime.scheduler._materialize_cache_storage") as materialize:
+            with patch("molto_runtime.scheduler._sync_and_clear_cache") as sync_clear:
                 scheduler._insert_prefilled_request(request, state, scheduled)
 
         call_kwargs = scheduler.batch_generator.insert.call_args.kwargs
@@ -6489,7 +6507,7 @@ class TestOutputParserSmoke:
         tool_call_end = "</｜DSML｜tool_calls>"
 
         def tool_parser(self, text: str, tools=None):
-            from omlx_runtime.patches.deepseek_v4.tool_parser_v4 import parse_tool_call
+            from molto_runtime.patches.deepseek_v4.tool_parser_v4 import parse_tool_call
 
             return parse_tool_call(text, tools)
 
@@ -7415,7 +7433,7 @@ class TestStopStringOutputBuffer:
         stops,
         expected,
     ):
-        from omlx_runtime.patches.deepseek_v41 import output_parser
+        from molto_runtime.patches.deepseek_v41 import output_parser
 
         scheduler = self._setup(mock_model)
         request = scheduler.running["stop-output"]
@@ -7686,7 +7704,7 @@ class TestSchedulerModelIdDerivation:
     ):
         """_on_prompt_progress passes config.model_name to the tracker, not
         os.path.basename(config.model_name)."""
-        from omlx_runtime.prefill_progress import get_prefill_tracker
+        from molto_runtime.prefill_progress import get_prefill_tracker
 
         config = SchedulerConfig(
             model_name="Jundot--Qwen3.6-35B-oQ4",
@@ -7747,7 +7765,7 @@ class TestSupportsSkipLmHead:
             )
         )
         scheduler = self._scheduler_with_model(adapter)
-        with caplog.at_level("INFO", logger="omlx_runtime.scheduler"):
+        with caplog.at_level("INFO", logger="molto_runtime.scheduler"):
             assert scheduler._supports_skip_lm_head() is expected
             assert scheduler._supports_skip_lm_head() is expected
         assert caplog.text.count("Prefill lm_head skip enabled") == int(expected)
@@ -8054,7 +8072,7 @@ def test_vlm_chunked_cache_keeps_serial_scheduler_contract():
 def test_image_prefix_cache_requires_complete_image_span(
     mock_model, mock_tokenizer, cached, truncated, expected
 ):
-    from omlx_runtime.cache.paged_cache import BlockTable
+    from molto_runtime.cache.paged_cache import BlockTable
 
     mock_model.minimum_prefill_prefix = lambda tokens: 6
     scheduler = Scheduler(model=mock_model, tokenizer=mock_tokenizer)
@@ -8120,7 +8138,7 @@ def test_external_prefill_keeps_image_prefix_atomic(mock_model, mock_tokenizer):
 @pytest.mark.parametrize("on_ssd", [True, False])
 def test_first_image_boundary_reached_during_decode(mock_model, mock_tokenizer, on_ssd):
     from mlx_vlm.models.cache import CacheList, PoolingCache, RotatingKVCache
-    from omlx_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
+    from molto_runtime.patches.deepseek_v4 import apply_deepseek_v4_patch
 
     apply_deepseek_v4_patch()
     mock_model.minimum_prefill_prefix = lambda tokens: 6

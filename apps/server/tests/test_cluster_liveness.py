@@ -8,7 +8,7 @@ import sys
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from omlx_runtime.cluster.liveness import (
+from molto_runtime.cluster.liveness import (
     PeerHealth,
     PeerLostError,
     PeerWatchdog,
@@ -215,7 +215,7 @@ def test_a_rank_that_is_stale_by_its_own_clock_is_still_caught(tmp_path):
 def test_the_injected_marker_script_reports_the_peer_clock(tmp_path):
     """Run the exact script SSH would run, minus the SSH."""
 
-    from omlx_runtime.cluster.liveness import _REMOTE_MARKER_SCRIPT
+    from molto_runtime.cluster.liveness import _REMOTE_MARKER_SCRIPT
 
     _marker(tmp_path, "d", 0, age_seconds=3)
     path = tmp_path / "d-rank-0.json"
@@ -241,7 +241,7 @@ def test_the_injected_marker_script_reports_the_peer_clock(tmp_path):
 def test_a_marker_response_without_the_peer_clock_is_rejected(tmp_path):
     """A payload the injected script cannot have produced is an error."""
 
-    from omlx_runtime.cluster.liveness import read_remote_marker
+    from molto_runtime.cluster.liveness import read_remote_marker
 
     fake = subprocess.CompletedProcess(
         args=[],
@@ -459,7 +459,7 @@ def test_a_marker_left_by_a_crashed_rank_does_not_wedge_the_next_activation(tmp_
     The deployment id is deterministic from the model and the plan hash, so the
     next activation of the same model reads the corpse of the last one, calls it
     stale and returns 409 — advising a deactivate/activate cycle that cannot
-    clear a file nothing ever removes. There is no reaper anywhere in oMLX.
+    clear a file nothing ever removes. There is no reaper anywhere in Molto.
     """
 
     _marker(tmp_path, "d", 1, age_seconds=3600, pid=_reaped_pid())

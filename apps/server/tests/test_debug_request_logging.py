@@ -2,7 +2,7 @@
 """Tests for the trace-level request body logging middleware."""
 
 import pytest
-from omlx_server.shared import DebugRequestLoggingMiddleware, _is_textual_body
+from molto_server.shared import DebugRequestLoggingMiddleware, _is_textual_body
 
 TRACE = 5
 
@@ -59,7 +59,7 @@ class TestDebugRequestLoggingMiddleware:
 
         binary = b"\x00\x01RIFFBINARYJUNK\xff\xfe" * 4
         middleware = DebugRequestLoggingMiddleware(inner_app)
-        caplog.set_level(TRACE, logger="omlx_server.shared")
+        caplog.set_level(TRACE, logger="molto_server.shared")
 
         await middleware(
             _make_scope("multipart/form-data; boundary=xyz"),
@@ -84,7 +84,7 @@ class TestDebugRequestLoggingMiddleware:
 
         body = b'{"model": "whisper", "stream": true}'
         middleware = DebugRequestLoggingMiddleware(inner_app)
-        caplog.set_level(TRACE, logger="omlx_server.shared")
+        caplog.set_level(TRACE, logger="molto_server.shared")
 
         await middleware(
             _make_scope("application/json"),

@@ -9,22 +9,22 @@ from types import SimpleNamespace
 
 import mlx.core as mx
 import pytest
-from omlx_runtime.cluster import runtime_optimizations
-from omlx_runtime.cluster.deployment import ClusterDeployment, ClusterHost
-from omlx_runtime.cluster.launch import run_cluster_performance_probe
-from omlx_runtime.cluster.performance import (
+from molto_runtime.cluster import runtime_optimizations
+from molto_runtime.cluster.deployment import ClusterDeployment, ClusterHost
+from molto_runtime.cluster.launch import run_cluster_performance_probe
+from molto_runtime.cluster.performance import (
     NodePerformanceProfile,
     execution_profile,
     performance_profiles_from_records,
     tune_execution_settings,
 )
-from omlx_runtime.cluster.planner import (
+from molto_runtime.cluster.planner import (
     ModelLayout,
     NodeBudget,
     PipelineAssignment,
     plan_unequal_pipeline,
 )
-from omlx_runtime.cluster.runtime_optimizations import (
+from molto_runtime.cluster.runtime_optimizations import (
     _agree_across_ranks,
     install_runtime_optimizations,
     pipeline_prefill_schedule,
@@ -190,7 +190,7 @@ def test_cluster_performance_probe_uses_ring_connections_and_validates_ranks():
     def runner(argv, *, timeout, env):
         assert timeout == 12.0
         assert argv[argv.index("--connections-per-ip") + 1] == "3"
-        assert "omlx_runtime.cluster.performance_worker" in argv
+        assert "molto_runtime.cluster.performance_worker" in argv
         assert env["SSH_ASKPASS_REQUIRE"] == "never"
         records = [
             {
@@ -216,7 +216,7 @@ def test_cluster_performance_probe_uses_ring_connections_and_validates_ranks():
     report = run_cluster_performance_probe(
         _deployment(),
         timeout=12.0,
-        python_executable="/opt/omlx/bin/python",
+        python_executable="/opt/molto/bin/python",
         runner=runner,
     )
 
@@ -430,8 +430,8 @@ def test_worker_rank_skips_vocab_projection_when_adapter_declares_contract(
         state = mx.array([0])
 
     class RankLocalLogitsModel:
-        _omlx_supports_rank_zero_logits = True
-        _omlx_output_vocab_size = 32
+        _molto_supports_rank_zero_logits = True
+        _molto_output_vocab_size = 32
 
         def __init__(self):
             self.model = _ValidatedPipeline()
@@ -443,7 +443,7 @@ def test_worker_rank_skips_vocab_projection_when_adapter_declares_contract(
             value = self.model(value, cache=cache)
             if skip_logits:
                 return None
-            return mx.zeros((*value.shape, self._omlx_output_vocab_size))
+            return mx.zeros((*value.shape, self._molto_output_vocab_size))
 
     class Batch:
         def __init__(self, model):
