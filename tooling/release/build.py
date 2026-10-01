@@ -44,7 +44,11 @@ def stage(destination: Path) -> None:
                 shutil.copytree(
                     package,
                     destination / package.name,
-                    ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+                    # Rebuild native artifacts for this release interpreter;
+                    # local in-place builds may have a different Python ABI.
+                    ignore=shutil.ignore_patterns(
+                        "__pycache__", "*.pyc", "*.so", "*.dylib", "*.metallib"
+                    ),
                 )
     runtime_project = next(
         project["project"]

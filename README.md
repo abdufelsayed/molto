@@ -37,6 +37,17 @@ Native custom kernels for some model families require the full Xcode Metal
 toolchain and a source build with `MOLTO_WITH_CUSTOM_KERNEL=1`. A normal install
 can use slower fallback paths.
 
+To build a wheel with all five native extensions, first install the optional
+build tools from the root workspace:
+
+```sh
+uv sync --all-packages --inexact --group native-build
+MOLTO_WITH_CUSTOM_KERNEL=1 pnpm build
+```
+
+The resulting native wheel targets the Python version used to build it. Install
+it with the same Python version.
+
 ## Quickstart
 
 Put an MLX-format checkpoint in its own subdirectory under `~/.molto/models`, then
@@ -74,6 +85,12 @@ curl http://127.0.0.1:8000/v1/chat/completions \
 Stop the foreground process with Ctrl+C.
 The server also supports model directories one level below organization
 directories, such as `~/models/mlx-community/model-name/`.
+
+Use `~/.molto/models` for persistent model storage. Managed downloads keep their
+`owner/model` directory names, and conversions publish a separate checkpoint
+under the configured model root. Keep source weights and prepared checkpoints;
+temporary conversion directories are scratch space. The dashboard and CLI use
+the same saved `model.model_dirs` setting.
 
 The management API requires the main key even on loopback unless you
 explicitly enable the loopback-only `skip_api_key_verification` setting. A

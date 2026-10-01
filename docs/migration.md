@@ -22,6 +22,10 @@ settings, cache data, cluster identity, and SQLite usage history move together.
 Historical logs and benchmark inputs retain their contents.
 Molto retains the old cache hash domains and reads old cache metadata so these
 blocks remain usable after the move. New writes use Molto metadata names.
+Prepared diffusion checkpoints rename `omlx-mflux.json` to `molto-mflux.json`
+and update source paths beneath the moved root. Weight files and upstream model
+configuration remain unchanged. Conflicting manifest names stop migration
+before data moves; failed migrations restore the original names and contents.
 
 If present, `~/Library/Application Support/oMLX` moves to
 `~/Library/Application Support/Molto`. Molto writes new command and cluster

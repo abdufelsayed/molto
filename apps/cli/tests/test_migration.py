@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -69,6 +70,74 @@ def test_dry_run_does_not_create_or_modify_anything(tmp_path):
     report = migrate_home(source, target, home=tmp_path, dry_run=True)
     assert report["settings_files_updated"] == 1
     assert (source / "settings.json").read_bytes() == before
+    assert not target.exists()
+
+
+def test_diffusion_manifest_migrates_without_rewriting_weights_or_vendor_config(
+    tmp_path,
+):
+    source, target = tmp_path / ".omlx", tmp_path / ".molto"
+    model = source / "models/diffusion"
+    model.mkdir(parents=True)
+    weights = model / "model.safetensors"
+    weights.write_bytes(b"preserved checkpoint")
+    identity = weights.stat().st_ino
+    manifest = model / "omlx-mflux.json"
+    manifest.write_text(json.dumps({"source_path": str(model), "backend": "mflux"}))
+    vendor_config = model / "config.json"
+    vendor_config.write_text('{"upstream_path":"~/.omlx/unchanged"}')
+    vendor_original = vendor_config.read_bytes()
+    original = manifest.read_bytes()
+
+    preview = migrate_home(source, target, home=tmp_path, dry_run=True)
+    assert preview["model_manifests_renamed"] == 1
+    assert manifest.read_bytes() == original
+    assert not target.exists()
+
+    report = migrate_home(source, target, home=tmp_path)
+    migrated = target / "models/diffusion"
+    assert not (migrated / manifest.name).exists()
+    assert json.loads((migrated / "molto-mflux.json").read_text()) == {
+        "source_path": str(migrated),
+        "backend": "mflux",
+    }
+    assert (migrated / weights.name).stat().st_ino == identity
+    assert (migrated / weights.name).read_bytes() == b"preserved checkpoint"
+    assert (migrated / vendor_config.name).read_bytes() == vendor_original
+    assert report["model_manifests_renamed"] == 1
+
+
+def test_conflicting_model_manifests_block_migration_before_moving_data(tmp_path):
+    source, target = tmp_path / ".omlx", tmp_path / ".molto"
+    source.mkdir()
+    for name in ("omlx-mflux.json", "molto-mflux.json"):
+        (source / name).write_text("{}")
+    with pytest.raises(CLIError, match="Both legacy and Molto"):
+        migrate_home(source, target, home=tmp_path)
+    assert source.is_dir()
+    assert not target.exists()
+
+
+def test_model_manifest_name_and_contents_roll_back_on_launcher_failure(
+    tmp_path, monkeypatch
+):
+    source, target = tmp_path / ".omlx", tmp_path / ".molto"
+    source.mkdir()
+    manifest = source / "omlx-mflux.json"
+    manifest.write_text('{"source_path":"~/.omlx/models/diffusion"}')
+    original = manifest.read_bytes()
+    write = Path.write_text
+
+    def fail_launcher(path, data, *args, **kwargs):
+        if path == target / "bin/molto":
+            raise OSError("launcher failed")
+        return write(path, data, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_text", fail_launcher)
+    with pytest.raises(OSError, match="launcher failed"):
+        migrate_home(source, target, home=tmp_path)
+    assert manifest.read_bytes() == original
+    assert not (source / "molto-mflux.json").exists()
     assert not target.exists()
 
 
@@ -145,8 +214,6 @@ def test_failed_settings_write_rolls_back_root_and_original_configuration(
     source.mkdir()
     (source / "settings.json").write_text('{"model_dir":"~/.omlx/models"}')
     original = (source / "settings.json").read_bytes()
-    from pathlib import Path
-
     write = Path.write_bytes
     failed = False
 

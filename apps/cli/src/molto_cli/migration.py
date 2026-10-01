@@ -104,7 +104,16 @@ def migrate_home(
     files = list(source.rglob("*"))
     rewrites = {}
     links = {}
+    model_manifests = {}
     for path in files:
+        if path.is_file() and not path.is_symlink() and path.name == "omlx-mflux.json":
+            renamed = path.with_name("molto-mflux.json")
+            if renamed.exists() or renamed.is_symlink():
+                raise CLIError(
+                    f"Both legacy and Molto model manifests exist: {path.parent}. Resolve that conflict first.",
+                    2,
+                )
+            model_manifests[path] = renamed
         if path.is_symlink():
             original = os.readlink(path)
             updated = _rewrite_paths(original, source, target)
@@ -113,7 +122,10 @@ def migrate_home(
         elif (
             path.is_file()
             and path.suffix == ".json"
-            and "models" not in path.relative_to(source).parts
+            and (
+                "models" not in path.relative_to(source).parts
+                or path.name == "omlx-mflux.json"
+            )
         ):
             original = path.read_bytes()
             try:
@@ -156,12 +168,14 @@ def migrate_home(
         "symlinks_updated": len(links),
         "application_support_moved": move_support,
         "legacy_command_links_removed": len(command_links),
+        "model_manifests_renamed": len(model_manifests),
     }
     if dry_run:
         return report
     moved_support = False
     changed_links = []
     changed_files = []
+    renamed_manifests = []
     removed_command_links = []
     source.rename(target)
     try:
@@ -176,6 +190,11 @@ def migrate_home(
             saved.chmod(stat.S_IMODE(path.stat().st_mode))
             changed_files.append((path, original))
             path.write_bytes(updated)
+        for old, renamed in model_manifests.items():
+            path = target / old.relative_to(source)
+            new_path = target / renamed.relative_to(source)
+            path.rename(new_path)
+            renamed_manifests.append((path, new_path))
         for old, (original, updated) in links.items():
             path = (
                 target / old.relative_to(source) if old.is_relative_to(source) else old
@@ -224,6 +243,8 @@ def migrate_home(
     except Exception:
         for path, original in removed_command_links:
             path.symlink_to(original)
+        for original, renamed in reversed(renamed_manifests):
+            renamed.rename(original)
         for path, original in reversed(changed_files):
             path.write_bytes(original)
         for path, original in reversed(changed_links):

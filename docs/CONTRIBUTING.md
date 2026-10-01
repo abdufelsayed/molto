@@ -2,7 +2,8 @@
 
 Molto is a bundled inference server, management CLI, and TanStack Start dashboard. Contributions to model
 support, serving behavior, performance, tests, and documentation are welcome.
-The macOS app and bundled web admin UI are no longer in this repository.
+The upstream Swift app and legacy admin UI have been replaced by the bundled
+web application.
 
 ## Set up a checkout
 
@@ -17,8 +18,10 @@ uv run --all-packages --inexact pytest packages/runtime/tests/test_engine_pool.p
 
 The checked-in `uv.lock` is the reproducible dependency source. The `dev`
 group is included by default; runtime extras are selected with `--extra`.
-Native custom kernels need full Xcode and `MOLTO_WITH_CUSTOM_KERNEL=1` when
-building from source. See [README](../README.md#install-from-source).
+Native custom kernels need full Xcode with the Metal toolchain. Install their
+build tools with `uv sync --all-packages --inexact --group native-build`, then
+build with `MOLTO_WITH_CUSTOM_KERNEL=1 pnpm build`. See
+[README](../README.md#install-from-source).
 
 ## Make a focused change
 

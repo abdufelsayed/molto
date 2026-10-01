@@ -39,6 +39,7 @@ dev = [
   "xgrammar==0.2.3",
   "apache-tvm-ffi==0.1.11",
 ]
+native-build = ["cmake>=3.27", "nanobind==2.15.0"]
 
 [tool.uv]
 package = false

@@ -20,7 +20,7 @@ def _detach_import_error(exc: Exception) -> Exception:
 
 
 try:
-    from molto_runtime.custom_kernels.glm_moe_dsa import _ext
+    from . import _ext
 except Exception as exc:  # pragma: no cover - depends on local native build
     _ext = None
     _IMPORT_ERROR = _detach_import_error(exc)
