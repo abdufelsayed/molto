@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 import hashlib
 import inspect
 from collections import OrderedDict
@@ -161,6 +162,83 @@ def _semantic(value):
     raise TypeError("Encoder argument is not suitable for exact prompt caching")
 
 
+def _prediction_signature(value):
+    """Describe native specialization inputs without tensor identity or contents.
+
+    Tensors contribute shape and dtype. Scalars and nested static containers
+    contribute their complete values. Opaque mutable objects (including native
+    KV-cache objects) bypass retention rather than assuming their state is fixed.
+    """
+    import mlx.core as mx
+
+    if isinstance(value, mx.array):
+        return "tensor", tuple(value.shape), str(value.dtype)
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return type(value).__name__, value
+    if isinstance(value, (tuple, list)):
+        return type(value).__name__, tuple(
+            _prediction_signature(child) for child in value
+        )
+    if isinstance(value, dict):
+        return "dict", tuple(
+            sorted((key, _prediction_signature(child)) for key, child in value.items())
+        )
+    raise TypeError(
+        "Mutable prediction arguments cannot retain a compiled specialization"
+    )
+
+
+class _PredictionProxy:
+    """Keep one native callable for the current invocation signature only.
+
+    A single mx.compile callable otherwise retains every encountered shape.
+    Reconstruct through the original native factory on a signature change, so
+    native hardware selection and prediction formulas remain untouched.
+    """
+
+    def __init__(self, owner, factory, args, kwargs, native):
+        self._owner = owner
+        self._factory = factory
+        self._args = args
+        self._kwargs = kwargs
+        self._native = native
+        self._signature = _MISSING
+
+    def clear(self):
+        self._native = None
+        self._signature = _MISSING
+
+    def _build(self):
+        native = self._factory(*self._args, **self._kwargs)
+        self._owner._factory_builds += 1
+        return native
+
+    def __call__(self, *args, **kwargs):
+        try:
+            signature = _prediction_signature((args, kwargs))
+        except TypeError:
+            native = self._native if self._signature is _MISSING else None
+            self.clear()
+            gc.collect()
+            if native is None:
+                native = self._build()
+            self._owner._signature_bypasses += 1
+            # Do not retain this native callable after an opaque input call.
+            return native(*args, **kwargs)
+        if self._signature is not _MISSING and self._signature != signature:
+            self.clear()
+            # Release the previous compiled closure before building its
+            # replacement; it may own materialized captured model tensors.
+            gc.collect()
+            self._owner._shape_rebuilds += 1
+        elif self._signature == signature:
+            self._owner._signature_reuses += 1
+        if self._native is None:
+            self._native = self._build()
+        self._signature = signature
+        return self._native(*args, **kwargs)
+
+
 class PromptCacheBinding:
     """Instance-only native hooks, restored on release and bypassed in calibration."""
 
@@ -181,6 +259,7 @@ class PromptCacheBinding:
         self._original_methods = {}
         self._factories = {}
         self._factory_builds = self._factory_reuses = 0
+        self._shape_rebuilds = self._signature_reuses = self._signature_bypasses = 0
         self._factory_enabled = True
         self._reference_vae = None
         self._reference_hits = self._reference_misses = 0
@@ -258,7 +337,10 @@ class PromptCacheBinding:
             ):
                 self._factory_reuses += 1
                 return existing[1]
-            result = original(*args, **kwargs)
+            if existing is not None:
+                existing[1].clear()
+            native = original(*args, **kwargs)
+            result = _PredictionProxy(self, original, args, kwargs, native)
             self._factories[name] = key, result
             self._factory_builds += 1
             return result
@@ -336,11 +418,20 @@ class PromptCacheBinding:
             "prediction_factory_entries": len(self._factories),
             "prediction_factory_builds": self._factory_builds,
             "prediction_factory_reuses": self._factory_reuses,
+            "prediction_signatures": sum(
+                proxy._signature is not _MISSING
+                for _, proxy in tuple(self._factories.values())
+            ),
+            "prediction_shape_rebuilds": self._shape_rebuilds,
+            "prediction_signature_reuses": self._signature_reuses,
+            "prediction_signature_bypasses": self._signature_bypasses,
         }
 
     def clear(self):
         count = len(self.cache) + len(self._factories)
         self.cache.clear()
+        for _, proxy in tuple(self._factories.values()):
+            proxy.clear()
         self._factories.clear()
         self._reference_vae = None
         return count

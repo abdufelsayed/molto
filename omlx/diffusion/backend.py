@@ -350,6 +350,10 @@ class MFluxBackend:
             "prediction_factory_entries": 0,
             "prediction_factory_builds": 0,
             "prediction_factory_reuses": 0,
+            "prediction_signatures": 0,
+            "prediction_shape_rebuilds": 0,
+            "prediction_signature_reuses": 0,
+            "prediction_signature_bypasses": 0,
         }
 
     def clear_cache(self, model):

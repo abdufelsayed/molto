@@ -198,7 +198,8 @@ def test_calibration_bypasses_cached_factory_and_restores_exact_wrapper(monkeypa
 
         @staticmethod
         def _predict(transformer):
-            return "eager" if utility.is_m1_or_m2() else "compiled"
+            mode = "eager" if utility.is_m1_or_m2() else "compiled"
+            return lambda value: mode
 
     model = Calibration()
     backend = MFluxBackend()
@@ -207,17 +208,17 @@ def test_calibration_bypasses_cached_factory_and_restores_exact_wrapper(monkeypa
     backend._cache_bindings[id(model)] = binding
     monkeypatch.setattr("omlx.diffusion.backend._symbol", lambda name: utility)
     original_wrapper = model._predict
-    assert model._predict(model.transformer) == "compiled"
+    assert model._predict(model.transformer)(0) == "compiled"
     model._encode_prompt_pair(prompt="hello")
     with pytest.raises(RuntimeError), backend.calibration_context(model):
-        assert model._predict(model.transformer) == "eager"
+        assert model._predict(model.transformer)(0) == "eager"
         assert not binding.cache.enabled
         model._encode_prompt_pair(prompt="hello")
         model._encode_prompt_pair(prompt="hello")
         raise RuntimeError("calibration failed")
     assert model._predict is original_wrapper
     assert binding.cache.enabled and binding.stats()["entries"] == 0
-    assert model._predict(model.transformer) == "compiled"
+    assert model._predict(model.transformer)(0) == "compiled"
     assert model.encodes == 3
 
 
@@ -255,3 +256,72 @@ def test_stats_snapshot_survives_concurrent_lru_eviction(monkeypatch):
             reader.result(timeout=10)
     finally:
         sys.setswitchinterval(previous)
+
+
+def test_native_compile_retains_only_current_shape_dtype_and_scalar_signature():
+    import weakref
+
+    built = []
+
+    class Compiled(Tiny):
+        def _predict(self, transformer):
+            self.factories += 1
+
+            def prediction(values, *, scale=1.0, configuration=None):
+                return transformer(values) * scale
+
+            native = mx.compile(prediction)
+            # mlx.gc_func itself cannot be weak-referenced; it owns the
+            # Python function, whose lifetime tracks its compiled wrapper.
+            built.append(weakref.ref(prediction))
+            return native
+
+    model = Compiled()
+    binding = PromptCacheBinding(model, "flux2-klein-4b", "flux2-klein-4b")
+
+    def transformer(values):
+        return values + 2
+
+    proxy = model._predict(transformer)
+    for size in (2, 3, 2):
+        values = mx.arange(size, dtype=mx.float32)
+        actual = proxy(values, scale=1.0)
+        mx.eval(actual)
+        assert mx.array_equal(actual, values + 2).item()
+        assert binding.stats()["prediction_signatures"] == 1
+        assert sum(reference() is not None for reference in built) == 1
+    assert model.factories == 3
+    assert binding.stats()["prediction_shape_rebuilds"] == 2
+    # New tensor contents and identity reuse the current native callable.
+    assert mx.array_equal(
+        proxy(mx.array([8.0, 9.0]), scale=1.0), mx.array([10.0, 11.0])
+    ).item()
+    assert model.factories == 3
+    assert binding.stats()["prediction_signature_reuses"] == 1
+    # Python static values and tensor dtype are separate specializations.
+    proxy(mx.array([8.0, 9.0]), scale=2.0)
+    proxy(mx.array([8, 9], dtype=mx.int32), scale=2.0)
+    assert model.factories == 5
+    binding.clear()
+    assert binding.stats()["prediction_signatures"] == 0
+    assert all(reference() is None for reference in built)
+
+
+def test_mutable_prediction_arguments_bypass_retention_and_native_errors_preserved():
+    model = Tiny()
+    binding = PromptCacheBinding(model, "flux2-klein-4b", "flux2-klein-4b")
+
+    class Mutable:
+        value = 1
+
+    def transformer(value):
+        return value.value
+
+    proxy = model._predict(transformer)
+    state = Mutable()
+    assert proxy(state) == 1
+    state.value = 2
+    assert proxy(state) == 2
+    assert binding.stats()["prediction_signatures"] == 0
+    assert binding.stats()["prediction_signature_bypasses"] == 2
+    assert model.factories == 2
