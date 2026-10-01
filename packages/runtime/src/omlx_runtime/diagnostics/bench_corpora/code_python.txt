@@ -16,28 +16,28 @@ Features:
 - Tiered cache (GPU + paged SSD offloading)
 """
 
-from omlx_config._version import __version__
+from omlx._version import __version__
 
 _LAZY = {
-    "Request": "omlx_runtime.request",
-    "RequestOutput": "omlx_runtime.request",
-    "RequestStatus": "omlx_runtime.request",
-    "SamplingParams": "omlx_runtime.request",
-    "Scheduler": "omlx_runtime.scheduler",
-    "SchedulerConfig": "omlx_runtime.scheduler",
-    "SchedulerOutput": "omlx_runtime.scheduler",
-    "EngineCore": "omlx_runtime.engine_core",
-    "AsyncEngineCore": "omlx_runtime.engine_core",
-    "EngineConfig": "omlx_runtime.engine_core",
-    "BlockAwarePrefixCache": "omlx_runtime.cache.prefix_cache",
-    "PagedCacheManager": "omlx_runtime.cache.paged_cache",
-    "CacheBlock": "omlx_runtime.cache.paged_cache",
-    "BlockTable": "omlx_runtime.cache.paged_cache",
-    "PrefixCacheStats": "omlx_runtime.cache.stats",
-    "PagedCacheStats": "omlx_runtime.cache.stats",
-    "CacheStats": "omlx_runtime.cache.stats",
-    "get_registry": "omlx_runtime.model_registry",
-    "ModelOwnershipError": "omlx_runtime.model_registry",
+    "Request": "omlx.request",
+    "RequestOutput": "omlx.request",
+    "RequestStatus": "omlx.request",
+    "SamplingParams": "omlx.request",
+    "Scheduler": "omlx.scheduler",
+    "SchedulerConfig": "omlx.scheduler",
+    "SchedulerOutput": "omlx.scheduler",
+    "EngineCore": "omlx.engine_core",
+    "AsyncEngineCore": "omlx.engine_core",
+    "EngineConfig": "omlx.engine_core",
+    "BlockAwarePrefixCache": "omlx.cache.prefix_cache",
+    "PagedCacheManager": "omlx.cache.paged_cache",
+    "CacheBlock": "omlx.cache.paged_cache",
+    "BlockTable": "omlx.cache.paged_cache",
+    "PrefixCacheStats": "omlx.cache.stats",
+    "PagedCacheStats": "omlx.cache.stats",
+    "CacheStats": "omlx.cache.stats",
+    "get_registry": "omlx.model_registry",
+    "ModelOwnershipError": "omlx.model_registry",
 }
 
 
@@ -3930,7 +3930,7 @@ def _format_bits(value: Any) -> Optional[str]:
 def _derive_feature_flags(model_settings: Any) -> list[dict]:
     """Build the upload projection of the active acceleration features.
 
-    Objects rather than bare keys: the app and omlx_runtime.ai ship independently, so
+    Objects rather than bare keys: the app and omlx.ai ship independently, so
     carrying the display label means a newly added feature renders correctly on
     the site from day one instead of showing a raw snake_case key until the
     next site deploy. Only active features are included — the site derives
@@ -4677,7 +4677,7 @@ async def _run_external_batch_test(
     }
 
 
-OMLX_AI_API_URL = "https://omlx_runtime.ai/api/benchmarks"
+OMLX_AI_API_URL = "https://omlx.ai/api/benchmarks"
 
 # The leaderboard accepts model_name up to 150 characters.
 _MAX_MODEL_NAME_LEN = 150
@@ -4735,7 +4735,7 @@ def _sanitize_upload_error(resp: Any) -> str:
     1. Cloudflare challenge — header ``cf-mitigated: challenge`` is
        authoritative; a body sniff for "just a moment" / "cf-chl" covers
        edge transports that strip the header.
-    2. JSON envelope — the omlx_runtime.ai API's normal error shape; extract
+    2. JSON envelope — the omlx.ai API's normal error shape; extract
        ``error`` / ``detail`` / ``message`` if present, truncated.
     3. Plain-text body — short responses only; HTML-looking bodies are
        collapsed to a one-line "non-JSON response (N bytes)" hint.
@@ -4754,7 +4754,7 @@ def _sanitize_upload_error(resp: Any) -> str:
     ):
         return (
             f"Upload blocked by Cloudflare (HTTP {status}). "
-            f"This is a server-side issue with omlx_runtime.ai — retry later or "
+            f"This is a server-side issue with omlx.ai — retry later or "
             f"report it to the maintainer."
         )
 
@@ -4773,7 +4773,7 @@ def _sanitize_upload_error(resp: Any) -> str:
 
 
 async def _upload_to_omlx_ai(run: BenchmarkRun, engine_pool: Any) -> None:
-    """Upload benchmark results to omlx_runtime.ai community benchmarks.
+    """Upload benchmark results to omlx.ai community benchmarks.
 
     Sends each single-request result as a separate submission,
     grouped by submission_group. Upload failures don't affect
@@ -5323,11 +5323,11 @@ async def run_benchmark(run: BenchmarkRun, engine_pool: Any) -> None:
             },
         )
 
-        # Upload results to omlx_runtime.ai (failures don't affect benchmark status)
+        # Upload results to omlx.ai (failures don't affect benchmark status)
         try:
             await _upload_to_omlx_ai(run, engine_pool)
         except Exception as e:
-            logger.warning(f"Benchmark upload to omlx_runtime.ai failed: {e}")
+            logger.warning(f"Benchmark upload to omlx.ai failed: {e}")
             await _send_event(
                 run,
                 {
@@ -5502,7 +5502,7 @@ async def _run_external_benchmark(run: BenchmarkRun) -> None:
         )
 
         # External results measure remote hardware — never upload them to
-        # the omlx_runtime.ai community leaderboard. Mirrors the experimental-
+        # the omlx.ai community leaderboard. Mirrors the experimental-
         # features skip so REST pollers see the same upload_state shape.
         run.upload_state["phase"] = "skipped"
         run.upload_state["skipped_reason"] = "external_endpoint"
@@ -8155,7 +8155,7 @@ def _generate_model_card(
     model_name: str, config: dict, redownload_notice: bool = False,
 ) -> str:
     """Generate a minimal HuggingFace model card for an oQ model."""
-    from omlx_config._version import __version__
+    from omlx._version import __version__
 
     model_type = config.get("model_type", "unknown")
     quant = config.get("quantization", {})
@@ -10523,7 +10523,7 @@ from .auth import (
 
 logger = logging.getLogger(__name__)
 
-PRESET_REMOTE_URL = "https://omlx_runtime.ai/assets/omlx_preset.json"
+PRESET_REMOTE_URL = "https://omlx.ai/assets/omlx_preset.json"
 
 
 # =============================================================================
@@ -11152,17 +11152,17 @@ def _apply_log_level_runtime(level: str) -> None:
     # Update omlx-related loggers
     omlx_loggers = [
         "omlx",
-        "omlx_runtime.scheduler",
-        "omlx_runtime.paged_ssd_cache",
-        "omlx_runtime.memory_monitor",
-        "omlx_runtime.paged_cache",
-        "omlx_runtime.prefix_cache",
-        "omlx_runtime.engine_pool",
-        "omlx_runtime.model_discovery",
-        "omlx_runtime.engine_core",
-        "omlx_runtime.engine",
-        "omlx_server.server",
-        "omlx_runtime.admin",
+        "omlx.scheduler",
+        "omlx.paged_ssd_cache",
+        "omlx.memory_monitor",
+        "omlx.paged_cache",
+        "omlx.prefix_cache",
+        "omlx.engine_pool",
+        "omlx.model_discovery",
+        "omlx.engine_core",
+        "omlx.engine",
+        "omlx.server",
+        "omlx.admin",
     ]
 
     for logger_name in omlx_loggers:
@@ -11518,7 +11518,7 @@ def _static_version(path: str) -> str:
 
 templates.env.globals["static"] = _static_version
 
-from omlx_config._version import __version__ as _omlx_version
+from omlx._version import __version__ as _omlx_version
 
 templates.env.globals["version"] = _omlx_version
 
@@ -12196,7 +12196,7 @@ async def list_grammar_parsers(is_admin: bool = Depends(require_admin)):
     # the fallback try-block importing xgrammar without the stub, which
     # is guaranteed ImportError on stub-only (DMG) deployments.
     try:
-        from omlx_runtime._torch_stub import install as _install_torch_stub
+        from omlx._torch_stub import install as _install_torch_stub
 
         _install_torch_stub()
     except Exception as e:  # pragma: no cover — defensive
@@ -13371,15 +13371,15 @@ async def delete_template(
 
 
 # =============================================================================
-# Preset refresh (proxy to omlx_runtime.ai to avoid CORS)
+# Preset refresh (proxy to omlx.ai to avoid CORS)
 # =============================================================================
 
 
 @router.post("/api/presets/refresh")
 async def refresh_presets(is_admin: bool = Depends(require_admin)):
-    """Fetch the latest preset bundle from omlx_runtime.ai and return it.
+    """Fetch the latest preset bundle from omlx.ai and return it.
 
-    The client uses this instead of fetching omlx_runtime.ai directly so we do not
+    The client uses this instead of fetching omlx.ai directly so we do not
     depend on CORS headers on the remote host. Any failure is surfaced as 502
     so the client can silently fall back to the bundled presets.
     """
@@ -16929,7 +16929,7 @@ async def get_benchmark_results(
 async def get_device_info(
     is_admin: bool = Depends(require_admin),
 ):
-    """Get device hardware info and owner_hash for omlx_runtime.ai integration."""
+    """Get device hardware info and owner_hash for omlx.ai integration."""
     from ..utils.hardware import (
         compute_owner_hash,
         get_chip_name,
@@ -18584,7 +18584,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from omlx_contracts.api.shared_models import IDPrefix, generate_id
+from omlx.api.shared_models import IDPrefix, generate_id
 
 # =============================================================================
 # Content Blocks
@@ -20312,7 +20312,7 @@ _VIDEO_CONTAINERS = {".mp4", ".mkv", ".mov", ".m4v", ".webm", ".avi"}
 
 
 # ---------------------------------------------------------------------------
-# Engine pool accessor — patched in tests via omlx_server.api.audio_routes._get_engine_pool
+# Engine pool accessor — patched in tests via omlx.api.audio_routes._get_engine_pool
 # ---------------------------------------------------------------------------
 
 
@@ -20320,10 +20320,10 @@ def _get_engine_pool():
     """Return the active EnginePool from server state.
 
     Imported lazily to avoid a circular import at module load time.
-    Can be replaced in tests via patch('omlx_server.api.audio_routes._get_engine_pool').
+    Can be replaced in tests via patch('omlx.api.audio_routes._get_engine_pool').
     """
     # Import here to avoid circular imports at module load
-    from omlx_server.server import _server_state
+    from omlx.server import _server_state
 
     pool = _server_state.engine_pool
     if pool is None:
@@ -20337,7 +20337,7 @@ def _resolve_model(model_id: str) -> str:
     Delegates to the same resolve_model_id used by LLM/chat endpoints,
     ensuring audio endpoints handle aliases consistently.
     """
-    from omlx_server.server import resolve_model_id
+    from omlx.server import resolve_model_id
 
     return resolve_model_id(model_id) or model_id
 
@@ -20349,7 +20349,7 @@ def _get_settings_manager():
     that don't bring up the full server state.
     """
     try:
-        from omlx_server.server import _server_state
+        from omlx.server import _server_state
     except Exception:
         return None
     return getattr(_server_state, "settings_manager", None)
@@ -20727,8 +20727,8 @@ async def create_transcription(
     ``{word, start, end, probability}`` objects. Default False preserves the
     existing response shape for every current caller.
     """
-    from omlx_runtime.engine.stt import STTEngine
-    from omlx_runtime.exceptions import ModelNotFoundError
+    from omlx.engine.stt import STTEngine
+    from omlx.exceptions import ModelNotFoundError
 
     pool = _get_engine_pool()
     resolved_model = _resolve_model(model)
@@ -20899,8 +20899,8 @@ def _transcode_speech_output(wav_bytes: bytes, response_format: str) -> bytes:
 @router.post("/v1/audio/speech")
 async def create_speech(request: AudioSpeechRequest):
     """OpenAI-compatible text-to-speech endpoint."""
-    from omlx_runtime.engine.tts import TTSEngine
-    from omlx_runtime.exceptions import ModelNotFoundError
+    from omlx.engine.tts import TTSEngine
+    from omlx.exceptions import ModelNotFoundError
 
     if not request.input or not request.input.strip():
         raise HTTPException(status_code=400, detail="'input' field must not be empty")
@@ -21018,8 +21018,8 @@ async def process_audio(
     the audio through an STS engine (e.g. DeepFilterNet, MossFormer2,
     SAMAudio, LFM2.5-Audio), and returns WAV bytes of the processed audio.
     """
-    from omlx_runtime.engine.sts import STSEngine
-    from omlx_runtime.exceptions import ModelNotFoundError
+    from omlx.engine.sts import STSEngine
+    from omlx.exceptions import ModelNotFoundError
 
     pool = _get_engine_pool()
     resolved_model = _resolve_model(model)
@@ -22780,7 +22780,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from pydantic import AliasChoices, BaseModel, Field, field_validator
 
-from omlx_contracts.api.shared_models import (
+from omlx.api.shared_models import (
     BaseUsage,
     IDPrefix,
     generate_id,
@@ -29330,7 +29330,7 @@ class BoundarySnapshotSSDStore:
         Caller must guarantee no async store_cache worker is still reading
         snapshots for this request — concurrent ``rmtree`` here would race
         the worker's :meth:`load` calls and silently strip block storage.
-        :class:`omlx_runtime.scheduler.Scheduler` defers this call until the
+        :class:`omlx.scheduler.Scheduler` defers this call until the
         ``store_future`` for ``request_id`` is done.
 
         Acquires ``_writer_busy`` after marking the request cancelled so
@@ -32775,7 +32775,7 @@ from typing import Any
 
 import numpy as np
 
-from omlx_config.utils.formatting import format_bytes
+from omlx.utils.formatting import format_bytes
 
 from .interface import CacheManager
 from .pooling_delta import (
@@ -37118,7 +37118,7 @@ class BlockAwarePrefixCache(CacheManager):
         """Normalize wrapper class names for metadata compatibility checks.
 
         Thin wrapper around the canonical implementation in
-        :mod:`omlx_runtime.cache.paged_ssd_cache` so the two sites that compare
+        :mod:`omlx.cache.paged_ssd_cache` so the two sites that compare
         signatures stay in lock-step.
         """
         from .paged_ssd_cache import _canonicalize_layer_cache_types
