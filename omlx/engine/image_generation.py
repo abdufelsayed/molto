@@ -238,6 +238,7 @@ class DiffusionImageEngine(BaseNonStreamingEngine):
                 metadata={
                     "width": width,
                     "height": height,
+                    "seed": seeds[0],
                     "seeds": list(seeds),
                     "batch_size": len(seeds),
                     "steps": steps or spec.default_steps,

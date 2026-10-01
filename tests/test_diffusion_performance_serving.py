@@ -234,7 +234,10 @@ async def test_batch_clear_stop_serialized_and_cancellation_drained(
     clear = asyncio.create_task(engine.clear_prompt_caches(hot=True))
     await asyncio.sleep(0)
     assert not generation.done() and not clear.done()
-    assert engine.get_activity_snapshot()["active_requests"] == 1
+    snapshot = engine.get_activity_snapshot()
+    assert snapshot["active_requests"] == 1
+    activity = snapshot["activities"][0]
+    assert activity["seed"] == 1 and activity["seeds"] == [1, 2]
     assert engine.get_runtime_cache_stats()["entries"] == 2
     backend.proceed.set()
     with pytest.raises(asyncio.CancelledError):
