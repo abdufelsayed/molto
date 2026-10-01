@@ -1,8 +1,8 @@
 # Molto
 
 Molto runs and manages local AI models on Apple Silicon. It serves text and
-vision language models, embeddings, rerankers, and optional image and audio
-models through HTTP APIs. `molto serve` starts the TanStack Start dashboard and
+vision language models, embeddings, rerankers, image generation, and optional
+audio models through HTTP APIs. `molto serve` starts the TanStack Start dashboard and
 Python inference backend together on one public origin. The dashboard handles
 model and server management. Both share this repository. Dashboard source and development instructions are in
 [apps/dashboard/](apps/dashboard/README.md).
@@ -26,9 +26,10 @@ pnpm --filter molto-dashboard build
 The six Python workspace members share `uv.lock`; the dashboard and generated
 contracts share the root `pnpm-lock.yaml`. `uv sync` includes developer tools.
 For a runtime environment omit those with `--no-dev`, retaining
-`--all-packages --inexact`. Runtime extras include `mcp`, `audio`, `image`,
-`cluster`, `modelscope`, `grammar`, and `paroquant`; enable one with `--extra`,
-for example `uv sync --all-packages --inexact --extra image`.
+`--all-packages --inexact`. mflux is included in the default installation.
+Runtime extras include `mcp`,
+`audio`, `cluster`, `modelscope`, `grammar`, and `paroquant`; enable one with
+`--extra`, for example `uv sync --all-packages --inexact --extra audio`.
 
 Complete release wheels bundle the dashboard assets and a standalone Node
 runtime, so installed-wheel users do not need pnpm or a separate dashboard process.
@@ -146,19 +147,19 @@ The inference server exposes OpenAI-shaped and Anthropic-shaped endpoints.
 Compatibility depends on the endpoint, model, and request features; test the
 client workflow you need.
 
-| Endpoint                      | Use                                                 |
-| ----------------------------- | --------------------------------------------------- |
-| `GET /v1/models`              | Discover API model IDs                              |
-| `POST /v1/chat/completions`   | Text or vision chat                                 |
-| `POST /v1/completions`        | Text completions                                    |
-| `POST /v1/messages`           | Anthropic-shaped messages                           |
-| `POST /v1/responses`          | Responses                                           |
-| `POST /v1/embeddings`         | Embeddings                                          |
-| `POST /v1/rerank`             | Reranking                                           |
-| `POST /v1/images/generations` | Supported mflux image models with the `image` extra |
-| `POST /v1/images/edits`       | Image-to-image, reference editing, and inpainting   |
-| `POST /v1/images/operations`  | Explicit diffusion pipeline operations              |
-| `GET /v1/images/capabilities` | Pipeline options and checkpoint-specific support    |
+| Endpoint                      | Use                                               |
+| ----------------------------- | ------------------------------------------------- |
+| `GET /v1/models`              | Discover API model IDs                            |
+| `POST /v1/chat/completions`   | Text or vision chat                               |
+| `POST /v1/completions`        | Text completions                                  |
+| `POST /v1/messages`           | Anthropic-shaped messages                         |
+| `POST /v1/responses`          | Responses                                         |
+| `POST /v1/embeddings`         | Embeddings                                        |
+| `POST /v1/rerank`             | Reranking                                         |
+| `POST /v1/images/generations` | Supported mflux image models                      |
+| `POST /v1/images/edits`       | Image-to-image, reference editing, and inpainting |
+| `POST /v1/images/operations`  | Explicit diffusion pipeline operations            |
+| `GET /v1/images/capabilities` | Pipeline options and checkpoint-specific support  |
 
 Audio routes require the `audio` extra. Image diffusion uses a general pipeline
 registry over mflux 0.20; see [image models](docs/image-models.md) for the exact

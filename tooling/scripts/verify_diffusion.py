@@ -1,6 +1,6 @@
 """Opt-in real image API proof using two existing local checkpoints.
 
-Run with uv run --all-packages and the image extra installed. This script does not
+Run with uv run --all-packages. This script does not
 download models or connect to a running server. It uses an isolated engine pool
 and ASGI requests, writes PNGs/report.json, and unloads each model after use.
 """

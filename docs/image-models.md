@@ -1,6 +1,6 @@
 # Image models
 
-Install the optional `image` extra to use mflux 0.20.0 on Apple Silicon. Image
+mflux 0.20.0 is included in the default Molto installation on Apple Silicon. Image
 diffusion has its own checkpoint and pipeline registry. DiffusionGemma continues
 to use MLX-VLM for text generation; DFlash remains a speculative text drafter.
 

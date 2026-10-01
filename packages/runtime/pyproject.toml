@@ -17,6 +17,7 @@ dependencies = [
   "molto-contracts",
   "pydantic>=2",
   "mlx==0.32.2",
+  "mflux>=0.20.0,<0.21",
   "mlx-lm @ git+https://github.com/ml-explore/mlx-lm@872ae88d1fac77350db23c8c04fe8dd372a9e3e8",
   "regex",
   "mlx-embeddings @ git+https://github.com/Blaizzy/mlx-embeddings@32981fa4e8064ed664b52071789dd18271fe4206",
@@ -64,7 +65,6 @@ audio = [
   "spacy>=3.8.4",
   "wsproto==1.2.0",
 ]
-image = ["mflux>=0.20.0,<0.21"]
 paroquant = ["paroquant==0.1.16; python_version >= '3.11'"]
 
 [tool.setuptools.package-data]
