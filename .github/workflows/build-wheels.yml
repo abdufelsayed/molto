@@ -40,7 +40,7 @@ jobs:
         run: |
           test "$(uname -m)" = "arm64"
           npm install --global pnpm@10.33.0
-          python scripts/build_dashboard_bundle.py --node-version 24.21.0
+          python tooling/release/build_dashboard_bundle.py --node-version 24.21.0
 
       - name: Build wheel with native custom kernels
         env:
@@ -53,7 +53,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install build setuptools wheel "cmake>=3.27" "nanobind==2.15.0" "mlx==0.32.2"
           export CMAKE_ARGS="-DPython_EXECUTABLE=$(python -c 'import sys; print(sys.executable)')"
-          python -m build --wheel --no-isolation
+          python tooling/release/build.py --skip-dashboard
 
       - name: Smoke-test wheel (native kernels must import and report available)
         run: |
@@ -70,9 +70,9 @@ jobs:
           import os
           import subprocess
           from pathlib import Path
-          import omlx
+          import omlx_cli
 
-          bundle = Path(omlx.__file__).parent / "_dashboard"
+          bundle = Path(omlx_cli.__file__).parent / "_dashboard"
           assert (bundle / "server/index.mjs").is_file()
           assert (bundle / "public").is_dir()
           node = bundle / "runtime/node"
@@ -88,7 +88,7 @@ jobs:
               "minimax_m3",
               "qwen35_prefill",
           ):
-              fast = importlib.import_module(f"omlx.custom_kernels.{pkg}.fast")
+              fast = importlib.import_module(f"omlx_runtime.custom_kernels.{pkg}.fast")
               ok = bool(fast.is_native_available())
               print(f"{pkg}: native_available={ok} import_error={fast.import_error()}")
               if not ok:
@@ -99,7 +99,7 @@ jobs:
           # Exercise a real primitive from the newest native package, not just
           # its nanobind ABI probe, so the wheel also proves dylib/metallib
           # lookup and MLX 0.32.2 runtime dispatch.
-          from omlx.custom_kernels.decode_fast import fast as decode_fast
+          from omlx_runtime.custom_kernels.decode_fast import fast as decode_fast
 
           mx.random.seed(3142)
           q = mx.random.normal((1, 4, 1, 64)).astype(mx.float16)

@@ -2458,12 +2458,18 @@ dependencies = [
     { name = "safetensors" },
 ]
 
+[package.optional-dependencies]
+modelscope = [
+    { name = "modelscope" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "ddgs", specifier = "==9.16.0" },
     { name = "httpx", specifier = ">=0.27,<1" },
     { name = "huggingface-hub", specifier = ">=1.19" },
     { name = "mlx", specifier = "==0.32.2" },
+    { name = "modelscope", marker = "extra == 'modelscope'", specifier = ">=1.10.0" },
     { name = "omlx-config", editable = "packages/config" },
     { name = "omlx-contracts", editable = "packages/contracts" },
     { name = "omlx-runtime", editable = "packages/runtime" },
@@ -2474,6 +2480,7 @@ requires-dist = [
     { name = "rich", specifier = ">=13" },
     { name = "safetensors", specifier = ">=0.4" },
 ]
+provides-extras = ["modelscope"]
 
 [[package]]
 name = "omlx-runtime"
@@ -2539,12 +2546,6 @@ grammar = [
 image = [
     { name = "mflux" },
 ]
-mcp = [
-    { name = "mcp" },
-]
-modelscope = [
-    { name = "modelscope" },
-]
 paroquant = [
     { name = "paroquant" },
 ]
@@ -2560,7 +2561,6 @@ requires-dist = [
     { name = "jsonschema", specifier = ">=4.0.0" },
     { name = "librosa", marker = "extra == 'audio'", specifier = "==0.11.0" },
     { name = "markitdown", extras = ["pdf", "docx", "pptx"], specifier = "==0.1.7" },
-    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=2.0.0,<3" },
     { name = "mflux", marker = "extra == 'image'", specifier = ">=0.20.0,<0.21" },
     { name = "misaki", marker = "extra == 'audio'", specifier = ">=0.9.4" },
     { name = "mistral-common", specifier = ">=1.10" },
@@ -2570,7 +2570,6 @@ requires-dist = [
     { name = "mlx-embeddings", git = "https://github.com/Blaizzy/mlx-embeddings?rev=32981fa4e8064ed664b52071789dd18271fe4206" },
     { name = "mlx-lm", git = "https://github.com/ml-explore/mlx-lm?rev=872ae88d1fac77350db23c8c04fe8dd372a9e3e8" },
     { name = "mlx-vlm", git = "https://github.com/Blaizzy/mlx-vlm?rev=ea79808ce1e9a19fcb915a96b0c70e37ad393a99" },
-    { name = "modelscope", marker = "extra == 'modelscope'", specifier = ">=1.10.0" },
     { name = "num2words", marker = "extra == 'audio'", specifier = ">=0.5.14" },
     { name = "numba", marker = "extra == 'audio'", specifier = ">=0.60.0" },
     { name = "numpy", specifier = ">=1.24.0,<2.4" },
@@ -2603,7 +2602,7 @@ requires-dist = [
     { name = "xgrammar", marker = "extra == 'grammar'", specifier = "==0.2.3" },
     { name = "zeroconf", marker = "extra == 'cluster'", specifier = ">=0.131.0" },
 ]
-provides-extras = ["grammar", "mcp", "cluster", "modelscope", "audio", "image", "paroquant"]
+provides-extras = ["grammar", "cluster", "audio", "image", "paroquant"]
 
 [[package]]
 name = "omlx-server"
@@ -2612,7 +2611,6 @@ source = { editable = "apps/server" }
 dependencies = [
     { name = "fastapi" },
     { name = "httpx" },
-    { name = "mcp" },
     { name = "mlx" },
     { name = "mlx-audio" },
     { name = "mlx-lm" },
@@ -2629,11 +2627,16 @@ dependencies = [
     { name = "uvicorn" },
 ]
 
+[package.optional-dependencies]
+mcp = [
+    { name = "mcp" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.108" },
     { name = "httpx", specifier = ">=0.27,<1" },
-    { name = "mcp", specifier = ">=2,<3" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=2.0.0,<3" },
     { name = "mlx", specifier = "==0.32.2" },
     { name = "mlx-audio", git = "https://github.com/Blaizzy/mlx-audio?rev=49596ac8b69b9ed377db311a73df838795f38a3d" },
     { name = "mlx-lm", git = "https://github.com/ml-explore/mlx-lm?rev=872ae88d1fac77350db23c8c04fe8dd372a9e3e8" },
@@ -2649,6 +2652,7 @@ requires-dist = [
     { name = "starlette", specifier = ">=0.40" },
     { name = "uvicorn", specifier = ">=0.23" },
 ]
+provides-extras = ["mcp"]
 
 [[package]]
 name = "omlx-workspace"

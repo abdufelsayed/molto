@@ -22,6 +22,9 @@ dependencies = [
   "mlx==0.32.2",
 ]
 
+[project.optional-dependencies]
+modelscope = ["modelscope>=1.10.0"]
+
 [tool.setuptools.package-data]
 "*" = ["*.json", "*.jsonl", "*.txt", "*.md", "LICENSE"]
 omlx_management = ["management_presets.json"]

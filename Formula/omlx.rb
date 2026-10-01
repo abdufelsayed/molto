@@ -21,7 +21,7 @@ class Omlx < Formula
   depends_on "python@3.11"
 
   # Preserve the official standalone runtime and its Mach-O signature.
-  skip_clean "libexec/lib/python3.11/site-packages/omlx/_dashboard/runtime/node"
+  skip_clean "libexec/lib/python3.11/site-packages/omlx_cli/_dashboard/runtime/node"
 
   resource "dashboard-node" do
     url "https://nodejs.org/dist/v24.21.0/node-v24.21.0-darwin-arm64.tar.gz"
@@ -95,7 +95,7 @@ class Omlx < Formula
 
     if build.with?("custom-kernel")
       kernel_sources = CUSTOM_KERNELS.map do |kernel|
-        buildpath/"omlx/custom_kernels/#{kernel}/csrc"
+        buildpath/"packages/runtime/src/omlx_runtime/custom_kernels/#{kernel}/csrc"
       end
       unless kernel_sources.all?(&:directory?)
         odie "--with-custom-kernel requires oMLX custom kernel sources; use --HEAD or a release that includes them"
@@ -110,17 +110,20 @@ class Omlx < Formula
 
     # Build the UI once at install time; the installed command uses the bundled
     # standalone Node executable and never needs Homebrew Node or pnpm.
-    dashboard_builder = buildpath/"scripts/build_dashboard_bundle.py"
-    unless dashboard_builder.file? && (buildpath/"dashboard/pnpm-lock.yaml").file?
-      odie "This release predates the bundled dashboard; use --HEAD or a release that includes dashboard/"
+    dashboard_builder = buildpath/"tooling/release/build_dashboard_bundle.py"
+    unless dashboard_builder.file? && (buildpath/"pnpm-lock.yaml").file?
+      odie "This release predates the bundled dashboard; use --HEAD or a release that includes apps/dashboard/"
     end
     system libexec/"bin/python", dashboard_builder,
            "--node-version", "24.21.0",
            "--node-archive", resource("dashboard-node").cached_download,
            "--node-sha256", "bed7eea5325e1108f32ce5228ddd6a5f0f08a499ee42aa7442aea583702f6057"
 
-    # Install omlx (with optional grammar extra for structured output)
-    install_spec = build.with?("grammar") ? "#{buildpath}[grammar]" : buildpath.to_s
+    system(*pip_install, "setuptools>=77", "wheel", "cmake>=3.27", "nanobind==2.15.0", "mlx==0.32.2")
+    system libexec/"bin/python", buildpath/"tooling/release/build.py", "--skip-dashboard"
+    wheel = Dir[buildpath/"dist/omlx-*.whl"].first
+    odie "Bundled oMLX wheel was not produced" unless wheel
+    install_spec = build.with?("grammar") ? "#{wheel}[grammar]" : wheel
     system(*pip_install, install_spec)
 
     if build.with?("custom-kernel")
@@ -234,8 +237,8 @@ class Omlx < Formula
     mlx_lib = Utils.safe_popen_read(python, "-c",
       "import os, mlx.core; print(os.path.join(os.path.dirname(mlx.core.__file__), 'lib'))").chomp
     odie "mlx lib dir not found at #{mlx_lib}" unless File.directory?(mlx_lib)
-    binaries = Dir["#{site}/omlx/custom_kernels/*/{_ext*.so,lib*_kernel_ops.dylib}"]
-    odie "no custom kernel binaries under #{site}/omlx/custom_kernels" if binaries.empty?
+    binaries = Dir["#{site}/omlx_runtime/custom_kernels/*/{_ext*.so,lib*_kernel_ops.dylib}"]
+    odie "no custom kernel binaries under #{site}/omlx_runtime/custom_kernels" if binaries.empty?
 
     binaries.each do |lib|
       if Utils.safe_popen_read("/usr/bin/otool", "-l", lib).include?(mlx_lib)
@@ -256,7 +259,7 @@ class Omlx < Formula
       import importlib
       failed = {}
       for package in #{CUSTOM_KERNELS.inspect}:
-          fast = importlib.import_module(f"omlx.custom_kernels.{package}.fast")
+          fast = importlib.import_module(f"omlx_runtime.custom_kernels.{package}.fast")
           if not fast.is_native_available():
               failed[package] = str(fast.import_error())
       assert not failed, failed
@@ -272,8 +275,8 @@ class Omlx < Formula
       import os
       import subprocess
       from pathlib import Path
-      import omlx
-      bundle = Path(omlx.__file__).parent / "_dashboard"
+      import omlx_cli
+      bundle = Path(omlx_cli.__file__).parent / "_dashboard"
       assert (bundle / "server/index.mjs").is_file()
       assert (bundle / "public").is_dir()
       node = bundle / "runtime/node"

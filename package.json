@@ -6,7 +6,7 @@
     "dev": "uv run --package omlx-cli --inexact omlx serve --dashboard-dev",
     "check": "pnpm check:boundaries && pnpm lint && pnpm format:check && pnpm typecheck",
     "test": "pnpm test:python && pnpm test:dashboard",
-    "build": "python3 tooling/release/build.py",
+    "build": "uv run --all-packages --inexact python tooling/release/build.py",
     "lint:typescript": "oxlint .",
     "lint:python": "uv run --all-packages --inexact ruff check .",
     "lint": "pnpm lint:typescript && pnpm lint:python",
