@@ -29,44 +29,28 @@
     "root": "/tmp/omlx-diffusion-performance-1790827422031560000",
     "model": "/tmp/omlx-diffusion-proof-2026-09-30/flux2-klein-4b-q4",
     "steps": 4,
-    "size": [
-      256,
-      256
-    ],
-    "seeds": [
-      42,
-      43,
-      44,
-      45
-    ],
+    "size": [256, 256],
+    "seeds": [42, 43, 44, 45],
     "offline": true,
     "scope": "Three alternating warm comparisons per operation via actual EnginePool/executor. Timings reconstructed from per-request JSON log and PNG hashes; memory and cache counters were not persisted in this run. The final edit API proof was rejected for wrong field name images; corrected and retested separately.",
     "results": [
       {
         "operation": "txt2img",
         "uncached_seconds": [
-          2.267606917070225,
-          2.4248987091705203,
-          2.5334144171793014
+          2.267606917070225, 2.4248987091705203, 2.5334144171793014
         ],
         "cached_seconds": [
-          1.9487559171393514,
-          2.071583375101909,
-          2.196385458111763
+          1.9487559171393514, 2.071583375101909, 2.196385458111763
         ],
         "median_uncached_seconds": 2.4248987091705203,
         "median_cached_seconds": 2.071583375101909,
         "cache_speedup": 1.1705532774181635,
         "cache_byte_identical": true,
         "serial2_seconds": [
-          4.635886542964727,
-          4.679310416104272,
-          5.499856957234442
+          4.635886542964727, 4.679310416104272, 5.499856957234442
         ],
         "batch2_seconds": [
-          4.965812624897808,
-          5.011040542041883,
-          5.879572166828439
+          4.965812624897808, 5.011040542041883, 5.879572166828439
         ],
         "median_serial2_seconds": 4.679310416104272,
         "median_batch2_seconds": 5.011040542041883,
@@ -89,28 +73,20 @@
       {
         "operation": "reference-edit",
         "uncached_seconds": [
-          12.560298125026748,
-          12.373921792022884,
-          12.043512874981388
+          12.560298125026748, 12.373921792022884, 12.043512874981388
         ],
         "cached_seconds": [
-          10.662211124785244,
-          10.896872375160456,
-          10.985668665962294
+          10.662211124785244, 10.896872375160456, 10.985668665962294
         ],
         "median_uncached_seconds": 12.373921792022884,
         "median_cached_seconds": 10.896872375160456,
         "cache_speedup": 1.1355480146972612,
         "cache_byte_identical": true,
         "serial2_seconds": [
-          19.34067349974066,
-          19.542838500114158,
-          18.426059416960925
+          19.34067349974066, 19.542838500114158, 18.426059416960925
         ],
         "batch2_seconds": [
-          19.294598000124097,
-          19.055818167049438,
-          19.559446332976222
+          19.294598000124097, 19.055818167049438, 19.559446332976222
         ],
         "median_serial2_seconds": 19.34067349974066,
         "median_batch2_seconds": 19.294598000124097,
@@ -476,9 +452,7 @@
         "label": "txt2img-cold",
         "pipeline": "flux2-klein-4b",
         "batch_size": 1,
-        "seeds": [
-          42
-        ],
+        "seeds": [42],
         "size": 256,
         "seconds": 3.168001249898225,
         "hashes": [
@@ -530,9 +504,7 @@
         "label": "txt2img-uncached",
         "pipeline": "flux2-klein-4b",
         "batch_size": 1,
-        "seeds": [
-          42
-        ],
+        "seeds": [42],
         "size": 256,
         "seconds": 3.047845082823187,
         "hashes": [
@@ -584,9 +556,7 @@
         "label": "txt2img-cached",
         "pipeline": "flux2-klein-4b",
         "batch_size": 1,
-        "seeds": [
-          42
-        ],
+        "seeds": [42],
         "size": 256,
         "seconds": 2.6430507919285446,
         "hashes": [
@@ -638,9 +608,7 @@
         "label": "reference-edit-cold",
         "pipeline": "flux2-klein-4b/edit",
         "batch_size": 1,
-        "seeds": [
-          42
-        ],
+        "seeds": [42],
         "size": 256,
         "seconds": 7.522175124846399,
         "hashes": [
@@ -692,9 +660,7 @@
         "label": "reference-edit-uncached",
         "pipeline": "flux2-klein-4b/edit",
         "batch_size": 1,
-        "seeds": [
-          42
-        ],
+        "seeds": [42],
         "size": 256,
         "seconds": 8.218508667079732,
         "hashes": [
@@ -746,9 +712,7 @@
         "label": "reference-edit-cached",
         "pipeline": "flux2-klein-4b/edit",
         "batch_size": 1,
-        "seeds": [
-          42
-        ],
+        "seeds": [42],
         "size": 256,
         "seconds": 6.460537458071485,
         "hashes": [
@@ -800,9 +764,7 @@
         "label": "reference-edit-reupload",
         "pipeline": "flux2-klein-4b/edit",
         "batch_size": 1,
-        "seeds": [
-          42
-        ],
+        "seeds": [42],
         "size": 256,
         "seconds": 6.961451458046213,
         "hashes": [
@@ -902,14 +864,8 @@
     "api": {
       "txt2img_status": 200,
       "edit_status": 200,
-      "txt2img_seeds": [
-        4294967295,
-        0
-      ],
-      "edit_seeds": [
-        42,
-        43
-      ],
+      "txt2img_seeds": [4294967295, 0],
+      "edit_seeds": [42, 43],
       "memory": {
         "active_bytes": 6025038564,
         "peak_bytes": 8381038428,
@@ -985,10 +941,7 @@
     "root": "/tmp/omlx-z-image-cache-1790828239049226000",
     "offline": true,
     "steps": 9,
-    "size": [
-      256,
-      256
-    ],
+    "size": [256, 256],
     "seed": 42,
     "runs": [
       {
@@ -1099,10 +1052,7 @@
     "trials": 1,
     "steps": 4,
     "size": 256,
-    "reference_size": [
-      256,
-      256
-    ],
+    "reference_size": [256, 256],
     "native_runs": 14,
     "api": [
       {
@@ -1114,10 +1064,7 @@
           "peak_bytes": 8712488280,
           "rss_bytes": 4959780864
         },
-        "seeds": [
-          4294967295,
-          0
-        ],
+        "seeds": [4294967295, 0],
         "hashes": [
           "177a93451e9f1759d51d586cd2d5b7f9e262a01b19771c7c141bb5ddadeb5b50",
           "2871e803ddc85c63a5b5d7bc078760ee2412077e9ddf6ba791ab670c82b72b5c"
@@ -1132,10 +1079,7 @@
           "peak_bytes": 8712488280,
           "rss_bytes": 5114085376
         },
-        "seeds": [
-          42,
-          43
-        ],
+        "seeds": [42, 43],
         "hashes": [
           "224c873f553924897c1c7d97d7e1ee3913a88d6661d364ac7d3fd56ca0b9226d",
           "6160f82e2ab4e48ec9513f8ecb583cdd29c6cb51c89e748dd49bd867cfd54365"
@@ -1160,9 +1104,7 @@
       {
         "label": "txt-b1",
         "pipeline": "flux2-klein-4b",
-        "seeds": [
-          42
-        ],
+        "seeds": [42],
         "width": 256,
         "height": 256,
         "seconds": 2.27744112489745,
@@ -1197,10 +1139,7 @@
       {
         "label": "txt-b2",
         "pipeline": "flux2-klein-4b",
-        "seeds": [
-          42,
-          43
-        ],
+        "seeds": [42, 43],
         "width": 256,
         "height": 256,
         "seconds": 3.829892582958564,
@@ -1236,9 +1175,7 @@
       {
         "label": "txt-b1-again",
         "pipeline": "flux2-klein-4b",
-        "seeds": [
-          42
-        ],
+        "seeds": [42],
         "width": 256,
         "height": 256,
         "seconds": 1.977239334024489,
@@ -1273,9 +1210,7 @@
       {
         "label": "txt-landscape",
         "pipeline": "flux2-klein-4b",
-        "seeds": [
-          42
-        ],
+        "seeds": [42],
         "width": 384,
         "height": 256,
         "seconds": 2.4038152499124408,
@@ -1310,9 +1245,7 @@
       {
         "label": "txt-portrait-baseline",
         "pipeline": "flux2-klein-4b",
-        "seeds": [
-          42
-        ],
+        "seeds": [42],
         "width": 256,
         "height": 384,
         "seconds": 2.411027916939929,
@@ -1347,9 +1280,7 @@
       {
         "label": "txt-portrait-cached",
         "pipeline": "flux2-klein-4b",
-        "seeds": [
-          42
-        ],
+        "seeds": [42],
         "width": 256,
         "height": 384,
         "seconds": 2.36993775004521,
@@ -1384,9 +1315,7 @@
       {
         "label": "edit-b1",
         "pipeline": "flux2-klein-4b/edit",
-        "seeds": [
-          42
-        ],
+        "seeds": [42],
         "width": 256,
         "height": 256,
         "seconds": 6.046606458025053,
@@ -1421,10 +1350,7 @@
       {
         "label": "edit-b2",
         "pipeline": "flux2-klein-4b/edit",
-        "seeds": [
-          42,
-          43
-        ],
+        "seeds": [42, 43],
         "width": 256,
         "height": 256,
         "seconds": 10.035756457829848,
@@ -1460,9 +1386,7 @@
       {
         "label": "edit-b1-again",
         "pipeline": "flux2-klein-4b/edit",
-        "seeds": [
-          42
-        ],
+        "seeds": [42],
         "width": 256,
         "height": 256,
         "seconds": 5.163441292010248,

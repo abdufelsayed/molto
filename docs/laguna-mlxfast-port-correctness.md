@@ -3,7 +3,7 @@
 Per-submission record for the `perf/mlx-fast-laguna` port of the
 [Layr-Labs/mlxfast-challenge](https://github.com/Layr-Labs/mlxfast-challenge)
 Laguna XS 2.1 DFlash Swift optimizations (`Sources/MLXFastModel/`) into oMLX's
-Python MLX Laguna path (`omlx/patches/laguna/laguna_model.py`).
+Python MLX Laguna path (`packages/runtime/src/omlx_runtime/patches/laguna/laguna_model.py`).
 
 Each commit on this branch that ports a challenge submission is labeled with
 that submission's UUID (`Validate submission <uuid>`, matching the organizer's
@@ -20,16 +20,16 @@ migration `4799830` and are not part of the current model surface).
 
 ## Submission registry (Laguna era, chronological)
 
-| # | Date | Submission | Challenge commit | Port | Bit/token-exact | Measured | Status |
-|---|---|---|---|---|---|---|---|
-| 93 | 2026-07-23 | `8b4de42b-d6bd-4da8-814d-b0b3ae6cf2f2` | `c9e1043` — compiled softplus gate, compiled SiLU product | `2a6fbe92` | ✅ bit-exact (single-output compile, identical expression tree) | +3.96% decode aggregate | compiled, default ON |
-| 94 | 2026-07-23 | `613aaf69-9016-4d57-b799-bdd22d51c5c9` | `62c6697` — fused routed + shared gate/up NVFP4 banks; fused QKV | `35592b93` | ✅ bit-exact (per-row independence of gather-QMM/qmm) | routed neutral; shared −2.3% | opt-in OFF; fused QKV NOT ported (Swift ablation: no decode gain) |
-| 95 | 2026-07-23 | `8adb56be-8f8f-4611-8914-8daf052b5f21` | `f8848e0` — compiled top-k normalize; compiled two-output router tail | `f48c5323` | ✅ top-k normalize bit-exact / ⛔ router tail NOT bit-exact if compiled (C1) | n/a | normalize ON; router tail kept eager (C1) |
-| 96 | 2026-07-24 | `9a37e4dc-b518-446c-a3f0-e4e90a581674` | `b424bc8` — compiled weighted expert combine | `6181a829` | ✅ bit-exact (same reduction order) | +3.96% decode aggregate | compiled, default ON |
-| 97 | 2026-07-24 | `eb76e2b8-de50-44d5-9137-953c6e40d28e` | `4d9eecb` — folded-normalized expert combine (deferred top-k) | `90c997ed` | ✅ bit-exact (pinned: router-normalize + combine ≡ folded) | n/a (covered by 95+96) | reproduced equivalently, no re-ported code |
-| 98 | 2026-07-24 | `dc738a8d-a8b9-4187-abc3-68f61099fb67` | `7e61f8d` — residual-variant expert combines | `4b27cc88` | ✅ bit-exact (IEEE add commutative) | +3.96% decode aggregate | compiled, default ON |
-| 99 | 2026-08-02 | `a02330a7-430d-45b1-82f3-9314e115555e` | `018eb60` — compiled fusions re-applied to vendored `Laguna.swift` + `CausalMaskCache` in KVCache | (see 93–98) | ✅ compiled fusions covered by 93–98 / ⛔ CausalMaskCache NOT ported (C3) | n/a | compiled fusions covered; mask cache documented (C3) |
-| 100 | 2026-08-02 | `e23551d8-87aa-4544-962a-32da86f094e2` | `e8ede96` — group-32 affine INT8 re-quantization of attention projections | — | ⛔ NOT bit-exact (LOSSY requant, C4) | removes ~1.25 GB/step weight traffic | NOT ported (C4) |
+| #   | Date       | Submission                             | Challenge commit                                                                                  | Port        | Bit/token-exact                                                              | Measured                             | Status                                                            |
+| --- | ---------- | -------------------------------------- | ------------------------------------------------------------------------------------------------- | ----------- | ---------------------------------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------- |
+| 93  | 2026-07-23 | `8b4de42b-d6bd-4da8-814d-b0b3ae6cf2f2` | `c9e1043` — compiled softplus gate, compiled SiLU product                                         | `2a6fbe92`  | ✅ bit-exact (single-output compile, identical expression tree)              | +3.96% decode aggregate              | compiled, default ON                                              |
+| 94  | 2026-07-23 | `613aaf69-9016-4d57-b799-bdd22d51c5c9` | `62c6697` — fused routed + shared gate/up NVFP4 banks; fused QKV                                  | `35592b93`  | ✅ bit-exact (per-row independence of gather-QMM/qmm)                        | routed neutral; shared −2.3%         | opt-in OFF; fused QKV NOT ported (Swift ablation: no decode gain) |
+| 95  | 2026-07-23 | `8adb56be-8f8f-4611-8914-8daf052b5f21` | `f8848e0` — compiled top-k normalize; compiled two-output router tail                             | `f48c5323`  | ✅ top-k normalize bit-exact / ⛔ router tail NOT bit-exact if compiled (C1) | n/a                                  | normalize ON; router tail kept eager (C1)                         |
+| 96  | 2026-07-24 | `9a37e4dc-b518-446c-a3f0-e4e90a581674` | `b424bc8` — compiled weighted expert combine                                                      | `6181a829`  | ✅ bit-exact (same reduction order)                                          | +3.96% decode aggregate              | compiled, default ON                                              |
+| 97  | 2026-07-24 | `eb76e2b8-de50-44d5-9137-953c6e40d28e` | `4d9eecb` — folded-normalized expert combine (deferred top-k)                                     | `90c997ed`  | ✅ bit-exact (pinned: router-normalize + combine ≡ folded)                   | n/a (covered by 95+96)               | reproduced equivalently, no re-ported code                        |
+| 98  | 2026-07-24 | `dc738a8d-a8b9-4187-abc3-68f61099fb67` | `7e61f8d` — residual-variant expert combines                                                      | `4b27cc88`  | ✅ bit-exact (IEEE add commutative)                                          | +3.96% decode aggregate              | compiled, default ON                                              |
+| 99  | 2026-08-02 | `a02330a7-430d-45b1-82f3-9314e115555e` | `018eb60` — compiled fusions re-applied to vendored `Laguna.swift` + `CausalMaskCache` in KVCache | (see 93–98) | ✅ compiled fusions covered by 93–98 / ⛔ CausalMaskCache NOT ported (C3)    | n/a                                  | compiled fusions covered; mask cache documented (C3)              |
+| 100 | 2026-08-02 | `e23551d8-87aa-4544-962a-32da86f094e2` | `e8ede96` — group-32 affine INT8 re-quantization of attention projections                         | —           | ⛔ NOT bit-exact (LOSSY requant, C4)                                         | removes ~1.25 GB/step weight traffic | NOT ported (C4)                                                   |
 
 ## Concern register (token/bit-exactness issues, with challenge commits)
 
@@ -65,17 +65,17 @@ migration `4799830` and are not part of the current model surface).
 Every other commit that touched the Laguna model surface (migrations, vendored
 model, harness, kernels, docs) was examined for safely-portable logic:
 
-| Commit | What it changed | Disposition |
-|---|---|---|
-| `4799830` (07-21) | Laguna migration (base model) | 📋 pieces documented: `lagunaLastTokenHidden` → C2; constructor warmup → N3-style note; NVFP4-only-expert + YaRN mscale already verified in oMLX |
-| `3d9ec53`/`25f8a50`/`67513ac`/`3b21af3` (07-22) | editablePaths fixes, Gemma naming cleanup | 📋 structural, no optimization |
-| `6d679f4` (07-22) | NVFP4 v2 quantization layout | 📋 oMLX `sanitize()` already handles NVFP4 loading |
-| `b00280b` (07-24) | vendored Laguna.swift header (reference vs scored) | 📋 docs, no logic |
-| `ca6149b` (07-26) | low-memory startup profile | 📋 N1: not ported (oMLX `set_cache_limit(total)` is a load-bearing #300 panic guard) |
-| `7632313d`/`2ac117b`/`a1914e5`/`78f6c12` (07-29/30) | DFlash vendor + Criterion-E harness | 📋 N4: benchmark-integrity / harness invariants, not model optimizations |
-| `55aec0f` (08-01) | editable-surface: expose sort/reduce kernels + dispatch wrappers | 📋 challenge-structure (moves stock MLX kernels into editable scope), no model logic; the header change only clarifies which path is scored |
-| `8c6e218` (08-01) | docs audit | 📋 docs |
-| pre-Laguna shared-file commits (`f5ed2be`, `165d3d1`, `ef0a57b`, `fe9d166`, `75ca2a0`, `2ebae10`, `f310c09`, `2a5428a`, `5fc87e3`, `c118b23`) | harness hardening, streaming weight load (`DenseTensorStore`), Gemma-era kernel vendoring | 📋 techniques documented; streaming load is not a decode optimization and mlx-lm loads the cache |
+| Commit                                                                                                                                        | What it changed                                                                           | Disposition                                                                                                                                      |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `4799830` (07-21)                                                                                                                             | Laguna migration (base model)                                                             | 📋 pieces documented: `lagunaLastTokenHidden` → C2; constructor warmup → N3-style note; NVFP4-only-expert + YaRN mscale already verified in oMLX |
+| `3d9ec53`/`25f8a50`/`67513ac`/`3b21af3` (07-22)                                                                                               | editablePaths fixes, Gemma naming cleanup                                                 | 📋 structural, no optimization                                                                                                                   |
+| `6d679f4` (07-22)                                                                                                                             | NVFP4 v2 quantization layout                                                              | 📋 oMLX `sanitize()` already handles NVFP4 loading                                                                                               |
+| `b00280b` (07-24)                                                                                                                             | vendored Laguna.swift header (reference vs scored)                                        | 📋 docs, no logic                                                                                                                                |
+| `ca6149b` (07-26)                                                                                                                             | low-memory startup profile                                                                | 📋 N1: not ported (oMLX `set_cache_limit(total)` is a load-bearing #300 panic guard)                                                             |
+| `7632313d`/`2ac117b`/`a1914e5`/`78f6c12` (07-29/30)                                                                                           | DFlash vendor + Criterion-E harness                                                       | 📋 N4: benchmark-integrity / harness invariants, not model optimizations                                                                         |
+| `55aec0f` (08-01)                                                                                                                             | editable-surface: expose sort/reduce kernels + dispatch wrappers                          | 📋 challenge-structure (moves stock MLX kernels into editable scope), no model logic; the header change only clarifies which path is scored      |
+| `8c6e218` (08-01)                                                                                                                             | docs audit                                                                                | 📋 docs                                                                                                                                          |
+| pre-Laguna shared-file commits (`f5ed2be`, `165d3d1`, `ef0a57b`, `fe9d166`, `75ca2a0`, `2ebae10`, `f310c09`, `2a5428a`, `5fc87e3`, `c118b23`) | harness hardening, streaming weight load (`DenseTensorStore`), Gemma-era kernel vendoring | 📋 techniques documented; streaming load is not a decode optimization and mlx-lm loads the cache                                                 |
 
 ## How to update
 

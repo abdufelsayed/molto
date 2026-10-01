@@ -90,9 +90,8 @@ def test_real_checkpoint_prefill_selects_ratio128_attention_policy(
     monkeypatch, environment_variable, expect_native
 ):
     import mlx.core as mx
-
-    from omlx.custom_kernels.glm_moe_dsa import fast
-    from omlx.utils.model_loading import load_text_model
+    from omlx_runtime.custom_kernels.glm_moe_dsa import fast
+    from omlx_runtime.utils.model_loading import load_text_model
 
     model_path = _configured_checkpoint(
         environment_variable,

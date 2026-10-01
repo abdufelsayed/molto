@@ -18,8 +18,8 @@ eggs/
 .eggs/
 lib/
 lib64/
-!dashboard/src/lib/
-!dashboard/src/lib/**
+!apps/dashboard/src/lib/
+!apps/dashboard/src/lib/**
 parts/
 sdist/
 var/
@@ -102,11 +102,11 @@ temp/
 .mlx_cache/
 
 # Generated engine commit metadata (build-time artifact)
-omlx/_engine_commits.json
+packages/runtime/src/omlx_runtime/_engine_commits.json
 
 # Generated build info (build-time artifact)
-omlx/_build_info.py
-/omlx/_dashboard/
+packages/runtime/src/omlx_runtime/_build_info.py
+/apps/cli/src/omlx_cli/_dashboard/
 
 # Git worktrees
 .worktrees/
@@ -120,3 +120,9 @@ tq_batch_memory.md
 .claude/
 issues.md
 clusterPlan.md
+
+# JavaScript workspace and generated outputs
+node_modules/
+.output/
+test-results/
+playwright-report/

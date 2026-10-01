@@ -1,0 +1,41 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react", "jsx-a11y", "import", "unicorn"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/await-thenable": "error",
+    "jsx-a11y/prefer-tag-over-role": "off"
+  },
+  "options": {
+    "typeAware": true,
+    "typeCheck": true,
+    "denyWarnings": true
+  },
+  "overrides": [
+    {
+      "files": ["apps/dashboard/src/components/ui/label.tsx"],
+      "rules": {
+        "jsx-a11y/label-has-associated-control": "off"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/.output/**",
+    "**/dist/**",
+    "**/test-results/**",
+    "**/playwright-report/**",
+    "**/__pycache__/**",
+    ".venv/**",
+    "packages/runtime/src/omlx_runtime/patches/**/vendor/**",
+    "apps/cli/src/omlx_cli/_dashboard/**",
+    "apps/dashboard/src/routeTree.gen.ts",
+    "packages/contracts/generated/**",
+    "uv.lock",
+    "pnpm-lock.yaml"
+  ]
+}

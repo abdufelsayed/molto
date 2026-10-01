@@ -202,15 +202,15 @@ apply to the physical ranks in compatibility mode.
 The coordinator should make the distinction automatically rather than asking
 the operator to understand parallelism terminology.
 
-| Situation | Automatic plan |
-| --- | --- |
-| Model needs the combined capacity | One mixed Metal/CUDA pipeline using every required node |
-| Two CUDA workers pass the ConnectX gate | One composite CUDA stage behind a Ring/NCCL gateway |
-| Model fits on a faster subset | Use the fastest measured subset with safe headroom |
+| Situation                                       | Automatic plan                                                                         |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Model needs the combined capacity               | One mixed Metal/CUDA pipeline using every required node                                |
+| Two CUDA workers pass the ConnectX gate         | One composite CUDA stage behind a Ring/NCCL gateway                                    |
+| Model fits on a faster subset                   | Use the fastest measured subset with safe headroom                                     |
 | Model fits in separate prefill and decode pools | Benchmark optional disaggregation and use it only when end-to-end performance improves |
-| Mac-only high-speed mesh wins | Use JACCL with the Mac subset |
-| CUDA-only group wins | Use NCCL with the CUDA subset once supported by oMLX |
-| A node is incompatible or makes the plan slower | Leave it available but out of this deployment |
+| Mac-only high-speed mesh wins                   | Use JACCL with the Mac subset                                                          |
+| CUDA-only group wins                            | Use NCCL with the CUDA subset once supported by oMLX                                   |
+| A node is incompatible or makes the plan slower | Leave it available but out of this deployment                                          |
 
 An explicit **Use all eligible memory** control can force a capacity-oriented
 plan. The default **Automatic** mode should optimize the selected workload while

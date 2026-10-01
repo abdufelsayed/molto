@@ -1,0 +1,324 @@
+import os
+import subprocess
+import sys
+
+# MLX 0.32.2 runs fp32 GPU matmuls at TF32 precision on M5-class tensor units;
+# the fp32 parity tests assert 2e-5, which TF32 cannot hold. Test session only.
+os.environ.setdefault("MLX_ENABLE_TF32", "0")
+
+# SPDX-License-Identifier: Apache-2.0
+"""
+Pytest configuration and fixtures for oMLX tests.
+
+This module provides common fixtures used across test files.
+"""
+
+from pathlib import Path
+from typing import Any
+from unittest.mock import MagicMock
+
+import pytest
+
+# Install the torch stub before any test imports xgrammar (e.g. via @patch
+# decorators that resolve the target at collection time). When real torch is
+# present this is a no-op; otherwise it satisfies xgrammar's import-time torch
+# references so the package can load without a full PyTorch installation.
+from omlx_runtime._torch_stub import install as _install_torch_stub
+
+_install_torch_stub()
+
+# Run tests under the same M5 sorted gather_qmm reroute the server
+# installs at model load (issue #2267). Without it, kernel-sensitive
+# tests (e.g. the SwitchGLU fusion bit-exactness test, whose inter=32
+# down_proj runs at K=32) fail on M5 hardware. No-op elsewhere.
+from omlx_runtime.patches.m5_gather_qmm import apply_m5_gather_qmm_workaround
+
+apply_m5_gather_qmm_workaround()
+
+from omlx_runtime.custom_kernels.nax import is_nax_available
+from omlx_runtime.request import Request, SamplingParams
+
+
+@pytest.fixture
+def glm5_fused_decode():
+    """GLM-5.3's fused decode/verify kernels, which run (and replay the
+    reference bit for bit) only on NAX GPUs."""
+    if not is_nax_available():
+        pytest.skip("the fused GLM-5.3 decode kernels run on M5 (NAX) GPUs")
+    from omlx_runtime.patches.mlx_vlm_glm5_next_compat import (
+        apply_mlx_vlm_glm5_next_compat_patch,
+    )
+
+    apply_mlx_vlm_glm5_next_compat_patch()
+    from mlx_vlm.models.glm5_next import language
+
+    assert language._DECODE_FUSION
+    return language
+
+
+@pytest.fixture(autouse=True)
+def cluster_home(tmp_path, monkeypatch):
+    from omlx_runtime.cluster import ssh_keys, worker_shim
+
+    home = tmp_path / "cluster-home"
+    publish = worker_shim.ensure_cluster_python_shim
+
+    def publish_shim(**kwargs):
+        if kwargs.get("home") is None:
+            kwargs["home"] = home
+        return publish(**kwargs)
+
+    monkeypatch.setattr(worker_shim, "ensure_cluster_python_shim", publish_shim)
+    # SSH paths are resolved at import time, before test fixtures run.
+    ssh_dir = home / ".ssh"
+    monkeypatch.setattr(ssh_keys, "_SSH_DIR", ssh_dir)
+    monkeypatch.setattr(ssh_keys, "_SSH_KEY_PATH", ssh_dir / "omlx_cluster")
+    monkeypatch.setattr(ssh_keys, "_SSH_PUBKEY_PATH", ssh_dir / "omlx_cluster.pub")
+    return home
+
+
+class MockTokenizer:
+    """Mock tokenizer for testing without loading real models."""
+
+    def __init__(self, vocab_size: int = 32000):
+        self.vocab_size = vocab_size
+        self.eos_token_id = 2
+        self.pad_token_id = 0
+        self.bos_token_id = 1
+
+    def encode(self, text: str, add_special_tokens: bool = True) -> list[int]:
+        """Encode text to token ids (simple simulation)."""
+        # Simple simulation: each word becomes a token
+        tokens = []
+        if add_special_tokens:
+            tokens.append(self.bos_token_id)
+        # Simulate tokenization by splitting on spaces
+        for i, word in enumerate(text.split()):
+            # Use hash to get a consistent token id for each word
+            token_id = (hash(word) % (self.vocab_size - 10)) + 10
+            tokens.append(token_id)
+        return tokens
+
+    def decode(
+        self,
+        token_ids: list[int],
+        skip_special_tokens: bool = True,
+    ) -> str:
+        """Decode token ids to text (simple simulation)."""
+        if skip_special_tokens:
+            token_ids = [
+                t
+                for t in token_ids
+                if t not in (self.eos_token_id, self.pad_token_id, self.bos_token_id)
+            ]
+        # Return a placeholder string representing the token count
+        return f"<decoded:{len(token_ids)} tokens>"
+
+    def __call__(
+        self,
+        text: str,
+        return_tensors: str | None = None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Tokenize text and return dict with input_ids."""
+        input_ids = self.encode(text)
+        return {"input_ids": input_ids}
+
+
+class MockModelConfig:
+    """Mock model configuration for testing."""
+
+    def __init__(
+        self,
+        hidden_size: int = 4096,
+        num_hidden_layers: int = 32,
+        num_attention_heads: int = 32,
+        vocab_size: int = 32000,
+        model_type: str = "llama",
+    ):
+        self.hidden_size = hidden_size
+        self.num_hidden_layers = num_hidden_layers
+        self.num_attention_heads = num_attention_heads
+        self.vocab_size = vocab_size
+        self.model_type = model_type
+
+
+class MockModel:
+    """Mock model for testing without loading real models."""
+
+    def __init__(self, config: MockModelConfig | None = None):
+        self.config = config or MockModelConfig()
+        self._parameters: dict[str, Any] = {}
+
+    def __call__(self, input_ids: Any, **kwargs: Any) -> Any:
+        """Forward pass (returns mock logits)."""
+        mock_output = MagicMock()
+        mock_output.shape = (
+            1,
+            len(input_ids) if hasattr(input_ids, "__len__") else 1,
+            self.config.vocab_size,
+        )
+        return mock_output
+
+    def parameters(self) -> dict[str, Any]:
+        """Return model parameters."""
+        return self._parameters
+
+    def make_cache(self) -> list:
+        """Build the per-layer prompt cache, like a real mlx-lm model.
+
+        The scheduler probes this to decide whether a stored prefix can be
+        rebuilt faithfully, so the double has to answer it. A plain llama-style
+        model builds ``KVCache`` layers; tests that need another cache class
+        override this attribute.
+        """
+        from mlx_lm.models.cache import KVCache
+
+        return [KVCache() for _ in range(self.config.num_hidden_layers)]
+
+
+@pytest.fixture
+def mock_tokenizer() -> MockTokenizer:
+    """Provide a mock tokenizer for tests."""
+    return MockTokenizer()
+
+
+@pytest.fixture
+def mock_cluster_ssh(monkeypatch):
+    from omlx_runtime.cluster import launch
+
+    runner = MagicMock(
+        return_value=subprocess.CompletedProcess(
+            [], 0, stdout='{"action": "no-marker"}', stderr=""
+        )
+    )
+    monkeypatch.setattr(launch, "_run_cluster_ssh", runner)
+    return runner
+
+
+@pytest.fixture
+def mock_model() -> MockModel:
+    """Provide a mock model for tests."""
+    return MockModel()
+
+
+@pytest.fixture
+def mock_model_config() -> MockModelConfig:
+    """Provide a mock model configuration for tests."""
+    return MockModelConfig()
+
+
+@pytest.fixture
+def tmp_cache_dir(tmp_path: Path) -> Path:
+    """Provide a temporary cache directory for tests."""
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir
+
+
+@pytest.fixture
+def sample_request() -> Request:
+    """Factory fixture for creating sample Request objects."""
+    return Request(
+        request_id="test-request-001",
+        prompt="Hello, world!",
+        sampling_params=SamplingParams(
+            max_tokens=100,
+            temperature=0.7,
+            top_p=0.9,
+        ),
+    )
+
+
+@pytest.fixture
+def sample_request_factory():
+    """Factory fixture for creating multiple Request objects."""
+
+    def _create_request(
+        request_id: str = "test-request-001",
+        prompt: str = "Hello, world!",
+        max_tokens: int = 100,
+        temperature: float = 0.7,
+        top_p: float = 0.9,
+    ) -> Request:
+        return Request(
+            request_id=request_id,
+            prompt=prompt,
+            sampling_params=SamplingParams(
+                max_tokens=max_tokens,
+                temperature=temperature,
+                top_p=top_p,
+            ),
+        )
+
+    return _create_request
+
+
+@pytest.fixture
+def real_model_dir() -> Path:
+    """Return the path to real models directory.
+
+    Note: Tests using this fixture may require actual model files
+    and should be marked with @pytest.mark.slow.
+    """
+    return Path.home() / "Workspace" / "models"
+
+
+@pytest.fixture(autouse=True)
+def _reset_decode_activity_registry():
+    """Keep the process-global decode-activity registry hermetic per test.
+
+    Schedulers publish to it from step(); entries live for a short TTL, so
+    without this a scheduler stepped in one test reads as cross-engine
+    decode contention in the next.
+    """
+    from omlx_runtime.decode_activity import get_decode_activity
+
+    get_decode_activity().clear()
+    yield
+    get_decode_activity().clear()
+
+
+@pytest.fixture(autouse=True)
+def _hermetic_metal_release_accounting(monkeypatch):
+    """Keep the graphics footprint and its release-lag history test-local.
+
+    Tests feed synthetic phys_footprint values. The test process's real
+    graphics ledger and earlier tests' samples would otherwise split or
+    discount them unpredictably. Tests of the split patch these explicitly.
+    """
+    for name in (
+        "omlx_runtime.scheduler",
+        "omlx_runtime.process_memory_enforcer",
+        "omlx_runtime.utils.metal_sync",
+    ):
+        module = sys.modules.get(name)
+        if module is not None and hasattr(module, "get_graphics_footprint"):
+            monkeypatch.setattr(module, "get_graphics_footprint", lambda: 0)
+    metal_sync = sys.modules.get("omlx_runtime.utils.metal_sync")
+    if metal_sync is not None:
+        metal_sync._residuals.clear()
+        metal_sync._last_unreleased = (0.0, 0)
+    yield
+    if metal_sync is not None:
+        metal_sync._residuals.clear()
+        metal_sync._last_unreleased = (0.0, 0)
+
+
+__all__ = [
+    "glm5_fused_decode",
+    "cluster_home",
+    "MockTokenizer",
+    "MockModelConfig",
+    "MockModel",
+    "mock_tokenizer",
+    "mock_cluster_ssh",
+    "mock_model",
+    "mock_model_config",
+    "tmp_cache_dir",
+    "sample_request",
+    "sample_request_factory",
+    "real_model_dir",
+    "_reset_decode_activity_registry",
+    "_hermetic_metal_release_accounting",
+]

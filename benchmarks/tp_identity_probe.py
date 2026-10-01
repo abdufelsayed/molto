@@ -28,7 +28,7 @@ import argparse
 import json
 import time
 
-from omlx.cluster.tensor_strategies import apply_tensor_strategy
+from omlx_runtime.cluster.tensor_strategies import apply_tensor_strategy
 
 
 def _greedy_token_ids(model, tokenizer, prompt: str, max_tokens: int) -> list[int]:
@@ -72,7 +72,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    from omlx._torch_stub import install as install_torch_stub
+    from omlx_runtime._torch_stub import install as install_torch_stub
 
     install_torch_stub()
 

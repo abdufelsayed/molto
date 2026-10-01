@@ -26,7 +26,6 @@ import gc
 import os
 import sys
 from pathlib import Path
-from typing import Iterator, List, Optional
 
 import pytest
 
@@ -35,12 +34,12 @@ pytestmark = [
     pytest.mark.slow,
     pytest.mark.skipif(
         sys.platform != "darwin",
-        reason="Real model tests require macOS with Apple Silicon"
+        reason="Real model tests require macOS with Apple Silicon",
     ),
 ]
 
 
-def get_test_model_dir() -> Optional[Path]:
+def get_test_model_dir() -> Path | None:
     """Get the model directory for testing."""
     # Try environment variable first
     if model_dir := os.environ.get("OMLX_MODEL_DIR"):
@@ -60,7 +59,7 @@ def get_test_model_dir() -> Optional[Path]:
     return None
 
 
-def find_test_model(model_dir: Path) -> Optional[Path]:
+def find_test_model(model_dir: Path) -> Path | None:
     """Find a test model in the model directory.
 
     Priority:
@@ -143,7 +142,7 @@ class TestMLXLanguageModel:
 
     def test_model_loading(self, test_model_path: Path):
         """Test that model loads correctly."""
-        from omlx.models.llm import MLXLanguageModel
+        from omlx_runtime.models.llm import MLXLanguageModel
 
         model = MLXLanguageModel(str(test_model_path))
         model.load()
@@ -165,7 +164,7 @@ class TestMLXLanguageModel:
 
     def test_basic_generation(self, test_model_path: Path):
         """Test basic text generation."""
-        from omlx.models.llm import MLXLanguageModel
+        from omlx_runtime.models.llm import MLXLanguageModel
 
         model = MLXLanguageModel(str(test_model_path))
         model.load()
@@ -187,12 +186,12 @@ class TestMLXLanguageModel:
 
     def test_streaming_generation(self, test_model_path: Path):
         """Test streaming text generation."""
-        from omlx.models.llm import MLXLanguageModel
+        from omlx_runtime.models.llm import MLXLanguageModel
 
         model = MLXLanguageModel(str(test_model_path))
         model.load()
 
-        chunks: List[str] = []
+        chunks: list[str] = []
         for output in model.stream_generate(
             prompt="Hello, my name is",
             max_tokens=20,
@@ -213,14 +212,12 @@ class TestMLXLanguageModel:
 
     def test_chat_completion(self, test_model_path: Path):
         """Test chat completion with message format."""
-        from omlx.models.llm import MLXLanguageModel
+        from omlx_runtime.models.llm import MLXLanguageModel
 
         model = MLXLanguageModel(str(test_model_path))
         model.load()
 
-        messages = [
-            {"role": "user", "content": "What is 2 + 2?"}
-        ]
+        messages = [{"role": "user", "content": "What is 2 + 2?"}]
 
         output = model.chat(
             messages=messages,
@@ -239,14 +236,14 @@ class TestMLXLanguageModel:
 
     def test_utf8_generation_cjk(self, test_model_path: Path):
         """Test UTF-8 streaming for CJK characters."""
-        from omlx.models.llm import MLXLanguageModel
+        from omlx_runtime.models.llm import MLXLanguageModel
 
         model = MLXLanguageModel(str(test_model_path))
         model.load()
 
         # Use a prompt that should elicit CJK output
         # (Results depend on model, but tests UTF-8 handling)
-        chunks: List[str] = []
+        chunks: list[str] = []
         for output in model.stream_generate(
             prompt="Translate to Japanese: Hello",
             max_tokens=30,
@@ -255,7 +252,7 @@ class TestMLXLanguageModel:
             chunks.append(output.text)
             # Each chunk should be valid UTF-8
             try:
-                output.text.encode('utf-8')
+                output.text.encode("utf-8")
             except UnicodeEncodeError:
                 pytest.fail(f"Invalid UTF-8 in chunk: {output.text!r}")
 
@@ -274,8 +271,7 @@ class TestSchedulerWithRealModel:
     def scheduler_setup(self, test_model_path: Path):
         """Set up scheduler with real model."""
         from mlx_lm import load
-
-        from omlx.scheduler import Scheduler, SchedulerConfig
+        from omlx_runtime.scheduler import Scheduler, SchedulerConfig
 
         # Load model
         model, tokenizer = load(str(test_model_path))
@@ -304,7 +300,7 @@ class TestSchedulerWithRealModel:
     def test_single_request(self, scheduler_setup):
         """Test single request through scheduler."""
         scheduler, tokenizer = scheduler_setup
-        from omlx.request import Request, SamplingParams
+        from omlx_runtime.request import Request, SamplingParams
 
         request = Request(
             request_id="test-001",
@@ -332,7 +328,7 @@ class TestSchedulerWithRealModel:
     def test_batch_requests(self, scheduler_setup):
         """Test multiple concurrent requests."""
         scheduler, tokenizer = scheduler_setup
-        from omlx.request import Request, SamplingParams
+        from omlx_runtime.request import Request, SamplingParams
 
         prompts = [
             "The capital of Japan is",
@@ -366,7 +362,7 @@ class TestSchedulerWithRealModel:
     def test_cancel_request(self, scheduler_setup):
         """Test request cancellation."""
         scheduler, tokenizer = scheduler_setup
-        from omlx.request import Request, SamplingParams
+        from omlx_runtime.request import Request, SamplingParams
 
         request = Request(
             request_id="to-cancel",
@@ -397,8 +393,7 @@ class TestMemoryHandling:
     def test_model_memory_footprint(self, test_model_path: Path):
         """Test that model loading doesn't cause memory issues."""
         import mlx.core as mx
-
-        from omlx.models.llm import MLXLanguageModel
+        from omlx_runtime.models.llm import MLXLanguageModel
 
         # Get initial memory state
         mx.clear_cache()
@@ -432,8 +427,7 @@ class TestMemoryHandling:
     def test_repeated_generation_no_leak(self, test_model_path: Path):
         """Test that repeated generations don't leak memory."""
         import mlx.core as mx
-
-        from omlx.models.llm import MLXLanguageModel
+        from omlx_runtime.models.llm import MLXLanguageModel
 
         model = MLXLanguageModel(str(test_model_path))
         model.load()
@@ -493,10 +487,12 @@ class TestTokenizerIntegration:
         _, tokenizer = load(str(test_model_path))
 
         # Check EOS token exists
-        assert hasattr(tokenizer, 'eos_token_id') or hasattr(tokenizer, 'eos_token')
+        assert hasattr(tokenizer, "eos_token_id") or hasattr(tokenizer, "eos_token")
 
         # Check vocab size
-        vocab_size = len(tokenizer) if hasattr(tokenizer, '__len__') else tokenizer.vocab_size
+        vocab_size = (
+            len(tokenizer) if hasattr(tokenizer, "__len__") else tokenizer.vocab_size
+        )
         assert vocab_size > 0
 
     def test_chat_template_application(self, test_model_path: Path):
@@ -511,7 +507,7 @@ class TestTokenizerIntegration:
             {"role": "user", "content": "How are you?"},
         ]
 
-        if hasattr(tokenizer, 'apply_chat_template'):
+        if hasattr(tokenizer, "apply_chat_template"):
             try:
                 formatted = tokenizer.apply_chat_template(
                     messages,
@@ -536,7 +532,7 @@ class TestEngineIntegration:
         """Test BatchedEngine with real model."""
         import asyncio
 
-        from omlx.engine.batched import BatchedEngine
+        from omlx_runtime.engine.batched import BatchedEngine
 
         async def run_generation():
             engine = BatchedEngine(

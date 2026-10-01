@@ -58,8 +58,9 @@ curl -X PATCH "$BASE/models/$MODEL/settings" \
 An omitted field stays unchanged. For model settings, an explicit `null`
 restores that field's default. `GET /models/{model_id}/settings` returns the
 current values. Use `GET /models/{model_id}/options` for field metadata and capability reasons.
-The accepted patch schema is in `omlx/services/management_models.py`; unsupported
-model-specific options are rejected. Templates, presets, generation-config import,
+The accepted patch schema is in `packages/contracts/src/omlx_contracts/management.py`.
+Service validation lives in `packages/management/src/omlx_management/model_control.py`
+and rejects unsupported model-specific options. Templates, presets, generation-config import,
 recipes, and optimal snapshots provide additional ways to select settings.
 
 When `requires_reload` is true, the backend requests an unload without

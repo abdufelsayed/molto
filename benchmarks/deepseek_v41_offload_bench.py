@@ -23,8 +23,10 @@ import time
 from pathlib import Path
 
 import mlx.core as mx
-
-from omlx.utils.proc_memory import get_lifetime_max_phys_footprint, get_phys_footprint
+from omlx_config.utils.proc_memory import (
+    get_lifetime_max_phys_footprint,
+    get_phys_footprint,
+)
 
 
 def _offload_stats(model) -> dict:
@@ -53,7 +55,7 @@ def _delta(after: dict, before: dict, seconds: float) -> dict:
 
 
 def sizing(path: Path, budget: int, engram_ssd: bool) -> dict:
-    from omlx.patches.deepseek_v41.moe_offload import (
+    from omlx_runtime.patches.deepseek_v41.moe_offload import (
         _plan,
         admission_bytes,
         fit_resident_fraction,
@@ -95,7 +97,7 @@ def sizing(path: Path, budget: int, engram_ssd: bool) -> dict:
 
 
 def run(path: Path, fraction: float, args) -> dict:
-    from omlx.patches.deepseek_v41.loading import load
+    from omlx_runtime.patches.deepseek_v41.loading import load
 
     gc.collect()
     mx.clear_cache()

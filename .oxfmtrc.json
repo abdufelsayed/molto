@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "endOfLine": "lf",
+  "semi": false,
+  "singleQuote": false,
+  "tabWidth": 2,
+  "trailingComma": "es5",
+  "printWidth": 80,
+  "sortPackageJson": false,
+  "sortTailwindcss": {
+    "stylesheet": "apps/dashboard/src/styles.css",
+    "functions": ["cn", "cva"]
+  },
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/.output/**",
+    "**/dist/**",
+    "**/test-results/**",
+    "**/playwright-report/**",
+    "**/__pycache__/**",
+    ".venv/**",
+    "packages/runtime/src/omlx_runtime/patches/**/vendor/**",
+    "apps/cli/src/omlx_cli/_dashboard/**",
+    "apps/dashboard/src/routeTree.gen.ts",
+    "packages/contracts/generated/**",
+    "uv.lock",
+    "pnpm-lock.yaml"
+  ]
+}

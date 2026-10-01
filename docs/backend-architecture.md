@@ -15,21 +15,35 @@ HTTP client --> public Nitro server
                                                              engine pool
 ```
 
-`omlx/application.py` owns both child processes. It starts Nitro and verifies
+`apps/cli/src/omlx_cli/application.py` owns both child processes. It starts Nitro and verifies
 its instance readiness before launching inference on an inherited ephemeral
 loopback socket. Public port conflicts fail before model startup. Nitro uses
 native HTTP proxying for inference and a bounded WebSocket proxy for realtime
 transcription. The launcher supports one public bind address and shuts down
 child process groups together.
 
-`omlx/cli.py` starts the application supervisor and initializes the private backend child. `omlx/server.py` owns the FastAPI
-application, inference routes, and runtime state. Model adapters under
-`omlx/engine/` handle the supported tasks. `omlx/engine_pool.py` discovers
-models, loads engines, tracks memory, and handles unloads. The scheduler and
-cache implementations serve inference requests; the management API calls the
-same engine pool so its load state matches the running server.
+The CLI starts the application supervisor. The supervisor invokes
+`apps/server/src/omlx_server/bootstrap.py` for the private inference child;
+bootstrap initializes configuration and runtime resources. The CLI does not own
+FastAPI route initialization.
 
-Image checkpoint identity and operation policy live in `omlx/diffusion/`.
+`apps/server/src/omlx_server/server.py` exposes `create_app()`, constructing an
+application with its own `ServerState` and protocol controller. Requests resolve
+that controller from application state. Protocol handling is split into
+OpenAI, Anthropic, Responses, streaming, inventory, transport, and error modules
+inside `apps/server/src/omlx_server/`; instances do not share a global server
+singleton.
+
+Model adapters under `packages/runtime/src/omlx_runtime/engine/` handle the
+supported tasks. `packages/runtime/src/omlx_runtime/engine_pool.py` discovers
+models, loads engines, tracks memory, and handles unloads. The scheduler and
+cache implementations serve inference requests. Management reads immutable
+`ModelView` records from `get_model_view()` and calls public load/unload,
+resource, cache, and admission operations. It does not access the pool's private
+entry dictionaries or scheduler state. See [repository architecture](architecture.md)
+for the allowed package dependency graph.
+
+Image checkpoint identity and operation policy live in `packages/runtime/src/omlx_runtime/diffusion`.
 Preparation owns bounded acquisition and atomic saved-checkpoint publication;
 adapters own native class selection and request translation. Image routes
 validate before pool acquisition, and the image engine owns serialized MLX
@@ -37,17 +51,17 @@ lifecycle work. See [image models](image-models.md) for supported operations and
 verification limits. This boundary is separate from DiffusionGemma text
 generation and DFlash drafting.
 
-`diffusion/cache.py` owns bounded, materialized prompt and reference embeddings,
-cache keys, and native predictor residency. `diffusion/batching.py` translates
+`packages/runtime/src/omlx_runtime/diffusion/cache.py` owns bounded, materialized prompt and reference embeddings,
+cache keys, and native predictor residency. `packages/runtime/src/omlx_runtime/diffusion/batching.py` translates
 matching FLUX.2 seed variants into a native tensor batch through request-local
 hooks. The native denoising loop remains in mflux. The image engine owns batch
 memory admission and executes generation, cache clearing, switching, and
 release under one lifecycle lock on the shared MLX executor.
 
-`omlx/api/management_routes.py` mounts the core routes and domain routers for
+`apps/server/src/omlx_server/api/management_routes.py` mounts the core routes and domain routers for
 model options, workspace, acquisition, server settings, monitoring, and diagnostics.
 Services take a `ManagementContext` with explicit pool/settings references and
-runtime callbacks. `management_dependencies.py` retrieves that context from
+runtime callbacks. `apps/server/src/omlx_server/api/management_dependencies.py` retrieves that context from
 application state and lazily creates a process-owned `ManagementRuntime`.
 Importing the routes does not start the server, download weights, or create workers.
 
@@ -70,12 +84,12 @@ MTPLX import stages checkpoint changes and rolls back failed replacement; an
 incomplete rollback retains recovery files. Startup collections use persisted
 pinning rather than starting a second preload mechanism.
 
-`omlx/services/diffusion_jobs.py` owns local calibration and quantization jobs,
+`packages/management/src/omlx_management/diffusion_jobs.py` owns local calibration and quantization jobs,
 progress, durable history, and cooperative cancellation. It runs preparation
 on the shared MLX executor under the pool's exclusive admission gate, waiting
 for inference to drain and retaining ownership through worker cleanup.
 
-`omlx/auth.py` checks bearer keys for both API families. All management routes
+`apps/server/src/omlx_server/auth.py` checks bearer keys for both API families. All management routes
 require the main key. The retained inference load route accepts a subkey. On a
 loopback-only bind, only an explicit `skip_api_key_verification` setting can
 bypass the management check. Inference retains its own loopback behavior.
@@ -84,7 +98,9 @@ The server rejects non-loopback binding without a main key. See the
 
 ## State and persistence
 
-Global configuration is stored under the selected base path in
+`packages/config/` owns persistence and validation; runtime converts settings
+into scheduler configuration through `settings_adapter.py`. Configuration imports
+do not load MLX or the server. Global configuration is stored under the selected base path in
 `settings.json`; model-specific settings and profiles have their own persisted
 store. The default base path is `~/.omlx`, while an explicit base path and an
 existing macOS app base-path pointer can select another directory. A CLI
@@ -104,9 +120,10 @@ supervisor callback.
 ## Dashboard and backend boundary
 
 Nitro serves the dashboard, browser sessions, and public API proxy. FastAPI
-provides `/management/v1/*` and `/v1/*` on its private listener. The management
-gateway uses the session's main bearer key; inference clients retain their own
-credentials. Raw `/management/v1/*` and `/admin/*` are blocked by the public
+provides `/management/v1/*` and `/v1/*` on its private listener. The browser management
+gateway uses the session's main bearer key. Native clients use
+`/api/management/v1/*` with their explicit main bearer key; inference clients
+retain their own credentials. Raw `/management/v1/*` and `/admin/*` are blocked by the public
 proxy; browser management uses `/api/omlx/*` with its opaque session cookie.
 FastAPI does not serve dashboard HTML or browser sessions. The management API covers inventory and library maintenance, model configuration,
 profiles/templates/presets, acquisition and preparation, publishing, operation
@@ -127,7 +144,7 @@ loopback public bind, a direct local client, no forwarding headers, matching key
 confirmation, and no existing main key.
 
 Installed release wheels include Nitro assets and a standalone macOS ARM64 Node
-runtime under `omlx/_dashboard`. Source checkouts use `dashboard/.output` and Node
+runtime under `apps/cli/src/omlx_cli/_dashboard`. Source checkouts use `apps/dashboard/.output` and Node
 on PATH or `OMLX_NODE`. The bundle script verifies the Node archive checksum;
 wheel CI builds and inspects the installed bundle. Source-only
 `omlx serve --dashboard-dev` substitutes native Vite/Nitro on the same configured

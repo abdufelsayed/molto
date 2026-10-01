@@ -199,10 +199,9 @@ def test_issue_2177_static_prefix_reuse_with_real_qwen_models(
     # missing-path skip therefore does not initialize MLX, import VLM runtimes,
     # or accidentally reserve unified memory.
     import mlx.core as mx
-
-    from omlx.engine.vlm import VLMBatchedEngine
-    from omlx.model_settings import ModelSettings
-    from omlx.scheduler import SchedulerConfig
+    from omlx_config.model_settings import ModelSettings
+    from omlx_runtime.engine.vlm import VLMBatchedEngine
+    from omlx_runtime.scheduler import SchedulerConfig
 
     async def run_real_model_validation() -> None:
         caplog.set_level(logging.INFO)

@@ -39,6 +39,7 @@ API Request → server.py → engine_pool.py
 ```
 
 DFlashEngine is a `BaseEngine` implementation that:
+
 - Loads target + draft models via `dflash_mlx.runtime.load_target_bundle()` / `load_draft_bundle()`
 - Consumes structured events from `stream_dflash_generate()` (prefill, token, summary)
 - Bridges sync generation to async streaming via `asyncio.Queue`
@@ -51,18 +52,18 @@ DFlashEngine is a `BaseEngine` implementation that:
 
 ### Files
 
-| File | Role |
-|------|------|
-| `omlx/engine/dflash.py` | DFlashEngine class — BaseEngine impl, event consumer, fallback routing |
-| `omlx/patches/dflash_laguna.py` | Laguna target adapter, gated drafter, fused-QKV loader, and mixed-cache rollback |
-| `omlx/patches/dflash_mimo_v2.py` | MiMo V2 target adapter, trained-mask loader, draft attention, and mixed-cache rollback |
-| `omlx/engine/__init__.py` | DFlashEngine export (required dependency) |
-| `omlx/engine_pool.py` | DFlash routing: checks `dflash_enabled` before engine type switch |
-| `omlx/model_settings.py` | Per-model settings, including DFlash enablement, draft selection, quantization, caches, and verification |
-| `omlx/services/management.py` | Settings validation, persistence, and reload handling |
-| `omlx/api/management_routes.py` | Typed management HTTP contract |
-| `tests/test_dflash_engine.py` | DFlash engine and routing tests |
-| `tests/test_dflash_laguna.py` | Laguna adapter parity, cache rollback, config, and checkpoint-layout tests |
+| File                                                          | Role                                                                                                     |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `packages/runtime/src/omlx_runtime/engine/dflash.py`          | DFlashEngine class — BaseEngine impl, event consumer, fallback routing                                   |
+| `packages/runtime/src/omlx_runtime/patches/dflash_laguna.py`  | Laguna target adapter, gated drafter, fused-QKV loader, and mixed-cache rollback                         |
+| `packages/runtime/src/omlx_runtime/patches/dflash_mimo_v2.py` | MiMo V2 target adapter, trained-mask loader, draft attention, and mixed-cache rollback                   |
+| `packages/runtime/src/omlx_runtime/engine/__init__.py`        | DFlashEngine export (required dependency)                                                                |
+| `packages/runtime/src/omlx_runtime/engine_pool.py`            | DFlash routing: checks `dflash_enabled` before engine type switch                                        |
+| `packages/config/src/omlx_config/model_settings.py`           | Per-model settings, including DFlash enablement, draft selection, quantization, caches, and verification |
+| `packages/management/src/omlx_management/management.py`       | Settings validation, persistence, and reload handling                                                    |
+| `apps/server/src/omlx_server/api/management_routes.py`        | Typed management HTTP contract                                                                           |
+| `packages/runtime/tests/test_dflash_engine.py`                | DFlash engine and routing tests                                                                          |
+| `packages/runtime/tests/test_dflash_laguna.py`                | Laguna adapter parity, cache rollback, config, and checkpoint-layout tests                               |
 
 ### Dependency
 
@@ -73,27 +74,27 @@ DFlashEngine is a `BaseEngine` implementation that:
 
 DFlash registers `QwenGdnTargetOps`, `Gemma4TargetOps`, and `MuseGlimmerTargetOps`. oMLX also registers a Laguna backend and the `DFlashLagunaForCausalLM` drafter used by Poolside's official checkpoints:
 
-| Target model | Draft checkpoint |
-|--------------|-----------------|
-| Qwen/Qwen3-4B | z-lab/Qwen3-4B-DFlash-b16 |
-| Qwen/Qwen3-8B | z-lab/Qwen3-8B-DFlash-b16 |
-| Qwen/Qwen3.5-4B | z-lab/Qwen3.5-4B-DFlash |
-| Qwen/Qwen3.5-9B | z-lab/Qwen3.5-9B-DFlash |
-| Qwen/Qwen3.5-27B | z-lab/Qwen3.5-27B-DFlash |
-| mlx-community/Qwen3.5-27B-8bit | z-lab/Qwen3.5-27B-DFlash |
-| mlx-community/Qwen3.5-27B-4bit | z-lab/Qwen3.5-27B-DFlash |
-| Qwen/Qwen3.5-35B-A3B | z-lab/Qwen3.5-35B-A3B-DFlash |
-| mlx-community/Qwen3.5-35B-A3B-4bit | z-lab/Qwen3.5-35B-A3B-DFlash |
-| Qwen/Qwen3.6-27B | z-lab/Qwen3.6-27B-DFlash |
-| Qwen/Qwen3.6-35B-A3B | z-lab/Qwen3.6-35B-A3B-DFlash |
-| google/gemma-4-31b-it | z-lab/gemma-4-31B-it-DFlash |
-| google/gemma-4-26b-a4b-it | z-lab/gemma-4-26B-A4B-it-DFlash |
-| poolside/Laguna-XS-2.1 | poolside/Laguna-XS-2.1-DFlash |
-| poolside/Laguna-XS-2.1-NVFP4-mlx | poolside/Laguna-XS-2.1-DFlash-NVFP4 |
-| poolside/Laguna-S-2.1 | poolside/Laguna-S-2.1-DFlash |
-| poolside/Laguna-S-2.1-NVFP4-mlx | poolside/Laguna-S-2.1-DFlash-NVFP4 |
-| Vontra/MiMo-V2.6-Flash-RL-MLX-4bit-MTP | Bundled `dflash/` checkpoint |
-| meta-models/Muse-Glimmer-30B | meta-models/Muse-Glimmer-30B-assistant |
+| Target model                           | Draft checkpoint                       |
+| -------------------------------------- | -------------------------------------- |
+| Qwen/Qwen3-4B                          | z-lab/Qwen3-4B-DFlash-b16              |
+| Qwen/Qwen3-8B                          | z-lab/Qwen3-8B-DFlash-b16              |
+| Qwen/Qwen3.5-4B                        | z-lab/Qwen3.5-4B-DFlash                |
+| Qwen/Qwen3.5-9B                        | z-lab/Qwen3.5-9B-DFlash                |
+| Qwen/Qwen3.5-27B                       | z-lab/Qwen3.5-27B-DFlash               |
+| mlx-community/Qwen3.5-27B-8bit         | z-lab/Qwen3.5-27B-DFlash               |
+| mlx-community/Qwen3.5-27B-4bit         | z-lab/Qwen3.5-27B-DFlash               |
+| Qwen/Qwen3.5-35B-A3B                   | z-lab/Qwen3.5-35B-A3B-DFlash           |
+| mlx-community/Qwen3.5-35B-A3B-4bit     | z-lab/Qwen3.5-35B-A3B-DFlash           |
+| Qwen/Qwen3.6-27B                       | z-lab/Qwen3.6-27B-DFlash               |
+| Qwen/Qwen3.6-35B-A3B                   | z-lab/Qwen3.6-35B-A3B-DFlash           |
+| google/gemma-4-31b-it                  | z-lab/gemma-4-31B-it-DFlash            |
+| google/gemma-4-26b-a4b-it              | z-lab/gemma-4-26B-A4B-it-DFlash        |
+| poolside/Laguna-XS-2.1                 | poolside/Laguna-XS-2.1-DFlash          |
+| poolside/Laguna-XS-2.1-NVFP4-mlx       | poolside/Laguna-XS-2.1-DFlash-NVFP4    |
+| poolside/Laguna-S-2.1                  | poolside/Laguna-S-2.1-DFlash           |
+| poolside/Laguna-S-2.1-NVFP4-mlx        | poolside/Laguna-S-2.1-DFlash-NVFP4     |
+| Vontra/MiMo-V2.6-Flash-RL-MLX-4bit-MTP | Bundled `dflash/` checkpoint           |
+| meta-models/Muse-Glimmer-30B           | meta-models/Muse-Glimmer-30B-assistant |
 
 Other model families (Llama, Gemma3, etc.) are not supported — they require both a trained DFlash draft checkpoint and a compatible target adapter in dflash-mlx.
 
@@ -121,17 +122,17 @@ Note: the `-DFlash` suffix is specific to DFlash draft checkpoints. Gemma4 also 
 
 ### Per-model settings
 
-| Setting | Type | Description |
-|---------|------|-------------|
-| `dflash_enabled` | bool | Enable/disable DFlash for this model |
-| `dflash_draft_model` | str | Path or HuggingFace repo for draft checkpoint |
-| `dflash_draft_quant_enabled` | bool | Draft model quantization enabled |
-| `dflash_draft_quant_weight_bits` | int | Draft model quantization weight bits |
-| `dflash_draft_quant_activation_bits` | int | Draft model quantization activation bits |
-| `dflash_draft_quant_group_size` | int | Draft model quantization group size |
-| `dflash_max_ctx` | int or null | Optional prompt-token threshold for batched fallback (`null` = unlimited) |
-| `dflash_in_memory_cache` | bool | Enable DFlash L1 prefix snapshots |
-| `dflash_ssd_cache` | bool | Enable DFlash L2 snapshot spill |
+| Setting                              | Type        | Description                                                               |
+| ------------------------------------ | ----------- | ------------------------------------------------------------------------- |
+| `dflash_enabled`                     | bool        | Enable/disable DFlash for this model                                      |
+| `dflash_draft_model`                 | str         | Path or HuggingFace repo for draft checkpoint                             |
+| `dflash_draft_quant_enabled`         | bool        | Draft model quantization enabled                                          |
+| `dflash_draft_quant_weight_bits`     | int         | Draft model quantization weight bits                                      |
+| `dflash_draft_quant_activation_bits` | int         | Draft model quantization activation bits                                  |
+| `dflash_draft_quant_group_size`      | int         | Draft model quantization group size                                       |
+| `dflash_max_ctx`                     | int or null | Optional prompt-token threshold for batched fallback (`null` = unlimited) |
+| `dflash_in_memory_cache`             | bool        | Enable DFlash L1 prefix snapshots                                         |
+| `dflash_ssd_cache`                   | bool        | Enable DFlash L2 snapshot spill                                           |
 
 The public management API exposes `dflash_enabled` and
 `dflash_draft_model` through
@@ -192,7 +193,7 @@ def sample_with_temperature(logits, temperature, suppress_token_mask=None):
     if temperature < 1e-5:
         return greedy_tokens_with_mask(logits, suppress_token_mask)  # greedy
     scaled = logits / temperature
-    return mx.random.categorical(scaled).astype(mx.uint32)           # stochastic
+    return mx.random.categorical(scaled).astype(mx.uint32)  # stochastic
 ```
 
 Applied to all three sampling points: prefill first token, draft block, and verify posterior.
@@ -221,6 +222,7 @@ workload rather than assuming a fixed speedup.
 ### 2. Context length limit
 
 DFlash effectiveness degrades with long contexts:
+
 - Verify pass attention cost grows with KV cache size
 - `dflash_max_ctx` defaults to unlimited
 - Setting a threshold enables automatic fallback to BatchedEngine/VLMBatchedEngine
@@ -228,12 +230,14 @@ DFlash effectiveness degrades with long contexts:
 ### 3. Model support
 
 Qwen, Gemma4, and Laguna have compatible target adapters and published draft checkpoints. Each additional model family still requires:
+
 - A trained DFlash draft checkpoint (block diffusion model matching target hidden dimensions)
 - Support in dflash-mlx's target model handling (hidden state extraction, cache rollback)
 
 ### 4. Memory overhead
 
 DFlashEngine loads both target and draft models simultaneously:
+
 - Draft model: typically ~1B parameters (small relative to target)
 - Draft int4 quantization available to reduce footprint
 - The fallback engine is loaded only after DFlash weights are evicted
@@ -283,12 +287,12 @@ DFlash check runs **before** engine type routing in `_load_engine()`. If `dflash
 
 ### Environment variables (dflash-mlx)
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DFLASH_VERIFY_LEN` | block_size | Cap on verify block length |
-| `DFLASH_DRAFT_SINK` | 64 | Draft KV cache sink size |
-| `DFLASH_DRAFT_WINDOW` | 1024 | Draft KV cache window size |
-| `DFLASH_QUANTIZE_DRAFT` | false | Enable draft int4 quantization |
+| Variable                | Default    | Description                    |
+| ----------------------- | ---------- | ------------------------------ |
+| `DFLASH_VERIFY_LEN`     | block_size | Cap on verify block length     |
+| `DFLASH_DRAFT_SINK`     | 64         | Draft KV cache sink size       |
+| `DFLASH_DRAFT_WINDOW`   | 1024       | Draft KV cache window size     |
+| `DFLASH_QUANTIZE_DRAFT` | false      | Enable draft int4 quantization |
 
 ### Management settings
 
@@ -300,11 +304,13 @@ API contract.
 ### Logging
 
 DFlash generation completion is logged at INFO level:
+
 ```
 DFlash generation complete: 502 tokens, 45.3 tok/s, acceptance=87.2%, cycles=38
 ```
 
 Context fallback is logged:
+
 ```
 DFlash context fallback: 5120 >= 4096, evicting dflash models and switching to vlm engine
 ```

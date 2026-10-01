@@ -1,0 +1,88 @@
+[build-system]
+requires = [
+  "setuptools>=77.0",
+  "wheel",
+  "cmake>=3.27",
+  "nanobind==2.15.0",
+  "mlx==0.32.2",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "omlx-runtime"
+version = "0.7.0rc1"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "omlx-config",
+  "omlx-contracts",
+  "pydantic>=2",
+  "mlx==0.32.2",
+  "mlx-lm @ git+https://github.com/ml-explore/mlx-lm@872ae88d1fac77350db23c8c04fe8dd372a9e3e8",
+  "regex",
+  "mlx-embeddings @ git+https://github.com/Blaizzy/mlx-embeddings@32981fa4e8064ed664b52071789dd18271fe4206",
+  "transformers>=5.14.0,<5.18",
+  "mistral-common>=1.10",
+  "tokenizers>=0.19.0",
+  "huggingface-hub>=1.19.0",
+  "numpy>=1.24.0,<2.4",
+  "tqdm>=4.66.0",
+  "pyyaml>=6.0",
+  "rich>=13.0.0",
+  "sentencepiece",
+  "tiktoken",
+  "protobuf",
+  "requests>=2.28.0",
+  "httpx>=0.27.0,<1",
+  "socksio>=1.0.0",
+  "tabulate>=0.9.0",
+  "psutil>=5.9.0",
+  "setproctitle>=1.3.3",
+  "jsonschema>=4.0.0",
+  "openai-harmony",
+  "cohere_melody>=0.9.0",
+  "mlx-vlm @ git+https://github.com/Blaizzy/mlx-vlm@ea79808ce1e9a19fcb915a96b0c70e37ad393a99",
+  "mlx-audio @ git+https://github.com/Blaizzy/mlx-audio@49596ac8b69b9ed377db311a73df838795f38a3d",
+  "Pillow>=9.0.0",
+  "dflash-mlx @ git+https://github.com/jundot/dflash-mlx@c55324c86540c369f6818a0f47eae544d405475b",
+  "markitdown[pdf,docx,pptx]==0.1.7",
+  "safetensors>=0.4",
+  "pdfplumber>=0.11",
+]
+
+[project.optional-dependencies]
+grammar = ["xgrammar==0.2.3", "apache-tvm-ffi==0.1.11"]
+mcp = ["mcp>=2.0.0,<3"]
+cluster = ["zeroconf>=0.131.0"]
+modelscope = ["modelscope>=1.10.0"]
+audio = [
+  "mlx-audio[tts,stt,sts] @ git+https://github.com/Blaizzy/mlx-audio@49596ac8b69b9ed377db311a73df838795f38a3d",
+  "espeakng-loader>=0.2.4",
+  "librosa==0.11.0",
+  "misaki>=0.9.4",
+  "num2words>=0.5.14",
+  "numba>=0.60.0",
+  "phonemizer-fork>=3.3.2",
+  "pyloudnorm>=0.2.0",
+  "spacy>=3.8.4",
+  "wsproto==1.2.0",
+]
+image = ["mflux>=0.20.0,<0.21"]
+paroquant = ["paroquant==0.1.16; python_version >= '3.11'"]
+
+[tool.setuptools.package-data]
+omlx_runtime = [
+  "oq_calibration_data.json",
+  "oqe_calibration_data.json",
+  "diagnostics/bench_corpora/*",
+  "_version_sources.json",
+]
+"omlx_runtime.eval" = ["data/*.jsonl"]
+"omlx_runtime.patches.deepseek_v41" = ["LICENSE"]
+"omlx_runtime.custom_kernels.bonsai" = ["*.metallib", "*.dylib", "*.so"]
+"omlx_runtime.custom_kernels.glm_moe_dsa" = ["*.metallib", "*.dylib", "*.so"]
+"omlx_runtime.custom_kernels.decode_fast" = ["*.metallib", "*.dylib", "*.so"]
+"omlx_runtime.custom_kernels.minimax_m3" = ["*.metallib", "*.dylib", "*.so"]
+"omlx_runtime.custom_kernels.qwen35_prefill" = ["*.metallib", "*.dylib", "*.so"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

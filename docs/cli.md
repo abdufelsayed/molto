@@ -2,6 +2,21 @@
 
 Use `omlx` to run the application and manage a local or remote server through its public dashboard origin. `omlx --help` and each command's `--help` list supported flags. Existing inference integration, offline preparation, and cluster commands remain available.
 
+## Source checkout
+
+Install both workspaces from the repository root before using the CLI:
+
+```sh
+uv sync --all-packages --inexact
+pnpm install --frozen-lockfile
+pnpm --filter omlx-dashboard build
+uv run --all-packages --inexact omlx --help
+```
+
+The command implementation and its HTTP client live in `apps/cli/`. Installed
+release wheels expose the same `omlx` command and include the dashboard runtime.
+See [architecture](architecture.md) for package ownership and root checks.
+
 ## Start and connect
 
 ```sh
@@ -35,19 +50,19 @@ Local lifecycle commands reject another server's `--url` or `OMLX_URL`. `status`
 
 ## Management commands
 
-| Group | Commands |
-| --- | --- |
-| `models` | `list`, `show MODEL`, `refresh`, `load MODEL`, `unload MODEL`, `download REPO`, `move MODEL --root-id ROOT`, `remove MODEL` |
-| `models settings` | `get MODEL`, `set MODEL FIELD=JSON...`, `reset MODEL` |
-| `models profiles` | `list MODEL`, `create MODEL NAME`, `apply MODEL NAME`, `delete MODEL NAME` |
-| `keys` | `list`, `create`, `edit ID`, `revoke ID`, `rotate --main` or `rotate --key-id ID` |
-| `settings` | `get`, `defaults`, `set SECTION.FIELD=JSON...` |
-| `jobs` | `list`, `show ID`, `watch ID`, `cancel ID`, `retry ID` |
-| `logs` | Read a bounded tail, optionally `--follow`, `--file`, `--level`, or `--lines` |
-| `cache` | `show`, `clear hot`, `clear ssd` |
-| `diagnostics` | `status`, `list`, `show ID`, `results ID`, `start KIND`, `cancel ID` |
-| `monitoring` | `activity`, `usage` |
-| `api` | `METHOD management-relative-path`, optionally `--body JSON_OR_@FILE` and repeated `--query NAME=VALUE` |
+| Group             | Commands                                                                                                                    |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `models`          | `list`, `show MODEL`, `refresh`, `load MODEL`, `unload MODEL`, `download REPO`, `move MODEL --root-id ROOT`, `remove MODEL` |
+| `models settings` | `get MODEL`, `set MODEL FIELD=JSON...`, `reset MODEL`                                                                       |
+| `models profiles` | `list MODEL`, `create MODEL NAME`, `apply MODEL NAME`, `delete MODEL NAME`                                                  |
+| `keys`            | `list`, `create`, `edit ID`, `revoke ID`, `rotate --main` or `rotate --key-id ID`                                           |
+| `settings`        | `get`, `defaults`, `set SECTION.FIELD=JSON...`                                                                              |
+| `jobs`            | `list`, `show ID`, `watch ID`, `cancel ID`, `retry ID`                                                                      |
+| `logs`            | Read a bounded tail, optionally `--follow`, `--file`, `--level`, or `--lines`                                               |
+| `cache`           | `show`, `clear hot`, `clear ssd`                                                                                            |
+| `diagnostics`     | `status`, `list`, `show ID`, `results ID`, `start KIND`, `cancel ID`                                                        |
+| `monitoring`      | `activity`, `usage`                                                                                                         |
+| `api`             | `METHOD management-relative-path`, optionally `--body JSON_OR_@FILE` and repeated `--query NAME=VALUE`                      |
 
 Typed settings preserve JSON types. Shell-quote string assignments so the JSON quotes reach the CLI:
 
@@ -81,14 +96,14 @@ Credentials are masked by default. `keys list --reveal`, `settings ... --reveal`
 
 Human output uses Rich tables and status displays. `--json` writes the result to stdout and errors to stderr. `--no-color` or `NO_COLOR` disables colors. Deletion previews use stderr in JSON mode so stdout retains one result object.
 
-| Exit code | Meaning |
-| --- | --- |
-| `0` | Success |
-| `1` | Operation failure |
-| `2` | Invalid usage or required confirmation missing |
-| `3` | Authentication or access denied |
-| `4` | Connection failure or timeout |
-| `5` | Server conflict |
-| `130` | Interrupted or cancelled |
+| Exit code | Meaning                                        |
+| --------- | ---------------------------------------------- |
+| `0`       | Success                                        |
+| `1`       | Operation failure                              |
+| `2`       | Invalid usage or required confirmation missing |
+| `3`       | Authentication or access denied                |
+| `4`       | Connection failure or timeout                  |
+| `5`       | Server conflict                                |
+| `130`     | Interrupted or cancelled                       |
 
 The CLI uses bearer authentication at `/api/management/v1` on the public dashboard port. The gateway rejects browser Origin-bearing requests and requires the main key. Browser UI sessions continue using the separate `/api/omlx` gateway. Raw private `/management/v1` and `/admin` routes remain blocked at the public proxy.

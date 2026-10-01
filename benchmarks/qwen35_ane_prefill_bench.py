@@ -20,7 +20,7 @@ import mlx.core as mx
 
 
 def inject_extension(path: Path):
-    name = "omlx.custom_kernels.qwen35_prefill._ext"
+    name = "omlx_runtime.custom_kernels.qwen35_prefill._ext"
     spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Could not load native extension at {path}")
@@ -88,7 +88,7 @@ def benchmark_mode(
         getattr(model, "_omlx_ane_resident_program_count", 0)
     )
     if profile:
-        from omlx.custom_kernels.qwen35_prefill import fast
+        from omlx_runtime.custom_kernels.qwen35_prefill import fast
 
         fast.qwen35_ane_profile_reset()
 
@@ -117,34 +117,22 @@ def benchmark_mode(
                 "input_ready_ms_per_op": metrics["pack_ns"] / operations / 1e6
                 if operations
                 else 0.0,
-                "parallel_region_ms_per_op": metrics["ane_region_ns"]
-                / operations
-                / 1e6
+                "parallel_region_ms_per_op": metrics["ane_region_ns"] / operations / 1e6
                 if operations
                 else 0.0,
-                "ane0_eval_ms_per_op": metrics["ane0_eval_ns"]
-                / operations
-                / 1e6
+                "ane0_eval_ms_per_op": metrics["ane0_eval_ns"] / operations / 1e6
                 if operations
                 else 0.0,
-                "ane1_eval_ms_per_op": metrics["ane1_eval_ns"]
-                / operations
-                / 1e6
+                "ane1_eval_ms_per_op": metrics["ane1_eval_ns"] / operations / 1e6
                 if operations
                 else 0.0,
-                "ane0_launch_us_per_op": metrics["ane0_launch_ns"]
-                / operations
-                / 1e3
+                "ane0_launch_us_per_op": metrics["ane0_launch_ns"] / operations / 1e3
                 if operations
                 else 0.0,
-                "ane1_launch_us_per_op": metrics["ane1_launch_ns"]
-                / operations
-                / 1e3
+                "ane1_launch_us_per_op": metrics["ane1_launch_ns"] / operations / 1e3
                 if operations
                 else 0.0,
-                "gpu_qmm_ms_per_op": metrics["gpu_qmm_ns"]
-                / operations
-                / 1e6
+                "gpu_qmm_ms_per_op": metrics["gpu_qmm_ns"] / operations / 1e6
                 if operations
                 else 0.0,
                 "gpu_completion_ms_per_op": metrics["gpu_completion_ns"]
@@ -152,9 +140,7 @@ def benchmark_mode(
                 / 1e6
                 if operations
                 else 0.0,
-                "cpu_matmul_ms_per_op": metrics["cpu_matmul_ns"]
-                / operations
-                / 1e6
+                "cpu_matmul_ms_per_op": metrics["cpu_matmul_ns"] / operations / 1e6
                 if operations
                 else 0.0,
                 "cpu_completion_ms_per_op": metrics["cpu_completion_ns"]
@@ -162,9 +148,7 @@ def benchmark_mode(
                 / 1e6
                 if operations
                 else 0.0,
-                "gap_before_ms_per_op": metrics["gap_before_ns"]
-                / operations
-                / 1e6
+                "gap_before_ms_per_op": metrics["gap_before_ns"] / operations / 1e6
                 if operations
                 else 0.0,
                 "ane_last": int(metrics["ane_last"]),
@@ -173,13 +157,9 @@ def benchmark_mode(
                 "ane1_duty_cycle": metrics["ane1_eval_ns"] / elapsed_ns,
             }
         profile_result["total"] = {
-            "ane0_duty_cycle": sum(
-                metrics["ane0_eval_ns"] for metrics in raw.values()
-            )
+            "ane0_duty_cycle": sum(metrics["ane0_eval_ns"] for metrics in raw.values())
             / elapsed_ns,
-            "ane1_duty_cycle": sum(
-                metrics["ane1_eval_ns"] for metrics in raw.values()
-            )
+            "ane1_duty_cycle": sum(metrics["ane1_eval_ns"] for metrics in raw.values())
             / elapsed_ns,
         }
     return (
@@ -309,9 +289,9 @@ def main() -> None:
         parser.error("CPU down fractions must be between 0 and 0.50")
 
     native_ext = inject_extension(args.extension) if args.extension else None
-    from omlx.custom_kernels.qwen35_prefill import fast
-    from omlx.patches.qwen35_ane_prefill import enable_qwen35_ane_prefill
-    from omlx.patches.qwen35_q4_mlp import (
+    from omlx_runtime.custom_kernels.qwen35_prefill import fast
+    from omlx_runtime.patches.qwen35_ane_prefill import enable_qwen35_ane_prefill
+    from omlx_runtime.patches.qwen35_q4_mlp import (
         apply_qwen35_q4_lm_prefill_linear_patch,
         apply_qwen35_q4_mlp_patch,
     )
@@ -322,7 +302,7 @@ def main() -> None:
 
     print(f"Loading {args.model}", flush=True)
     if args.force_lm:
-        from omlx.utils.model_loading import load_text_model
+        from omlx_runtime.utils.model_loading import load_text_model
 
         model, _ = load_text_model(str(args.model))
         model._omlx_benchmark_force_lm = True
@@ -418,16 +398,14 @@ def main() -> None:
                             gdn_config, cpu_threads=cpu_threads
                         )
             if cpu_gdn_fraction is not None:
-                from omlx.patches import qwen35_ane_prefill as ane_patch
+                from omlx_runtime.patches import qwen35_ane_prefill as ane_patch
 
                 for module in model.modules():
                     gdn_config = getattr(module, "_omlx_ane_gdn_config", None)
                     gdn_state = getattr(module, "_omlx_ane_gdn_state", None)
                     if gdn_config is None or gdn_state is None:
                         continue
-                    updated_config = replace(
-                        gdn_config, cpu_fraction=cpu_gdn_fraction
-                    )
+                    updated_config = replace(gdn_config, cpu_fraction=cpu_gdn_fraction)
                     updated_state = ane_patch._prepare_gdn_runtime_state(
                         module,
                         updated_config,
@@ -442,7 +420,7 @@ def main() -> None:
                     module._omlx_ane_gdn_state = updated_state
                 mx.clear_cache()
             if cpu_down_fraction is not None:
-                from omlx.patches import qwen35_ane_prefill as ane_patch
+                from omlx_runtime.patches import qwen35_ane_prefill as ane_patch
 
                 for module in model.modules():
                     state = getattr(module, "_omlx_ane_prefill_state", None)
@@ -485,14 +463,10 @@ def main() -> None:
                     )
                     if mode != "gpu"
                     else 0,
-                    "procedures": int(
-                        getattr(model, "_omlx_ane_procedure_count", 0)
-                    )
+                    "procedures": int(getattr(model, "_omlx_ane_procedure_count", 0))
                     if mode != "gpu"
                     else 0,
-                    "gdn_layers": int(
-                        getattr(model, "_omlx_ane_gdn_prefill_count", 0)
-                    )
+                    "gdn_layers": int(getattr(model, "_omlx_ane_gdn_prefill_count", 0))
                     if mode != "gpu"
                     else 0,
                     "down_layers": int(

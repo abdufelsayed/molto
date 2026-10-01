@@ -44,7 +44,7 @@ def qwen38_model_path() -> Path:
     if not config_path.is_file():
         pytest.skip(f"Qwen3.8 config.json not found at {config_path}")
 
-    from omlx.patches.qwen38_modelopt_mixed import is_supported_config
+    from omlx_runtime.patches.qwen38_modelopt_mixed import is_supported_config
 
     config = json.loads(config_path.read_text(encoding="utf-8"))
     assert is_supported_config(config), (
@@ -68,9 +68,8 @@ def _red_blue_data_uri() -> str:
 def test_qwen38_modelopt_mixed_text_and_vision(qwen38_model_path: Path):
     import mlx.core as mx
     from mlx.utils import tree_flatten
-
-    from omlx.engine.vlm import VLMBatchedEngine
-    from omlx.patches.qwen38_modelopt_mixed import ScaledQuantizedLinear
+    from omlx_runtime.engine.vlm import VLMBatchedEngine
+    from omlx_runtime.patches.qwen38_modelopt_mixed import ScaledQuantizedLinear
 
     async def validate() -> None:
         engine = VLMBatchedEngine(model_name=str(qwen38_model_path))

@@ -40,10 +40,7 @@ def _measure(call, repeats: int) -> tuple[float, list[float]]:
 
 def _first_mlp(model: Any) -> Any:
     for module in model.modules():
-        if all(
-            hasattr(module, name)
-            for name in ("gate_proj", "up_proj", "down_proj")
-        ):
+        if all(hasattr(module, name) for name in ("gate_proj", "up_proj", "down_proj")):
             return module
     raise RuntimeError("No dense Qwen MLP was found")
 
@@ -61,9 +58,9 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    from omlx.custom_kernels.qwen35_prefill import fast
-    from omlx.patches.qwen35_q4_mlp import _linear_qmm
-    from omlx.utils.model_loading import load_text_model
+    from omlx_runtime.custom_kernels.qwen35_prefill import fast
+    from omlx_runtime.patches.qwen35_q4_mlp import _linear_qmm
+    from omlx_runtime.utils.model_loading import load_text_model
 
     if not fast.qwen35_ane_available():
         raise RuntimeError("The private ANE runtime is unavailable")
@@ -80,11 +77,7 @@ def main() -> None:
     input_dim = int(down.weight.shape[1]) * 32 // bits
 
     mx.random.seed(0)
-    model_dim = (
-        int(mlp.gate_proj.weight.shape[1])
-        * 32
-        // int(mlp.gate_proj.bits)
-    )
+    model_dim = int(mlp.gate_proj.weight.shape[1]) * 32 // int(mlp.gate_proj.bits)
     x = mx.random.normal((1, args.tokens, model_dim)).astype(mx.float16)
     gate = _linear_qmm(mlp.gate_proj, x, 8)
     up = _linear_qmm(mlp.up_proj, x, 8)
@@ -104,12 +97,7 @@ def main() -> None:
         ane_outputs = (int(output_dim * fraction) // 128) * 128
         split = ane_outputs // 2
         gpu_outputs = output_dim - ane_outputs
-        if (
-            ane_outputs <= 0
-            or split % 64
-            or gpu_outputs <= 0
-            or gpu_outputs % 64
-        ):
+        if ane_outputs <= 0 or split % 64 or gpu_outputs <= 0 or gpu_outputs % 64:
             print(f"Skipping invalid fraction {fraction:.4f}", flush=True)
             continue
         dense0 = mx.contiguous(

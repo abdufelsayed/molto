@@ -29,10 +29,7 @@
       "route": "/v1/images/generations",
       "pipeline": "z-image-turbo",
       "seconds_including_load": 14.192132417112589,
-      "size": [
-        512,
-        512
-      ],
+      "size": [512, 512],
       "steps": 9,
       "seed": 42,
       "sha256": "62b690af5a0378d83b3d22649040d942bf56fbd4d45f7c9b7e32336ffbcf1e24",
@@ -43,10 +40,7 @@
       "route": "/v1/images/generations",
       "pipeline": "z-image-turbo",
       "seconds_including_load": 15.326793958898634,
-      "size": [
-        512,
-        512
-      ],
+      "size": [512, 512],
       "steps": 9,
       "seed": 42,
       "sha256": "62b690af5a0378d83b3d22649040d942bf56fbd4d45f7c9b7e32336ffbcf1e24",
@@ -57,10 +51,7 @@
       "route": "/v1/images/generations",
       "pipeline": "flux2-klein-4b",
       "seconds_including_load": 6.31911279191263,
-      "size": [
-        512,
-        512
-      ],
+      "size": [512, 512],
       "steps": 4,
       "seed": 17,
       "sha256": "2079a8e7e504f8843af2159e665d562157bb1d7aa1ba0b224e5c4b3c13164a9f",
@@ -71,10 +62,7 @@
       "route": "/v1/images/edits",
       "pipeline": "flux2-klein-4b/edit",
       "seconds_including_load": 8.472406832966954,
-      "size": [
-        512,
-        512
-      ],
+      "size": [512, 512],
       "steps": 4,
       "seed": 17,
       "sha256": "c953b647a696ebec1239c92659f68a1a0d367e0880f6a3aaa22a2229ed6cf0c3",

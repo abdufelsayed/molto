@@ -31,9 +31,7 @@ def _measure(factory, repeats: int) -> tuple[float, list[float], tuple]:
 
 
 def _cosine_tuple(reference: tuple, candidate: tuple) -> float:
-    left = mx.concatenate([value.reshape(-1) for value in reference]).astype(
-        mx.float32
-    )
+    left = mx.concatenate([value.reshape(-1) for value in reference]).astype(mx.float32)
     right = mx.concatenate([value.reshape(-1) for value in candidate]).astype(
         mx.float32
     )
@@ -53,13 +51,11 @@ def main() -> None:
     parser.add_argument(
         "--fractions", nargs="+", type=float, default=(0.35, 0.40, 0.45, 0.50)
     )
-    parser.add_argument(
-        "--cpu-fractions", nargs="+", type=float, default=(0.0,)
-    )
+    parser.add_argument("--cpu-fractions", nargs="+", type=float, default=(0.0,))
     args = parser.parse_args()
 
-    from omlx.patches import qwen35_ane_prefill as patch
-    from omlx.utils.model_loading import load_text_model
+    from omlx_runtime.patches import qwen35_ane_prefill as patch
+    from omlx_runtime.utils.model_loading import load_text_model
 
     print(f"Loading {args.model}", flush=True)
     model, _ = load_text_model(str(args.model))
@@ -67,9 +63,7 @@ def main() -> None:
     linears = patch._gdn_linears(gdn)
     input_dim = int(linears[0].weight.shape[1]) * 32 // int(linears[0].bits)
     mx.random.seed(0)
-    x = mx.random.normal((1, args.tokens, input_dim)).astype(
-        linears[0].scales.dtype
-    )
+    x = mx.random.normal((1, args.tokens, input_dim)).astype(linears[0].scales.dtype)
 
     def gpu_call():
         return tuple(patch._tail_qmm_or_linear(linear, x, 8) for linear in linears)

@@ -1,0 +1,11 @@
+{
+  "name": "@omlx/contracts",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./generated/api-types.ts"
+    },
+    "./openapi.json": "./generated/openapi.json"
+  }
+}

@@ -40,10 +40,7 @@ def _measure(call, repeats: int) -> tuple[float, list[float]]:
 
 def _first_mlp(model: Any) -> Any:
     for module in model.modules():
-        if all(
-            hasattr(module, name)
-            for name in ("gate_proj", "up_proj", "down_proj")
-        ):
+        if all(hasattr(module, name) for name in ("gate_proj", "up_proj", "down_proj")):
             return module
     raise RuntimeError("No dense Qwen MLP was found")
 
@@ -82,9 +79,9 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    from omlx.custom_kernels.qwen35_prefill import fast
-    from omlx.patches.qwen35_q4_mlp import _linear_qmm
-    from omlx.utils.model_loading import load_text_model
+    from omlx_runtime.custom_kernels.qwen35_prefill import fast
+    from omlx_runtime.patches.qwen35_q4_mlp import _linear_qmm
+    from omlx_runtime.utils.model_loading import load_text_model
 
     if not fast.qwen35_ane_swiglu_down_available():
         raise RuntimeError("The private ANE fused SwiGLU/down path is unavailable")
@@ -150,25 +147,17 @@ def main() -> None:
 
         gate_dense = dense_rows(gate)
         up_dense = dense_rows(up)
-        down_dense = mx.contiguous(
-            dense_down[:fused_outputs, :per_ane_hidden]
-        )
+        down_dense = mx.contiguous(dense_down[:fused_outputs, :per_ane_hidden])
         gate_dense1 = None
         up_dense1 = None
         down_dense1 = None
         if args.dual:
-            gate_dense1 = dense_rows(
-                gate, per_ane_hidden, 2 * per_ane_hidden
-            )
+            gate_dense1 = dense_rows(gate, per_ane_hidden, 2 * per_ane_hidden)
             up_dense1 = dense_rows(up, per_ane_hidden, 2 * per_ane_hidden)
             down_dense1 = mx.contiguous(
-                dense_down[
-                    :fused_outputs, per_ane_hidden : 2 * per_ane_hidden
-                ]
+                dense_down[:fused_outputs, per_ane_hidden : 2 * per_ane_hidden]
             )
-        compiled_down = (
-            mx.zeros_like(down_dense) if args.zero_ane_down else down_dense
-        )
+        compiled_down = mx.zeros_like(down_dense) if args.zero_ane_down else down_dense
         cpu_gate_up_weight = None
         cpu_down_weight = None
         if cpu_hidden:
@@ -182,9 +171,7 @@ def main() -> None:
                 ).astype(mx.float16)
             )
             cpu_down_weight = mx.contiguous(
-                dense_down[:fused_outputs, ane_hidden:gpu_start].astype(
-                    mx.float16
-                )
+                dense_down[:fused_outputs, ane_hidden:gpu_start].astype(mx.float16)
             )
         packed_start = gpu_start // 8
         scale_start = gpu_start // group_size
@@ -197,15 +184,9 @@ def main() -> None:
         gpu_gate_up_biases = mx.contiguous(
             mx.concatenate((gate.biases[gpu_start:], up.biases[gpu_start:]), axis=0)
         )
-        gpu_down_weight = mx.contiguous(
-            down.weight[:fused_outputs, packed_start:]
-        )
-        gpu_down_scales = mx.contiguous(
-            down.scales[:fused_outputs, scale_start:]
-        )
-        gpu_down_biases = mx.contiguous(
-            down.biases[:fused_outputs, scale_start:]
-        )
+        gpu_down_weight = mx.contiguous(down.weight[:fused_outputs, packed_start:])
+        gpu_down_scales = mx.contiguous(down.scales[:fused_outputs, scale_start:])
+        gpu_down_biases = mx.contiguous(down.biases[:fused_outputs, scale_start:])
         if args.zero_gpu:
             gpu_gate_up_scales = mx.zeros_like(gpu_gate_up_scales)
             gpu_down_scales = mx.zeros_like(gpu_down_scales)
@@ -278,9 +259,7 @@ def main() -> None:
             group_size,
         )
         mx.eval(native_suffix)
-        prefix_reference = mx.matmul(
-            prefix_activation, down_dense.astype(mx.float16).T
-        )
+        prefix_reference = mx.matmul(prefix_activation, down_dense.astype(mx.float16).T)
         if prefix_activation1 is not None:
             prefix_reference = prefix_reference + mx.matmul(
                 prefix_activation1, down_dense1.astype(mx.float16).T
@@ -379,11 +358,7 @@ def main() -> None:
                 if ane_model1 is not None
                 else fast.qwen35_ane_q4_swiglu_down_t
             )
-            models = (
-                (ane_model, ane_model1)
-                if ane_model1 is not None
-                else (ane_model,)
-            )
+            models = (ane_model, ane_model1) if ane_model1 is not None else (ane_model,)
             return call(
                 x,
                 gpu_gate_up_weight,

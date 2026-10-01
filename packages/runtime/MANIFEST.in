@@ -1,0 +1,1 @@
+recursive-include src/omlx_runtime/custom_kernels *.cpp *.h *.metal *.mm *.txt

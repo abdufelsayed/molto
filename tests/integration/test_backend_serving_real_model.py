@@ -15,8 +15,9 @@ from pathlib import Path
 
 import pytest
 from PIL import Image
+from repo_paths import repository_root
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = repository_root(__file__)
 
 pytestmark = [pytest.mark.slow, pytest.mark.integration]
 
@@ -48,7 +49,7 @@ def test_gemma_backend_text_vision_and_streaming(tmp_path: Path) -> None:
             [
                 sys.executable,
                 "-m",
-                "omlx.cli",
+                "omlx_cli.cli",
                 "serve",
                 "--model-dir",
                 str(models),

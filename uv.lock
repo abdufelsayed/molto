@@ -11,6 +11,15 @@ resolution-markers = [
 ]
 
 [manifest]
+members = [
+    "omlx-cli",
+    "omlx-config",
+    "omlx-contracts",
+    "omlx-management",
+    "omlx-runtime",
+    "omlx-server",
+    "omlx-workspace",
+]
 overrides = [
     { name = "mlx", specifier = "==0.32.2" },
     { name = "mlx-lm", git = "https://github.com/ml-explore/mlx-lm?rev=872ae88d1fac77350db23c8c04fe8dd372a9e3e8" },
@@ -237,6 +246,20 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/84/da/d0dfb6d6e6321ae44df0321384c32c322bd07b15740d7422727a1a49fc5d/blis-1.3.3-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:6297e7616c158b305c9a8a4e47ca5fc9b0785194dd96c903b1a1591a7ca21ddf", size = 3011959, upload-time = "2025-11-17T12:28:06.862Z" },
     { url = "https://files.pythonhosted.org/packages/20/c5/2b0b5e556fa0364ed671051ea078a6d6d7b979b1cfef78d64ad3ca5f0c7f/blis-1.3.3-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:3f966ca74f89f8a33e568b9a1d71992fc9a0d29a423e047f0a212643e21b5458", size = 14232456, upload-time = "2025-11-17T12:28:08.779Z" },
     { url = "https://files.pythonhosted.org/packages/31/07/4cdc81a47bf862c0b06d91f1bc6782064e8b69ac9b5d4ff51d97e4ff03da/blis-1.3.3-cp313-cp313-win_amd64.whl", hash = "sha256:7a0fc4b237a3a453bdc3c7ab48d91439fcd2d013b665c46948d9eaf9c3e45a97", size = 6192624, upload-time = "2025-11-17T12:28:14.197Z" },
+]
+
+[[package]]
+name = "build"
+version = "1.6.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "os_name == 'nt'" },
+    { name = "packaging" },
+    { name = "pyproject-hooks" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/bd/67/4898a44ea4f3f8e213b0954ec0aa0a16971d62a6212d6ea3931e97115b99/build-1.6.1.tar.gz", hash = "sha256:51cc11666391ab6f092070437ac747002ff46f3e4113a3622177ee6b488bfc53", size = 113427, upload-time = "2026-09-10T07:56:00.417Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ad/9b/9fb3585dabcd73a1b2a6267f63f62649347c9e6d072c9fde365b105abb2c/build-1.6.1-py3-none-any.whl", hash = "sha256:ecd351a4be9d35a9eaaba244a7687143c9c7d4aea6ac964e7e7ddab20cbcf4e7", size = 31179, upload-time = "2026-09-10T07:55:59.148Z" },
 ]
 
 [[package]]
@@ -2363,13 +2386,102 @@ wheels = [
 ]
 
 [[package]]
-name = "omlx"
-source = { editable = "." }
+name = "omlx-cli"
+version = "0.7.0rc1"
+source = { editable = "apps/cli" }
+dependencies = [
+    { name = "httpx" },
+    { name = "omlx-config" },
+    { name = "omlx-runtime" },
+    { name = "omlx-server" },
+    { name = "psutil" },
+    { name = "pyyaml" },
+    { name = "requests" },
+    { name = "rich" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = ">=0.27,<1" },
+    { name = "omlx-config", editable = "packages/config" },
+    { name = "omlx-runtime", editable = "packages/runtime" },
+    { name = "omlx-server", editable = "apps/server" },
+    { name = "psutil", specifier = ">=5.9" },
+    { name = "pyyaml", specifier = ">=6" },
+    { name = "requests", specifier = ">=2.28" },
+    { name = "rich", specifier = ">=13" },
+]
+
+[[package]]
+name = "omlx-config"
+version = "0.7.0rc1"
+source = { editable = "packages/config" }
+dependencies = [
+    { name = "psutil" },
+    { name = "setproctitle" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "psutil", specifier = ">=5.9" },
+    { name = "setproctitle", specifier = ">=1.3.3" },
+]
+
+[[package]]
+name = "omlx-contracts"
+version = "0.7.0rc1"
+source = { editable = "packages/contracts" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2" }]
+
+[[package]]
+name = "omlx-management"
+version = "0.7.0rc1"
+source = { editable = "packages/management" }
+dependencies = [
+    { name = "ddgs" },
+    { name = "httpx" },
+    { name = "huggingface-hub" },
+    { name = "mlx" },
+    { name = "omlx-config" },
+    { name = "omlx-contracts" },
+    { name = "omlx-runtime" },
+    { name = "packaging" },
+    { name = "psutil" },
+    { name = "pydantic" },
+    { name = "requests" },
+    { name = "rich" },
+    { name = "safetensors" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "ddgs", specifier = "==9.16.0" },
+    { name = "httpx", specifier = ">=0.27,<1" },
+    { name = "huggingface-hub", specifier = ">=1.19" },
+    { name = "mlx", specifier = "==0.32.2" },
+    { name = "omlx-config", editable = "packages/config" },
+    { name = "omlx-contracts", editable = "packages/contracts" },
+    { name = "omlx-runtime", editable = "packages/runtime" },
+    { name = "packaging", specifier = ">=24" },
+    { name = "psutil", specifier = ">=5.9" },
+    { name = "pydantic", specifier = ">=2" },
+    { name = "requests", specifier = ">=2.28" },
+    { name = "rich", specifier = ">=13" },
+    { name = "safetensors", specifier = ">=0.4" },
+]
+
+[[package]]
+name = "omlx-runtime"
+version = "0.7.0rc1"
+source = { editable = "packages/runtime" }
 dependencies = [
     { name = "cohere-melody" },
-    { name = "ddgs" },
     { name = "dflash-mlx" },
-    { name = "fastapi" },
     { name = "httpx" },
     { name = "huggingface-hub" },
     { name = "jsonschema" },
@@ -2381,15 +2493,19 @@ dependencies = [
     { name = "mlx-lm" },
     { name = "mlx-vlm" },
     { name = "numpy" },
+    { name = "omlx-config" },
+    { name = "omlx-contracts" },
     { name = "openai-harmony" },
+    { name = "pdfplumber" },
     { name = "pillow" },
     { name = "protobuf" },
     { name = "psutil" },
-    { name = "python-multipart" },
+    { name = "pydantic" },
     { name = "pyyaml" },
     { name = "regex" },
     { name = "requests" },
     { name = "rich" },
+    { name = "safetensors" },
     { name = "sentencepiece" },
     { name = "setproctitle" },
     { name = "socksio" },
@@ -2398,7 +2514,6 @@ dependencies = [
     { name = "tokenizers" },
     { name = "tqdm" },
     { name = "transformers" },
-    { name = "uvicorn" },
 ]
 
 [package.optional-dependencies]
@@ -2434,37 +2549,24 @@ paroquant = [
     { name = "paroquant" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "apache-tvm-ffi" },
-    { name = "mcp" },
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "ruff" },
-    { name = "xgrammar" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "apache-tvm-ffi", marker = "extra == 'grammar'", specifier = "==0.1.11" },
     { name = "cohere-melody", specifier = ">=0.9.0" },
-    { name = "ddgs", specifier = "==9.16.0" },
     { name = "dflash-mlx", git = "https://github.com/jundot/dflash-mlx?rev=c55324c86540c369f6818a0f47eae544d405475b" },
     { name = "espeakng-loader", marker = "extra == 'audio'", specifier = ">=0.2.4" },
-    { name = "fastapi", specifier = ">=0.108.0" },
     { name = "httpx", specifier = ">=0.27.0,<1" },
     { name = "huggingface-hub", specifier = ">=1.19.0" },
     { name = "jsonschema", specifier = ">=4.0.0" },
     { name = "librosa", marker = "extra == 'audio'", specifier = "==0.11.0" },
-    { name = "markitdown", extras = ["docx", "pdf", "pptx"], specifier = "==0.1.7" },
+    { name = "markitdown", extras = ["pdf", "docx", "pptx"], specifier = "==0.1.7" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=2.0.0,<3" },
     { name = "mflux", marker = "extra == 'image'", specifier = ">=0.20.0,<0.21" },
     { name = "misaki", marker = "extra == 'audio'", specifier = ">=0.9.4" },
     { name = "mistral-common", specifier = ">=1.10" },
     { name = "mlx", specifier = "==0.32.2" },
     { name = "mlx-audio", git = "https://github.com/Blaizzy/mlx-audio?rev=49596ac8b69b9ed377db311a73df838795f38a3d" },
-    { name = "mlx-audio", extras = ["sts", "stt", "tts"], marker = "extra == 'audio'", git = "https://github.com/Blaizzy/mlx-audio?rev=49596ac8b69b9ed377db311a73df838795f38a3d" },
+    { name = "mlx-audio", extras = ["tts", "stt", "sts"], marker = "extra == 'audio'", git = "https://github.com/Blaizzy/mlx-audio?rev=49596ac8b69b9ed377db311a73df838795f38a3d" },
     { name = "mlx-embeddings", git = "https://github.com/Blaizzy/mlx-embeddings?rev=32981fa4e8064ed664b52071789dd18271fe4206" },
     { name = "mlx-lm", git = "https://github.com/ml-explore/mlx-lm?rev=872ae88d1fac77350db23c8c04fe8dd372a9e3e8" },
     { name = "mlx-vlm", git = "https://github.com/Blaizzy/mlx-vlm?rev=ea79808ce1e9a19fcb915a96b0c70e37ad393a99" },
@@ -2472,18 +2574,22 @@ requires-dist = [
     { name = "num2words", marker = "extra == 'audio'", specifier = ">=0.5.14" },
     { name = "numba", marker = "extra == 'audio'", specifier = ">=0.60.0" },
     { name = "numpy", specifier = ">=1.24.0,<2.4" },
+    { name = "omlx-config", editable = "packages/config" },
+    { name = "omlx-contracts", editable = "packages/contracts" },
     { name = "openai-harmony" },
     { name = "paroquant", marker = "python_full_version >= '3.11' and extra == 'paroquant'", specifier = "==0.1.16" },
+    { name = "pdfplumber", specifier = ">=0.11" },
     { name = "phonemizer-fork", marker = "extra == 'audio'", specifier = ">=3.3.2" },
     { name = "pillow", specifier = ">=9.0.0" },
     { name = "protobuf" },
     { name = "psutil", specifier = ">=5.9.0" },
+    { name = "pydantic", specifier = ">=2" },
     { name = "pyloudnorm", marker = "extra == 'audio'", specifier = ">=0.2.0" },
-    { name = "python-multipart", specifier = ">=0.0.5" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "regex" },
     { name = "requests", specifier = ">=2.28.0" },
     { name = "rich", specifier = ">=13.0.0" },
+    { name = "safetensors", specifier = ">=0.4" },
     { name = "sentencepiece" },
     { name = "setproctitle", specifier = ">=1.3.3" },
     { name = "socksio", specifier = ">=1.0.0" },
@@ -2493,21 +2599,89 @@ requires-dist = [
     { name = "tokenizers", specifier = ">=0.19.0" },
     { name = "tqdm", specifier = ">=4.66.0" },
     { name = "transformers", specifier = ">=5.14.0,<5.18" },
-    { name = "uvicorn", specifier = ">=0.23.0" },
     { name = "wsproto", marker = "extra == 'audio'", specifier = "==1.2.0" },
     { name = "xgrammar", marker = "extra == 'grammar'", specifier = "==0.2.3" },
     { name = "zeroconf", marker = "extra == 'cluster'", specifier = ">=0.131.0" },
 ]
 provides-extras = ["grammar", "mcp", "cluster", "modelscope", "audio", "image", "paroquant"]
 
+[[package]]
+name = "omlx-server"
+version = "0.7.0rc1"
+source = { editable = "apps/server" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "mcp" },
+    { name = "mlx" },
+    { name = "mlx-audio" },
+    { name = "mlx-lm" },
+    { name = "omlx-config" },
+    { name = "omlx-contracts" },
+    { name = "omlx-management" },
+    { name = "omlx-runtime" },
+    { name = "pillow" },
+    { name = "pydantic" },
+    { name = "python-multipart" },
+    { name = "pyyaml" },
+    { name = "soundfile" },
+    { name = "starlette" },
+    { name = "uvicorn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi", specifier = ">=0.108" },
+    { name = "httpx", specifier = ">=0.27,<1" },
+    { name = "mcp", specifier = ">=2,<3" },
+    { name = "mlx", specifier = "==0.32.2" },
+    { name = "mlx-audio", git = "https://github.com/Blaizzy/mlx-audio?rev=49596ac8b69b9ed377db311a73df838795f38a3d" },
+    { name = "mlx-lm", git = "https://github.com/ml-explore/mlx-lm?rev=872ae88d1fac77350db23c8c04fe8dd372a9e3e8" },
+    { name = "omlx-config", editable = "packages/config" },
+    { name = "omlx-contracts", editable = "packages/contracts" },
+    { name = "omlx-management", editable = "packages/management" },
+    { name = "omlx-runtime", editable = "packages/runtime" },
+    { name = "pillow", specifier = ">=9" },
+    { name = "pydantic", specifier = ">=2" },
+    { name = "python-multipart", specifier = ">=0.0.5" },
+    { name = "pyyaml", specifier = ">=6" },
+    { name = "soundfile", specifier = ">=0.12" },
+    { name = "starlette", specifier = ">=0.40" },
+    { name = "uvicorn", specifier = ">=0.23" },
+]
+
+[[package]]
+name = "omlx-workspace"
+version = "0.7.0rc1"
+source = { virtual = "." }
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-tvm-ffi" },
+    { name = "build" },
+    { name = "mcp" },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "ruff" },
+    { name = "setuptools" },
+    { name = "wheel" },
+    { name = "xgrammar" },
+]
+
+[package.metadata]
+
 [package.metadata.requires-dev]
 dev = [
     { name = "apache-tvm-ffi", specifier = "==0.1.11" },
+    { name = "build" },
     { name = "mcp", specifier = ">=2.0.0,<3" },
     { name = "mypy", specifier = ">=1.0.0" },
     { name = "pytest", specifier = ">=7.0.0" },
     { name = "pytest-asyncio", specifier = ">=0.21.0" },
     { name = "ruff", specifier = ">=0.1.0" },
+    { name = "setuptools", specifier = ">=77" },
+    { name = "wheel" },
     { name = "xgrammar", specifier = "==0.2.3" },
 ]
 
@@ -3045,6 +3219,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/54/40/cf14c4f534f817788966857afdedb90002198dca5ce4fe2c6ecb031955ae/pypdfium2-5.13.0-py3-none-win32.whl", hash = "sha256:d33ee7077db67478b75efe4b5ea9610fb96c5416a0bc4949227f0f59c34dfcd9", size = 3753164, upload-time = "2026-08-13T10:58:10.97Z" },
     { url = "https://files.pythonhosted.org/packages/5d/99/a37b6b902457569468ed5908c94e56cb6c4032541f02cf89f723d42a9148/pypdfium2-5.13.0-py3-none-win_amd64.whl", hash = "sha256:47dcca2a8d507b5fd24f94c3c9d48fb379430f097bc20f01beff6c963ffbcedb", size = 3885553, upload-time = "2026-08-13T10:58:12.709Z" },
     { url = "https://files.pythonhosted.org/packages/50/7f/d39f6e64375c2ffd50ea100e3c73af79085c880c2791eb7203bc61d8913f/pypdfium2-5.13.0-py3-none-win_arm64.whl", hash = "sha256:554a0b23376460af1410e3c915906895e2dac67a086b9e6ccde0643a795d3b0d", size = 3700026, upload-time = "2026-08-13T10:58:14.206Z" },
+]
+
+[[package]]
+name = "pyproject-hooks"
+version = "1.3.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/6d/5d/f2ddeef4a855a102aaae5e97826a0260007522ab504421b75addfdb1517c/pyproject_hooks-1.3.3.tar.gz", hash = "sha256:defda19b854fa0d3bd4f76ea4ddcba8abd7dcfcdd585a6690ade050744fc5f43", size = 21013, upload-time = "2026-09-16T08:58:03.999Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/85/11/044d1ae1b4ec0d7af88ee5bc91e081be1022533032b906a7bdabdbb60977/pyproject_hooks-1.3.3-py3-none-any.whl", hash = "sha256:5fc53fdac9f7bd63fbcdc868fb5f90b4784d78a53a3d3388cd738b807441a20b", size = 10724, upload-time = "2026-09-16T08:58:02.96Z" },
 ]
 
 [[package]]
@@ -4352,6 +4535,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/c4/b1/37fe0c96c206b4208a072c3a74add6a72af4b8228be3f5435163c5a6d099/websockets-17.1-pp311-pypy311_pp73-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:a62d8c424383c9dc769ff3672018df822603117e32686e567d452ed035b6fb2e", size = 216608, upload-time = "2026-08-26T17:25:28.134Z" },
     { url = "https://files.pythonhosted.org/packages/be/7e/75a0a491b512412e08333b9f8412757af6186fe1c598186261002de1a793/websockets-17.1-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:8196d217eeca52b9235ee1f8a684a09885a5f953d5a31e80ef915bf2c5c94f9d", size = 217870, upload-time = "2026-08-26T17:25:29.745Z" },
     { url = "https://files.pythonhosted.org/packages/41/63/23572870e01836a98346075b9e17a8bc24a6ddd9800a3204ceee58677f3c/websockets-17.1-py3-none-any.whl", hash = "sha256:f221081107b8c48184d99f7019604486376e7ef826037e70aad6b02540732c23", size = 211134, upload-time = "2026-08-26T17:25:31.397Z" },
+]
+
+[[package]]
+name = "wheel"
+version = "0.48.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "packaging" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d0/20/50ed6bdf27dec98b568a8ae25dc599f35baa3d9709f9e83fd1edb56b9a90/wheel-0.48.0.tar.gz", hash = "sha256:94800765601e9171bf5d58d066e640662842bcedcbab982b2c90787a2c987322", size = 66471, upload-time = "2026-08-11T22:02:27.327Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2e/29/69cfbb602cd91690c55d38ba9fe53e6a7e76a6fa647bf38f19c138d25449/wheel-0.48.0-py3-none-any.whl", hash = "sha256:3217dcc807155e45db462d7ef2431f5ddda0d7273b700d05a67b271ceb1287ab", size = 33320, upload-time = "2026-08-11T22:02:26.1Z" },
 ]
 
 [[package]]

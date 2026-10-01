@@ -1,0 +1,9 @@
+packages:
+  - apps/dashboard
+  - packages/contracts
+
+allowBuilds:
+  esbuild: true
+  lightningcss: true
+  unrs-resolver: true
+  msw: false

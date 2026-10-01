@@ -124,12 +124,14 @@ def _run_laguna_real_model_validation(
     import httpx
     import mlx.core as mx
     from mlx_lm.models.cache import KVCache, RotatingKVCache
+    from omlx_runtime.engine.batched import BatchedEngine
+    from omlx_runtime.engine_pool import EngineEntry
+    from omlx_runtime.model_discovery import detect_thinking_default
+    from omlx_runtime.scheduler import SchedulerConfig
+    from omlx_server.server import create_app
 
-    from omlx.engine.batched import BatchedEngine
-    from omlx.engine_pool import EngineEntry
-    from omlx.model_discovery import detect_thinking_default
-    from omlx.scheduler import SchedulerConfig
-    from omlx.server import _server_state, app
+    app = create_app()
+    _server_state = app.state.server_state
 
     async def run_cache_integration() -> None:
         scheduler_config = SchedulerConfig(

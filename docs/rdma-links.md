@@ -79,21 +79,21 @@ The API reports the link, the worker it reaches, whether it is verified,
 measured round-trip latency and throughput in each direction, and the
 deployment currently using it.
 
-| Method | Route | Purpose |
-| --- | --- | --- |
-| `GET` | `/admin/api/cluster/rdma-links` | Daemon state, helper state and every link with its evidence |
-| `POST` | `/admin/api/cluster/rdma-links/verify` | Run the full probe on `{"link": "NAME"}` and record it |
+| Method | Route                                  | Purpose                                                     |
+| ------ | -------------------------------------- | ----------------------------------------------------------- |
+| `GET`  | `/admin/api/cluster/rdma-links`        | Daemon state, helper state and every link with its evidence |
+| `POST` | `/admin/api/cluster/rdma-links/verify` | Run the full probe on `{"link": "NAME"}` and record it      |
 
 Verification refuses a link that is carrying a deployment, because the probe
 would take the worker's end of the mailbox away from the running rank.
 
 ## Settings
 
-| Variable | Effect |
-| --- | --- |
-| `OMLX_RDMA_STAGE_LINKS=0` | Never route stage activations over RDMA |
-| `OMLX_MCDMA_RPCD_SOCKET` | Control socket of the Mac's daemon (default `/tmp/mcdma-rpcd.sock`) |
-| `OMLX_MCDMA_RPC_LIBRARY` | Path to `libmcdma-rpc` |
+| Variable                  | Effect                                                              |
+| ------------------------- | ------------------------------------------------------------------- |
+| `OMLX_RDMA_STAGE_LINKS=0` | Never route stage activations over RDMA                             |
+| `OMLX_MCDMA_RPCD_SOCKET`  | Control socket of the Mac's daemon (default `/tmp/mcdma-rpcd.sock`) |
+| `OMLX_MCDMA_RPC_LIBRARY`  | Path to `libmcdma-rpc`                                              |
 
 ## Limits
 
@@ -118,15 +118,15 @@ For implementers of other daemons. Each link has one mailbox: a request half
 of `R` bytes followed by a reply half of `P` bytes, each starting with a 4 KiB
 control page. A word is `seq << 32 | length`, and sequence 0 means empty.
 
-| Offset | End | Meaning |
-| --- | --- | --- |
-| request +0 | both | Request word: staged by the client, landed at the service |
-| request +64 | client | 1 while the daemon's link to the peer is up |
-| request +72 | client | Link generation: bumped each time the daemon's link comes up |
-| request +256 | both | `R` and `P` as two little-endian u64 values |
-| reply +0 | service | Ready word: the daemon took the staged reply to send it |
-| reply +64 | client | Reply word: the service's reply has landed |
-| reply +128 | service | Staged word: a reply is ready for the daemon to send |
+| Offset       | End     | Meaning                                                      |
+| ------------ | ------- | ------------------------------------------------------------ |
+| request +0   | both    | Request word: staged by the client, landed at the service    |
+| request +64  | client  | 1 while the daemon's link to the peer is up                  |
+| request +72  | client  | Link generation: bumped each time the daemon's link comes up |
+| request +256 | both    | `R` and `P` as two little-endian u64 values                  |
+| reply +0     | service | Ready word: the daemon took the staged reply to send it      |
+| reply +64    | client  | Reply word: the service's reply has landed                   |
+| reply +128   | service | Staged word: a reply is ready for the daemon to send         |
 
 The connect side is the POSIX shared memory object `/mcdma-rpc.NAME`; the listen
 side is the file `/dev/shm/mcdma-rpc.NAME`. Payloads are written before their

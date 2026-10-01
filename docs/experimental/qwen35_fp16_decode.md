@@ -19,7 +19,7 @@ does not demonstrate engagement.
 ## Validation and performance comparisons
 
 ```bash
-python -m pytest -q tests/test_qwen35_fp16_decode.py tests/test_qwen35_gdn_prework.py
+uv run --all-packages --inexact pytest -q packages/runtime/tests/test_qwen35_fp16_decode.py packages/runtime/tests/test_qwen35_gdn_prework.py
 ```
 
 These tests exercise the current mlx-vlm decode convolution and normalization,

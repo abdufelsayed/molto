@@ -1,8 +1,8 @@
 # Management API
 
 This is the HTTP contract for a script or separate dashboard that controls a
-running oMLX server. The base URL is `http://127.0.0.1:8000` by default;
-all routes below start with `/management/v1`. The management API controls the
+running oMLX server. The public application defaults to `http://127.0.0.1:8000`;
+route names below describe the private `/management/v1` contract. The management API controls the
 same engine pool used by inference requests. It can request a restart only when a supported supervisor is active. Start and
 configure the process with `omlx start`, `omlx serve`, or the Homebrew service.
 
@@ -19,13 +19,17 @@ blocked by the public proxy. Dashboard browsers use opaque sessions through
 management commands. Direct private-route examples below apply only when
 accessing the backend listener itself.
 
+Implementation belongs to `apps/server/` (HTTP authentication and routes),
+`packages/contracts/` (schemas), and `packages/management/` (operations).
+See [architecture](architecture.md) for dependency boundaries.
+
 ## Authentication
 
 Set a main key before exposing the server to a network. Pass it as a bearer
 token:
 
 ```bash
-curl http://127.0.0.1:8000/management/v1/models \
+curl http://127.0.0.1:8000/api/management/v1/models \
   -H "Authorization: Bearer $OMLX_API_KEY"
 ```
 
@@ -46,30 +50,30 @@ not management permissions.
 
 ## Routes
 
-| Method and path | Result or effect |
-| --- | --- |
-| `GET /models` | Discovered models, load state, and supported persisted model settings |
-| `GET /state` | Default model, memory ceiling, counts, and compact load state |
-| `POST /models/refresh` | Re-read model settings and rescan configured model directories |
-| `POST /models/{model_id}/load` | Load a discovered model; requires main key |
-| `POST /models/{model_id}/unload` | Request unload; may return HTTP 202 while unloading |
-| `GET /settings` | Current global sampling and selected scheduler settings |
-| `PATCH /settings` | Persist supported global setting changes |
-| `GET /models/{model_id}/settings` | Model-specific settings |
-| `PATCH /models/{model_id}/settings` | Persist a subset of model-specific settings |
-| `GET /models/{model_id}/profiles` | Saved profiles for a discovered model |
-| `POST /models/{model_id}/profiles` | Create a profile |
-| `PUT /models/{model_id}/profiles/{name}` | Update or rename a profile |
-| `DELETE /models/{model_id}/profiles/{name}` | Delete a profile |
-| `POST /models/{model_id}/profiles/{name}/apply` | Apply a profile to model settings |
-| `GET /stats` | Session or all-time counters; optional `model_id` query |
-| `GET /cache` | Cache statistics for loaded models and the SSD cache path |
-| `POST /cache/{hot|ssd}/clear` | Clear the selected cache tier |
-| `POST /diffusion/calibrations` | Queue calibration of a discovered local diffusion checkpoint; HTTP 202 |
-| `POST /diffusion/quantizations` | Queue calibrated transformer quantization from local floating-point weights; HTTP 202 |
-| `GET /diffusion/jobs` | Preparation job history and current progress |
-| `GET /diffusion/jobs/{job_id}` | One preparation job |
-| `POST /diffusion/jobs/{job_id}/cancel` | Request cancellation; running work drains before reaching `cancelled` |
+| Method and path                                 | Result or effect                                                                      |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `GET /models`                                   | Discovered models, load state, and supported persisted model settings                 |
+| `GET /state`                                    | Default model, memory ceiling, counts, and compact load state                         |
+| `POST /models/refresh`                          | Re-read model settings and rescan configured model directories                        |
+| `POST /models/{model_id}/load`                  | Load a discovered model; requires main key                                            |
+| `POST /models/{model_id}/unload`                | Request unload; may return HTTP 202 while unloading                                   |
+| `GET /settings`                                 | Current global sampling and selected scheduler settings                               |
+| `PATCH /settings`                               | Persist supported global setting changes                                              |
+| `GET /models/{model_id}/settings`               | Model-specific settings                                                               |
+| `PATCH /models/{model_id}/settings`             | Persist a subset of model-specific settings                                           |
+| `GET /models/{model_id}/profiles`               | Saved profiles for a discovered model                                                 |
+| `POST /models/{model_id}/profiles`              | Create a profile                                                                      |
+| `PUT /models/{model_id}/profiles/{name}`        | Update or rename a profile                                                            |
+| `DELETE /models/{model_id}/profiles/{name}`     | Delete a profile                                                                      |
+| `POST /models/{model_id}/profiles/{name}/apply` | Apply a profile to model settings                                                     |
+| `GET /stats`                                    | Session or all-time counters; optional `model_id` query                               |
+| `GET /cache`                                    | Cache statistics for loaded models and the SSD cache path                             |
+| `POST /cache/{hot                               | ssd}/clear`                                                                           | Clear the selected cache tier |
+| `POST /diffusion/calibrations`                  | Queue calibration of a discovered local diffusion checkpoint; HTTP 202                |
+| `POST /diffusion/quantizations`                 | Queue calibrated transformer quantization from local floating-point weights; HTTP 202 |
+| `GET /diffusion/jobs`                           | Preparation job history and current progress                                          |
+| `GET /diffusion/jobs/{job_id}`                  | One preparation job                                                                   |
+| `POST /diffusion/jobs/{job_id}/cancel`          | Request cancellation; running work drains before reaching `cancelled`                 |
 
 `model_id` is a discovered model ID. Read it from `GET /models`; do not
 derive it from a display alias. All write bodies are JSON. Unknown patch
@@ -121,7 +125,7 @@ additive overlay. Check `/state` after a deferred transition before loading
 the model again.
 
 The accepted fields and validation bounds come from
-`omlx/services/management_models.py`. Inspect `GET /settings` or
+`packages/management/src/omlx_management/model_control.py`. Inspect `GET /settings` or
 `GET /models/{model_id}/settings` for the current values before patching.
 
 ## Cache and metrics
@@ -160,18 +164,18 @@ The routes below share the `/management/v1` prefix and main-key requirement.
 Use `/openapi.json` for request schemas. Model options and server defaults also
 provide field descriptions, choices, bounds, and capability or restart metadata.
 
-| Area | Routes and behavior |
-| --- | --- |
-| Model configuration | `GET /model-options`, `GET /models/{model_id}/options`; templates CRUD and model template application; presets listing/refresh/application; generation-config inspection/import; model settings reset, recipe, and optimal snapshot inspection/application; `POST /models/{model_id}/import-mtplx` for compatible local sidecars |
-| Library | `GET /workspace/registry`, `GET /workspace/storage`, `POST /workspace/plan`; collections list/save/delete/load; `GET /workspace/export` and `POST /workspace/import` with dry-run preview |
-| Checkpoint maintenance | Under `/workspace/models/{model_id}`: `POST /verify`, `/check-update`, `/stage-update`, `/revision`, `/move`; `GET /delete-plan` then `DELETE /delete` with the returned `plan_token` |
-| Acquisition | Under `/acquisition/{provider}` with `hf` or `ms`: search, recommended models, repository info, and downloads; `POST /downloads` starts a job |
-| Preparation and publishing | `/acquisition/prepare/models`, `/options`, `/convert`, `/estimate`, `/quantize`; `/acquisition/publish/validate` and `/start` |
-| Operations | `GET /operations`, `GET /operations/{id}`, `POST /operations/{id}/cancel` or `/retry`, `DELETE /operations/{id}` for supported history removal |
-| Server configuration | `GET /server/settings`, `GET /server/defaults`, `PATCH /server/settings`; `/server/info`, `/resources`, `/update`, `/integrations`, `/web-search/test`, and supervisor-dependent `/restart` |
-| Keys | `GET /auth/keys`; `POST /auth/subkeys`, `PATCH` or `DELETE /auth/subkeys/{id}`; `PATCH /auth/main-key` and `/auth/policy` |
-| Monitoring | `GET /monitoring/activity`, `/usage`, `/logs`, `/versions`; `POST /monitoring/stats/reset`, `/monitoring/cache/probe` |
-| Diagnostics | `GET /diagnostics/capabilities`, runs list/start, `GET /diagnostics/runs/{id}`, `/results`, and `POST /diagnostics/runs/{id}/cancel` |
+| Area                       | Routes and behavior                                                                                                                                                                                                                                                                                                              |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Model configuration        | `GET /model-options`, `GET /models/{model_id}/options`; templates CRUD and model template application; presets listing/refresh/application; generation-config inspection/import; model settings reset, recipe, and optimal snapshot inspection/application; `POST /models/{model_id}/import-mtplx` for compatible local sidecars |
+| Library                    | `GET /workspace/registry`, `GET /workspace/storage`, `POST /workspace/plan`; collections list/save/delete/load; `GET /workspace/export` and `POST /workspace/import` with dry-run preview                                                                                                                                        |
+| Checkpoint maintenance     | Under `/workspace/models/{model_id}`: `POST /verify`, `/check-update`, `/stage-update`, `/revision`, `/move`; `GET /delete-plan` then `DELETE /delete` with the returned `plan_token`                                                                                                                                            |
+| Acquisition                | Under `/acquisition/{provider}` with `hf` or `ms`: search, recommended models, repository info, and downloads; `POST /downloads` starts a job                                                                                                                                                                                    |
+| Preparation and publishing | `/acquisition/prepare/models`, `/options`, `/convert`, `/estimate`, `/quantize`; `/acquisition/publish/validate` and `/start`                                                                                                                                                                                                    |
+| Operations                 | `GET /operations`, `GET /operations/{id}`, `POST /operations/{id}/cancel` or `/retry`, `DELETE /operations/{id}` for supported history removal                                                                                                                                                                                   |
+| Server configuration       | `GET /server/settings`, `GET /server/defaults`, `PATCH /server/settings`; `/server/info`, `/resources`, `/update`, `/integrations`, `/web-search/test`, and supervisor-dependent `/restart`                                                                                                                                      |
+| Keys                       | `GET /auth/keys`; `POST /auth/subkeys`, `PATCH` or `DELETE /auth/subkeys/{id}`; `PATCH /auth/main-key` and `/auth/policy`                                                                                                                                                                                                        |
+| Monitoring                 | `GET /monitoring/activity`, `/usage`, `/logs`, `/versions`; `POST /monitoring/stats/reset`, `/monitoring/cache/probe`                                                                                                                                                                                                            |
+| Diagnostics                | `GET /diagnostics/capabilities`, runs list/start, `GET /diagnostics/runs/{id}`, `/results`, and `POST /diagnostics/runs/{id}/cancel`                                                                                                                                                                                             |
 
 ### Server configuration and keys
 

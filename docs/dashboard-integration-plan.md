@@ -5,7 +5,7 @@ and verification for the non-chat dashboard migration.
 
 ## Accepted scope
 
-The dashboard belongs in `dashboard/` in the oMLX repository. One `omlx serve`
+The dashboard belongs in `apps/dashboard/` in the oMLX repository. One `omlx serve`
 command runs the public TanStack Start/Nitro web application and a separate
 private FastAPI inference process. Inference clients and the dashboard use the
 same public host and port. The user selected a command distribution.
@@ -41,24 +41,24 @@ Browser chat is outside this scope. The reference checkout remains at
 
 - [x] Repository integration, tooling, generated contracts and navigation.
 - [x] Complete server settings, directories, networking, resource previews,
-  cache settings, generation defaults, integrations and tools.
+      cache settings, generation defaults, integrations and tools.
 - [x] First-key setup, main-key rotation, subkey reveal/create/edit/revoke,
-  authentication policy and session handling.
+      authentication policy and session handling.
 - [x] Full model settings, capability gates, profiles, templates, presets,
-  generation import, helper recipes, reset and sidecar import.
+      generation import, helper recipes, reset and sidecar import.
 - [x] Library filters, health checks, memory planning, collections and startup
-  preload; configuration import/export; storage, revisions, moves and deletion.
+      preload; configuration import/export; storage, revisions, moves and deletion.
 - [x] Hub discovery/downloads, conversion/quantization, diffusion preparation,
-  explicit publishing and durable operation activity.
+      explicit publishing and durable operation activity.
 - [x] Live request activity, usage history, bounded rotated logs, engine
-  provenance, statistics reset and cache inspection/clear/probes.
+      provenance, statistics reset and cache inspection/clear/probes.
 - [x] Throughput, accuracy, context and ANE diagnostics with durable history,
-  exclusive admission and cancellation that drains native work.
+      exclusive admission and cancellation that drains native work.
 - [x] Conditional experimental cluster management and public peer protocols.
 - [x] Independent reviews of model moves, import rollback, monitoring,
-  diagnostics, resource detection, authentication, proxy and launcher.
+      diagnostics, resource detection, authentication, proxy and launcher.
 - [x] Desktop/mobile HCI inspection, including visible library filters and
-  distinct hub labels with explicit boolean states.
+      distinct hub labels with explicit boolean states.
 - [x] Final installed-bundle verification and milestone delivery.
 
 ## Verification

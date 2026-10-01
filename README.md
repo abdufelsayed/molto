@@ -5,36 +5,30 @@ vision language models, embeddings, rerankers, and optional image and audio
 models through HTTP APIs. `omlx serve` starts the TanStack Start dashboard and
 Python inference backend together on one public origin. The dashboard handles
 model and server management. Both share this repository. Dashboard source and development instructions are in
-[dashboard/](dashboard/README.md).
+[apps/dashboard/](apps/dashboard/README.md).
 
 Requires macOS 15.0 or newer, Apple Silicon, and Python 3.11, 3.12, or 3.13.
 The project is licensed under [Apache 2.0](LICENSE).
 
 ## Install from source
 
-Install [uv](https://docs.astral.sh/uv/) first, then use the checked-in lockfile:
+Install [uv](https://docs.astral.sh/uv/), Node, and pnpm 10.33.0, then install
+both workspaces from the repository root:
 
 ```bash
 git clone https://github.com/jundot/omlx.git
 cd omlx
-uv sync --locked --python 3.11
-```
-
-`uv sync` includes the development dependency group by default. For a runtime
-environment without test tools, use `uv sync --locked --no-dev --python 3.11`.
-Optional runtime extras include `mcp`, `audio`, `image`, `cluster`,
-`modelscope`, `grammar`, and `paroquant`; add one with `--extra`, for example
-`uv sync --locked --no-dev --extra image`.
-
-Build the dashboard once before serving from a source checkout. Install Node
-and pnpm, then run:
-
-```bash
-cd dashboard
+uv sync --all-packages --inexact --python 3.11
 pnpm install --frozen-lockfile
-pnpm build
-cd ..
+pnpm --filter omlx-dashboard build
 ```
+
+The six Python workspace members share `uv.lock`; the dashboard and generated
+contracts share the root `pnpm-lock.yaml`. `uv sync` includes developer tools.
+For a runtime environment omit those with `--no-dev`, retaining
+`--all-packages --inexact`. Runtime extras include `mcp`, `audio`, `image`,
+`cluster`, `modelscope`, `grammar`, and `paroquant`; enable one with `--extra`,
+for example `uv sync --all-packages --inexact --extra image`.
 
 Complete release wheels bundle the dashboard assets and a standalone Node
 runtime, so installed-wheel users do not need pnpm or a separate dashboard process.
@@ -50,7 +44,7 @@ start the foreground server:
 
 ```bash
 export OMLX_API_KEY=replace-with-a-secret-key
-uv run --locked omlx serve --model-dir ~/models
+uv run --all-packages --inexact omlx serve --model-dir ~/models
 ```
 
 Open `http://127.0.0.1:8000` for the dashboard. The same origin serves inference
@@ -108,7 +102,7 @@ configure them. Server settings live under the selected oMLX base path,
 normally `~/.omlx/settings.json`.
 
 The checked-in formula builds the dashboard and bundles Node. Its stable URL
-still points to a release that predates `dashboard/`; the bundled source install
+still points to a release that predates `apps/dashboard/`; the bundled source install
 requires `brew install --HEAD` with this formula until its release URL and
 checksum are updated. This repository change has not published a new release.
 Node and pnpm are build dependencies, not requirements for the installed runtime.
@@ -119,19 +113,19 @@ The inference server exposes OpenAI-shaped and Anthropic-shaped endpoints.
 Compatibility depends on the endpoint, model, and request features; test the
 client workflow you need.
 
-| Endpoint | Use |
-| --- | --- |
-| `GET /v1/models` | Discover API model IDs |
-| `POST /v1/chat/completions` | Text or vision chat |
-| `POST /v1/completions` | Text completions |
-| `POST /v1/messages` | Anthropic-shaped messages |
-| `POST /v1/responses` | Responses |
-| `POST /v1/embeddings` | Embeddings |
-| `POST /v1/rerank` | Reranking |
+| Endpoint                      | Use                                                 |
+| ----------------------------- | --------------------------------------------------- |
+| `GET /v1/models`              | Discover API model IDs                              |
+| `POST /v1/chat/completions`   | Text or vision chat                                 |
+| `POST /v1/completions`        | Text completions                                    |
+| `POST /v1/messages`           | Anthropic-shaped messages                           |
+| `POST /v1/responses`          | Responses                                           |
+| `POST /v1/embeddings`         | Embeddings                                          |
+| `POST /v1/rerank`             | Reranking                                           |
 | `POST /v1/images/generations` | Supported mflux image models with the `image` extra |
-| `POST /v1/images/edits` | Image-to-image, reference editing, and inpainting |
-| `POST /v1/images/operations` | Explicit diffusion pipeline operations |
-| `GET /v1/images/capabilities` | Pipeline options and checkpoint-specific support |
+| `POST /v1/images/edits`       | Image-to-image, reference editing, and inpainting   |
+| `POST /v1/images/operations`  | Explicit diffusion pipeline operations              |
+| `GET /v1/images/capabilities` | Pipeline options and checkpoint-specific support    |
 
 Audio routes require the `audio` extra. Image diffusion uses a general pipeline
 registry over mflux 0.20; see [image models](docs/image-models.md) for the exact
@@ -141,7 +135,7 @@ depends on the model's chat template and the parser for its output format.
 Model discovery and settings are available through the
 [management API](docs/management-api.md). See
 [model control](docs/model-control.md) for load, unload, profiles, and cache
-behavior. The [backend architecture](docs/backend-architecture.md) describes
+behavior. The [architecture](docs/architecture.md) describes
 the server boundary and limitations.
 
 ## Command line
@@ -203,31 +197,45 @@ realtime transcription WebSocket to private FastAPI. One public bind address is
 supported, such as `127.0.0.1` or `0.0.0.0`; comma-separated addresses are rejected.
 A backend restart keeps the dashboard and its sessions alive. A restart that
 changes the effective public host or port relaunches both processes, respecting
-CLI and environment overrides. See [dashboard instructions](dashboard/README.md)
-and [backend architecture](docs/backend-architecture.md).
+CLI and environment overrides. See [dashboard instructions](apps/dashboard/README.md)
+and [architecture](docs/architecture.md).
 
 ## Development
 
-Dashboard development uses the source-only `--dashboard-dev` flag. It starts
-Vite/Nitro and private FastAPI together on the configured public port without a
-production frontend build:
+Run workspace commands from the repository root:
 
 ```bash
-pnpm --dir dashboard install --frozen-lockfile
-uv run --locked omlx serve --dashboard-dev --model-dir ~/models
+uv sync --all-packages --inexact
+pnpm install --frozen-lockfile
+pnpm check
+pnpm test
+pnpm build
 ```
 
+`pnpm check` checks Python dependency boundaries, Ruff, type-aware Oxlint,
+Oxfmt, native TypeScript 7, and Python interface/build typechecks. `pnpm test` runs Python and dashboard tests.
+`pnpm build` assembles the single distributable oMLX wheel, including dashboard
+assets and the verified macOS ARM64 Node runtime. It may download the selected
+Node archive; inference and model downloads are not part of the build.
+
+For dashboard development, start Vite/Nitro and private FastAPI together:
 
 ```bash
-uv sync --locked --python 3.11
-uv run --locked pytest tests/test_engine_pool.py
-uv run --locked pytest
+uv run --all-packages --inexact omlx serve --dashboard-dev --model-dir ~/models
 ```
 
-The default pytest configuration excludes slow and integration tests. See
-[testing](docs/TESTING.md) and [contributing](docs/CONTRIBUTING.md) for scoped
-checks and hardware validation. The native kernel build remains in `setup.py`;
-building it requires full Xcode, not only Command Line Tools.
+This source-only mode uses the configured public port without requiring a
+production frontend build. Package unit tests live beside their owning app or
+library; cross-package tests live in `tests/integration/`. For example:
+
+```bash
+uv run --all-packages --inexact pytest packages/runtime/tests/test_engine_pool.py
+```
+
+The default pytest configuration excludes slow and integration-marked tests.
+See [architecture](docs/architecture.md), [testing](docs/TESTING.md), and
+[contributing](docs/CONTRIBUTING.md). Native kernel build configuration lives
+in `packages/runtime/setup.py`; building kernels requires full Xcode.
 
 ## Acknowledgments
 

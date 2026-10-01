@@ -60,24 +60,16 @@
     ],
     "transformer_calls": 8,
     "captured_linear_layers": 109,
-    "observation_counts": [
-      8
-    ],
+    "observation_counts": [8],
     "every_layer_observed_on_every_call": true,
     "max_rows_per_observation": 64,
     "outputs": [
       {
-        "size": [
-          256,
-          256
-        ],
+        "size": [256, 256],
         "pixel_sha256": "fbb7cbf101347bf477f7a03b720bb0e4d56b219d345640f93c185263fde06192"
       },
       {
-        "size": [
-          256,
-          256
-        ],
+        "size": [256, 256],
         "pixel_sha256": "f7b9406553ff3868c7530160b2ed76ea5e6898a9c24c26fb31b408061b50d121"
       }
     ],
@@ -90,10 +82,7 @@
     "backend_download_guard_enabled": true
   },
   "generated_tensor_probe": {
-    "shape": [
-      4,
-      64
-    ],
+    "shape": [4, 64],
     "dtype": "float32",
     "bits": 4,
     "group_size": 64,

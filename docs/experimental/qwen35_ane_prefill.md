@@ -85,7 +85,7 @@ where the native q8 tile is not profitable.
   "qwen35_ane_prefill_max_layers": 64,
   "qwen35_ane_prefill_dual_ane": true,
   "qwen35_ane_prefill_gdn": true,
-  "qwen35_ane_prefill_gdn_fraction": 0.50,
+  "qwen35_ane_prefill_gdn_fraction": 0.5,
   "qwen35_ane_prefill_gdn_max_layers": 48,
   "qwen35_ane_prefill_cpu_enabled": false,
   "qwen35_ane_prefill_cpu_fraction": 0.135,
@@ -242,11 +242,11 @@ chunk runs before the 2,047-token GPU tail. The 16K and 32K GPU baselines are
 the mean of two deterministic runs; their ANE/GPU values are single
 scheduler-aligned rechecks.
 
-| Prompt | GPU PP | ANE/GPU PP | PP change | TTFT change | End-to-end change |
-|---:|---:|---:|---:|---:|---:|
-| 4K | 445.2 tok/s | 460.4 tok/s | +3.4% | -3.3% | -2.3% |
-| 16K | 439.1 tok/s | 517.0 tok/s | +17.8% | -15.1% | -13.6% |
-| 32K | 408.9 tok/s | 486.0 tok/s | +18.9% | -15.9% | -15.0% |
+| Prompt |      GPU PP |  ANE/GPU PP | PP change | TTFT change | End-to-end change |
+| -----: | ----------: | ----------: | --------: | ----------: | ----------------: |
+|     4K | 445.2 tok/s | 460.4 tok/s |     +3.4% |       -3.3% |             -2.3% |
+|    16K | 439.1 tok/s | 517.0 tok/s |    +17.8% |      -15.1% |            -13.6% |
+|    32K | 408.9 tok/s | 486.0 tok/s |    +18.9% |      -15.9% |            -15.0% |
 
 The 16K and 32K output hashes matched the GPU path exactly. The 4K output was
 stable across ANE rechecks but differed from GPU, which is consistent with the
@@ -258,10 +258,10 @@ Token-generation throughput was unchanged because decode remains on the GPU.
 
 On `True2456/Qwen3.8-27B-AWQ-4.85bpw`, sequence length 2,048:
 
-| Measurement | GPU path | ANE/GPU path | Result |
-|---|---:|---:|---:|
-| Complete layer-0 MLP | 61.12 ms | 48.45 ms | 1.26x |
-| Full 64-layer language body | 6.00 s | 5.28 s | 1.136x |
+| Measurement                 | GPU path | ANE/GPU path | Result |
+| --------------------------- | -------: | -----------: | -----: |
+| Complete layer-0 MLP        | 61.12 ms |     48.45 ms |  1.26x |
+| Full 64-layer language body |   6.00 s |       5.28 s | 1.136x |
 
 The complete body result is 341 to 388 prompt tokens/s. Eager preparation of
 all 64 combined programs took about 15.1 seconds on the reference run; this is
@@ -298,10 +298,10 @@ policy and are retained as implementation history, not current tuning advice.
 With the corrected hook and the retuned 53% MLP / 50% GDN request, the final
 deterministic paired run measured:
 
-| Path | Median body time | Prompt throughput | Versus GPU |
-|---|---:|---:|---:|
-| GPU only | 6.1149 s | 334.9 tok/s | 1.000x |
-| Dual ANE/GPU | 4.5084 s | 454.3 tok/s | 1.356x |
+| Path         | Median body time | Prompt throughput | Versus GPU |
+| ------------ | ---------------: | ----------------: | ---------: |
+| GPU only     |         6.1149 s |       334.9 tok/s |     1.000x |
+| Dual ANE/GPU |         4.5084 s |       454.3 tok/s |     1.356x |
 
 Final hidden-state cosine similarity was 0.999200, last-token logit cosine
 similarity was 0.998522, and top-1 was unchanged. These are single-prompt
@@ -315,11 +315,11 @@ CPU, and GPU GDN branches measuring 8.63, 8.86, and 9.18 ms per operation.
 However, it did not beat the already balanced 50% ANE / 0% CPU GDN result:
 
 | GDN on ANE | GDN on CPU | Prompt throughput | Versus 50% ANE / 0% CPU |
-|---:|---:|---:|---:|
-| 50% | 0% | 490.2 tok/s | reference |
-| 50% | 5% | 475.2 tok/s | -3.1% |
-| 45% | 12.5% | 478.7 tok/s | -2.3% |
-| 45% | 15% | 480.1 tok/s | -2.0% |
+| ---------: | ---------: | ----------------: | ----------------------: |
+|        50% |         0% |       490.2 tok/s |               reference |
+|        50% |         5% |       475.2 tok/s |                   -3.1% |
+|        45% |      12.5% |       478.7 tok/s |                   -2.3% |
+|        45% |        15% |       480.1 tok/s |                   -2.0% |
 
 That standalone sweep held the surrounding workload and most candidate widths
 fixed, so it was useful for validating branch timing but did not predict the

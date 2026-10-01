@@ -50,7 +50,7 @@ The implementation currently provides:
 oMLX does not enable RDMA without approval, overwrite changed SSH host keys, or
 install login credentials without pairing. Those remain explicit administrator
 actions. A new hostname or link address is recorded using OpenSSH's
-``accept-new`` policy so setup never pauses for a terminal prompt.
+`accept-new` policy so setup never pauses for a terminal prompt.
 
 ## Architecture
 
@@ -96,7 +96,7 @@ On every Mac:
 4. Pair the Macs in oMLX. The first connection records a new hostname or
    Thunderbolt address without prompting; an identity change is still refused.
 5. For JACCL, configure Thunderbolt RDMA outside oMLX and confirm `rdma_ctl
-   status` and `ibv_devices` report the link.
+status` and `ibv_devices` report the link.
 
 Rank zero is the Mac whose coordinator API activates the deployment. It owns the
 late pipeline layers and the private inference coordinator. For a 256 GiB Mac
@@ -121,7 +121,6 @@ API routes, and Bonjour advertisement remain off until this explicit opt-in is
 enabled.
 
 ### Automatic Peer Discovery
-
 
 oMLX uses Bonjour/mDNS to discover nearby Macs advertising SSH or the oMLX
 specific `_omlx._tcp` service. The discovery is read-only and never implies
@@ -157,7 +156,6 @@ future one-gateway hierarchical Ring-to-NCCL supernode.
 
 ### Setup Flow
 
-
 On the coordinator:
 
 1. Connect the Thunderbolt cable. A nearby Mac should appear under
@@ -173,8 +171,6 @@ On the coordinator:
 5. Review the final measured shard map, then activate.
 6. Load or request that model through the normal oMLX API. If it was already
    loaded locally, unload it first so the new deployment applies.
-
-
 
 Both dashboards show the complete rank-to-layer map while highlighting the
 shard resident on that Mac. A 256 GiB Mac can therefore own more layers than a
@@ -211,11 +207,11 @@ validates it before loading.
 
 The three profiles provide conservative starting points:
 
-| Profile | Decode concurrency | Prompt concurrency | Prefill step | Coalesced target | Ring connections/IP |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Interactive | 4 | 2 | 1,024 | 2 | 1 |
-| Balanced | 8 | 4 | 2,048 | 4 | 2 |
-| Throughput | 16 | 8 | 4,096 | 8 | 4 |
+| Profile     | Decode concurrency | Prompt concurrency | Prefill step | Coalesced target | Ring connections/IP |
+| ----------- | -----------------: | -----------------: | -----------: | ---------------: | ------------------: |
+| Interactive |                  4 |                  2 |        1,024 |                2 |                   1 |
+| Balanced    |                  8 |                  4 |        2,048 |                4 |                   2 |
+| Throughput  |                 16 |                  8 |        4,096 |                8 |                   4 |
 
 Auto-tuning reduces these values when the smallest stage has limited
 headroom and bounds the MLX-LM prompt-cache budget. The coalesced target caps
@@ -329,16 +325,17 @@ authenticated join command before it is executed.
 Run the cluster suite with the same Python environment used by oMLX:
 
 ```bash
-python -m pytest \
-  tests/test_cluster_*.py \
-  tests/test_distributed_engine.py \
+uv run --all-packages --inexact pytest \
+  apps/server/tests/test_cluster_*.py \
+  packages/runtime/tests/test_distributed_engine.py \
   -q
 
-ruff check \
-  omlx/cluster \
-  omlx/engine/distributed.py \
-  tests/test_cluster_*.py \
-  tests/test_distributed_engine.py
+uv run --all-packages --inexact ruff check \
+  packages/runtime/src/omlx_runtime/cluster \
+  apps/server/src/omlx_server/cluster \
+  packages/runtime/src/omlx_runtime/engine/distributed.py \
+  apps/server/tests/test_cluster_*.py \
+  packages/runtime/tests/test_distributed_engine.py
 ```
 
 Before describing JACCL as hardware-validated, record all of the following on

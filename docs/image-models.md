@@ -156,29 +156,29 @@ curl "$OMLX_URL/v1/images/capabilities"
 curl "$OMLX_URL/v1/images/capabilities?model=your-model-id"
 ```
 
-| Canonical checkpoint identities | Operations exposed | Preparation limits |
-| --- | --- | --- |
-| `dev`, `schnell`, `krea-dev` | Text-to-image, image-to-image | Complete FLUX.1 component layout |
-| `dev-kontext` | Reference editing | One reference image |
-| `dev-fill` | Inpainting | Image and mask required |
-| `dev-fill-catvton` | Listed with unavailable status | Two-image virtual try-on, output cropping, and custom transformer acquisition are not integrated |
-| `dev-depth` | Listed with unavailable status | mflux unconditionally initializes external DepthPro weights; no local-only adapter yet |
-| `dev-redux` | Reference conditioning | Complete local image encoder/embedder; automatic multi-repository acquisition unavailable |
-| `dev-controlnet-canny`, `schnell-controlnet-canny`, `dev-controlnet-upscaler` | Control conditioning | Complete local ControlNet; automatic auxiliary acquisition unavailable |
-| `flux2-klein-4b`, `flux2-klein-9b`, `flux2-klein-9b-kv`, `flux2-klein-base-4b`, `flux2-klein-base-9b` | Text-to-image, image-to-image, reference editing | KV editing option only for `9b-kv` |
-| `qwen-image` | Text-to-image, image-to-image | Canonical alias targets Qwen-Image-2512 |
-| `qwen-image-edit` | Reference editing | Up to three references |
-| `qwen-image-2.1` | Text-to-image, image-to-image | No instruction-edit operation; CFG guidance needs a nonempty negative prompt |
-| `fibo`, `fibo-lite` | Text-to-image, image-to-image | JSON scene prompt; automatic VLM prompt expansion unavailable |
-| `fibo-edit`, `fibo-edit-rmbg` | Reference editing, optional mask | JSON prompt with `edit_instruction` |
-| `z-image`, `z-image-turbo` | Text-to-image, image-to-image | Turbo rejects guidance and negative prompts |
-| `z-image-turbo-controlnet-union-2.1` | Control conditioning | Complete local ControlNet; canny/mlsd preprocessing only; automatic auxiliary acquisition unavailable |
-| `ernie-image`, `ernie-image-turbo` | Text-to-image, image-to-image | Turbo guidance fixed at 1 |
-| `krea-2`, `krea-2-raw` | Text-to-image, image-to-image | Native checkpoint layout/configuration required |
-| `ideogram-4-fp8` | Text-to-image | Preset schedule or explicit steps; retain unconditional transformer |
-| `boogu-image-turbo` | Text-to-image | Complete MLLM assets required |
-| `seedvr2-3b`, `seedvr2-7b` | Upscaling from complete local original weights | mflux has no saver; conversion/quantized saving unavailable |
-| `lens-turbo` | Listed with unavailable status | mflux hardcodes an external VAE and has no complete local loading/saving interface |
+| Canonical checkpoint identities                                                                       | Operations exposed                               | Preparation limits                                                                                    |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `dev`, `schnell`, `krea-dev`                                                                          | Text-to-image, image-to-image                    | Complete FLUX.1 component layout                                                                      |
+| `dev-kontext`                                                                                         | Reference editing                                | One reference image                                                                                   |
+| `dev-fill`                                                                                            | Inpainting                                       | Image and mask required                                                                               |
+| `dev-fill-catvton`                                                                                    | Listed with unavailable status                   | Two-image virtual try-on, output cropping, and custom transformer acquisition are not integrated      |
+| `dev-depth`                                                                                           | Listed with unavailable status                   | mflux unconditionally initializes external DepthPro weights; no local-only adapter yet                |
+| `dev-redux`                                                                                           | Reference conditioning                           | Complete local image encoder/embedder; automatic multi-repository acquisition unavailable             |
+| `dev-controlnet-canny`, `schnell-controlnet-canny`, `dev-controlnet-upscaler`                         | Control conditioning                             | Complete local ControlNet; automatic auxiliary acquisition unavailable                                |
+| `flux2-klein-4b`, `flux2-klein-9b`, `flux2-klein-9b-kv`, `flux2-klein-base-4b`, `flux2-klein-base-9b` | Text-to-image, image-to-image, reference editing | KV editing option only for `9b-kv`                                                                    |
+| `qwen-image`                                                                                          | Text-to-image, image-to-image                    | Canonical alias targets Qwen-Image-2512                                                               |
+| `qwen-image-edit`                                                                                     | Reference editing                                | Up to three references                                                                                |
+| `qwen-image-2.1`                                                                                      | Text-to-image, image-to-image                    | No instruction-edit operation; CFG guidance needs a nonempty negative prompt                          |
+| `fibo`, `fibo-lite`                                                                                   | Text-to-image, image-to-image                    | JSON scene prompt; automatic VLM prompt expansion unavailable                                         |
+| `fibo-edit`, `fibo-edit-rmbg`                                                                         | Reference editing, optional mask                 | JSON prompt with `edit_instruction`                                                                   |
+| `z-image`, `z-image-turbo`                                                                            | Text-to-image, image-to-image                    | Turbo rejects guidance and negative prompts                                                           |
+| `z-image-turbo-controlnet-union-2.1`                                                                  | Control conditioning                             | Complete local ControlNet; canny/mlsd preprocessing only; automatic auxiliary acquisition unavailable |
+| `ernie-image`, `ernie-image-turbo`                                                                    | Text-to-image, image-to-image                    | Turbo guidance fixed at 1                                                                             |
+| `krea-2`, `krea-2-raw`                                                                                | Text-to-image, image-to-image                    | Native checkpoint layout/configuration required                                                       |
+| `ideogram-4-fp8`                                                                                      | Text-to-image                                    | Preset schedule or explicit steps; retain unconditional transformer                                   |
+| `boogu-image-turbo`                                                                                   | Text-to-image                                    | Complete MLLM assets required                                                                         |
+| `seedvr2-3b`, `seedvr2-7b`                                                                            | Upscaling from complete local original weights   | mflux has no saver; conversion/quantized saving unavailable                                           |
+| `lens-turbo`                                                                                          | Listed with unavailable status                   | mflux hardcodes an external VAE and has no complete local loading/saving interface                    |
 
 LoRAs, training, PiD decoding, automatic prompt rewriting, and missing auxiliary
 preprocessor acquisition are not exposed. Unknown fields and unsupported or
@@ -315,7 +315,7 @@ establish image quality or memory feasibility for untested checkpoints.
 For opt-in real API verification, prepare local checkpoints and run:
 
 ```bash
-PYTHONPATH=. python scripts/verify_diffusion.py \
+uv run --all-packages --inexact python tooling/scripts/verify_diffusion.py \
   --z-image /path/to/z-image-turbo-q4 \
   --flux2 /path/to/flux2-klein-4b-q4 \
   --output /tmp/omlx-image-verification
@@ -331,7 +331,7 @@ For repeatable cache and batching comparisons using an existing local FLUX.2
 Klein 4B checkpoint and reference PNG:
 
 ```bash
-PYTHONPATH=. python scripts/verify_diffusion_performance.py \
+uv run --all-packages --inexact python tooling/scripts/verify_diffusion_performance.py \
   /path/to/flux2-klein-4b-q4 /path/to/reference.png \
   /tmp/new-diffusion-performance-proof --batch4
 ```
@@ -350,10 +350,10 @@ cache/batch changes; no model weights were downloaded. On the same M3 Max,
 FLUX.2 Klein 4B produced text-to-image and reference edits at 256×256 with four
 steps. Three alternating warm measurements gave these medians:
 
-| Operation | Cache disabled | Cache warm | Combined cache speedup |
-| --- | --- | --- | --- |
-| Text-to-image | 2.42 s | 2.07 s | 1.17× |
-| Reference editing | 12.37 s | 10.90 s | 1.14× |
+| Operation         | Cache disabled | Cache warm | Combined cache speedup |
+| ----------------- | -------------- | ---------- | ---------------------- |
+| Text-to-image     | 2.42 s         | 2.07 s     | 1.17×                  |
+| Reference editing | 12.37 s        | 10.90 s    | 1.14×                  |
 
 The control disabled both embedding/reference caching and prediction-factory
 reuse. All cached/control PNG pairs were byte-identical; changed prompts and
@@ -400,12 +400,12 @@ ASGI image routes and engine pool. All outputs were 512x512 PNGs. The saved
 [verification report](verification/image-diffusion-2026-09-30.json) records
 checkpoint revisions, output hashes, and exact observations.
 
-| Native request | Steps | Seed | Request time, including loading | Peak active MLX allocation |
-| --- | --- | --- | --- | --- |
-| Z-Image Turbo q4 generation | 9 | 42 | 14.19 s | 7.51 GiB |
-| Z-Image Turbo q4 warm repeat | 9 | 42 | 15.33 s | 7.89 GiB |
-| FLUX.2 Klein 4B q4 generation | 4 | 17 | 6.32 s | 6.37 GiB |
-| FLUX.2 Klein 4B q4 reference editing | 4 | 17 | 8.47 s | 6.46 GiB |
+| Native request                       | Steps | Seed | Request time, including loading | Peak active MLX allocation |
+| ------------------------------------ | ----- | ---- | ------------------------------- | -------------------------- |
+| Z-Image Turbo q4 generation          | 9     | 42   | 14.19 s                         | 7.51 GiB                   |
+| Z-Image Turbo q4 warm repeat         | 9     | 42   | 15.33 s                         | 7.89 GiB                   |
+| FLUX.2 Klein 4B q4 generation        | 4     | 17   | 6.32 s                          | 6.37 GiB                   |
+| FLUX.2 Klein 4B q4 reference editing | 4     | 17   | 8.47 s                          | 6.46 GiB                   |
 
 The warm Z-Image result had the same PNG hash as the first request. Visual
 inspection of the FLUX.2 edit confirmed that it changed the generated red

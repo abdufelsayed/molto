@@ -27,9 +27,8 @@ import os
 import time
 
 import mlx.core as mx
+import omlx_runtime.patches.m5_gather_qmm as reroute
 from mlx_lm.models.switch_layers import _gather_sort, _scatter_unsort
-
-import omlx.patches.m5_gather_qmm as reroute
 
 
 def _build(experts, hidden, inter, bits, group_size, mode, key):

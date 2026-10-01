@@ -1,0 +1,33 @@
+{
+  "name": "omlx-workspace",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "uv run --package omlx-cli --inexact omlx serve --dashboard-dev",
+    "check": "pnpm check:boundaries && pnpm lint && pnpm format:check && pnpm typecheck",
+    "test": "pnpm test:python && pnpm test:dashboard",
+    "build": "python3 tooling/release/build.py",
+    "lint:typescript": "oxlint .",
+    "lint:python": "uv run --all-packages --inexact ruff check .",
+    "lint": "pnpm lint:typescript && pnpm lint:python",
+    "lint:fix": "oxlint --fix . && uv run --all-packages --inexact ruff check --fix .",
+    "format:typescript": "oxfmt --write .",
+    "format:python": "uv run --all-packages --inexact ruff format .",
+    "format": "pnpm format:typescript && pnpm format:python",
+    "format:check": "oxfmt --check . && uv run --all-packages --inexact ruff format --check .",
+    "typecheck": "pnpm typecheck:typescript && pnpm typecheck:python",
+    "test:python": "uv run --all-packages --inexact pytest",
+    "test:dashboard": "pnpm --filter omlx-dashboard test",
+    "check:boundaries": "python3 tooling/check_boundaries.py",
+    "typecheck:typescript": "node node_modules/@typescript/native/bin/tsc --noEmit -p apps/dashboard/tsconfig.json",
+    "typecheck:python": "uv run --all-packages --inexact mypy --follow-imports=skip packages/runtime/setup.py apps/server/src/omlx_server/auth.py packages/contracts/src/omlx_contracts/management.py apps/server/src/omlx_server/api/management_routes.py packages/management/src/omlx_management/management.py",
+    "generate:contracts": "pnpm --filter omlx-dashboard generate-api",
+    "build:dashboard": "pnpm --filter omlx-dashboard build"
+  },
+  "devDependencies": {
+    "oxlint": "^1.86.0",
+    "oxfmt": "^0.71.0",
+    "oxlint-tsgolint": "^7.0.2003",
+    "@typescript/native": "npm:typescript@^7.0.2"
+  }
+}

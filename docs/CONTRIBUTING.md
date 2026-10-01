@@ -1,6 +1,6 @@
 # Contributing to oMLX
 
-oMLX is a Python inference server and management API. Contributions to model
+oMLX is a bundled inference server, management CLI, and TanStack Start dashboard. Contributions to model
 support, serving behavior, performance, tests, and documentation are welcome.
 The macOS app and bundled web admin UI are no longer in this repository.
 
@@ -10,8 +10,9 @@ Use an Apple Silicon Mac with macOS 15.0 or newer, Python 3.11 to 3.13, and
 [uv](https://docs.astral.sh/uv/). From a checkout:
 
 ```bash
-uv sync --locked --python 3.11
-uv run --locked pytest tests/test_engine_pool.py
+uv sync --all-packages --inexact --python 3.11
+pnpm install --frozen-lockfile
+uv run --all-packages --inexact pytest packages/runtime/tests/test_engine_pool.py
 ```
 
 The checked-in `uv.lock` is the reproducible dependency source. The `dev`
@@ -39,8 +40,9 @@ path when practical. Run the narrow test first, then the default suite for
 code changes:
 
 ```bash
-uv run --locked pytest tests/test_engine_pool.py  # Replace with affected tests
-uv run --locked pytest
+uv run --all-packages --inexact pytest packages/runtime/tests/test_engine_pool.py  # Replace with affected tests
+pnpm check
+pnpm test
 ```
 
 The default suite excludes slow and integration tests. Run relevant integration

@@ -5,18 +5,18 @@ only the routed experts do work. Expert offload keeps a configurable fraction
 of each layer's experts resident in a fixed slot cache and streams the rest
 **from the checkpoint's own safetensors** on demand (mmap slab reads — no
 converted copy, no extra disk). Routing is computed exactly as shipped: a
-cache miss changes *when* an expert's weights are read, never *which* expert
+cache miss changes _when_ an expert's weights are read, never _which_ expert
 runs, so accuracy is preserved by construction and the entire cost is
 latency.
 
 Measured on `gemma-4-26b-a4b-it-4bit` (30 MoE layers × 128 experts), loaded
 through the batched engine's own path:
 
-| | fully resident | offload @ 25% |
-|---|---|---|
-| load peak memory | 14.28 GB | **4.69 GB** |
-| steady memory after generation | 14.20 GB | **4.57 GB** |
-| greedy outputs vs resident | — | **bit-identical** (test prompts) |
+|                                | fully resident | offload @ 25%                    |
+| ------------------------------ | -------------- | -------------------------------- |
+| load peak memory               | 14.28 GB       | **4.69 GB**                      |
+| steady memory after generation | 14.20 GB       | **4.57 GB**                      |
+| greedy outputs vs resident     | —              | **bit-identical** (test prompts) |
 
 The load peak is the important number: the load stays lazy and the stock
 expert modules are dropped **before** anything materializes them, so the full
@@ -44,10 +44,10 @@ kill switch `OMLX_MOE_EXPERT_OFFLOAD=0` disables it regardless of settings.
 
 Two env vars tune the reader, and neither changes what is computed:
 
-| variable | default | effect |
-|---|---|---|
-| `OMLX_MOE_OFFLOAD_IO_WORKERS` | 12 | threads reading missing experts. `1` or less (or an unparseable value) keeps the serial path and starts no threads |
-| `OMLX_MOE_OFFLOAD_IO_BATCH` | `4 x workers` | experts whose reads may be in flight at once — the bound on the host memory the pipeline holds ahead of the slot writes |
+| variable                      | default       | effect                                                                                                                  |
+| ----------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `OMLX_MOE_OFFLOAD_IO_WORKERS` | 12            | threads reading missing experts. `1` or less (or an unparseable value) keeps the serial path and starts no threads      |
+| `OMLX_MOE_OFFLOAD_IO_BATCH`   | `4 x workers` | experts whose reads may be in flight at once — the bound on the host memory the pipeline holds ahead of the slot writes |
 
 ## Performance
 
@@ -55,12 +55,12 @@ Two env vars tune the reader, and neither changes what is computed:
 cache (second request; the cold first request additionally pays the initial
 fill):
 
-| residency | memory after generation | decode tok/s | TTFT | per-request hit rate |
-|---|---|---|---|---|
-| 100% (resident) | 14.20 GB | 122.5 | 0.30 s | — |
-| 50% | 7.78 GB | 59.4 | 2.9 s | 0.89 |
-| 25% | 4.57 GB | 40.1 | 9.6 s | 0.67 |
-| 12.5% | 2.96 GB | 29.3 | 18.1 s | 0.45 |
+| residency       | memory after generation | decode tok/s | TTFT   | per-request hit rate |
+| --------------- | ----------------------- | ------------ | ------ | -------------------- |
+| 100% (resident) | 14.20 GB                | 122.5        | 0.30 s | —                    |
+| 50%             | 7.78 GB                 | 59.4         | 2.9 s  | 0.89                 |
+| 25%             | 4.57 GB                 | 40.1         | 9.6 s  | 0.67                 |
+| 12.5%           | 2.96 GB                 | 29.3         | 18.1 s | 0.45                 |
 
 Decode throughput degrades gracefully. TTFT was the pain point at low
 residency in the first version: a long prefill routes to most experts per
@@ -77,10 +77,10 @@ Fetch counts are sampled at the first yielded token and include the decode
 step mlx-lm runs ahead of that yield, rather than measuring pure prefill:
 
 | residency | expert fetches through first token, before → after | TTFT warm, before → after | TTFT cold, after | decode tok/s |
-|---|---|---|---|---|
-| 50% | 6,073 → 1,719 | 2.38 s → 0.69 s | 1.64 s | 60.6 |
-| 25% | 30,302 → 2,675 | 8.87 s → 0.85 s | 1.51 s | 43.5 |
-| 12.5% | 64,369 → 2,913 | 16.60 s → 0.97 s | 11.92 s | 31.7 |
+| --------- | -------------------------------------------------- | ------------------------- | ---------------- | ------------ |
+| 50%       | 6,073 → 1,719                                      | 2.38 s → 0.69 s           | 1.64 s           | 60.6         |
+| 25%       | 30,302 → 2,675                                     | 8.87 s → 0.85 s           | 1.51 s           | 43.5         |
+| 12.5%     | 64,369 → 2,913                                     | 16.60 s → 0.97 s          | 11.92 s          | 31.7         |
 
 Decode is untouched by the change (it takes the no-sync fast path). The
 remaining follow-up is decode prefetch (layer L+1's fetches during layer
@@ -136,9 +136,8 @@ Measured at 25% residency on gemma-4-26b (60 mixed prompts, greedy,
 1536-token cap): 57/60 generations bit-identical to resident, 3
 paraphrase-level forks, paired-entropy verdict clean, and labeled gsm8k
 (n=200) statistically indistinguishable (McNemar p = 0.61). The test suite
-(`tests/test_moe_expert_offload*.py`) encodes exactly this policy: bit-exact
+(`packages/runtime/tests/test_moe_expert_offload*.py`) encodes exactly this policy: bit-exact
 where the kernel path is identical, rounding-bounded where it is not.
-
 
 ## DeepSeek V4.1
 
@@ -166,11 +165,11 @@ Measured on a synthetic checkpoint with the oQ3e expert geometry (384
 experts, 3-bit affine, 14.8 MiB per expert, 4 layers, random weights),
 cold reads from the internal SSD of an M5 Max, 12.5% residency:
 
-| | mmap gather (before) | positional reads |
-|---|---:|---:|
-| decode, one token, per MoE layer | 362 ms | 9.1 ms |
-| expert fetch throughput | 0.23 GB/s | 9.3 GB/s |
-| sorted prefill, 256 tokens | 33 token-layers/s | 568 token-layers/s |
+|                                  | mmap gather (before) |   positional reads |
+| -------------------------------- | -------------------: | -----------------: |
+| decode, one token, per MoE layer |               362 ms |             9.1 ms |
+| expert fetch throughput          |            0.23 GB/s |           9.3 GB/s |
+| sorted prefill, 256 tokens       |    33 token-layers/s | 568 token-layers/s |
 
 These are single runs of adapter-level calls on synthetic weights; they
 exclude attention, Engram, and the rest of the forward.
@@ -182,10 +181,10 @@ internal SSD (`iogpu.wired_limit_mb` unset), Engram on SSD, native kernels
 built, run with `benchmarks/deepseek_v41_offload_bench.py` on a 433-token
 prose prompt in one prefill chunk followed by 64 greedy tokens. Single runs:
 
-| residency | experts per layer | load | Metal active | peak footprint | prefill | decode | decode hit rate |
-|---:|---:|---:|---:|---:|---:|---:|---:|
-| 12.5% | 48 | 3.9 s | 38.0 GiB | 49.6 GiB | 28 tok/s | 5.6 tok/s | 0.69 |
-| 25% | 96 | 4.5 s | 65.7 GiB | 77.4 GiB | 25 tok/s | 4.2 tok/s | 0.78 |
+| residency | experts per layer |  load | Metal active | peak footprint |  prefill |    decode | decode hit rate |
+| --------: | ----------------: | ----: | -----------: | -------------: | -------: | --------: | --------------: |
+|     12.5% |                48 | 3.9 s |     38.0 GiB |       49.6 GiB | 28 tok/s | 5.6 tok/s |            0.69 |
+|       25% |                96 | 4.5 s |     65.7 GiB |       77.4 GiB | 25 tok/s | 4.2 tok/s |            0.78 |
 
 Both settings produce coherent, on-topic continuations. Served through
 `omlx serve` with the same settings (discovered from the HF cache, Engram
@@ -212,17 +211,17 @@ weights (not loaded under offload), and 10.1 GiB of everything else. With
 Engram on SSD the resident set is:
 
 | resident fraction | experts per layer | resident weights |
-|---:|---:|---:|
-| 12.5% | 48 | 38 GiB |
-| 25% | 96 | 65 GiB |
-| 33.3% | 128 | 84 GiB |
-| 37.5% | 144 | 93 GiB |
+| ----------------: | ----------------: | ---------------: |
+|             12.5% |                48 |           38 GiB |
+|               25% |                96 |           65 GiB |
+|             33.3% |               128 |           84 GiB |
+|             37.5% |               144 |           93 GiB |
 
 The Metal working-set limit on a 128 GB machine with `iogpu.wired_limit_mb`
 unset is about 107 GiB, and KV cache, prefill transients, and the Engram
 page cache share it. `admission_bytes(path, fraction)` and
 `fit_resident_fraction(path, budget_bytes)` in
-`omlx.patches.deepseek_v41.moe_offload` give the engine pool's admission
+`omlx_runtime.patches.deepseek_v41.moe_offload` give the engine pool's admission
 estimate for a fraction and the largest fraction whose estimate fits a byte
 budget.
 
@@ -254,7 +253,7 @@ GLM-5.2 and GLM-5.3 (`model_type: glm_moe_dsa`: 78 layers, the first 3 dense,
 through oMLX's own GLM SwitchGLU, which fuses the gate and up projections at
 load and, on sorted calls, returns the routes already weighted and summed by
 the native `glm_moe_weighted_sum` kernel. The adapter in
-`omlx/patches/glm_moe_dsa/moe_offload.py` keeps that module and its kernels:
+`packages/runtime/src/omlx_runtime/patches/glm_moe_dsa/moe_offload.py` keeps that module and its kernels:
 each projection's parameters are replaced by resident slots before lazy
 weights materialize, expert ids are translated to slot ids, and the module's
 own forward runs unchanged on them. Every kernel decision inside it is a
@@ -273,10 +272,10 @@ Sizing, from the shard headers of `mlx-community/GLM-5.2-4bit` (409 GiB
 estimated, about 5.2 GiB of routed experts per layer, 20 MiB per expert):
 
 | resident fraction | experts per layer | admission estimate |
-|---:|---:|---:|
-| 12.5% | 32 | 76.8 GiB |
-| 20% | 51 | 105.0 GiB |
-| 25% | 64 | 124.3 GiB |
+| ----------------: | ----------------: | -----------------: |
+|             12.5% |                32 |           76.8 GiB |
+|               20% |                51 |          105.0 GiB |
+|               25% |                64 |          124.3 GiB |
 
 On a 128 GB machine (about 107 GiB working-set limit) 20% is the largest
 residency admission accepts; the routing floor is 8.
@@ -285,10 +284,10 @@ Measured on an M5 Max 128 GB (internal SSD), `mlx-community/GLM-5.2-4bit`
 loaded through the engine's own sequence, a 36-token chat prompt, 24 greedy
 tokens, single runs:
 
-| residency | experts per layer | footprint | load | cold TTFT | decode | decode hit rate | misses per token |
-|---:|---:|---:|---:|---:|---:|---:|---:|
-| 20% | 51 | 86.6 GiB | 3.3 s | 20.4 s | 1.8 tok/s | 0.63 | 213 |
-| 12.5% | 32 | 58.4 GiB | 2.6 s | 18.8 s | 1.5 tok/s | 0.52 | 275 |
+| residency | experts per layer | footprint |  load | cold TTFT |    decode | decode hit rate | misses per token |
+| --------: | ----------------: | --------: | ----: | --------: | --------: | --------------: | ---------------: |
+|       20% |                51 |  86.6 GiB | 3.3 s |    20.4 s | 1.8 tok/s |            0.63 |              213 |
+|     12.5% |                32 |  58.4 GiB | 2.6 s |    18.8 s | 1.5 tok/s |            0.52 |              275 |
 
 Decode is bound by expert reads: a miss is a 20 MiB expert, and 213 of them
 per token is 4.2 GiB, which the positional reads move at about 8 GiB/s. The

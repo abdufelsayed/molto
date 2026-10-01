@@ -26,17 +26,17 @@ Quantization should not be exclusive to any particular inference server. oQ prod
 
 ## Quantization Levels
 
-| Level | Base Bits | Target bpw | Description |
-|-------|-----------|------------|-------------|
-| oQ2 | 2 | ~2.9 | Extreme compression |
-| oQ2.5 | 2 | ~3.2 | Code-preserving routed down-projection boosts |
-| oQ2.7 | 2 | ~3.3 | Higher-budget code-preserving routed boosts |
-| oQ3 | 3 | ~3.5 | Balanced |
-| oQ3.5 | 3 | ~3.8 | Quality balanced |
-| oQ4 | 4 | ~4.6 | Recommended |
-| oQ5 | 5 | ~5.5 | High quality |
-| oQ6 | 6 | ~6.5 | Near-lossless |
-| oQ8 | 8 | ~8.6 | Near-lossless |
+| Level | Base Bits | Target bpw | Description                                   |
+| ----- | --------- | ---------- | --------------------------------------------- |
+| oQ2   | 2         | ~2.9       | Extreme compression                           |
+| oQ2.5 | 2         | ~3.2       | Code-preserving routed down-projection boosts |
+| oQ2.7 | 2         | ~3.3       | Higher-budget code-preserving routed boosts   |
+| oQ3   | 3         | ~3.5       | Balanced                                      |
+| oQ3.5 | 3         | ~3.8       | Quality balanced                              |
+| oQ4   | 4         | ~4.6       | Recommended                                   |
+| oQ5   | 5         | ~5.5       | High quality                                  |
+| oQ6   | 6         | ~6.5       | Near-lossless                                 |
+| oQ8   | 8         | ~8.6       | Near-lossless                                 |
 
 Base format is affine quantization (group_size=64) for all levels except 8-bit, which uses mxfp8 (group_size=32).
 
@@ -72,13 +72,13 @@ The GPTQ step uses Hessian-based error compensation to optimize rounding decisio
 
 ### Mandatory Protection (Always Applied)
 
-| Tensor | Treatment |
-|--------|-----------|
-| lm_head | 8-bit (within budget) |
-| MoE router | 8-bit |
-| shared_expert_gate | 8-bit |
-| Vision encoder | fp16 |
-| SSM state params | fp32 |
+| Tensor             | Treatment             |
+| ------------------ | --------------------- |
+| lm_head            | 8-bit (within budget) |
+| MoE router         | 8-bit                 |
+| shared_expert_gate | 8-bit                 |
+| Vision encoder     | fp16                  |
+| SSM state params   | fp32                  |
 
 ### Sensitivity-Driven Allocation (oQ2-oQ6)
 
@@ -92,11 +92,11 @@ Normalizing by output magnitude prevents later layers from appearing artificiall
 
 The sensitivity score determines the boost tier:
 
-| Sensitivity Ratio | Boost | Example (oQ4) |
-|-------------------|-------|---------------|
-| Top (≥50% of max) | base+4 | 4 → 8 bit |
-| High (≥20% of max) | base+2 | 4 → 6 bit |
-| Moderate (<20%) | base+1 | 4 → 5 bit |
+| Sensitivity Ratio  | Boost  | Example (oQ4) |
+| ------------------ | ------ | ------------- |
+| Top (≥50% of max)  | base+4 | 4 → 8 bit     |
+| High (≥20% of max) | base+2 | 4 → 6 bit     |
+| Moderate (<20%)    | base+1 | 4 → 5 bit     |
 
 Boosts apply only to non-expert tensors. Routed experts (93-98% of MoE params) stay at base bits — not by rule, but because their byte cost relative to quality gain makes them poor candidates in the budget optimization.
 
@@ -134,6 +134,7 @@ The result is the same 4-bit quantized format — identical structure, identical
 In MoE models, routed experts make up 90%+ of all parameters. Processing them one at a time would take hours. oQ solves this with batched expert GPTQ: all experts in a layer share the same Hessian (since they receive the same input hidden states), so the column-by-column optimization can run on all experts simultaneously as a single batched operation.
 
 For Qwen3.5-35B-A3B (256 experts × 40 layers):
+
 - Per-expert sequential: ~90 minutes
 - Batched: **~6 minutes** (15x speedup, identical results)
 
@@ -165,15 +166,15 @@ Built-in calibration dataset shipped with oQ. No download required.
 
 600 samples across 7 categories, ~726 KB total:
 
-| Category | Samples | Composition |
-|----------|---------|-------------|
-| code | 200 | Python classes, imports, JS snippets (avg 26 lines) |
-| en | 150 | Wikipedia + C4 web text + OpenOrca conversations |
-| ko | 60 | Wikipedia |
-| zh | 50 | Wikipedia |
-| ja | 60 | Wikipedia |
-| tool_calling | 40 | Function call patterns |
-| reasoning | 40 | GSM8K, chain-of-thought |
+| Category     | Samples | Composition                                         |
+| ------------ | ------- | --------------------------------------------------- |
+| code         | 200     | Python classes, imports, JS snippets (avg 26 lines) |
+| en           | 150     | Wikipedia + C4 web text + OpenOrca conversations    |
+| ko           | 60      | Wikipedia                                           |
+| zh           | 50      | Wikipedia                                           |
+| ja           | 60      | Wikipedia                                           |
+| tool_calling | 40      | Function call patterns                              |
+| reasoning    | 40      | GSM8K, chain-of-thought                             |
 
 Code samples include real-world patterns (class definitions, import chains, multi-language) rather than benchmark-only code. Reasoning category covers mathematical and step-by-step inference, which is absent from typical calibration sets.
 
@@ -181,16 +182,16 @@ Code samples include real-world patterns (class definitions, import chains, mult
 
 ### Enhanced Path (oQ+)
 
-| Architecture | GPTQ Optimization | Notes |
-|-------------|-------------------|-------|
-| Qwen3.5 MoE (hybrid attn) | Full (batched experts) | Validated with benchmarks |
-| Qwen3.5 dense (hybrid attn) | Full | Same hybrid handling |
-| MiniMax-M2.5 MoE | Full | Per-expert dense GPTQ |
-| GLM MoE | Full | Fused expert support |
-| Step-3.5 MoE | Full | `moe.*_proj` fused support |
-| Nemotron-Cascade MoE | Full | Per-expert dense GPTQ |
-| Llama, Mistral, dense models | Full | Standard layer structure |
-| VLM models | Full (text) | Vision weights kept fp16 |
+| Architecture                 | GPTQ Optimization      | Notes                      |
+| ---------------------------- | ---------------------- | -------------------------- |
+| Qwen3.5 MoE (hybrid attn)    | Full (batched experts) | Validated with benchmarks  |
+| Qwen3.5 dense (hybrid attn)  | Full                   | Same hybrid handling       |
+| MiniMax-M2.5 MoE             | Full                   | Per-expert dense GPTQ      |
+| GLM MoE                      | Full                   | Fused expert support       |
+| Step-3.5 MoE                 | Full                   | `moe.*_proj` fused support |
+| Nemotron-Cascade MoE         | Full                   | Per-expert dense GPTQ      |
+| Llama, Mistral, dense models | Full                   | Standard layer structure   |
+| VLM models                   | Full (text)            | Vision weights kept fp16   |
 
 ### Streaming Path (oQ)
 

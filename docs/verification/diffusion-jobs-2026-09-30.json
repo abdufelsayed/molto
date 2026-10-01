@@ -28,10 +28,7 @@
     "observed_linear_layers": 109,
     "outputs": [
       {
-        "size": [
-          256,
-          256
-        ],
+        "size": [256, 256],
         "pixel_sha256": "6090b8a4b7042bd75ca51f55bbbdd5b9449a094c689aee41e8b5359c574c5a5d"
       }
     ],
@@ -114,16 +111,11 @@
   "serving": {
     "boundary": "real EnginePool, DiffusionImageEngine and mflux; direct engine calls, no HTTP",
     "pipeline": "flux2-klein-4b/edit",
-    "dimensions": [
-      256,
-      256
-    ],
+    "dimensions": [256, 256],
     "steps": 4,
     "seed": 42,
     "backend_load_count": 1,
-    "loaded_pipelines": [
-      "flux2-klein-4b/edit"
-    ],
+    "loaded_pipelines": ["flux2-klein-4b/edit"],
     "requests": [
       {
         "request": 1,
