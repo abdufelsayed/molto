@@ -1,7 +1,7 @@
 """Localized native-MLX adapters. Imports and all allocations occur on demand."""
 
 import json
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from importlib import import_module
 from pathlib import Path
 from unittest.mock import patch
@@ -116,6 +116,7 @@ def _offline():
 class MFluxBackend:
     def __init__(self):
         self._models = {}
+        self._cache_bindings = {}
 
     def instantiate(
         self,
@@ -160,7 +161,12 @@ class MFluxBackend:
             model = model_class(
                 model_config=config, model_path=str(model_path), quantize=quantization
             )
+        from .cache import PromptCacheBinding
+
         self._models[id(model)] = (spec, Path(model_path))
+        self._cache_bindings[id(model)] = PromptCacheBinding(
+            model, spec.id, spec.base_model
+        )
         return model
 
     def load(self, checkpoint: Checkpoint, pipeline_id: str | None = None):
@@ -215,19 +221,29 @@ class MFluxBackend:
         entry = self._models.get(id(model))
         if entry is None:
             raise ValueError("Calibration requires a backend-owned model")
-        if entry[0].base_model == "flux2-klein-4b":
-            utility = _symbol("mflux.utils.apple_silicon.AppleSiliconUtil")
-            with patch.object(utility, "is_m1_or_m2", return_value=True):
-                eager = model._predict(model.transformer)
-            # object attributes avoid adding a preparation hook to nn.Module's
-            # parameter dictionary; the native static method is restored below.
-            object.__setattr__(model, "_predict", lambda transformer: eager)
-            try:
+        binding = self._cache_bindings.get(id(model))
+        with binding.bypass() if binding is not None else nullcontext():
+            if entry[0].base_model == "flux2-klein-4b":
+                utility = _symbol("mflux.utils.apple_silicon.AppleSiliconUtil")
+                # Bypass any resident prediction-factory cache when creating
+                # the isolated eager forward. Edit uses a bound instance method
+                # while text-to-image uses a static method; preserve both.
+                original_factory = (
+                    binding.original_method("_predict") if binding else model._predict
+                )
+                with patch.object(utility, "is_m1_or_m2", return_value=True):
+                    eager = original_factory(model.transformer)
+                previous = vars(model).get("_predict")
+                object.__setattr__(model, "_predict", lambda transformer: eager)
+                try:
+                    yield
+                finally:
+                    if previous is None:
+                        object.__delattr__(model, "_predict")
+                    else:
+                        object.__setattr__(model, "_predict", previous)
+            else:
                 yield
-            finally:
-                object.__delattr__(model, "_predict")
-        else:
-            yield
 
     def save(
         self,
@@ -289,5 +305,27 @@ class MFluxBackend:
         temporary.replace(path / MANIFEST_NAME)
         return manifest
 
+    def get_cache_stats(self, model):
+        binding = self._cache_bindings.get(id(model))
+        if binding is not None:
+            return binding.stats()
+        from .cache import PromptCache
+
+        return {
+            **PromptCache().stats(),
+            "prediction_factory_entries": 0,
+            "prediction_factory_builds": 0,
+            "prediction_factory_reuses": 0,
+        }
+
+    def clear_cache(self, model):
+        binding = self._cache_bindings.get(id(model))
+        if binding is not None:
+            return binding.clear()
+        return 0
+
     def release(self, model):
+        binding = self._cache_bindings.pop(id(model), None)
+        if binding is not None:
+            binding.release()
         self._models.pop(id(model), None)
