@@ -20,6 +20,7 @@ import {
 import { ConnectionDialog } from "@/components/connection-dialog"
 import {
   stateQuery,
+  connectionQuery,
   managementKey,
   useManagement,
 } from "@/features/management/queries"
@@ -27,6 +28,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { managementQuery } from "@/features/management/request"
 import { Separator } from "@/components/ui/separator"
+import { QueryState } from "@/components/page-state"
 import {
   Sidebar,
   SidebarContent,
@@ -59,7 +61,11 @@ const navigation = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { api, queryClient } = useManagement()
-  const status = useQuery(stateQuery(api))
+  const access = useQuery(connectionQuery(api))
+  const status = useQuery({
+    ...stateQuery(api),
+    enabled: !!access.data?.connected,
+  })
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
@@ -68,11 +74,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     (pathname.startsWith("/models/") ? "Model details" : "Molto")
   const { resolvedTheme, setTheme } = useTheme()
   const connected = !!status.data && !status.isError
-  const connectionLabel = status.isPending
-    ? "Connecting"
-    : connected
-      ? "Connected"
-      : "Disconnected"
+  const connectionLabel =
+    access.isPending || (access.data?.connected && status.isPending)
+      ? "Connecting"
+      : connected
+        ? "Connected"
+        : "Disconnected"
 
   return (
     <SidebarProvider>
@@ -119,7 +126,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-4 md:p-8">
-          {children}
+          <QueryState query={access}>{children}</QueryState>
         </div>
       </SidebarInset>
     </SidebarProvider>

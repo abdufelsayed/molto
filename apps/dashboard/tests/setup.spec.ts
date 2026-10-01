@@ -29,6 +29,9 @@ async function setupModule() {
       () => JSON.stringify(targetUrl)
     )
   )
+  const localUrl = compile(
+    await readFile("server/utils/local-access.ts", "utf8")
+  )
   const source = (await readFile("server/routes/api/setup.ts", "utf8"))
     .replace(
       'import { defineHandler } from "nitro"',
@@ -38,6 +41,7 @@ async function setupModule() {
       '"../../../src/server/connection.server"',
       JSON.stringify(gatewayUrl)
     )
+    .replace('"../../utils/local-access"', JSON.stringify(localUrl))
   const setup = (await import(compile(source))) as SetupModule
   return { setup }
 }

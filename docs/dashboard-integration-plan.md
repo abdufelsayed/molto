@@ -27,6 +27,12 @@ Browser chat is outside this scope. The reference checkout remains at
 - Local first-run setup creates and persists a main key, then uses the ordinary
   login endpoint to establish the session. It requires a loopback public bind,
   an actual local peer, matching confirmation, and no existing main key.
+- After setup, the bundled loopback dashboard opens local sessions automatically.
+  A launcher-generated capability permits a private current-key handoff, with
+  loopback binding, verified peer, URL and origin checks and no forwarded requests.
+  Remote and standalone dashboards retain manual main-key sign-in. The browser
+  receives an opaque session; explicit disconnect suppresses automatic sign-in.
+  Nitro handlers and TanStack SSR share one process-local session store.
 - The launcher owns readiness, crash recovery, shutdown, and restart. A backend
   restart retains Nitro and its sessions; effective public host/port changes
   restart both processes, respecting CLI/environment precedence.
@@ -71,6 +77,15 @@ with disposable persistence and synthetic engines. Six native HTTP/WebSocket
 proxy tests pass. Formatting, type-aware lint, native TypeScript and production
 build pass. The first-run browser test covers persisted keys, normal sessions,
 reload, rejected repeat setup, and failed persistence with retained drafts.
+
+The local-access fix passes all 70 browser tests, eight proxy tests, and 80
+targeted authentication, setup and launcher tests. It covers automatic local
+entry, inference-key creation, reload, explicit disconnect, external key rotation,
+public-bind login and rejection of forged origins, peers and forwarding headers.
+The rebuilt native wheel was installed and the local application restarted.
+A fresh browser reached the live key-creation form without entering a key,
+retained access after reload and discovered all nine existing models. Credentials
+and all 62 safetensor files retained their prior values, sizes and inodes.
 
 The final wheel was built and installed outside the checkout. With Node and
 pnpm absent from PATH, one command launched Nitro and private FastAPI. Public

@@ -63,7 +63,10 @@ and the dashboard's session gateway; raw management routes stay on the private
 Python loopback listener. If no key
 is configured, omit the export above and use the guarded local first-run form
 to create one. Initial setup requires a directly connected local browser and
-loopback binding. Check startup and discover models with:
+loopback binding. Once a main key exists, the bundled dashboard opens a local
+session automatically when visited directly on localhost. Create inference keys
+under **Settings → API keys → Create key**. Remote dashboard access requires the
+main key. Check startup and discover models with:
 
 ```bash
 curl http://127.0.0.1:17389/health

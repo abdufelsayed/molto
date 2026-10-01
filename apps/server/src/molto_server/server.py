@@ -61,6 +61,7 @@ def create_app(state: ServerState | None = None) -> FastAPI:
     app.state.management_context_provider = controller._management_context
     app.state.management_auth_provider = controller._management_auth_context
     app.state.diffusion_jobs_provider = controller._diffusion_jobs_provider
+    from .api.dashboard_access_routes import router as dashboard_access_router
     from .api.image_routes import router as image_router
     from .api.management_routes import router as management_router
     from .api.management_setup_routes import router as setup_router
@@ -71,6 +72,7 @@ def create_app(state: ServerState | None = None) -> FastAPI:
         app.include_router(router, dependencies=[Depends(verify_inference_api_key)])
     app.include_router(management_router)
     app.include_router(setup_router)
+    app.include_router(dashboard_access_router)
     try:
         import mlx_audio  # noqa: F401
     except ImportError:

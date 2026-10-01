@@ -1,36 +1,16 @@
-import { isIP } from "node:net"
 import { defineHandler } from "nitro"
 import type { H3Event } from "nitro"
+import {
+  localRequestAllowed,
+  localTransportAllowed as setupTransportAllowed,
+} from "../../utils/local-access"
+
+export { setupTransportAllowed }
 import {
   backendUrl,
   json,
   mutationAllowed,
 } from "../../../src/server/connection.server"
-
-export function loopbackAddress(address: string | undefined) {
-  if (!address) return false
-  const value = address.toLowerCase()
-  if (value === "::1" || value === "0:0:0:0:0:0:0:1") return true
-  const mapped = value.startsWith("::ffff:") ? value.slice(7) : value
-  return isIP(mapped) === 4 && mapped.split(".")[0] === "127"
-}
-
-export function setupTransportAllowed(
-  request: Pick<H3Event["req"], "ip" | "headers">,
-  bindHost = process.env.NITRO_HOST ?? process.env.HOST
-) {
-  // Setup is a direct-local operation. Never resolve a caller from forwarding headers.
-  const forwarded = [...request.headers.keys()].some(
-    (name) =>
-      name === "forwarded" ||
-      name === "x-real-ip" ||
-      name.startsWith("x-forwarded-")
-  )
-  const localBind =
-    bindHost === "localhost" ||
-    loopbackAddress(bindHost?.replace(/^\[|\]$/g, ""))
-  return localBind && loopbackAddress(request.ip) && !forwarded
-}
 
 function setupError(data: unknown, status: number) {
   if (
@@ -65,9 +45,7 @@ export async function setupHandler(event: Pick<H3Event, "req">) {
     return json({ detail: "Unsupported setup method." }, 405, {
       Allow: "GET, POST",
     })
-  const urlHost = new URL(request.url).hostname.replace(/^\[|\]$/g, "")
-  const localUrl = urlHost === "localhost" || loopbackAddress(urlHost)
-  const allowed = setupTransportAllowed(request) && localUrl
+  const allowed = localRequestAllowed(request)
   if (!allowed)
     return request.method === "GET"
       ? json({

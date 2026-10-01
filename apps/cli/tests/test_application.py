@@ -237,11 +237,29 @@ def test_runtime_contract_preserves_args_and_public_settings(monkeypatch, tmp_pa
     assert observed["commands"]["backend"][-3:] == ["serve", "--model-dir", "/example"]
     assert observed["environments"]["backend"]["MOLTO_SUPERVISED"] == "application"
     assert "MOLTO_API_KEY" not in observed["environments"]["dashboard"]
+    capability = observed["environments"]["dashboard"]["MOLTO_LOCAL_ACCESS_TOKEN"]
+    assert capability == observed["environments"]["backend"]["MOLTO_LOCAL_ACCESS_TOKEN"]
+    assert len(capability) >= 32
+    assert capability != "never-log-this"
     assert observed["environments"]["dashboard"]["NITRO_HOST"] == configured.server.host
     assert observed["environments"]["dashboard"]["NITRO_PORT"] == "0"
     assert observed["descriptors"]["dashboard"] == ()
     assert observed["mode"] == 0o700
     assert not observed["marker"].parent.exists()
+
+
+def test_public_binding_never_inherits_local_access_capability(monkeypatch, tmp_path):
+    monkeypatch.setattr(application, "dashboard_command", lambda: ["node", "index.mjs"])
+    monkeypatch.setenv("MOLTO_LOCAL_ACCESS_TOKEN", "untrusted-inherited-token")
+
+    def capture(commands, environments, descriptors, ready, marker, stop, **kwargs):
+        assert "MOLTO_LOCAL_ACCESS_TOKEN" not in environments["backend"]
+        assert "MOLTO_LOCAL_ACCESS_TOKEN" not in environments["dashboard"]
+
+    monkeypatch.setattr(application, "supervise", capture)
+    configured = settings(0, host="0.0.0.0")
+    configured.base_path = tmp_path
+    assert application.run_application(configured, ["serve"]) == 0
 
 
 def test_preload_503_is_alive(monkeypatch):

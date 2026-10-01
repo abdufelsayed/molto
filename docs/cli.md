@@ -37,6 +37,8 @@ Default Homebrew lifecycle commands retain `brew services` behavior. Explicit cu
 
 `init` creates a main key through guarded setup on an already running, fresh loopback-bound server. It prompts for the key and confirmation in a terminal. For unattended setup, provide `MOLTO_API_KEY` or `--api-key-file`; init does not generate a key automatically. Setup is unavailable through remote origins or forwarded requests. `open` opens the selected dashboard origin in a browser.
 
+Once a main key exists, a directly connected browser opens the bundled loopback dashboard without copying that key. Use **Settings → API keys → Create key** or `molto keys create --name my-app` to create an inference client key. Remote dashboard access and CLI management still authenticate with the main key.
+
 Connection flags work before or after management commands:
 
 ```sh

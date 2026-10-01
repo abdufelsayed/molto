@@ -75,7 +75,7 @@ export function QueryState({
           </EmptyTitle>
           <EmptyDescription>
             {needsKey
-              ? "Connect with your Molto main API key to view and manage models."
+              ? "Open API access to connect locally or sign in with your main API key."
               : errorMessage(query.error)}
           </EmptyDescription>
         </EmptyHeader>

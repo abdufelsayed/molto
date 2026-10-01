@@ -122,8 +122,9 @@ export function ConnectionPanel() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Use your main API key for administration. The dashboard stores the
-            connection in its server session.
+            {connection.data?.access === "local"
+              ? "Connected locally on this machine. API keys are required for inference clients and remote administration."
+              : "Use your main API key for administration. The dashboard stores the connection in its server session."}
           </p>
           <div className="flex flex-wrap gap-2">
             <ConnectionDialog />

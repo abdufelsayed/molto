@@ -88,6 +88,13 @@ export function ConnectionDialog({ compact = false }: { compact?: boolean }) {
     retry: false,
     staleTime: 0,
   })
+  const local = useQuery({
+    queryKey: ["molto", "local-access"],
+    queryFn: ({ signal }) => api.localAccess(signal),
+    enabled: open,
+    retry: false,
+    staleTime: 0,
+  })
   const initialSetup =
     !setupCompleted && setup.data?.setup_required === true && setup.data.allowed
   const validNewKey = /^[!-~]{4,4096}$/.test(key)
@@ -101,8 +108,8 @@ export function ConnectionDialog({ compact = false }: { compact?: boolean }) {
     setFailure(undefined)
     setSetupCompleted(false)
   }
-  async function connect(event: React.FormEvent) {
-    event.preventDefault()
+  async function connect(event?: React.FormEvent, locally = false) {
+    event?.preventDefault()
     if (pending || (initialSetup && !matching)) return
     setPending(true)
     setFailure(undefined)
@@ -112,7 +119,8 @@ export function ConnectionDialog({ compact = false }: { compact?: boolean }) {
         await setupRequest("POST", { key, confirmation })
         keyCreated = true
       }
-      await api.connect(key)
+      if (locally) await api.connectLocal()
+      else await api.connect(key)
       await queryClient.cancelQueries({ queryKey: managementKey })
       await queryClient.resetQueries({ queryKey: managementKey })
       await router.invalidate()
@@ -170,7 +178,9 @@ export function ConnectionDialog({ compact = false }: { compact?: boolean }) {
           <DialogDescription>
             {initialSetup
               ? "This server has no main key yet. Create an administrator key, keep a secure copy, and connect this dashboard."
-              : "Enter the main API key configured on your Molto server."}
+              : local.data?.available
+                ? "Open this local dashboard directly, or connect with a main API key."
+                : "Enter the main API key configured on your Molto server."}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -204,14 +214,12 @@ export function ConnectionDialog({ compact = false }: { compact?: boolean }) {
                 </Button>
               </div>
             )}
-            {setup.data &&
-              !setup.data.allowed &&
-              (setup.data.setup_required || setup.data.reason) && (
-                <p className="text-sm text-muted-foreground">
-                  {setup.data.reason ??
-                    "Create the first key from a local browser on the server machine."}
-                </p>
-              )}
+            {setup.data && !setup.data.allowed && setup.data.setup_required && (
+              <p className="text-sm text-muted-foreground">
+                {setup.data.reason ??
+                  "Create the first key from a local browser on the server machine."}
+              </p>
+            )}
             <Field data-invalid={!!failure}>
               <FieldLabel htmlFor="api-key">
                 {initialSetup ? "New main API key" : "API key"}
@@ -314,13 +322,25 @@ export function ConnectionDialog({ compact = false }: { compact?: boolean }) {
                 </Field>
               </>
             )}
+            {!initialSetup && local.data?.available && (
+              <Button
+                type="button"
+                disabled={pending}
+                onClick={() => void connect(undefined, true)}
+              >
+                {pending && <Spinner data-icon="inline-start" />}
+                Connect locally
+              </Button>
+            )}
           </FieldGroup>
           <DialogFooter>
             <Button
               type="submit"
               disabled={
                 pending ||
-                (initialSetup ? !matching : setup.isFetching && !setup.data)
+                (initialSetup
+                  ? !matching
+                  : !key || (setup.isFetching && !setup.data))
               }
             >
               {pending && <Spinner data-icon="inline-start" />}

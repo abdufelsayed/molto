@@ -3,7 +3,18 @@ import { operationTarget } from "./management-target.server"
 
 const cookieName = "molto_dashboard_session"
 const lifetime = 8 * 60 * 60 * 1000
-const sessions = new Map<string, { key: string; expires: number }>()
+type DashboardSession = {
+  key: string
+  expires: number
+  access: "local" | "key"
+}
+// Nitro routes and TanStack's SSR service compile this module separately.
+// They must use the same session store in the single dashboard process.
+const sessionsKey = Symbol.for("molto.dashboard.sessions")
+const shared = globalThis as typeof globalThis & {
+  [sessionsKey]?: Map<string, DashboardSession>
+}
+const sessions = (shared[sessionsKey] ??= new Map<string, DashboardSession>())
 
 export function backendUrl() {
   const url = new URL(process.env.MOLTO_API_URL ?? "http://127.0.0.1:8000")
@@ -48,9 +59,32 @@ export function session(request: Request) {
   if (id) sessions.delete(id)
   return undefined
 }
+export function automaticConnectionAllowed(request: Request) {
+  return token(request) !== "disconnected"
+}
 function cookie(request: Request, id: string, maxAge: number) {
   const secure = new URL(request.url).protocol === "https:" ? "; Secure" : ""
   return `${cookieName}=${id}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secure}`
+}
+export function createSession(
+  request: Request,
+  key: string,
+  access: "local" | "key" = "key"
+) {
+  for (const [id, value] of sessions)
+    if (value.expires <= Date.now()) sessions.delete(id)
+  const previous = token(request)
+  if (previous) sessions.delete(previous)
+  if (sessions.size >= 128)
+    return json(
+      { detail: "Too many active dashboard sessions. Try again later." },
+      503
+    )
+  const id = randomBytes(32).toString("hex")
+  sessions.set(id, { key, access, expires: Date.now() + lifetime })
+  return json({ connected: true, server: backendUrl(), access }, 200, {
+    "Set-Cookie": cookie(request, id, lifetime / 1000),
+  })
 }
 export async function connect(request: Request) {
   if (!mutationAllowed(request))
@@ -80,20 +114,7 @@ export async function connect(request: Request) {
         },
         response.status
       )
-    for (const [id, value] of sessions)
-      if (value.expires <= Date.now()) sessions.delete(id)
-    const previous = token(request)
-    if (previous) sessions.delete(previous)
-    if (sessions.size >= 128)
-      return json(
-        { detail: "Too many active dashboard sessions. Try again later." },
-        503
-      )
-    const id = randomBytes(32).toString("hex")
-    sessions.set(id, { key: payload.key, expires: Date.now() + lifetime })
-    return json({ connected: true, server: backendUrl() }, 200, {
-      "Set-Cookie": cookie(request, id, lifetime / 1000),
-    })
+    return createSession(request, payload.key)
   } catch {
     return json(
       { detail: "Could not reach Molto. Check the server and MOLTO_API_URL." },
@@ -107,7 +128,7 @@ export function disconnect(request: Request) {
   const id = token(request)
   if (id) sessions.delete(id)
   return json({ connected: false }, 200, {
-    "Set-Cookie": cookie(request, "", 0),
+    "Set-Cookie": cookie(request, "disconnected", lifetime / 1000),
   })
 }
 export async function forward(request: Request, path: string) {

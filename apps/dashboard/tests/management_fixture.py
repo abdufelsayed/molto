@@ -21,6 +21,7 @@ from molto_management.management_runtime import ManagementRuntime
 from molto_runtime.engine_pool import EngineEntry, EnginePool
 from molto_runtime.server_metrics import ServerMetrics
 from molto_runtime.usage_history import UsageHistory
+from molto_server.api.dashboard_access_routes import router as dashboard_access_router
 from molto_server.api.management_routes import router
 from molto_server.api.management_setup_routes import router as setup_router
 from molto_server.auth import AuthContext, require_model_load_key
@@ -144,6 +145,7 @@ async def lifespan(app):
 app = FastAPI(lifespan=lifespan)
 app.include_router(router)
 app.include_router(setup_router)
+app.include_router(dashboard_access_router)
 
 stats = dict(
     total_tokens_served=2048,

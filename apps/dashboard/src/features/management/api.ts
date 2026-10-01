@@ -89,11 +89,36 @@ export class ManagementClient {
       throw new Error("The server returned an invalid response.")
     return data as T
   }
-  connection(signal?: AbortSignal) {
-    return this.request<{ connected: boolean; server: string }>(
-      "/api/connection",
-      signal
-    )
+  async connection(signal?: AbortSignal) {
+    const status = await this.request<{
+      connected: boolean
+      server: string
+      access?: "local" | "key"
+      auto_connect?: boolean
+    }>("/api/connection", signal)
+    if (
+      (!status.connected || status.access === "local") &&
+      status.auto_connect !== false &&
+      typeof window !== "undefined"
+    ) {
+      try {
+        return await this.connectLocal(true, signal)
+      } catch (error) {
+        if (!(error instanceof ApiError) || ![403, 409].includes(error.status))
+          throw error
+      }
+    }
+    return status
+  }
+  localAccess(signal?: AbortSignal) {
+    return this.request<{ available: boolean }>("/api/local-session", signal)
+  }
+  connectLocal(automatic = false, signal?: AbortSignal) {
+    return this.request<{
+      connected: boolean
+      server: string
+      access?: "local" | "key"
+    }>("/api/local-session", signal, "POST", { automatic })
   }
   connect(key: string) {
     return this.request("/api/connection", undefined, "POST", { key })

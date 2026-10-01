@@ -12,7 +12,7 @@ A complete installed wheel includes dashboard assets and a standalone Node runti
 molto serve --model-dir ~/models
 ```
 
-Open <http://127.0.0.1:17389>. If no main key exists, a directly connected local browser can create one with confirmation. Initial setup requires a loopback bind and rejects forwarded requests. If a key already exists, select **API access** and connect with it. Inference subkeys do not grant management access.
+Open <http://127.0.0.1:17389>. A directly connected local browser opens a dashboard session automatically when a main key already exists. Create client keys under **Settings → API keys → Create key**. If no main key exists, **API access** offers first-run setup with key generation and confirmation. Remote or forwarded access requires the main key. Inference subkeys do not grant management access.
 
 Source checkouts require Node and pnpm. From the repository root:
 
@@ -74,6 +74,8 @@ Chat is outside this dashboard. Downloads and publishing contact their selected 
 ## Connection and hosting
 
 The browser talks only to the dashboard's same-origin `/api` routes. The server forwards allowlisted operations to Molto with the main bearer key. The connected main key stays in server memory; the browser receives an opaque HTTP-only, SameSite Strict session cookie, with Secure enabled for HTTPS. Sessions last eight hours. An inference-backend restart keeps Nitro and these sessions alive. A dashboard restart, full application restart, or effective public host/port change clears them. Rotating the main key through this dashboard updates the current session and invalidates other sessions connected with the previous key. The key-management page can deliberately reveal keys returned by the backend; treat an unlocked dashboard as privileged access. API responses use `Cache-Control: no-store`, and mutations require a matching request origin.
+
+The bundled launcher gives its two child processes an ephemeral capability for local sign-in. The private backend supplies its current main key only to that capability on loopback; the dashboard exchanges it for an opaque browser session. This requires a loopback dashboard bind, a verified local socket peer, a localhost URL, matching origin, and no forwarding headers. A public bind disables local sign-in, including visits to that listener through localhost. Standalone dashboard deployments continue to require manual key sign-in. Local sessions refresh the effective key when the page reconnects, including after CLI key rotation. **Disconnect** suppresses automatic sign-in for that browser for eight hours; **API access → Connect locally** reconnects explicitly.
 
 Run a single dashboard server process. Its session store is process-local and bounded to 128 active sessions. A load-balanced deployment would need a shared session store. Never put the main key in a `VITE_*` variable or client-side storage.
 

@@ -394,6 +394,11 @@ def run_application(settings, argv: list[str] | None = None, *, cli_args=None) -
                     "The bundled dashboard supports one public bind address. Set server.host to a single address."
                 )
             host = hosts[0]
+            from molto_config.utils.network import is_loopback_bind
+
+            local_access_token = (
+                secrets.token_urlsafe(32) if is_loopback_bind(host) else None
+            )
             node_command = (
                 development_command(host, settings.server.port)
                 if getattr(cli_args, "dashboard_dev", False)
@@ -415,6 +420,7 @@ def run_application(settings, argv: list[str] | None = None, *, cli_args=None) -
                     private.listen(128)
                     backend_port = private.getsockname()[1]
                     backend_env = os.environ.copy()
+                    backend_env.pop("MOLTO_LOCAL_ACCESS_TOKEN", None)
                     backend_env.update(
                         MOLTO_INTERNAL_FD=str(private.fileno()),
                         MOLTO_SUPERVISED="application",
@@ -430,6 +436,7 @@ def run_application(settings, argv: list[str] | None = None, *, cli_args=None) -
                         "MOLTO_API_KEY",
                         "MOLTO_RESTART_MARKER",
                         "MOLTO_BACKEND_RESTART",
+                        "MOLTO_LOCAL_ACCESS_TOKEN",
                     ):
                         dashboard_env.pop(key, None)
                     dashboard_env.pop("MOLTO_INSTANCE_ID", None)
@@ -440,6 +447,9 @@ def run_application(settings, argv: list[str] | None = None, *, cli_args=None) -
                         HOST=host,
                         PORT=str(settings.server.port),
                     )
+                    if local_access_token:
+                        backend_env["MOLTO_LOCAL_ACCESS_TOKEN"] = local_access_token
+                        dashboard_env["MOLTO_LOCAL_ACCESS_TOKEN"] = local_access_token
                     command_args = list(sys.argv[1:] if argv is None else argv)
                     commands = {
                         "dashboard": node_command,

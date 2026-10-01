@@ -14,6 +14,10 @@ export default defineConfig({
     {
       command:
         'uv run --all-packages --project "${MOLTO_SOURCE:-../..}" python tests/management_fixture.py 8765',
+      env: {
+        MOLTO_SUPERVISED: "application",
+        MOLTO_LOCAL_ACCESS_TOKEN: "browser-fixture-capability",
+      },
       url: "http://127.0.0.1:8765/health",
       reuseExistingServer: false,
       timeout: 30_000,
