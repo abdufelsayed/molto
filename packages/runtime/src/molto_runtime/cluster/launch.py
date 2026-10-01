@@ -29,6 +29,8 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
+from molto_config.config import DEFAULT_SERVER_PORT
+
 from molto_runtime.cluster.deployment import ClusterDeployment, validate_ssh_target
 from molto_runtime.cluster.liveness import (
     _LOOPBACK_TARGETS,
@@ -2046,13 +2048,13 @@ def probe_remote_admission_ceiling(
     # `import molto` (which imports MLX and can blow the SSH timeout). Peers
     # conventionally run the coordinator's port; 9000 is kept as a legacy
     # candidate for mixed setups. Hardcoding 9000 alone left the fast path dead
-    # on every cluster serving on the (default) port 8000.
+    # on clusters serving on the configured default port.
     try:
         from molto_config.settings import get_settings
 
         local_port = int(get_settings().server.port)
     except Exception:
-        local_port = 8000
+        local_port = DEFAULT_SERVER_PORT
     ports = tuple(dict.fromkeys((local_port, 9000)))
     script = (
         "import json,urllib.request\n"

@@ -19,6 +19,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from molto_config._version import __version__
+from molto_config.config import DEFAULT_SERVER_PORT
 from molto_runtime.cluster.discovery import local_addr_dicts
 
 from molto_server.auth import require_management_key
@@ -173,7 +174,7 @@ async def cluster_add_manual_peer(
         raise HTTPException(
             status_code=400, detail=f"invalid IP address: {raw_ip!r}"
         ) from exc
-    port = body.get("port", 8000)
+    port = body.get("port", DEFAULT_SERVER_PORT)
     if not isinstance(port, int) or isinstance(port, bool) or not (1 <= port <= 65535):
         raise HTTPException(status_code=400, detail="invalid port")
     service.add_manual(ip, port)

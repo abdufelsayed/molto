@@ -30,7 +30,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
-from molto_config.config import parse_size
+from molto_config.config import DEFAULT_SERVER_PORT, parse_size
 
 logger = logging.getLogger(__name__)
 
@@ -195,7 +195,7 @@ class ServerSettings:
     """Server configuration settings."""
 
     host: str = "127.0.0.1"
-    port: int = 8000
+    port: int = DEFAULT_SERVER_PORT
     log_level: str = "info"
     cors_origins: list[str] = field(default_factory=lambda: ["*"])
     sse_keepalive_mode: str = "chunk"
@@ -240,7 +240,7 @@ class ServerSettings:
         _host = data.get("host", data.get("bind_address", "127.0.0.1"))
         return cls(
             host=", ".join(_host) if isinstance(_host, list) else str(_host),
-            port=data.get("port", 8000),
+            port=data.get("port", DEFAULT_SERVER_PORT),
             log_level=data.get("log_level", "info"),
             cors_origins=data.get("cors_origins", ["*"]),
             sse_keepalive_mode=data.get("sse_keepalive_mode", "chunk"),

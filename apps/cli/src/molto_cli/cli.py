@@ -19,6 +19,7 @@ import math
 import sys
 
 from molto_config._version import __version__ as __version__
+from molto_config.config import DEFAULT_SERVER_PORT
 from molto_config.startup import _migrate_saved_network_auth
 
 
@@ -590,7 +591,7 @@ Examples:
   molto models load qwen3.5
   molto keys create --name coding
   molto --url https://your-server.example models list --json
-  molto serve --model-dir ~/.molto/models --port 8000
+  molto serve --model-dir ~/.molto/models --port 17389
   molto launch codex --model qwen3.5
         """,
     )
@@ -692,7 +693,10 @@ Example directory structure:
         "--host", type=str, default=None, help="Host to bind (default: 127.0.0.1)"
     )
     serve_parser.add_argument(
-        "--port", type=int, default=None, help="Port to bind (default: 8000)"
+        "--port",
+        type=int,
+        default=None,
+        help=f"Port to bind (default: {DEFAULT_SERVER_PORT})",
     )
     serve_parser.add_argument(
         "--log-level",
@@ -1032,7 +1036,7 @@ Example directory structure:
         "--port",
         type=int,
         default=None,
-        help="Molto server port (default: from settings or 8000)",
+        help=f"Molto server port (default: from settings or {DEFAULT_SERVER_PORT})",
     )
     launch_parser.add_argument(
         "--api-key",

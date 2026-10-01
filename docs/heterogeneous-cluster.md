@@ -261,7 +261,7 @@ single-use and expires after thirty minutes. Poll
 ```json
 {
   "controller_ip": "10.0.0.5",
-  "controller_port": 8000,
+  "controller_port": 17389,
   "scheme": "http"
 }
 ```

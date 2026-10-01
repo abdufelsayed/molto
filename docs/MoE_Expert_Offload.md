@@ -31,7 +31,7 @@ and at most one. For 25% residency:
 
 ```bash
 MODEL=your-model-id
-curl -X PATCH "http://127.0.0.1:8000/management/v1/models/$MODEL/settings" \
+curl -X PATCH "http://127.0.0.1:17389/management/v1/models/$MODEL/settings" \
   -H "Authorization: Bearer $MOLTO_API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"moe_expert_offload_enabled":true,"moe_expert_offload_resident_fraction":0.25}'

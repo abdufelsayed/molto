@@ -87,7 +87,7 @@ def test_all_settings_have_metadata_and_defaults(setup):
         setup.client.get("/management/v1/server/defaults").json()["sections"]["server"][
             "port"
         ]
-        == 8000
+        == 17389
     )
     assert not (setup.settings.base_path / "settings.json").exists()
 
@@ -202,7 +202,7 @@ def test_copyable_integration_commands_quote_models(setup):
         "--host",
         "127.0.0.1",
         "--port",
-        "8000",
+        "17389",
     ]
 
 
@@ -356,7 +356,7 @@ def test_auth_edits_do_not_freeze_unrelated_runtime_overrides(setup):
     setup.svc.main_key("separate-main")
     setup.svc.policy({"allow_unauthenticated_inference": True})
     saved = json.loads((setup.settings.base_path / "settings.json").read_text())
-    assert saved["server"]["port"] == 8000
+    assert saved["server"]["port"] == 17389
     assert saved["auth"]["api_key"] == "separate-main"
     assert saved["auth"]["sub_keys"][0]["key"] == "separate-sub"
     assert saved["auth"]["allow_unauthenticated_inference"] is True

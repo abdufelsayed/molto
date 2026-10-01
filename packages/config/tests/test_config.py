@@ -94,7 +94,7 @@ class TestServerConfig:
         """Test default configuration values."""
         config = ServerConfig()
         assert config.host == "0.0.0.0"
-        assert config.port == 8000
+        assert config.port == 17389
         assert config.log_level == "info"
         assert config.cors_origins == ["*"]
 
@@ -286,7 +286,7 @@ class TestMOLTOConfig:
         with patch.dict(os.environ, {}, clear=True):
             config = MOLTOConfig.from_env()
             assert config.server.host == "0.0.0.0"
-            assert config.server.port == 8000
+            assert config.server.port == 17389
             # Issue #926: env default must be False to keep RCE surface closed.
             assert config.model.trust_remote_code is False
 
@@ -397,7 +397,7 @@ class TestMOLTOConfig:
         assert "continuous_batching" in result
 
         assert result["server"]["host"] == "0.0.0.0"
-        assert result["server"]["port"] == 8000
+        assert result["server"]["port"] == 17389
 
     def test_to_dict_with_paged_ssd_cache_dir(self):
         """Test to_dict with paged SSD cache directory."""

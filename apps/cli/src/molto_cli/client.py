@@ -34,7 +34,7 @@ def validate_origin(value: str) -> str:
         port = parsed.port
     except ValueError as exc:
         raise CLIError(
-            "Invalid --url. Use an HTTP(S) origin such as http://127.0.0.1:8000.", 2
+            "Invalid --url. Use an HTTP(S) origin such as http://127.0.0.1:17389.", 2
         ) from exc
     if (
         parsed.scheme not in ("http", "https")

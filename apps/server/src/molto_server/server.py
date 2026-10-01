@@ -6,6 +6,7 @@ import os
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from molto_config._version import __version__
+from molto_config.config import DEFAULT_SERVER_PORT
 from molto_management.management import ManagementError
 from molto_runtime.engine.distributed import DistributedInferenceError
 from molto_runtime.exceptions import (
@@ -171,7 +172,7 @@ model and sampling defaults are managed via the management API.
     parser.add_argument(
         "--port",
         type=int,
-        default=8000,
+        default=DEFAULT_SERVER_PORT,
         help="Port to bind to",
     )
     parser.add_argument(

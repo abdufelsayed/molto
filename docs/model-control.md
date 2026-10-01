@@ -10,7 +10,7 @@ where you send requests:
 
 ```bash
 export MOLTO_API_KEY=replace-with-your-main-key
-BASE=http://127.0.0.1:8000/management/v1
+BASE=http://127.0.0.1:17389/management/v1
 curl "$BASE/models" -H "Authorization: Bearer $MOLTO_API_KEY"
 ```
 

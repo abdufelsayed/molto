@@ -12,7 +12,7 @@ A complete installed wheel includes dashboard assets and a standalone Node runti
 molto serve --model-dir ~/models
 ```
 
-Open <http://127.0.0.1:8000>. If no main key exists, a directly connected local browser can create one with confirmation. Initial setup requires a loopback bind and rejects forwarded requests. If a key already exists, select **API access** and connect with it. Inference subkeys do not grant management access.
+Open <http://127.0.0.1:17389>. If no main key exists, a directly connected local browser can create one with confirmation. Initial setup requires a loopback bind and rejects forwarded requests. If a key already exists, select **API access** and connect with it. Inference subkeys do not grant management access.
 
 Source checkouts require Node and pnpm. From the repository root:
 

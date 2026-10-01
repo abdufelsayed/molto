@@ -58,7 +58,7 @@ export MOLTO_API_KEY=replace-with-a-secret-key
 uv run --all-packages --inexact molto serve
 ```
 
-Open `http://127.0.0.1:8000` for the dashboard. The same origin serves inference
+Open `http://127.0.0.1:17389` for the dashboard. The same origin serves inference
 and the dashboard's session gateway; raw management routes stay on the private
 Python loopback listener. If no key
 is configured, omit the export above and use the guarded local first-run form
@@ -66,8 +66,8 @@ to create one. Initial setup requires a directly connected local browser and
 loopback binding. Check startup and discover models with:
 
 ```bash
-curl http://127.0.0.1:8000/health
-curl http://127.0.0.1:8000/v1/models \
+curl http://127.0.0.1:17389/health
+curl http://127.0.0.1:17389/v1/models \
   -H "Authorization: Bearer $MOLTO_API_KEY"
 ```
 
@@ -76,7 +76,7 @@ For a text model, send its ID from `/v1/models` to
 
 ```bash
 MODEL=your-model-id
-curl http://127.0.0.1:8000/v1/chat/completions \
+curl http://127.0.0.1:17389/v1/chat/completions \
   -H "Authorization: Bearer $MOLTO_API_KEY" \
   -H 'Content-Type: application/json' \
   -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}]}"
@@ -128,7 +128,7 @@ For default Homebrew installs, `molto start`, `stop`, and `restart` delegate to
 `brew services`. Source and pip installs can use the same commands to manage
 a background application, or `molto serve` in the foreground. Custom base paths
 and startup options select the local application manager. The service
-uses the default model directory `~/.molto/models` and port 8000 unless you
+uses the default model directory `~/.molto/models` and port 17389 unless you
 configure them. Server settings live under the selected Molto base path,
 normally `~/.molto/settings.json`.
 

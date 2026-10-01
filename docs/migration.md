@@ -56,7 +56,7 @@ Homebrew service commands, and external integrations. Replace `OMLX_*` with
 Previously saved credentials remain valid after the data migration.
 
 The public origin remains the configured host and port, normally
-`http://127.0.0.1:8000`. Inference endpoints under `/v1` retain their protocol.
+`http://127.0.0.1:17389`. Inference endpoints under `/v1` retain their protocol.
 The dashboard gateway is now `/api/molto/*`, and its browser session starts
 fresh. Raw `/management/v1/*` routes remain private to FastAPI.
 

@@ -57,6 +57,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from molto_config.config import DEFAULT_SERVER_PORT
+
 logger = logging.getLogger(__name__)
 
 # --- Pairing policy (from ops/notes/molto_cluster_v2_spec.md, Module B) ------
@@ -828,7 +830,7 @@ class PairingManager:
         key_store: PairingKeyStore | None = None,
         caps_provider: Callable[[], dict[str, Any]] | None = None,
         address_provider: Callable[[], list[str]] | None = None,
-        http_port: int = 8000,
+        http_port: int = DEFAULT_SERVER_PORT,
         ssh_key_provider: Callable[[], str | None] | None = None,
         ssh_host_key_provider: Callable[[], str | None] | None = None,
         enrollment_driver: Callable[[dict[str, Any]], Any] | None = None,

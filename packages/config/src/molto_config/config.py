@@ -16,6 +16,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+DEFAULT_SERVER_PORT = 17389
+
 logger = logging.getLogger(__name__)
 
 
@@ -62,7 +64,7 @@ class ServerConfig:
     """Server configuration."""
 
     host: str = "0.0.0.0"
-    port: int = 8000
+    port: int = DEFAULT_SERVER_PORT
     log_level: str = "info"
     cors_origins: list[str] = field(default_factory=lambda: ["*"])
     max_image_upload_size: str = "50MB"

@@ -38,7 +38,7 @@ def test_remote_destination_does_not_inherit_local_key(local_args):
 
 def test_local_credentials_and_explicit_remote_key(local_args):
     assert resolve_connection(local_args)[:2] == (
-        "http://127.0.0.1:8000",
+        "http://127.0.0.1:17389",
         "local-main-key",
     )
     local_args.url = "https://remote.example"

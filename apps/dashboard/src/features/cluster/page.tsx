@@ -155,7 +155,7 @@ export function ClusterPage() {
     retry: false,
   })
   const [ip, setIp] = useState("")
-  const [port, setPort] = useState("8000")
+  const [port, setPort] = useState("17389")
   const [coordinator, setCoordinator] = useState("")
   const [codes, setCodes] = useState<Record<string, string>>({})
   const [excluded, setExcluded] = useState<string[]>([])
@@ -174,7 +174,7 @@ export function ClusterPage() {
   const [jobId, setJobId] = useState("")
   const [feedback, setFeedback] = useState<Record<string, unknown> | null>(null)
   const [joinIp, setJoinIp] = useState("")
-  const [joinPort, setJoinPort] = useState("8000")
+  const [joinPort, setJoinPort] = useState("17389")
   const [scheme, setScheme] = useState("http")
   const [command, setCommand] = useState("")
   const [cudaA, setCudaA] = useState("")
@@ -581,7 +581,7 @@ export function ClusterPage() {
               </FieldLabel>
               <Input
                 id="coordinator"
-                placeholder="192.168.1.10:8000"
+                placeholder="192.168.1.10:17389"
                 value={coordinator}
                 onChange={(event) => setCoordinator(event.target.value)}
               />

@@ -1,7 +1,7 @@
 # Management API
 
 This is the HTTP contract for a script or separate dashboard that controls a
-running Molto server. The public application defaults to `http://127.0.0.1:8000`;
+running Molto server. The public application defaults to `http://127.0.0.1:17389`;
 route names below describe the private `/management/v1` contract. The management API controls the
 same engine pool used by inference requests. It can request a restart only when a supported supervisor is active. Start and
 configure the process with `molto start`, `molto serve`, or the Homebrew service.
@@ -11,7 +11,7 @@ configure the process with `molto start`, `molto serve`, or the Homebrew service
 The route names in this guide describe the private FastAPI contract. The
 application exposes authenticated native clients through
 `/api/management/v1/<relative-path>` on the public dashboard origin, for example
-`http://127.0.0.1:8000/api/management/v1/models`. This gateway requires the main
+`http://127.0.0.1:17389/api/management/v1/models`. This gateway requires the main
 bearer key even when local inference verification is bypassed, and rejects
 browser Origin-bearing requests. Raw `/management/v1` and `/admin` paths stay
 blocked by the public proxy. Dashboard browsers use opaque sessions through
@@ -29,7 +29,7 @@ Set a main key before exposing the server to a network. Pass it as a bearer
 token:
 
 ```bash
-curl http://127.0.0.1:8000/api/management/v1/models \
+curl http://127.0.0.1:17389/api/management/v1/models \
   -H "Authorization: Bearer $MOLTO_API_KEY"
 ```
 
@@ -82,7 +82,7 @@ fields are rejected. Responses use JSON and report errors in `detail`.
 ## Load and settings example
 
 ```bash
-BASE=http://127.0.0.1:8000/management/v1
+BASE=http://127.0.0.1:17389/management/v1
 MODEL=my-model
 
 curl -X POST "$BASE/models/$MODEL/load" \

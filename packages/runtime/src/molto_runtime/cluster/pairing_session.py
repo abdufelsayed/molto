@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Any
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 
+from molto_config.config import DEFAULT_SERVER_PORT
+
 from molto_runtime.cluster.pairing import (
     CODE_TTL_SECONDS,
     PairingCodeError,
@@ -119,7 +121,7 @@ class PairingSession:
                 and not parsed.query
                 and not parsed.fragment
             )
-            port = 8000 if parsed.port is None else parsed.port
+            port = DEFAULT_SERVER_PORT if parsed.port is None else parsed.port
             if not valid or not 1 <= port <= 65535 or any(c.isspace() for c in raw):
                 raise ValueError("invalid address")
         except ValueError as exc:

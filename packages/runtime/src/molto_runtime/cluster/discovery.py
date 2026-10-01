@@ -17,6 +17,8 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from molto_config.config import DEFAULT_SERVER_PORT
+
 from molto_runtime.cluster.token_auth import (
     sign_pairing_payload,
     verify_pairing_signature,
@@ -784,7 +786,7 @@ class PeerRecord:
 @dataclass
 class DiscoveryConfig:
     cluster_name: str = "molto"
-    http_port: int = 8000
+    http_port: int = DEFAULT_SERVER_PORT
     version: str = _molto_version
     caps: PeerCaps = field(default_factory=local_caps)
     hello_interval: float = 1.0

@@ -13,6 +13,7 @@ from fastapi import Request as FastAPIRequest
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from molto_config._version import __version__
+from molto_config.config import DEFAULT_SERVER_PORT
 from molto_management.management import ManagementContext, ManagementService
 from molto_runtime.engine_pool import EnginePool
 from molto_runtime.server_metrics import ServerMetrics
@@ -274,7 +275,7 @@ class CompositionController:
                         http_port=(
                             self.state.global_settings.server.port
                             if self.state.global_settings is not None
-                            else 8000
+                            else DEFAULT_SERVER_PORT
                         ),
                     ),
                 )
@@ -573,7 +574,9 @@ class CompositionController:
             global_settings.server.host if global_settings is not None else None
         )
         self.state.bind_port = (
-            global_settings.server.port if global_settings is not None else 8000
+            global_settings.server.port
+            if global_settings is not None
+            else DEFAULT_SERVER_PORT
         )
         if self.allows_unauthenticated_inference():
             logger.warning(
@@ -689,7 +692,9 @@ class CompositionController:
             base_path=base_path,
             caps_provider=services.announced_caps,
             address_provider=announced_addrs,
-            http_port=global_settings.server.port if global_settings else 8000,
+            http_port=global_settings.server.port
+            if global_settings
+            else DEFAULT_SERVER_PORT,
         )
 
         # Discover models (use pinned models from settings file)
