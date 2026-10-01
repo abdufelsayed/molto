@@ -20,6 +20,7 @@ from ..diffusion import (
     validate_task,
 )
 from ..engine_core import get_mlx_executor
+from ..exceptions import InsufficientMemoryError
 from .base import BaseNonStreamingEngine
 
 logger = logging.getLogger(__name__)
@@ -61,6 +62,10 @@ class DiffusionImageEngine(BaseNonStreamingEngine):
         self._backend = MFluxBackend()
         # Loading, generation, switching and unloading all share one lifecycle lock.
         self._generation_lock = asyncio.Lock()
+        self._memory_soft_limit = None
+
+    def set_memory_soft_limit(self, soft_limit_bytes: int) -> None:
+        self._memory_soft_limit = soft_limit_bytes if soft_limit_bytes > 0 else None
 
     @property
     def model_name(self) -> str:
@@ -132,11 +137,45 @@ class DiffusionImageEngine(BaseNonStreamingEngine):
             if self._model is not None:
                 await self._executor_call(self._release_sync)
 
-    async def generate_image(
+    async def generate_image(self, *, seed: int, **arguments) -> bytes:
+        return (await self.generate_images(seeds=(seed,), **arguments))[0]
+
+    def _admit_batch(self, tasks, resolved):
+        """Reserve conservative space for vectorized transformer and VAE work."""
+        import psutil
+
+        count = len(tasks)
+        width, height = resolved["width"], resolved["height"]
+        pixels = width * height
+        for image_path in tasks[0].image_paths:
+            from PIL import Image
+
+            with Image.open(image_path) as image:
+                pixels += min(image.width * image.height, 1024 * 1024)
+        weights = sum(
+            p.stat().st_size for p in self._checkpoint.path.rglob("*.safetensors")
+        )
+        # Include lazy weights, attention scratch, and decoder activations. This
+        # estimate deliberately errs toward refusing large batches, not OOM.
+        required = weights + 512 * 1024**2 + count * pixels * 512 * 8
+        active = mx.get_active_memory()
+        available = psutil.virtual_memory().available
+        device = mx.device_info().get("max_recommended_working_set_size", available)
+        capacity = min(available, max(0, device - active))
+        if self._memory_soft_limit is not None:
+            capacity = min(capacity, max(0, self._memory_soft_limit - active))
+        if required > capacity * 0.60:
+            raise InsufficientMemoryError(
+                required=required,
+                current=active,
+                message="Image batch exceeds the available memory allowance; reduce batch_size or output size",
+            )
+
+    async def generate_images(
         self,
         *,
         prompt: str | None,
-        seed: int,
+        seeds: tuple[int, ...],
         width: int | None,
         height: int | None,
         steps: int | None = None,
@@ -146,32 +185,52 @@ class DiffusionImageEngine(BaseNonStreamingEngine):
         image_paths: tuple[str, ...] = (),
         mask_path: str | None = None,
         options: dict[str, Any] | None = None,
-    ) -> bytes:
+    ) -> list[bytes]:
         spec = self._resolve_pipeline(pipeline)
-        task = ImageTask(
-            prompt=prompt,
-            seed=seed,
-            width=width,
-            height=height,
-            steps=steps,
-            guidance=guidance,
-            negative_prompt=negative_prompt,
-            image_paths=image_paths,
-            mask_path=mask_path,
-            options=options or {},
-        )
-        validate_task(spec, task)
+        if not 1 <= len(seeds) <= spec.max_batch_size:
+            raise ValueError(
+                f"{spec.id} supports batches of 1..{spec.max_batch_size} images"
+            )
+        tasks = [
+            ImageTask(
+                prompt=prompt,
+                seed=seed,
+                width=width,
+                height=height,
+                steps=steps,
+                guidance=guidance,
+                negative_prompt=negative_prompt,
+                image_paths=image_paths,
+                mask_path=mask_path,
+                options=options or {},
+            )
+            for seed in seeds
+        ]
+        resolved = [validate_task(spec, task) for task in tasks]
         async with self._generation_lock:
             if not self._started:
                 raise RuntimeError("Engine not started. Call start() first.")
             await self._load_locked(spec)
 
             def generate_sync():
-                generated = self._backend.generate(self._model, task, spec.id)
-                image = getattr(generated, "image", generated)
-                output = io.BytesIO()
-                image.save(output, format="PNG")
-                return output.getvalue()
+                if len(tasks) > 1:
+                    self._admit_batch(tasks, resolved[0])
+                    generated = self._backend.generate_batch(
+                        self._model, tasks, spec.id
+                    )
+                else:
+                    generated = [self._backend.generate(self._model, tasks[0], spec.id)]
+                if len(generated) != len(tasks):
+                    raise RuntimeError(
+                        "Native image pipeline returned an incomplete batch"
+                    )
+                outputs = []
+                for result in generated:
+                    image = getattr(result, "image", result)
+                    output = io.BytesIO()
+                    image.save(output, format="PNG")
+                    outputs.append(output.getvalue())
+                return outputs
 
             activity_id = self._begin_activity(
                 "generating image",
@@ -179,7 +238,8 @@ class DiffusionImageEngine(BaseNonStreamingEngine):
                 metadata={
                     "width": width,
                     "height": height,
-                    "seed": seed,
+                    "seeds": list(seeds),
+                    "batch_size": len(seeds),
                     "steps": steps or spec.default_steps,
                     "pipeline": spec.id,
                 },
@@ -201,7 +261,27 @@ class DiffusionImageEngine(BaseNonStreamingEngine):
             "model_family": checkpoint.base_model if checkpoint else None,
             "pipeline": self._pipeline.id if self._pipeline else None,
             "capabilities": self._pipeline.metadata() if self._pipeline else None,
+            "cache": self.get_runtime_cache_stats(),
         }
+
+    def get_runtime_cache_stats(self):
+        getter = getattr(self._backend, "get_cache_stats", None)
+        return (
+            getter(self._model)
+            if self._model is not None and callable(getter)
+            else None
+        )
+
+    async def clear_prompt_caches(self, *, hot=False, ssd=False):
+        async with self._generation_lock:
+            clear = getattr(self._backend, "clear_cache", None)
+            count = 0
+            if hot and self._model is not None and callable(clear):
+                count = await self._executor_call(lambda: clear(self._model))
+                await self._executor_call(
+                    lambda: (gc.collect(), mx.synchronize(), mx.clear_cache())
+                )
+            return {"hot_cleared": count, "ssd_deleted": 0}
 
     def __repr__(self) -> str:
         status = "running" if self._model is not None else "stopped"

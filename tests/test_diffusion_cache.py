@@ -219,3 +219,39 @@ def test_calibration_bypasses_cached_factory_and_restores_exact_wrapper(monkeypa
     assert binding.cache.enabled and binding.stats()["entries"] == 0
     assert model._predict(model.transformer) == "compiled"
     assert model.encodes == 3
+
+
+def test_stats_snapshot_survives_concurrent_lru_eviction(monkeypatch):
+    import sys
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    # Isolate the map race from GPU operations. Before the tuple snapshot,
+    # ordinary eviction repeatedly invalidated stats' live dictionary iterator.
+    monkeypatch.setattr("omlx.diffusion.cache._arrays", lambda value: [])
+    binding = PromptCacheBinding(SimpleNamespace(prompt_cache={}), "dev", "dev")
+    start = Event()
+
+    def mutate():
+        start.wait()
+        for index in range(20000):
+            binding.cache[index] = None
+
+    def read():
+        start.wait()
+        for _ in range(20000):
+            stats = binding.stats()
+            assert stats["reference_entries"] == 0
+            assert stats["bytes"] == 0
+
+    previous = sys.getswitchinterval()
+    try:
+        sys.setswitchinterval(0.000001)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            writer = pool.submit(mutate)
+            reader = pool.submit(read)
+            start.set()
+            writer.result(timeout=10)
+            reader.result(timeout=10)
+    finally:
+        sys.setswitchinterval(previous)

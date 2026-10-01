@@ -180,6 +180,10 @@ def _preflight(pool, model_id, request, operation, image_paths, mask_path):
         raise ValueError(spec.local_unsupported_reason)
     if spec.base_model != checkpoint.base_model:
         raise ValueError(f"Pipeline '{spec.id}' is incompatible with this checkpoint")
+    if request.batch_size > spec.max_batch_size:
+        raise ValueError(f"{spec.id} supports batch_size at most {spec.max_batch_size}")
+    if request.batch_size > request.n:
+        raise ValueError("batch_size must not exceed n")
     if operation == "edit":
         if spec.operation not in {"img2img", "reference-edit", "inpaint"}:
             raise ValueError("Select an image editing pipeline for /v1/images/edits")
@@ -240,11 +244,15 @@ async def _serve_images(request, operation="txt2img", images=(), mask=None):
                         f"Model '{model_id}' is not an image-generation model"
                     )
                 data = []
-                for index in range(request.n):
-                    seed = (base_seed + index) % (2**32)
-                    png = await engine.generate_image(
+                for index in range(0, request.n, request.batch_size):
+                    seeds = tuple(
+                        (base_seed + offset) % (2**32)
+                        for offset in range(
+                            index, min(index + request.batch_size, request.n)
+                        )
+                    )
+                    arguments = dict(
                         prompt=request.prompt,
-                        seed=seed,
                         width=width,
                         height=height,
                         steps=request.steps,
@@ -255,11 +263,21 @@ async def _serve_images(request, operation="txt2img", images=(), mask=None):
                         mask_path=mask_path,
                         options=request.options,
                     )
-                    data.append(
-                        ImageData(
-                            b64_json=base64.b64encode(png).decode("ascii"), seed=seed
+                    if len(seeds) > 1:
+                        outputs = await engine.generate_images(seeds=seeds, **arguments)
+                    else:
+                        outputs = [
+                            await engine.generate_image(seed=seeds[0], **arguments)
+                        ]
+                    if len(outputs) != len(seeds):
+                        raise RuntimeError("Image engine returned an incomplete batch")
+                    for seed, png in zip(seeds, outputs):
+                        data.append(
+                            ImageData(
+                                b64_json=base64.b64encode(png).decode("ascii"),
+                                seed=seed,
+                            )
                         )
-                    )
     except HTTPException:
         raise
     except ValueError as exc:

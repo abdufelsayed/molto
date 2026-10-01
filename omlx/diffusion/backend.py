@@ -195,6 +195,13 @@ class MFluxBackend:
         if entry is not None and entry[0].id != spec.id:
             raise ValueError("Loaded pipeline differs from the requested pipeline")
         kwargs = validate_task(spec, task)
+        if (
+            spec.backend_class
+            == "mflux.models.flux2.variants.edit.flux2_klein_edit.Flux2KleinEdit"
+            and spec.operation == "reference-edit"
+            and id(model) in self._cache_bindings
+        ):
+            return self.generate_batch(model, (task,), spec.id)[0]
         if spec.image_argument == "controls":
             types = _symbol(
                 "mflux.models.z_image.variants.controlnet.control_types.ControlType"
@@ -209,6 +216,27 @@ class MFluxBackend:
                 for name, path, strength in zip(names, task.image_paths, strengths)
             ]
         return model.generate_image(**kwargs)
+
+    def generate_batch(self, model, tasks, pipeline_id: str | None = None):
+        from .batching import generate_batch
+
+        entry = self._models.get(id(model))
+        if entry is None and pipeline_id is None:
+            raise ValueError(
+                "Pipeline identity is required for an externally supplied model"
+            )
+        spec = get_pipeline(pipeline_id) if pipeline_id else entry[0]
+        if entry is not None and entry[0].id != spec.id:
+            raise ValueError("Loaded pipeline differs from the requested pipeline")
+        binding = self._cache_bindings.get(id(model))
+        return generate_batch(
+            model,
+            tasks,
+            spec,
+            reference_conditioning=binding.reference_conditioning
+            if binding is not None
+            else None,
+        )
 
     @contextmanager
     def calibration_context(self, model):
@@ -313,6 +341,12 @@ class MFluxBackend:
 
         return {
             **PromptCache().stats(),
+            "prompt_hits": 0,
+            "prompt_misses": 0,
+            "reference_hits": 0,
+            "reference_misses": 0,
+            "reference_entries": 0,
+            "reference_bytes": 0,
             "prediction_factory_entries": 0,
             "prediction_factory_builds": 0,
             "prediction_factory_reuses": 0,

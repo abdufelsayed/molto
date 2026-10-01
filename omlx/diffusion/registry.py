@@ -58,6 +58,19 @@ class PipelineSpec:
         return self.save_unsupported_reason is None
 
     @property
+    def max_batch_size(self):
+        return (
+            4
+            if self.backend_class
+            in {
+                "mflux.models.flux2.variants.txt2img.flux2_klein.Flux2Klein",
+                "mflux.models.flux2.variants.edit.flux2_klein_edit.Flux2KleinEdit",
+            }
+            and self.operation in {"txt2img", "reference-edit"}
+            else 1
+        )
+
+    @property
     def supported_parameters(self):
         params = ["seed"]
         if self.operation != "upscale":
@@ -84,6 +97,18 @@ class PipelineSpec:
             unsupported_options={
                 "pid_decode": "PiD auxiliary decoder and text encoder local preparation is not integrated",
                 "pid_degrade_sigma": "PiD local preparation is not integrated",
+            },
+            performance={
+                "batching": {
+                    "max_size": self.max_batch_size,
+                    "requires_matching_prompt_settings_and_images": True,
+                },
+                "reference_kv_cache": self.base_model == "flux2-klein-9b-kv"
+                and self.operation == "reference-edit",
+                "reference_kv_cache_reason": None
+                if self.base_model == "flux2-klein-9b-kv"
+                and self.operation == "reference-edit"
+                else "Requires the FLUX.2 Klein 9B-KV checkpoint and reference-edit pipeline",
             },
             image_min=self.image_min,
             image_max=self.image_max,
