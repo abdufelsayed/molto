@@ -509,19 +509,18 @@ async def lifespan(app: FastAPI):
     # Without it a packaged-app peer fails every discovery candidate and gets
     # reported as "worker runtime is not installed" (#2680). Best effort: a
     # read-only home must never keep this node from serving inference.
-    try:
-        from .cluster.worker_shim import ensure_cluster_python_shim
+    if distributed_inference_enabled():
+        try:
+            from .cluster.worker_shim import ensure_cluster_python_shim
 
-        ensure_cluster_python_shim()
-    except (ImportError, OSError, RuntimeError) as exc:
-        # RuntimeError: Path.home() cannot resolve a home directory.
-        # Anything outside this set is a real bug and should surface loudly
-        # rather than be swallowed by a start-up convenience path.
-        logger.warning(
-            "Could not publish the cluster interpreter shim; a peer "
-            "coordinator may not discover this node over SSH: %r",
-            exc,
-        )
+            ensure_cluster_python_shim()
+        except (ImportError, OSError, RuntimeError) as exc:
+            # RuntimeError: Path.home() cannot resolve a home directory.
+            logger.warning(
+                "Could not publish the cluster interpreter shim; a peer "
+                "coordinator may not discover this node over SSH: %r",
+                exc,
+            )
 
     # Advertise this oMLX instance so another Mac can identify it by hostname
     # and API port without asking the user to type an SSH target. Publication
@@ -837,8 +836,10 @@ def _diffusion_jobs_provider():
 app.state.diffusion_jobs_provider = _diffusion_jobs_provider
 
 from .api.management_routes import router as management_router
+from .api.management_setup_routes import router as management_setup_router
 
 app.include_router(management_router)
+app.include_router(management_setup_router)
 
 _cluster_routes_registered = False
 

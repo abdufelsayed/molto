@@ -36,6 +36,12 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
+      - name: Build bundled dashboard and standalone Node runtime
+        run: |
+          test "$(uname -m)" = "arm64"
+          npm install --global pnpm@10.33.0
+          python scripts/build_dashboard_bundle.py --node-version 24.21.0
+
       - name: Build wheel with native custom kernels
         env:
           OMLX_WITH_CUSTOM_KERNEL: "1"
@@ -61,6 +67,18 @@ jobs:
           /tmp/wheel-smoke/bin/python - <<'PY'
           import importlib
           import mlx.core as mx
+          import os
+          import subprocess
+          from pathlib import Path
+          import omlx
+
+          bundle = Path(omlx.__file__).parent / "_dashboard"
+          assert (bundle / "server/index.mjs").is_file()
+          assert (bundle / "public").is_dir()
+          node = bundle / "runtime/node"
+          assert os.access(node, os.X_OK)
+          assert (bundle / "runtime/LICENSE").is_file()
+          subprocess.run([str(node), "--version"], check=True)
 
           failed = []
           for pkg in (

@@ -89,7 +89,7 @@ DESCRIPTIONS = {
     "cache.hot_cache_max_size": "RAM cache limit such as 8GB. Use 0 to disable.",
     "network.ca_bundle": "Path to a readable PEM CA bundle used by outbound clients after restart.",
     "mcp.config_path": "Path to a JSON MCP configuration loaded at server startup.",
-    "server.host": "Comma-separated bind addresses. Non-loopback binds require API key verification.",
+    "server.host": "Single public bind address. Use 0.0.0.0 for all IPv4 interfaces. Non-loopback binds require API key verification.",
     "integrations.web_search_brave_api_key": "Brave Search API subscription key.",
     "sampling.max_context_window_policy": "Optional global cap on discovered native context lengths.",
 }
@@ -203,6 +203,12 @@ class ServerManagementService:
                     or (high is not None and value > high)
                 ):
                     invalid(f"{path} is outside the allowed range")
+                if path == "server.host":
+                    value = value.strip()
+                    if "," in value:
+                        invalid(
+                            "server.host must contain exactly one bind address; use 0.0.0.0 to listen on all IPv4 interfaces"
+                        )
                 if path == "network.ca_bundle" and value:
                     try:
                         value = str(Path(value).expanduser().resolve())
@@ -228,6 +234,10 @@ class ServerManagementService:
         return candidate, changed
 
     def _validate(self, candidate: GlobalSettings):
+        if isinstance(candidate.server.host, str) and "," in candidate.server.host:
+            invalid(
+                "server.host must contain exactly one bind address; use 0.0.0.0 to listen on all IPv4 interfaces"
+            )
         errors = candidate.validate()
         if not candidate.memory.soft_threshold < candidate.memory.hard_threshold:
             errors.append("memory.soft_threshold must be below memory.hard_threshold")

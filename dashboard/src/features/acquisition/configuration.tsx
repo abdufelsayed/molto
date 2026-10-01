@@ -18,8 +18,9 @@ export function AcquisitionConfiguration() {
       <CardHeader>
         <CardTitle>Current server configuration</CardTitle>
         <CardDescription>
-          Downloads use these server settings. Change persistent hub
-          credentials, mirrors, and model directories in Settings.
+          Downloads use these server settings. Configure mirrors and model
+          directories in Settings. Enter provider tokens when an operation needs
+          them.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -42,15 +43,27 @@ export function AcquisitionConfiguration() {
                   const value = query.data.sections[field.section]?.[field.key]
                   return (
                     <div key={`${field.section}.${field.key}`}>
-                      <dt className="text-muted-foreground">{field.label}</dt>
+                      <dt className="text-muted-foreground">
+                        {field.section === "huggingface"
+                          ? field.key === "endpoint"
+                            ? "Hugging Face endpoint"
+                            : "Hugging Face cache discovery"
+                          : field.section === "modelscope"
+                            ? "ModelScope endpoint"
+                            : field.label}
+                      </dt>
                       <dd className="break-all">
                         {field.secret
                           ? value
                             ? "Configured"
                             : "Not configured"
-                          : typeof value === "string" && value
+                          : typeof value === "boolean"
                             ? value
-                            : "Server default"}
+                              ? "Enabled"
+                              : "Disabled"
+                            : typeof value === "string" && value
+                              ? value
+                              : "Server default"}
                       </dd>
                     </div>
                   )

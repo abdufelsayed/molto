@@ -8,9 +8,9 @@ and the native TypeScript compiler. The old reference remains at
 
 ## Shared contracts and ownership
 
-All new backend feature routers have no prefix of their own and export `router`.
+Authenticated backend feature routers have no prefix of their own and export `router`.
 The supervisor mounts them under the existing authenticated `/management/v1`
-router. Use `omlx.api.management_dependencies.get_context`, `get_service`, and
+router. First-run setup is mounted separately under `/management/v1/setup`; its public BFF requires a direct local transport and creates a key before normal login. Use `omlx.api.management_dependencies.get_context`, `get_service`, and
 `get_runtime`, never import the server to acquire state. New domain services
 must be importable without starting jobs or loading weights.
 
@@ -100,19 +100,21 @@ provides tests or exact browser steps. The supervisor checks full feature parity
 reviews integrated code, regenerates types, runs build and browser tests against
 actual management routes with disposable state and synthetic engines, then
 obtains independent review. Real model, network publication, system settings,
-process termination and remote cluster changes are not executed as validation.
+remote cluster changes are not executed as validation. Disposable launcher processes are started and terminated to verify supervision and shutdown.
 
 ## Coverage ledger
 
-- [ ] Server settings, resources, directories, network and integrations
-- [ ] Main key rotation, subkey reveal/create/edit/revoke and auth policy
-- [ ] Full model configuration, capabilities, profile/template/preset helpers
-- [ ] Library, health, memory planning, collections, storage/revisions/deletion
-- [ ] Discovery/downloads, conversion/quantization/publishing and durable activity
-- [ ] Cache settings, clearing and diagnostics; local diffusion preparation UI
-- [ ] Live request activity, historical usage, logs and engine provenance
-- [ ] Throughput/accuracy/context diagnostics and ANE tuning
-- [ ] Conditional cluster management
-- [ ] Integrated gateway/session handling, generated contracts and navigation
-- [ ] Backend tests, browser proof, type-aware lint, format, typecheck and build
-- [ ] Independent review findings resolved and documentation current
+- [x] Server settings, resources, directories, network and integrations
+- [x] Main key rotation, subkey reveal/create/edit/revoke and auth policy
+- [x] Full model configuration, capabilities, profile/template/preset helpers
+- [x] Library, health, memory planning, collections, storage/revisions/deletion
+- [x] Discovery/downloads, conversion/quantization/publishing and durable activity
+- [x] Cache settings, clearing and diagnostics; local diffusion preparation UI
+- [x] Live request activity, historical usage, logs and engine provenance
+- [x] Throughput/accuracy/context diagnostics and ANE tuning
+- [x] Conditional cluster management
+- [x] Integrated gateway/session handling, generated contracts and navigation
+- [x] Backend tests, browser proof, type-aware lint, format, typecheck and build
+- [x] Independent review findings resolved and documentation current
+
+The bundled command uses native Nitro proxying with a separate private FastAPI process. Installed wheels carry Node and dashboard assets; source development uses `omlx serve --dashboard-dev`. The integration record in `../docs/dashboard-integration-plan.md` contains milestone and verification evidence.

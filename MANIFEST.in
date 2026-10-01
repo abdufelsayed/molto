@@ -1,1 +1,3 @@
 recursive-include omlx/custom_kernels *.cpp *.h *.metal *.mm *.txt
+
+recursive-include omlx/_dashboard *

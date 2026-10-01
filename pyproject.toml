@@ -201,7 +201,7 @@ where = ["."]
 include = ["omlx*"]
 
 [tool.setuptools.package-data]
-"omlx" = ["oq_calibration_data.json", "oqe_calibration_data.json"]
+"omlx" = ["oq_calibration_data.json", "oqe_calibration_data.json", "_dashboard/**/*"]
 "omlx.eval" = ["data/*.jsonl"]
 "omlx.services" = ["management_presets.json"]
 "omlx.services.diagnostics" = ["bench_corpora/*.txt", "bench_corpora/*.json", "bench_corpora/*.md"]

@@ -51,6 +51,7 @@ const clusterRoutes: { method: string; pattern: RegExp; base: string }[] = [
 ]
 
 function operationTarget(method: string, path: string) {
+  if (path === "setup" || path.startsWith("setup/")) return undefined
   if (path.startsWith("cluster/")) {
     const suffix = path.slice("cluster/".length)
     const route = clusterRoutes.find(

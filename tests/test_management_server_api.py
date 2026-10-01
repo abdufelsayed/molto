@@ -766,3 +766,57 @@ def test_resource_draft_guard_query_does_not_change_saved_or_active_guard(
         == 422
     )
     resource_reads.forbidden.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "host", ["127.0.0.1,192.168.1.8", "127.0.0.1,127.0.0.1", "127.0.0.1,", ",127.0.0.1"]
+)
+def test_multiple_public_bind_addresses_rejected_before_save_or_live_effects(
+    setup, host
+):
+    setup.settings.save()
+    path = setup.settings.base_path / "settings.json"
+    disk_before = path.read_bytes()
+    runtime_before = setup.settings.to_dict()
+    active_before = dict(setup.active)
+    response = setup.client.patch(
+        "/management/v1/server/settings",
+        json={"server": {"host": host}, "sampling": {"temperature": 0.2}},
+    )
+    assert response.status_code == 422
+    assert "exactly one bind address" in response.text
+    assert "0.0.0.0" in response.text
+    assert path.read_bytes() == disk_before
+    assert setup.settings.to_dict() == runtime_before
+    assert setup.active == active_before
+    setup.context.apply_sampling.assert_not_called()
+
+
+def test_authenticated_all_interfaces_bind_is_normalized_and_persisted(setup):
+    response = setup.client.patch(
+        "/management/v1/server/settings", json={"server": {"host": "  0.0.0.0  "}}
+    )
+    assert response.status_code == 200, response.text
+    assert setup.settings.server.host == "0.0.0.0"
+    assert response.json()["sections"]["server"]["host"] == "0.0.0.0"
+    assert response.json()["restart_required"] == ["server.host"]
+    assert (
+        json.loads((setup.settings.base_path / "settings.json").read_text())["server"][
+            "host"
+        ]
+        == "0.0.0.0"
+    )
+    assert setup.active["host"] == "127.0.0.1"
+    setup.context.apply_sampling.assert_not_called()
+
+
+def test_bind_metadata_describes_the_single_address_launcher_contract(setup):
+    fields = setup.client.get("/management/v1/server/settings").json()["fields"]
+    description = next(
+        field["description"]
+        for field in fields
+        if field["section"] == "server" and field["key"] == "host"
+    )
+    assert "Single public bind address" in description
+    assert "0.0.0.0" in description
+    assert "Comma-separated" not in description

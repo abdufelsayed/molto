@@ -8,6 +8,7 @@ Note: Configuration validation tests are in test_config.py.
 
 import argparse
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -1132,8 +1133,6 @@ class TestServeCommandFunctions:
         self, tmp_path, monkeypatch
     ):
         """Port conflicts should fail before server import can preload pinned models."""
-        import uvicorn
-
         from omlx.cli import serve_command
 
         listener = self._reserve_port()
@@ -1143,26 +1142,25 @@ class TestServeCommandFunctions:
         previous_server = sys.modules.pop("omlx.server", None)
         events = []
 
-        original_bind_socket = uvicorn.Config.bind_socket
+        from omlx import application
 
-        def tracking_bind_socket(config):
+        original_bind = application.bind_public
+
+        def tracking_bind(host, port):
             events.append("bind")
-            return original_bind_socket(config)
+            return original_bind(host, port)
 
+        monkeypatch.delenv("OMLX_INTERNAL_FD", raising=False)
         monkeypatch.setattr("omlx.settings.init_settings", lambda **kwargs: settings)
-        monkeypatch.setattr(
-            "omlx.logging_config.configure_file_logging",
-            lambda **kwargs: None,
-        )
-        monkeypatch.setattr("faulthandler.enable", lambda *args, **kwargs: None)
-        monkeypatch.setattr("uvicorn.Config.bind_socket", tracking_bind_socket)
+        monkeypatch.setattr(application, "dashboard_command", lambda: ["node", "index.mjs"])
+        monkeypatch.setattr(application, "bind_public", tracking_bind)
         try:
             with pytest.raises(SystemExit) as exc:
                 serve_command(args)
 
             assert exc.value.code != 0
             assert events == ["bind"]
-            settings.save_cli_overrides.assert_called_once_with(args)
+            settings.save_cli_overrides.assert_not_called()
             settings.save.assert_not_called()
             assert "omlx.server" not in sys.modules
         finally:
@@ -1170,16 +1168,25 @@ class TestServeCommandFunctions:
             if previous_server is not None:
                 sys.modules["omlx.server"] = previous_server
 
-    def test_serve_hands_prebound_socket_to_uvicorn(self, tmp_path, monkeypatch):
+    @pytest.mark.parametrize("restarted", [False, True])
+    def test_serve_hands_prebound_socket_to_uvicorn(self, tmp_path, monkeypatch, restarted):
         """Successful serve startup should pass the pre-bound socket into uvicorn."""
         import omlx
-        import uvicorn
-
         from omlx.cli import serve_command
 
         host, port = "127.0.0.1", 0
         settings = self._make_settings(tmp_path, host=host, port=port)
-        args = self._make_serve_args(tmp_path, host=host, port=port)
+        args = self._make_serve_args(tmp_path, host=host, port=8000)
+        saved = tmp_path / "settings.json"
+        saved.write_text(json.dumps({"server": {"host": host, "port": 9000}, "auth": {"api_key": "saved-key"}}))
+        persistent = GlobalSettings.load(base_path=str(tmp_path), cli_args=args)
+        persistent.auth.api_key = "runtime-secret"
+        settings.save_cli_overrides = MagicMock(wraps=persistent.save_cli_overrides)
+        if restarted:
+            monkeypatch.setenv("OMLX_BACKEND_RESTART", "1")
+        else:
+            monkeypatch.delenv("OMLX_BACKEND_RESTART", raising=False)
+        monkeypatch.setenv("FORWARDED_ALLOW_IPS", "*")
         events = []
 
         fake_server = ModuleType("omlx.server")
@@ -1210,29 +1217,40 @@ class TestServeCommandFunctions:
         )
         monkeypatch.setattr("faulthandler.enable", lambda *args, **kwargs: None)
         captured = {}
-        original_bind_socket = uvicorn.Config.bind_socket
-
-        def tracking_bind_socket(config):
-            sock = original_bind_socket(config)
-            events.append("bind")
-            return sock
+        listener = socket.socket()
+        listener.bind((host, port))
+        listener.listen(128)
+        monkeypatch.setenv("OMLX_INTERNAL_FD", str(os.dup(listener.fileno())))
 
         def fake_run(self, sockets=None):
             self.config.load()
             events.append("run")
             captured["socket_name"] = sockets[0].getsockname()
             captured["socket_count"] = len(sockets)
+            captured["proxy_headers"] = self.config.proxy_headers
+            captured["forwarded_allow_ips"] = self.config.forwarded_allow_ips
 
-        monkeypatch.setattr("uvicorn.Config.bind_socket", tracking_bind_socket)
         monkeypatch.setattr("uvicorn.Server.run", fake_run)
 
-        serve_command(args)
+        try:
+            serve_command(args)
+        finally:
+            listener.close()
 
         fake_server.init_server.assert_called_once()
-        assert events == ["bind", "init", "run"]
+        assert events == ["init", "run"]
         assert captured["socket_count"] == 1
         assert captured["socket_name"][0] == host
         assert captured["socket_name"][1] > 0
+        assert captured["proxy_headers"] is True
+        assert captured["forwarded_allow_ips"] == "127.0.0.1,::1"
+        if restarted:
+            settings.save_cli_overrides.assert_not_called()
+            assert json.loads(saved.read_text())["server"]["port"] == 9000
+        else:
+            settings.save_cli_overrides.assert_called_once_with(args)
+            assert json.loads(saved.read_text())["server"]["port"] == 8000
+        assert json.loads(saved.read_text())["auth"]["api_key"] == "saved-key"
 
 
 class TestHasCliOverrides:
@@ -1650,3 +1668,28 @@ class TestSavedNetworkAuthMigration:
         assert self.path.read_bytes() == before
         assert settings.server.host == "0.0.0.0"
         assert settings.validate() == []
+
+
+    def test_migration_does_not_persist_runtime_secrets_or_cli_overrides(self, monkeypatch):
+        self.write_settings()
+        monkeypatch.setenv("OMLX_API_KEY", "runtime-secret")
+        self.args.port = 9001
+        settings = GlobalSettings.load(base_path=str(self.path.parent), cli_args=self.args)
+        assert settings.auth.api_key == "runtime-secret"
+        assert settings.server.port == 9001
+        _migrate_saved_network_auth(settings, self.args)
+        expected = dict(self.data)
+        expected["server"] = {"host": "127.0.0.1"}
+        assert json.loads(self.path.read_text()) == expected
+        assert "runtime-secret" not in self.path.read_text()
+
+
+def test_dashboard_dev_is_parsed_and_not_persisted(monkeypatch):
+    from omlx import cli
+
+    observed = []
+    monkeypatch.setattr(sys, "argv", ["omlx", "serve", "--dashboard-dev"])
+    monkeypatch.setattr(cli, "serve_command", lambda args: observed.append(args))
+    cli.main()
+    assert observed[0].dashboard_dev is True
+    assert cli._has_cli_overrides(observed[0]) is False

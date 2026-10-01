@@ -1,8 +1,9 @@
 import os
 import sys
+from pathlib import Path
 
 from setuptools import setup
-
+from wheel.bdist_wheel import bdist_wheel
 
 CUSTOM_KERNEL_FLAG = "--with-custom-kernel"
 TRUTHY = {"1", "true", "yes", "on"}
@@ -75,5 +76,24 @@ def _custom_kernel_build_kwargs() -> dict:
     }
 
 
+class DashboardWheel(bdist_wheel):
+    """Node makes the bundle platform specific even without custom kernels."""
+
+    def finalize_options(self):
+        super().finalize_options()
+        if (Path(__file__).parent / "omlx/_dashboard/runtime/node").is_file():
+            self.root_is_pure = False
+            self.plat_name = "macosx_15_0_arm64"
+            self.plat_name_supplied = True
+
+    def get_tag(self):
+        python, abi, platform = super().get_tag()
+        if not self.distribution.has_ext_modules() and not self.root_is_pure:
+            return "py3", "none", platform
+        return python, abi, platform
+
+
 if __name__ == "__main__":
-    setup(**_custom_kernel_build_kwargs())
+    kwargs = _custom_kernel_build_kwargs()
+    kwargs.setdefault("cmdclass", {})["bdist_wheel"] = DashboardWheel
+    setup(**kwargs)

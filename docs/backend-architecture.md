@@ -1,19 +1,28 @@
 # Backend architecture
 
 This document is for developers adding an inference feature or a client for
-the management API. oMLX is a Python server. The former macOS app and web
-admin pages are outside this repository's backend boundary.
+the management API. oMLX combines a Python inference server with a TanStack Start dashboard. The
+former macOS app and old admin pages remain removed.
 
 ## Request paths
 
 ```text
-HTTP client
-    |-- /v1/* inference routes --> engine pool --> task engine --> MLX runtime
-    |-- /management/v1/* -------> management service --> engine pool and settings
-    `-- /health ----------------> startup readiness
+HTTP client --> public Nitro server
+                  |-- dashboard and same-origin session routes
+                  |-- inference HTTP/stream/WebSocket proxy --> private FastAPI
+                  `-- management gateway --------------------> private FastAPI
+                                                                   |
+                                                             engine pool
 ```
 
-`omlx/cli.py` starts the foreground server. `omlx/server.py` owns the FastAPI
+`omlx/application.py` owns both child processes. It starts Nitro and verifies
+its instance readiness before launching inference on an inherited ephemeral
+loopback socket. Public port conflicts fail before model startup. Nitro uses
+native HTTP proxying for inference and a bounded WebSocket proxy for realtime
+transcription. The launcher supports one public bind address and shuts down
+child process groups together.
+
+`omlx/cli.py` starts the application supervisor and initializes the private backend child. `omlx/server.py` owns the FastAPI
 application, inference routes, and runtime state. Model adapters under
 `omlx/engine/` handle the supported tasks. `omlx/engine_pool.py` discovers
 models, loads engines, tracks memory, and handles unloads. The scheduler and
@@ -92,11 +101,14 @@ server settings route reports field lists in `live_applied` and
 environment overrides. Process restart is available only through a supported
 supervisor callback.
 
-## Boundary for a separate dashboard
+## Dashboard and backend boundary
 
-A dashboard is a client of `/management/v1/*` and `/v1/*`. It should keep its
-own UI state and pass the main bearer key for management. The backend does
-not serve dashboard HTML or provide a browser session. The management API covers inventory and library maintenance, model configuration,
+Nitro serves the dashboard, browser sessions, and public API proxy. FastAPI
+provides `/management/v1/*` and `/v1/*` on its private listener. The management
+gateway uses the session's main bearer key; inference clients retain their own
+credentials. Raw `/management/v1/*` and `/admin/*` are blocked by the public
+proxy; browser management uses `/api/omlx/*` with its opaque session cookie.
+FastAPI does not serve dashboard HTML or browser sessions. The management API covers inventory and library maintenance, model configuration,
 profiles/templates/presets, acquisition and preparation, publishing, operation
 history, server settings and keys, monitoring/logs/cache, and diagnostics.
 Experimental cluster management remains under its retained protocol routes.
@@ -107,7 +119,22 @@ The TanStack Start dashboard maintains a process-local main-key session store.
 Its browser receives an opaque HttpOnly cookie and sends same-origin requests;
 the dashboard server forwards only allowed methods and paths. Main-key rotation
 updates the initiating session and invalidates sessions using the old key.
-Multiple dashboard processes would need shared session state. Resource inspection
+Multiple dashboard processes would need shared session state. Backend restarts
+retain the Nitro process and its sessions. Restart requests reload saved settings
+with CLI/environment precedence; a changed effective public host or port restarts
+both processes and clears sessions. Guarded first-run key creation requires a
+loopback public bind, a direct local client, no forwarding headers, matching key
+confirmation, and no existing main key.
+
+Installed release wheels include Nitro assets and a standalone macOS ARM64 Node
+runtime under `omlx/_dashboard`. Source checkouts use `dashboard/.output` and Node
+on PATH or `OMLX_NODE`. The bundle script verifies the Node archive checksum;
+wheel CI builds and inspects the installed bundle. Source-only
+`omlx serve --dashboard-dev` substitutes native Vite/Nitro on the same configured
+public binding, retains the private backend child, and uses strict port checks.
+It requires Node and installed pnpm dependencies, but no production build; the
+flag is not persisted and installed distributions reject it. These packaging checks do not
+exercise native model operations. Resource inspection
 reads hardware and active memory limits and previews draft settings. Suggested OS
 commands remain copy-only.
 

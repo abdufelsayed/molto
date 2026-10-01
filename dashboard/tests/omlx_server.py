@@ -13,6 +13,7 @@ import uvicorn
 from fastapi import Depends, FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from omlx.api.management_routes import router
+from omlx.api.management_setup_routes import router as setup_router
 from omlx.auth import AuthContext, require_model_load_key
 from omlx.engine_pool import EngineEntry, EnginePool
 from omlx.model_settings import ModelSettings, ModelSettingsManager
@@ -94,6 +95,7 @@ async def lifespan(app):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(router)
+app.include_router(setup_router)
 
 stats = dict(total_tokens_served=2048, total_cached_tokens=512, cache_efficiency=25.0, total_prompt_tokens=1024, total_completion_tokens=1024, total_requests=8, avg_prefill_tps=120.0, avg_generation_tps=45.0, uptime_seconds=600.0)
 management.get_server_metrics = lambda: SimpleNamespace(get_snapshot=lambda **kwargs: {**stats, 'total_requests': 80 if kwargs.get('scope') == 'alltime' else 8})
@@ -117,7 +119,7 @@ async def cleanup():
         temporary.cleanup()
 
 @app.post('/__test__/reset')
-async def reset():
+async def reset(setup: bool = False):
     await cleanup()
     app.state.proxy_metrics = {'streams_started': 0, 'streams_cancelled': 0, 'ws_closed': [], 'requests': []}
     app.state.temporary = tempfile.TemporaryDirectory(prefix='omlx-dashboard-test-')
@@ -126,7 +128,7 @@ async def reset():
     settings = GlobalSettings(base_path=directory)
     settings.model.model_dirs = [str(directory / 'models')]
     settings.huggingface.hf_cache_enabled = False
-    settings.auth.api_key = 'dashboard-test-key'
+    settings.auth.api_key = None if setup else 'dashboard-test-key'
     settings.auth.sub_keys = [SubKeyEntry(key='inference-sub-key', name='Fixture inference')]
     settings.save()
     logs = settings.logging.get_log_dir(directory)
@@ -155,6 +157,12 @@ async def reset():
     operation = app.state.management_runtime.control.start_operation('fixture_verify', completed_record, model_id=MODEL, cancellable=False)
     await app.state.management_runtime.control._tasks[operation['id']]
     return {'ok': True}
+
+@app.get('/__test__/persisted-auth')
+async def persisted_auth():
+    # This state exists only under this fixture's TemporaryDirectory.
+    path = app.state.context.global_settings.base_path / 'settings.json'
+    return {'api_key': json.loads(path.read_text())['auth'].get('api_key')}
 
 @app.post('/__test__/fail-save')
 async def fail_save():

@@ -13,10 +13,20 @@ class Omlx < Formula
          "Build native custom kernels for Bonsai, GLM-5.2, MiniMax M3 and Qwen3.5/3.6/4 acceleration"
   option "with-grammar", "Install xgrammar for structured output (requires torch, ~2GB)"
 
+  depends_on "node" => :build
+  depends_on "pnpm" => :build
   depends_on "rust" => :build
   depends_on arch: :arm64
   depends_on macos: :sequoia
   depends_on "python@3.11"
+
+  # Preserve the official standalone runtime and its Mach-O signature.
+  skip_clean "libexec/lib/python3.11/site-packages/omlx/_dashboard/runtime/node"
+
+  resource "dashboard-node" do
+    url "https://nodejs.org/dist/v24.21.0/node-v24.21.0-darwin-arm64.tar.gz"
+    sha256 "bed7eea5325e1108f32ce5228ddd6a5f0f08a499ee42aa7442aea583702f6057"
+  end
 
   # macOS 27 beta's `strip` corrupts dynamic offsets in Mach-O libraries
   # (llvm/llvm-project#203678). Skip Homebrew's post-install clean pass over
@@ -97,6 +107,17 @@ class Omlx < Formula
       # to the kernel builds.
       ENV.append "CMAKE_ARGS", "-DPython_EXECUTABLE=#{libexec}/bin/python"
     end
+
+    # Build the UI once at install time; the installed command uses the bundled
+    # standalone Node executable and never needs Homebrew Node or pnpm.
+    dashboard_builder = buildpath/"scripts/build_dashboard_bundle.py"
+    unless dashboard_builder.file? && (buildpath/"dashboard/pnpm-lock.yaml").file?
+      odie "This release predates the bundled dashboard; use --HEAD or a release that includes dashboard/"
+    end
+    system libexec/"bin/python", dashboard_builder,
+           "--node-version", "24.21.0",
+           "--node-archive", resource("dashboard-node").cached_download,
+           "--node-sha256", "bed7eea5325e1108f32ce5228ddd6a5f0f08a499ee42aa7442aea583702f6057"
 
     # Install omlx (with optional grammar extra for structured output)
     install_spec = build.with?("grammar") ? "#{buildpath}[grammar]" : buildpath.to_s
@@ -247,5 +268,18 @@ class Omlx < Formula
     system libexec/"bin/python", "-c",
            "import spacy; spacy.load('en_core_web_sm')"
     verify_custom_kernels(libexec/"bin/python") if build.with?("custom-kernel")
+    system libexec/"bin/python", "-c", <<~PYTHON
+      import os
+      import subprocess
+      from pathlib import Path
+      import omlx
+      bundle = Path(omlx.__file__).parent / "_dashboard"
+      assert (bundle / "server/index.mjs").is_file()
+      assert (bundle / "public").is_dir()
+      node = bundle / "runtime/node"
+      assert os.access(node, os.X_OK)
+      assert (bundle / "runtime/LICENSE").is_file()
+      assert subprocess.check_output([str(node), "--version"], text=True).strip() == "v24.21.0"
+    PYTHON
   end
 end

@@ -2,29 +2,44 @@
 
 The oMLX dashboard lives in `dashboard/` in the oMLX repository. It uses TanStack Start, TanStack Query, and shadcn/ui. Preset `b43fOHkIM` supplies the Nova style, mauve base, pink accents, Geist font, and Lucide icons.
 
-The bundled application will serve the dashboard and proxy inference through one public port, with the Python backend kept private. The commands below describe the current development setup while that runtime integration is being completed.
+`omlx serve` starts the dashboard and inference backend together. Nitro owns the public host and port; FastAPI listens on a separate private loopback socket. Clients use the same public origin for the dashboard, inference, health, and the dashboard session gateway. Raw `/management/v1` and `/admin` routes remain private and are blocked by the public proxy. Dashboard management requests use `/api/omlx` with an opaque session cookie.
 
 ## Run
 
-Start your oMLX server separately with its main API key configured. The dashboard connects to its `/management/v1` API; inference subkeys do not grant management access.
-
-From this directory:
+A complete installed wheel includes dashboard assets and a standalone Node runtime. It needs neither pnpm nor a separate dashboard command:
 
 ```sh
+omlx serve --model-dir ~/models
+```
+
+Open <http://127.0.0.1:8000>. If no main key exists, a directly connected local browser can create one with confirmation. Initial setup requires a loopback bind and rejects forwarded requests. If a key already exists, select **API access** and connect with it. Inference subkeys do not grant management access.
+
+Source checkouts require Node and a dashboard build first. From the repository root:
+
+```sh
+cd dashboard
 pnpm install --frozen-lockfile
-OMLX_API_URL=http://127.0.0.1:8000 pnpm dev
+pnpm build
+cd ..
+uv run --locked omlx serve --model-dir ~/models
 ```
 
-Open <http://127.0.0.1:3000>, select **API access**, and enter the main key. Set `OMLX_API_URL` to your server's actual HTTP(S) origin, without a path. It defaults to `http://127.0.0.1:8000` and is read by the dashboard server at runtime.
+The launcher uses `dashboard/.output/server/index.mjs` in a source checkout and finds Node on PATH. `OMLX_NODE` can select another Node executable. It fails with an actionable error if assets or the runtime are missing.
 
-For production:
+Use one public bind address, such as `--host 127.0.0.1` or `--host 0.0.0.0`; comma-separated addresses are rejected. Non-loopback binds require a main key configured before startup. Use HTTPS through a trusted reverse proxy for network access. First-run key creation is a direct-local operation and is unavailable through that proxy.
+
+For dashboard development, install the frontend dependencies, then run from the repository root:
 
 ```sh
-pnpm build
-OMLX_API_URL=http://127.0.0.1:8000 PORT=3000 pnpm start
+pnpm --dir dashboard install --frozen-lockfile
+uv run --locked omlx serve --dashboard-dev --model-dir ~/models
 ```
 
-The build produces a Node server in `.output/server` and browser assets in `.output/public`. Development and production default to loopback. To serve on another interface, set `HOST` for production or pass `--host` to the development command. Use HTTPS when accessing the dashboard across a network.
+This source-only mode starts native Vite/Nitro on the configured public host and port, paired with the private FastAPI child. It needs Node and pnpm but no production dashboard build. Vite uses strict port binding; it will not silently select another port. The flag is not saved to settings and installed distributions reject it. Do not point a separate frontend's `OMLX_API_URL` at the public application port: raw management routes are deliberately blocked there.
+
+## Packaging
+
+`scripts/build_dashboard_bundle.py` builds the dashboard, verifies the standalone macOS ARM64 Node archive against its SHA256 checksum, and stages the server, public assets, runtime, and Node license under `omlx/_dashboard`. Release wheel CI runs this script before building wheels and checks the installed bundle. Packaging does not start inference or prove native model operations.
 
 ## Pages
 
@@ -41,7 +56,7 @@ The server remains authoritative. An accepted unload can remain pending while re
 
 Forms preserve edited fields during refresh and after failed saves. Settings patches send edited fields only. A model setting reset sends explicit `null` to restore the backend default. Applying a profile resets omitted universal settings; model-specific fields use an overlay. Explicit null profile values restore those fields' defaults.
 
-Server settings use nested section patches. The response identifies `live_applied` and `restart_required` fields. Saving a restart-required setting does not restart the server. CLI and environment overrides can take precedence again on the next start. Only explicit edits are persisted; unrelated effective overrides are not copied into saved configuration. Restart is offered only when oMLX advertises supervisor support.
+Server settings use nested section patches. The response identifies `live_applied` and `restart_required` fields. Saving a restart-required setting does not restart the server. CLI and environment overrides can take precedence again on the next start. Only explicit edits are persisted; unrelated effective overrides are not copied into saved configuration. The integrated launcher provides supervisor support. A backend restart keeps the dashboard alive. If saved host/port edits change the effective binding, restart relaunches both processes; explicit CLI and environment overrides still take precedence.
 
 Operation history survives a backend restart; native workers do not. Interrupted work is recorded as interrupted or failed, and does not resume automatically. Retry is explicit and may require a fresh provider token. Cancellation waits for native work to drain. The backend reserves files used by downloads, conversion, quantization, and publishing, and blocks conflicting moves or deletion. Deletion requires a current preview token and rechecks loaded/default/pinned/dependency guards.
 
@@ -59,7 +74,7 @@ Chat is outside this dashboard. Downloads and publishing contact their selected 
 
 ## Connection and hosting
 
-The browser talks only to the dashboard's same-origin `/api` routes. The server forwards allowlisted operations to oMLX with the main bearer key. The connected main key stays in server memory; the browser receives an opaque HTTP-only, SameSite Strict session cookie, with Secure enabled for HTTPS. Sessions last eight hours and expire on dashboard server restart. Rotating the main key through this dashboard updates the current session and invalidates other sessions connected with the previous key. The key-management page can deliberately reveal keys returned by the backend; treat an unlocked dashboard as privileged access. API responses use `Cache-Control: no-store`, and mutations require a matching request origin.
+The browser talks only to the dashboard's same-origin `/api` routes. The server forwards allowlisted operations to oMLX with the main bearer key. The connected main key stays in server memory; the browser receives an opaque HTTP-only, SameSite Strict session cookie, with Secure enabled for HTTPS. Sessions last eight hours. An inference-backend restart keeps Nitro and these sessions alive. A dashboard restart, full application restart, or effective public host/port change clears them. Rotating the main key through this dashboard updates the current session and invalidates other sessions connected with the previous key. The key-management page can deliberately reveal keys returned by the backend; treat an unlocked dashboard as privileged access. API responses use `Cache-Control: no-store`, and mutations require a matching request origin.
 
 Run a single dashboard server process. Its session store is process-local and bounded to 128 active sessions. A load-balanced deployment would need a shared session store. Never put the main key in a `VITE_*` variable or client-side storage.
 

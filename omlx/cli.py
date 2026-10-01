@@ -194,6 +194,25 @@ def serve_command(args):
     """Start the OpenAI-compatible multi-model server."""
     import logging
     import os
+
+    if "OMLX_INTERNAL_FD" not in os.environ:
+        from .application import run_application
+        from .settings import init_settings
+
+        settings = init_settings(base_path=args.base_path, cli_args=args)
+        try:
+            _migrate_saved_network_auth(settings, args)
+        except (OSError, ValueError) as error:
+            print(f"Configuration error: {error}")
+            raise SystemExit(1) from error
+        errors = settings.validate()
+        if errors:
+            for error in errors:
+                print(f"Configuration error: {error}")
+            raise SystemExit(1)
+        raise SystemExit(run_application(settings, cli_args=args))
+
+    import socket
     import uvicorn
 
     from . import process_title
@@ -304,8 +323,9 @@ def serve_command(args):
             print(f"Configuration error: {error}")
         sys.exit(1)
 
-    # Save CLI args to settings.json if non-default values provided
-    if _has_cli_overrides(args):
+    # Persist explicit flags once. Supervised reloads retain their effective
+    # precedence without overwriting settings edited through the dashboard.
+    if _has_cli_overrides(args) and os.environ.get("OMLX_BACKEND_RESTART") != "1":
         try:
             settings.save_cli_overrides(args)
             print("Saved CLI arguments to settings.json")
@@ -333,8 +353,7 @@ def serve_command(args):
     # normal startup runs ASGI lifespan before binding host/port, which means
     # pinned models can be preloaded before a port conflict is detected.
     bind_hosts = [h.strip() for h in settings.server.host.split(",") if h.strip()]
-    for h in bind_hosts:
-        print(f"Binding server at http://{h}:{settings.server.port}")
+    print("Starting private inference listener for the oMLX dashboard")
     # uvicorn does not support "trace" — map to "debug" for its internal logging
     uvicorn_level = (
         "debug" if settings.server.log_level == "trace" else settings.server.log_level
@@ -347,19 +366,13 @@ def serve_command(args):
         port=settings.server.port,
         log_level=uvicorn_level,
         access_log=show_access_log,
+        proxy_headers=True,
+        forwarded_allow_ips="127.0.0.1,::1",
     )
-    # Bind a socket per host so an occupied port fails fast before model preload.
-    # uvicorn.Server.run(sockets=[...]) accepts a list and listens on all of them.
-    serve_sockets = [uvicorn_config.bind_socket()]
-    for h in bind_hosts[1:]:
-        extra_cfg = uvicorn.Config(
-            "omlx.server:app",
-            host=h,
-            port=settings.server.port,
-            log_level=uvicorn_level,
-            access_log=show_access_log,
-        )
-        serve_sockets.append(extra_cfg.bind_socket())
+    # The parent owns the private listener. Keep settings.host/port public:
+    # authentication and advertised client URLs describe the external boundary.
+    inherited_fd = int(os.environ["OMLX_INTERNAL_FD"])
+    serve_sockets = [socket.socket(fileno=inherited_fd)]
 
     try:
         # Import server and config after the port is known to be available.
@@ -483,8 +496,7 @@ def serve_command(args):
             global_settings=settings,
         )
 
-        for h in bind_hosts:
-            print(f"Starting server at http://{h}:{settings.server.port}")
+        print("Private inference server initialized")
         try:
             uvicorn.Server(uvicorn_config).run(sockets=serve_sockets)
         except KeyboardInterrupt:
@@ -1122,6 +1134,12 @@ Example directory structure:
         type=str,
         default=None,
         help="Path to CA bundle PEM file for TLS interception environments",
+    )
+
+    serve_parser.add_argument(
+        "--dashboard-dev",
+        action="store_true",
+        help="Run dashboard source with Vite on the configured public port (source checkout only)",
     )
 
     # Base path and auth

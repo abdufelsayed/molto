@@ -94,6 +94,9 @@ test("gateway forwards retained cluster paths and rejects unsupported operations
     for (const [method, path] of [
       ["GET", "server/restart"],
       ["POST", "state"],
+      ["GET", "setup"],
+      ["POST", "setup"],
+      ["POST", "setup/anything"],
       ["GET", "models/foo/%2e%2e/options"],
       ["GET", "models/%5c..%5cstate/options"],
       ["POST", "cluster/execute"],

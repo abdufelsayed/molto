@@ -1,101 +1,97 @@
-# Dashboard integration and remaining work
+# Dashboard integration
 
-Recorded on 2026-10-01. This is a discussion record and unfinished-work list.
-Implementation resumed after the user authorized finishing the application and
-committing each verified milestone.
+Recorded on 2026-10-01. This records the accepted scope, delivered architecture,
+and verification for the non-chat dashboard migration.
 
-## Requirements stated by the user
+## Accepted scope
 
-- The dashboard belongs in the same repository as oMLX.
-- Ship the dashboard and inference backend as one bundled application.
-- The dashboard server owns the public listener. Dashboard pages and inference
-  clients use the same public host and port.
-- The inference server is internal. Public inference traffic reaches it through
-  the application proxy, rather than a second exposed inference port.
-- Keep TanStack Start, shadcn/ui preset b43fOHkIM, Oxfmt, type-aware Oxlint, and
-  the native TypeScript compiler.
-- Transfer the old admin's useful management functionality with better HCI.
-  Chat remains outside the current scope.
+The dashboard belongs in `dashboard/` in the oMLX repository. One `omlx serve`
+command runs the public TanStack Start/Nitro web application and a separate
+private FastAPI inference process. Inference clients and the dashboard use the
+same public host and port. The user selected a command distribution.
 
-## Current implementation and architecture gap
-
-The backend and frontend now share the oMLX repository, with the frontend
-in `dashboard/`. The frontend was moved from the incorrect sibling directory.
-The old reference remains at
+Keep shadcn/ui preset `b43fOHkIM`, Oxfmt, type-aware Oxlint, and the native
+TypeScript compiler. Transfer useful old admin functionality with clearer
+workflows, explicit effects, preserved drafts, and truthful failure states.
+Browser chat is outside this scope. The reference checkout remains at
 `/tmp/omlx-old-admin-0b07cdd`.
 
-The frontend currently builds a Node server using TanStack Start and Nitro.
-Its management gateway handles dashboard sessions and JSON management requests.
-It assumes an independently started oMLX server selected by OMLX_API_URL.
-It does not yet provide the required public inference proxy or a bundled launcher.
-The Python CLI currently binds the inference and management FastAPI application
-directly to the configured host and port.
+## Delivered architecture
 
-Moving source files alone will not satisfy the bundled application requirement.
-Public listener ownership, internal transport, process supervision, authentication,
-packaging, configuration, and client launch URLs need to be integrated.
+- Native Nitro owns the public listener and proxies the supported inference and
+  peer protocol paths to an inherited ephemeral loopback FastAPI socket.
+- HTTP proxying preserves caller credentials, streaming, cancellation, uploads,
+  binary responses, errors, and status codes. Realtime audio uses native CrossWS.
+- Raw management and admin routes remain private. The public dashboard gateway
+  uses allowlisted methods and paths with an opaque HttpOnly administrator session.
+- Local first-run setup creates and persists a main key, then uses the ordinary
+  login endpoint to establish the session. It requires a loopback public bind,
+  an actual local peer, matching confirmation, and no existing main key.
+- The launcher owns readiness, crash recovery, shutdown, and restart. A backend
+  restart retains Nitro and its sessions; effective public host/port changes
+  restart both processes, respecting CLI/environment precedence.
+- Release wheels include the production dashboard and verified standalone Node
+  runtime. Installed usage requires neither pnpm nor a separate Node installation.
+- Source-only `--dashboard-dev` runs native Vite/Nitro on the configured public
+  port, supervised with the same private backend. No custom public HTTP server.
+- One public bind address is supported. Use `0.0.0.0` for all IPv4 interfaces.
+  Multiple addresses are rejected before saving or starting.
 
-## Proposed runtime for discussion
+## Functionality coverage
 
-One `omlx` command will manage the public Node dashboard server and a private
-Python inference process. The user selected a command distribution. The gateway
-uses native Nitro proxying in production and Vite proxying in development.
+- [x] Repository integration, tooling, generated contracts and navigation.
+- [x] Complete server settings, directories, networking, resource previews,
+  cache settings, generation defaults, integrations and tools.
+- [x] First-key setup, main-key rotation, subkey reveal/create/edit/revoke,
+  authentication policy and session handling.
+- [x] Full model settings, capability gates, profiles, templates, presets,
+  generation import, helper recipes, reset and sidecar import.
+- [x] Library filters, health checks, memory planning, collections and startup
+  preload; configuration import/export; storage, revisions, moves and deletion.
+- [x] Hub discovery/downloads, conversion/quantization, diffusion preparation,
+  explicit publishing and durable operation activity.
+- [x] Live request activity, usage history, bounded rotated logs, engine
+  provenance, statistics reset and cache inspection/clear/probes.
+- [x] Throughput, accuracy, context and ANE diagnostics with durable history,
+  exclusive admission and cancellation that drains native work.
+- [x] Conditional experimental cluster management and public peer protocols.
+- [x] Independent reviews of model moves, import rollback, monitoring,
+  diagnostics, resource detection, authentication, proxy and launcher.
+- [x] Desktop/mobile HCI inspection, including visible library filters and
+  distinct hub labels with explicit boolean states.
+- [x] Final installed-bundle verification and milestone delivery.
 
-- Serve dashboard pages and assets on the public listener.
-- Keep dashboard management requests behind the existing administrator session.
-- Proxy supported inference protocol paths on the same listener, preserving the
-  inference client's credentials and protocol behavior.
-- Stream responses without JSON conversion or whole-response buffering. Preserve
-  multipart uploads, binary responses, upstream status, and cancellation.
-- Keep the internal endpoint on loopback and selected by the launcher. Preserve
-  public host and port settings separately from the private transport.
-- Make one launcher own readiness, shutdown, and restart of both processes.
-- Bundle the production dashboard build and its runtime with the Python backend,
-  according to the distribution format selected by the user.
-- Public host and port settings must describe the public listener. Integration
-  commands must use that public address. The internal transport is implementation
-  configuration.
+## Verification
 
-Authentication must account for the public listener even though upstream traffic
-arrives locally. Existing loopback authentication bypass behavior must not silently
-turn public proxied requests into trusted local requests. The proxy must not grant
-ordinary inference clients the dashboard's main-key management privileges.
+The final integrated backend run passed 1,358 tests. Independent launcher/CLI
+review passed 127 tests, including readiness identity, crash recovery, late
+shutdown children, and safe process ownership.
+All 64 browser tests pass against production Nitro and actual management routes
+with disposable persistence and synthetic engines. Six native HTTP/WebSocket
+proxy tests pass. Formatting, type-aware lint, native TypeScript and production
+build pass. The first-run browser test covers persisted keys, normal sessions,
+reload, rejected repeat setup, and failed persistence with retained drafts.
 
-Backend restart keeps the dashboard running. The launcher, proxy, and distribution
-build are being implemented; relocating source does not complete them.
+The final wheel was built and installed outside the checkout. With Node and
+pnpm absent from PATH, one command launched Nitro and private FastAPI. Public
+health/models, initial key persistence, normal sessions, main/subkey authentication,
+subkey edit/revocation, backend-only restart/session retention, public-port
+restart/session invalidation, and shutdown passed. Disabled cluster support
+created no helper. Shutdown exited 0 with no surviving children. Native Vite
+development also passed live checks and three consecutive clean shutdowns.
 
-## Unfinished work to preserve
+No real model downloads, weight loading, model preparation, provider publishing,
+remote cluster deployments, or OS memory-limit mutations were used as dashboard
+validation. Native jobs and experimental cluster execution require their runtime
+extras and compatible hardware/checkpoints. Release CI and the updated Homebrew
+formula are implemented; a new release has not been published. The formula's
+stable URL predates the dashboard, so this source version requires HEAD until
+an actual release updates the URL/checksum.
 
-- [x] Integrate the frontend into the oMLX repository; fix scripts, generated
-  schema source paths, test paths, ignores, and documentation.
-- [ ] Implement the agreed bundled launcher, private backend transport, public
-  inference proxy, and distribution build. This is additional work uncovered by
-  the clarified architecture, beyond relocating the frontend.
-- [ ] Review public authentication and public host/port semantics through the
-  private proxy, including all client integration URLs and restart behavior.
-- [x] Finish the interrupted `implement_workspace_backend` model move changes:
-  whole cached repositories, preserved model identity/settings/profiles, explicit
-  drain, file reservations, rediscovery validation, and rollback. Independent
-  review verified 65 workspace/API tests and cancellation rollback probes.
-- [ ] Finish the final non-chat functionality audit against the old dashboard.
-  Other major areas have implementations, but full completion is not yet certified.
-- [ ] Inspect the captured desktop/mobile screenshots and complete the HCI review.
-- [ ] Re-review the final resource detection changes and completed move changes.
-- [ ] Regenerate contracts and rerun the appropriate backend tests, full browser
-  suite, format, type-aware lint, native typecheck, and production build after
-  integration.
-- [ ] Update documentation and the coverage ledger to match the verified result.
+## Milestones
 
-## Last verification checkpoint
-
-The previous targeted backend run passed 1,137 tests before the final resource
-changes and interrupted move edits. Resource changes subsequently passed focused
-checks. The last full browser run passed 49 of 50 tests. Its failing gateway
-assertion was corrected and passed alone; the complete suite was not rerun.
-Frontend formatting, type-aware lint, native typecheck, and production build passed
-at that checkpoint. These results do not certify the interrupted move edits or
-the bundled architecture, which has not been implemented.
-
-No real model downloads, weight loading, provider publication, remote deployment,
-or OS memory-limit changes were performed as dashboard validation. No commits or
-pushes were made. The existing work is preserved.
+- `3489e45` — dashboard moved into oMLX; management features, model moves and
+  native public inference proxy restored and verified.
+- Bundled startup, local setup and final integration — verified. The delivery
+  commit includes the launcher, distribution build, guarded setup, development
+  mode, final HCI fixes and this verification record.
