@@ -115,6 +115,13 @@ blocks for unloaded models. A clear may fail with HTTP 503 if a cache file
 cannot be removed. These operations affect reuse and may make a later request
 recompute a prefix.
 
+Diffusion models report bounded prompt/reference embedding entries, tensor
+bytes, hits, misses, evictions, and native prediction-factory reuse in the same
+`GET /cache` response. They retain no SSD entries. Clearing `hot` releases their
+embeddings and prediction factories on the shared MLX executor, while keeping
+the loaded model. Active requests prevent management cache clearing. See
+[image performance](image-models.md#residency-and-performance) for pipeline limits.
+
 ## Migration and limits
 
 The old `/admin` browser pages, login cookie, and most `/admin/api/*` routes

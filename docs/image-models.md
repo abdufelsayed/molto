@@ -192,6 +192,11 @@ native APIs; they need not equal every mflux CLI default.
 `POST /v1/images/generations` retains JSON requests and base64 PNG responses.
 The default size remains `1024x1024`; steps and guidance use pipeline defaults
 when omitted. `n` is 1–4, with consecutive seeds wrapping at 32 bits.
+`batch_size` defaults to 1. FLUX.2 Klein text-to-image and reference-edit
+pipelines accept an explicit `batch_size` of 2–4, at most `n`. Each batch shares
+the prompt, settings, and reference images, with an independent seed per output.
+Other pipelines reject batching. The final chunk can be smaller than the
+requested batch size. Capability metadata reports `performance.batching.max_size`.
 
 ```json
 {
@@ -245,9 +250,48 @@ executor. A running image generation can delay text work on that executor.
 Cancellation drains the native operation before releasing leases, model
 references, caches, or input files. There is no mid-step cancellation or
 progress stream. Images do not use the text scheduler's continuous batching,
-paged KV cache, or SSD prefix cache. Native mflux optimizations remain available
-where the selected model implements them; no speedup from oMLX image caching
-has been measured.
+paged KV cache, or SSD prefix cache.
+
+Each resident pipeline has a materialized embedding cache bounded to 32 entries
+and 64 MiB. FLUX.2 and Z-Image encoder hooks reuse complete matching prompt
+arguments; other native prompt caches use the same bounded storage. Legacy
+Qwen-Image variants before 2.1 bypass their ambiguous native positive/negative
+prompt keys. Cache contents stay out of model parameters and saved weights.
+Switching pipelines or unloading releases the cache; calibration bypasses it.
+
+FLUX.2 reference edits also cache singleton VAE conditioning. Ordered image
+contents, VAE identity, and tiling configuration determine reuse, allowing
+identical uploads with different temporary filenames to share conditioning.
+Prompt embeddings and reference conditioning share the 64 MiB budget. Seed
+variants and batched requests broadcast this conditioning instead of encoding
+each reference again. Native FLUX.2 prediction factories are retained per
+transformer instance, preserving mflux's hardware-specific compilation choices.
+Each predictor retains only the current input shape, dtype, and static argument
+signature. Changing that signature releases its previous compiled callable
+before rebuilding. Native compiled buffers use additional memory beyond the
+64 MiB embedding budget; process memory controls still apply.
+
+`GET /management/v1/cache` reports entries, tensor bytes, hits, misses, evictions,
+reference reuse, and prediction-factory reuse without prompt or image contents.
+`POST /management/v1/cache/hot/clear` releases this retained data. Diffusion
+creates no SSD prompt cache.
+
+Opt-in FLUX.2 batches vectorize the native denoising and VAE loop. The adapter
+uses the installed mflux function with request-local hooks, preserves singleton
+seed draws and output order, and checks expected native hooks and tensor shapes.
+Batching uses more memory and can be slower than serial requests. A conservative
+admission estimate considers local weights, output/reference pixels, available
+memory, the Metal working set, and the process memory allowance. Refused batches
+return a memory error; reduce `batch_size` or output size. The limit of four is
+an interface limit, not a guarantee that every allowed image size fits.
+Floating-point kernels can produce different pixels from serial generation.
+
+Native reference K/V reuse across denoising steps requires the
+`flux2-klein-9b-kv/edit` pipeline and its dedicated 9B-KV checkpoint. It uses
+mflux's automatic default; `options.use_kv_cache` can explicitly disable it.
+Ordinary 4B/9B checkpoints reject that option because their reference attention
+differs. No approximate step skipping or generic transformer-output cache is
+enabled. The 9B-KV path still lacks a real generation test.
 
 Local calibration and calibrated quantization also run as authenticated
 [management jobs](management-api.md#local-diffusion-preparation), with progress,
@@ -256,14 +300,9 @@ They wait for inference to drain, preserve resident models, and block new pool
 acquisitions through worker cleanup. Their cancellation boundaries are separate
 from ordinary image-serving cancellation described above.
 
-A real local FLUX.2 Klein 4B q4 test loaded the edit pipeline once and produced
-four 256×256, four-step edits without another model load. Generation took
-5.01–5.20 seconds in those samples, with peak MLX active memory about 5.81 GiB.
-Repeated identical requests produced identical PNGs. The native text encoder
-ran on every request and its prompt cache remained empty. This establishes
-resident reuse; it does not establish a prompt-cache speedup or a general
-performance benchmark. See the
-[serving and job verification record](verification/diffusion-jobs-2026-09-30.json).
+The September 30 [serving and job verification record](verification/diffusion-jobs-2026-09-30.json)
+established resident reuse before these cache and batch optimizations: four
+256×256 edits loaded one pipeline, but encoded the prompt on every request.
 
 ## Verification
 
@@ -287,6 +326,71 @@ server. It records versions, timings, peak active MLX allocation, PNG hashes,
 warm fixed-seed reproducibility, editing, validation, and unload results.
 Peak active allocation is not total process/system memory, and timings are
 single observations, not a throughput benchmark.
+
+For repeatable cache and batching comparisons using an existing local FLUX.2
+Klein 4B checkpoint and reference PNG:
+
+```bash
+PYTHONPATH=. python scripts/verify_diffusion_performance.py \
+  /path/to/flux2-klein-4b-q4 /path/to/reference.png \
+  /tmp/new-diffusion-performance-proof --batch4
+```
+
+The output directory must be new and separate from the inputs. The script
+forces offline loading, uses an isolated pool, and writes incremental
+`report.json`, `runs.jsonl`, and PNGs. It defaults to three trials; use
+`OMLX_DIFFUSION_PROOF_TRIALS=1` for a shorter functional check. `--batch4` adds
+four-image checks. Ratios below one indicate slower performance. Source
+preservation checks cover weight headers and file sizes, not full-file hashes.
+
+### Real performance results on October 1, 2026
+
+Existing local q4 checkpoints passed real loading and generation after the
+cache/batch changes; no model weights were downloaded. On the same M3 Max,
+FLUX.2 Klein 4B produced text-to-image and reference edits at 256×256 with four
+steps. Three alternating warm measurements gave these medians:
+
+| Operation | Cache disabled | Cache warm | Combined cache speedup |
+| --- | --- | --- | --- |
+| Text-to-image | 2.42 s | 2.07 s | 1.17× |
+| Reference editing | 12.37 s | 10.90 s | 1.14× |
+
+The control disabled both embedding/reference caching and prediction-factory
+reuse. All cached/control PNG pairs were byte-identical; changed prompts and
+reference contents produced different outputs. A separate runtime proof
+confirmed reference hits across different upload filenames, memory refusal
+before native batching, management cache clearing, and shutdown with 1,032
+bytes of active MLX memory. Warm single-image peak active allocation was about
+5.62 GiB for generation and 5.81 GiB for editing in that separate proof.
+
+After bounding retained compiled variants, real B1→B2→B1 and changed-grid
+requests preserved the previous PNG hashes. A same-token-count aspect-ratio
+change also matched a native factory-disabled control. Settled active memory
+stayed about 3.76 GiB for generation and 3.83 GiB for editing across batch-size
+changes, with one retained predictor signature. Shutdown left 1,276 active MLX
+bytes. The timing table covers stable-shape warm requests before this final
+bound; changing shapes now rebuilds the callable and adds tracing cost.
+
+Two-image batching took 5.01 s versus 4.68 s serial for generation, and 19.29 s
+versus 19.34 s serial for editing. This does **not** demonstrate a batching
+speedup. Real two- and four-image batches returned correctly sized outputs,
+and API batch requests preserved output order and 32-bit seed wrapping.
+Repeated batches were byte-identical, but serial/batch pixels differed: mean
+absolute channel error was about 0.69–1.22 on the 0–255 scale. No broader image
+quality conclusion follows from those comparisons.
+
+Z-Image Turbo q4 also produced byte-identical cold, cache-disabled, and cached
+256×256 PNGs at nine steps, recorded a real cache hit, and released its model
+and cache to 1,040 active MLX bytes. This was one comparison, not a Z-Image
+throughput benchmark. The focused regression suite passed 1,347 tests; it is
+separate from these real checkpoint checks.
+
+The [performance verification record](verification/diffusion-performance-2026-10-01.json)
+contains timings, cache counters, peak allocation, hashes, and test scope.
+Absolute timings varied between runs on this shared workstation; these
+observations do not establish a general performance benchmark. The 9B-KV
+denoising cache, larger checkpoints, maximum-size batches, and multiple-reference
+batches remain without real generation tests.
 
 ### Real results on September 30, 2026
 

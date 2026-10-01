@@ -28,6 +28,13 @@ lifecycle work. See [image models](image-models.md) for supported operations and
 verification limits. This boundary is separate from DiffusionGemma text
 generation and DFlash drafting.
 
+`diffusion/cache.py` owns bounded, materialized prompt and reference embeddings,
+cache keys, and native predictor residency. `diffusion/batching.py` translates
+matching FLUX.2 seed variants into a native tensor batch through request-local
+hooks. The native denoising loop remains in mflux. The image engine owns batch
+memory admission and executes generation, cache clearing, switching, and
+release under one lifecycle lock on the shared MLX executor.
+
 `omlx/api/management_routes.py` maps HTTP requests to
 `omlx/services/management.py`. The service takes a `ManagementContext` with
 explicit references to the pool, model settings manager, global settings, and

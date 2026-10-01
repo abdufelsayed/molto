@@ -1,0 +1,1501 @@
+{
+  "date": "2026-10-01",
+  "hardware": "Apple M3 Max, 64 GiB unified memory, macOS 26.5.2",
+  "versions": {
+    "mflux": "0.20.0",
+    "mlx": "0.32.2",
+    "python": "3.13.11"
+  },
+  "constraints": {
+    "model_downloads": false,
+    "live_server_restarted": false,
+    "model_assets_modified": false
+  },
+  "models": {
+    "flux2": {
+      "base_model": "flux2-klein-4b",
+      "source_repo_id": "mflux-community/flux2-klein-4b-mflux-q4",
+      "revision": "794cd159538149ad9830848508c31f0ea7088e58",
+      "stored_quantization_bits": 4
+    },
+    "z-image": {
+      "base_model": "z-image-turbo",
+      "source_repo_id": "filipstrand/Z-Image-Turbo-mflux-4bit",
+      "revision": "b3a8f31115a11f2f9e2fa0bfbc8d78dcc3e6568b",
+      "stored_quantization_bits": 4
+    }
+  },
+  "real_flux2_timing": {
+    "root": "/tmp/omlx-diffusion-performance-1790827422031560000",
+    "model": "/tmp/omlx-diffusion-proof-2026-09-30/flux2-klein-4b-q4",
+    "steps": 4,
+    "size": [
+      256,
+      256
+    ],
+    "seeds": [
+      42,
+      43,
+      44,
+      45
+    ],
+    "offline": true,
+    "scope": "Three alternating warm comparisons per operation via actual EnginePool/executor. Timings reconstructed from per-request JSON log and PNG hashes; memory and cache counters were not persisted in this run. The final edit API proof was rejected for wrong field name images; corrected and retested separately.",
+    "results": [
+      {
+        "operation": "txt2img",
+        "uncached_seconds": [
+          2.267606917070225,
+          2.4248987091705203,
+          2.5334144171793014
+        ],
+        "cached_seconds": [
+          1.9487559171393514,
+          2.071583375101909,
+          2.196385458111763
+        ],
+        "median_uncached_seconds": 2.4248987091705203,
+        "median_cached_seconds": 2.071583375101909,
+        "cache_speedup": 1.1705532774181635,
+        "cache_byte_identical": true,
+        "serial2_seconds": [
+          4.635886542964727,
+          4.679310416104272,
+          5.499856957234442
+        ],
+        "batch2_seconds": [
+          4.965812624897808,
+          5.011040542041883,
+          5.879572166828439
+        ],
+        "median_serial2_seconds": 4.679310416104272,
+        "median_batch2_seconds": 5.011040542041883,
+        "batch_speedup": 0.9338001512551246,
+        "repeated_batch_byte_identical": true,
+        "serial_batch_pixel_comparison": [
+          {
+            "mae": 0.6874491373697916,
+            "max_pixel_delta": 58.0,
+            "psnr_db": 43.84421211767305
+          },
+          {
+            "mae": 0.690216064453125,
+            "max_pixel_delta": 48.0,
+            "psnr_db": 43.56037407338676
+          }
+        ],
+        "batch4_outputs_verified": true
+      },
+      {
+        "operation": "reference-edit",
+        "uncached_seconds": [
+          12.560298125026748,
+          12.373921792022884,
+          12.043512874981388
+        ],
+        "cached_seconds": [
+          10.662211124785244,
+          10.896872375160456,
+          10.985668665962294
+        ],
+        "median_uncached_seconds": 12.373921792022884,
+        "median_cached_seconds": 10.896872375160456,
+        "cache_speedup": 1.1355480146972612,
+        "cache_byte_identical": true,
+        "serial2_seconds": [
+          19.34067349974066,
+          19.542838500114158,
+          18.426059416960925
+        ],
+        "batch2_seconds": [
+          19.294598000124097,
+          19.055818167049438,
+          19.559446332976222
+        ],
+        "median_serial2_seconds": 19.34067349974066,
+        "median_batch2_seconds": 19.294598000124097,
+        "batch_speedup": 1.002387999978868,
+        "repeated_batch_byte_identical": true,
+        "serial_batch_pixel_comparison": [
+          {
+            "mae": 1.2187093098958333,
+            "max_pixel_delta": 35.0,
+            "psnr_db": 42.067396333319714
+          },
+          {
+            "mae": 0.902862548828125,
+            "max_pixel_delta": 35.0,
+            "psnr_db": 44.1582300786431
+          }
+        ],
+        "batch4_outputs_verified": true
+      }
+    ],
+    "runs": [
+      {
+        "label": "txt2img-cold",
+        "seconds": 3.1700342919211835,
+        "batch_size": 1,
+        "hashes": [
+          "d6f14ab6f72ab66b749b01ca4c645c5bcfe86cc602cdc6997b78a7a37fc8cbab"
+        ]
+      },
+      {
+        "label": "txt2img-uncached-0",
+        "seconds": 2.267606917070225,
+        "batch_size": 1,
+        "hashes": [
+          "d6f14ab6f72ab66b749b01ca4c645c5bcfe86cc602cdc6997b78a7a37fc8cbab"
+        ]
+      },
+      {
+        "label": "txt2img-prime",
+        "seconds": 2.275012291967869,
+        "batch_size": 1,
+        "hashes": [
+          "d6f14ab6f72ab66b749b01ca4c645c5bcfe86cc602cdc6997b78a7a37fc8cbab"
+        ]
+      },
+      {
+        "label": "txt2img-cached-0",
+        "seconds": 1.9487559171393514,
+        "batch_size": 1,
+        "hashes": [
+          "d6f14ab6f72ab66b749b01ca4c645c5bcfe86cc602cdc6997b78a7a37fc8cbab"
+        ]
+      },
+      {
+        "label": "txt2img-uncached-1",
+        "seconds": 2.4248987091705203,
+        "batch_size": 1,
+        "hashes": [
+          "d6f14ab6f72ab66b749b01ca4c645c5bcfe86cc602cdc6997b78a7a37fc8cbab"
+        ]
+      },
+      {
+        "label": "txt2img-cached-1",
+        "seconds": 2.071583375101909,
+        "batch_size": 1,
+        "hashes": [
+          "d6f14ab6f72ab66b749b01ca4c645c5bcfe86cc602cdc6997b78a7a37fc8cbab"
+        ]
+      },
+      {
+        "label": "txt2img-uncached-2",
+        "seconds": 2.5334144171793014,
+        "batch_size": 1,
+        "hashes": [
+          "d6f14ab6f72ab66b749b01ca4c645c5bcfe86cc602cdc6997b78a7a37fc8cbab"
+        ]
+      },
+      {
+        "label": "txt2img-cached-2",
+        "seconds": 2.196385458111763,
+        "batch_size": 1,
+        "hashes": [
+          "d6f14ab6f72ab66b749b01ca4c645c5bcfe86cc602cdc6997b78a7a37fc8cbab"
+        ]
+      },
+      {
+        "label": "txt2img-changed-prompt",
+        "seconds": 2.6483783330768347,
+        "batch_size": 1,
+        "hashes": [
+          "72184b5b59de3e005deb33b5aa98adcb350d282861874ad470a267bbac2321ef"
+        ]
+      },
+      {
+        "label": "txt2img-serial-0-42",
+        "seconds": 2.303078459110111,
+        "batch_size": 1,
+        "hashes": [
+          "d6f14ab6f72ab66b749b01ca4c645c5bcfe86cc602cdc6997b78a7a37fc8cbab"
+        ]
+      },
+      {
+        "label": "txt2img-serial-0-43",
+        "seconds": 2.3328080838546157,
+        "batch_size": 1,
+        "hashes": [
+          "c9e4bf8266f9dcdb8ab1471dbce92430548a230826f6b56c4134c14247d6c0c9"
+        ]
+      },
+      {
+        "label": "txt2img-batch2-0",
+        "seconds": 4.965812624897808,
+        "batch_size": 2,
+        "hashes": [
+          "0960a49d6ffb4e7fd508fefa4bf3d7301b24252c9d37651fc22a52474de748ba",
+          "aff238e67a3beba6e4de4abc198632b0470d2f033b316091fb7306b921d6f828"
+        ]
+      },
+      {
+        "label": "txt2img-serial-1-42",
+        "seconds": 2.2942235830705613,
+        "batch_size": 1,
+        "hashes": [
+          "d6f14ab6f72ab66b749b01ca4c645c5bcfe86cc602cdc6997b78a7a37fc8cbab"
+        ]
+      },
+      {
+        "label": "txt2img-serial-1-43",
+        "seconds": 2.3850868330337107,
+        "batch_size": 1,
+        "hashes": [
+          "c9e4bf8266f9dcdb8ab1471dbce92430548a230826f6b56c4134c14247d6c0c9"
+        ]
+      },
+      {
+        "label": "txt2img-batch2-1",
+        "seconds": 5.011040542041883,
+        "batch_size": 2,
+        "hashes": [
+          "0960a49d6ffb4e7fd508fefa4bf3d7301b24252c9d37651fc22a52474de748ba",
+          "aff238e67a3beba6e4de4abc198632b0470d2f033b316091fb7306b921d6f828"
+        ]
+      },
+      {
+        "label": "txt2img-serial-2-42",
+        "seconds": 2.683359791059047,
+        "batch_size": 1,
+        "hashes": [
+          "d6f14ab6f72ab66b749b01ca4c645c5bcfe86cc602cdc6997b78a7a37fc8cbab"
+        ]
+      },
+      {
+        "label": "txt2img-serial-2-43",
+        "seconds": 2.8164971661753953,
+        "batch_size": 1,
+        "hashes": [
+          "c9e4bf8266f9dcdb8ab1471dbce92430548a230826f6b56c4134c14247d6c0c9"
+        ]
+      },
+      {
+        "label": "txt2img-batch2-2",
+        "seconds": 5.879572166828439,
+        "batch_size": 2,
+        "hashes": [
+          "0960a49d6ffb4e7fd508fefa4bf3d7301b24252c9d37651fc22a52474de748ba",
+          "aff238e67a3beba6e4de4abc198632b0470d2f033b316091fb7306b921d6f828"
+        ]
+      },
+      {
+        "label": "txt2img-batch4",
+        "seconds": 13.977722499985248,
+        "batch_size": 4,
+        "hashes": [
+          "19a088437d4537d70e0b08e6a9f9295f4286592ef2ba2980c66429693cd03499",
+          "9934febaa6e96e4ad91f0db3ecce8f3acf5f4f9eb50f03818c43c35e18cb5e62",
+          "5240d3b99fe098b994f22839d47c02d37a1317b9e995cf52baff9e1c36b91ca5",
+          "ff0e9471617605c11d7982a59973ac4b92b8089a0e798a7c658fc111a1068aae"
+        ]
+      },
+      {
+        "label": "reference-edit-cold",
+        "seconds": 10.06973133306019,
+        "batch_size": 1,
+        "hashes": [
+          "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076"
+        ]
+      },
+      {
+        "label": "reference-edit-uncached-0",
+        "seconds": 12.560298125026748,
+        "batch_size": 1,
+        "hashes": [
+          "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076"
+        ]
+      },
+      {
+        "label": "reference-edit-prime",
+        "seconds": 12.998507499927655,
+        "batch_size": 1,
+        "hashes": [
+          "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076"
+        ]
+      },
+      {
+        "label": "reference-edit-cached-0",
+        "seconds": 10.662211124785244,
+        "batch_size": 1,
+        "hashes": [
+          "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076"
+        ]
+      },
+      {
+        "label": "reference-edit-uncached-1",
+        "seconds": 12.373921792022884,
+        "batch_size": 1,
+        "hashes": [
+          "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076"
+        ]
+      },
+      {
+        "label": "reference-edit-cached-1",
+        "seconds": 10.896872375160456,
+        "batch_size": 1,
+        "hashes": [
+          "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076"
+        ]
+      },
+      {
+        "label": "reference-edit-uncached-2",
+        "seconds": 12.043512874981388,
+        "batch_size": 1,
+        "hashes": [
+          "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076"
+        ]
+      },
+      {
+        "label": "reference-edit-cached-2",
+        "seconds": 10.985668665962294,
+        "batch_size": 1,
+        "hashes": [
+          "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076"
+        ]
+      },
+      {
+        "label": "reference-edit-changed-prompt",
+        "seconds": 11.510765542043373,
+        "batch_size": 1,
+        "hashes": [
+          "010d1e0ffa8ecd9e2d26d0fbabb750fab83b705e49cbe921db550bd35940d3c8"
+        ]
+      },
+      {
+        "label": "reference-edit-serial-0-42",
+        "seconds": 9.77720074984245,
+        "batch_size": 1,
+        "hashes": [
+          "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076"
+        ]
+      },
+      {
+        "label": "reference-edit-serial-0-43",
+        "seconds": 9.56347274989821,
+        "batch_size": 1,
+        "hashes": [
+          "e0a7371a2c9500705285f1141b92114fc4610bcdb434b09134daff19254892f2"
+        ]
+      },
+      {
+        "label": "reference-edit-batch2-0",
+        "seconds": 19.294598000124097,
+        "batch_size": 2,
+        "hashes": [
+          "783628a1686adef7c74f12767170b739e25a2b86e8fac9809030b062fd69c33d",
+          "3353f48661fdbb9ce7a7dbc8715affd8fa04eccc918b61ab10ae26eefe3b536e"
+        ]
+      },
+      {
+        "label": "reference-edit-serial-1-42",
+        "seconds": 10.100415208144113,
+        "batch_size": 1,
+        "hashes": [
+          "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076"
+        ]
+      },
+      {
+        "label": "reference-edit-serial-1-43",
+        "seconds": 9.442423291970044,
+        "batch_size": 1,
+        "hashes": [
+          "e0a7371a2c9500705285f1141b92114fc4610bcdb434b09134daff19254892f2"
+        ]
+      },
+      {
+        "label": "reference-edit-batch2-1",
+        "seconds": 19.055818167049438,
+        "batch_size": 2,
+        "hashes": [
+          "783628a1686adef7c74f12767170b739e25a2b86e8fac9809030b062fd69c33d",
+          "3353f48661fdbb9ce7a7dbc8715affd8fa04eccc918b61ab10ae26eefe3b536e"
+        ]
+      },
+      {
+        "label": "reference-edit-serial-2-42",
+        "seconds": 9.226934291888028,
+        "batch_size": 1,
+        "hashes": [
+          "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076"
+        ]
+      },
+      {
+        "label": "reference-edit-serial-2-43",
+        "seconds": 9.199125125072896,
+        "batch_size": 1,
+        "hashes": [
+          "e0a7371a2c9500705285f1141b92114fc4610bcdb434b09134daff19254892f2"
+        ]
+      },
+      {
+        "label": "reference-edit-batch2-2",
+        "seconds": 19.559446332976222,
+        "batch_size": 2,
+        "hashes": [
+          "783628a1686adef7c74f12767170b739e25a2b86e8fac9809030b062fd69c33d",
+          "3353f48661fdbb9ce7a7dbc8715affd8fa04eccc918b61ab10ae26eefe3b536e"
+        ]
+      },
+      {
+        "label": "reference-edit-batch4",
+        "seconds": 38.707163457991555,
+        "batch_size": 4,
+        "hashes": [
+          "aa790b110ec4e096104c12b5a2f05e5b29f162d103842973d612337687fcd00d",
+          "3feace26a7e7cb43cb83d98dfeb6c5e59d62d27d3ea10a63a543005d8c067e50",
+          "4ff4729c7cf5ed2dbdc17a039db9614a95a0bb893ffe6081873a797523c3c811",
+          "6c5964c5ca1d372e5ff2f314af37aa292f0126cb9bcf5823671f37f82fff8c71"
+        ]
+      },
+      {
+        "label": "reference-edit-same-ref-upload",
+        "seconds": 8.789647500030696,
+        "batch_size": 1,
+        "hashes": [
+          "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076"
+        ]
+      },
+      {
+        "label": "reference-edit-changed-ref-upload",
+        "seconds": 8.976605457952246,
+        "batch_size": 1,
+        "hashes": [
+          "8422c30a801375f64670564d59fe49a6e05ae308c328fac7028d6d812ecf234d"
+        ]
+      }
+    ]
+  },
+  "real_flux2_runtime": {
+    "offline": true,
+    "model": "/tmp/omlx-diffusion-proof-2026-09-30/flux2-klein-4b-q4",
+    "root": "/tmp/omlx-diffusion-performance-1790827877898050000",
+    "scope": "Real local FLUX.2 q4 engine/pool/shared executor, image ASGI JSON batch APIs and ManagementService hot cache clear. No live server.",
+    "runs": [
+      {
+        "label": "txt2img-cold",
+        "pipeline": "flux2-klein-4b",
+        "batch_size": 1,
+        "seeds": [
+          42
+        ],
+        "size": 256,
+        "seconds": 3.168001249898225,
+        "hashes": [
+          "d6f14ab6f72ab66b749b01ca4c645c5bcfe86cc602cdc6997b78a7a37fc8cbab"
+        ],
+        "memory": {
+          "active_bytes": 4038914168,
+          "peak_bytes": 5799890710,
+          "rss_bytes": 4730191872
+        },
+        "cache_before": {
+          "entries": 0,
+          "bytes": 0,
+          "hits": 0,
+          "misses": 0,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 0,
+          "prompt_misses": 0,
+          "reference_hits": 0,
+          "reference_misses": 0,
+          "reference_entries": 0,
+          "reference_bytes": 0,
+          "prediction_factory_entries": 0,
+          "prediction_factory_builds": 0,
+          "prediction_factory_reuses": 0
+        },
+        "cache_after": {
+          "entries": 1,
+          "bytes": 7872512,
+          "hits": 0,
+          "misses": 1,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 0,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 0,
+          "reference_entries": 0,
+          "reference_bytes": 0,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 1,
+          "prediction_factory_reuses": 0
+        }
+      },
+      {
+        "label": "txt2img-uncached",
+        "pipeline": "flux2-klein-4b",
+        "batch_size": 1,
+        "seeds": [
+          42
+        ],
+        "size": 256,
+        "seconds": 3.047845082823187,
+        "hashes": [
+          "d6f14ab6f72ab66b749b01ca4c645c5bcfe86cc602cdc6997b78a7a37fc8cbab"
+        ],
+        "memory": {
+          "active_bytes": 4038914204,
+          "peak_bytes": 8221687060,
+          "rss_bytes": 6475857920
+        },
+        "cache_before": {
+          "entries": 1,
+          "bytes": 7872512,
+          "hits": 0,
+          "misses": 1,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 0,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 0,
+          "reference_entries": 0,
+          "reference_bytes": 0,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 1,
+          "prediction_factory_reuses": 0
+        },
+        "cache_after": {
+          "entries": 1,
+          "bytes": 7872512,
+          "hits": 0,
+          "misses": 1,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 0,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 0,
+          "reference_entries": 0,
+          "reference_bytes": 0,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 1,
+          "prediction_factory_reuses": 0
+        }
+      },
+      {
+        "label": "txt2img-cached",
+        "pipeline": "flux2-klein-4b",
+        "batch_size": 1,
+        "seeds": [
+          42
+        ],
+        "size": 256,
+        "seconds": 2.6430507919285446,
+        "hashes": [
+          "d6f14ab6f72ab66b749b01ca4c645c5bcfe86cc602cdc6997b78a7a37fc8cbab"
+        ],
+        "memory": {
+          "active_bytes": 4038914240,
+          "peak_bytes": 6033746200,
+          "rss_bytes": 4732780544
+        },
+        "cache_before": {
+          "entries": 1,
+          "bytes": 7872512,
+          "hits": 0,
+          "misses": 1,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 0,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 0,
+          "reference_entries": 0,
+          "reference_bytes": 0,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 1,
+          "prediction_factory_reuses": 0
+        },
+        "cache_after": {
+          "entries": 1,
+          "bytes": 7872512,
+          "hits": 1,
+          "misses": 1,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 1,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 0,
+          "reference_entries": 0,
+          "reference_bytes": 0,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 1,
+          "prediction_factory_reuses": 1
+        }
+      },
+      {
+        "label": "reference-edit-cold",
+        "pipeline": "flux2-klein-4b/edit",
+        "batch_size": 1,
+        "seeds": [
+          42
+        ],
+        "size": 256,
+        "seconds": 7.522175124846399,
+        "hashes": [
+          "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076"
+        ],
+        "memory": {
+          "active_bytes": 5957674468,
+          "peak_bytes": 7985907364,
+          "rss_bytes": 6850560000
+        },
+        "cache_before": {
+          "entries": 1,
+          "bytes": 7872512,
+          "hits": 1,
+          "misses": 1,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 1,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 0,
+          "reference_entries": 0,
+          "reference_bytes": 0,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 1,
+          "prediction_factory_reuses": 1
+        },
+        "cache_after": {
+          "entries": 2,
+          "bytes": 8151040,
+          "hits": 0,
+          "misses": 2,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 0,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 1,
+          "reference_entries": 1,
+          "reference_bytes": 278528,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 1,
+          "prediction_factory_reuses": 0
+        }
+      },
+      {
+        "label": "reference-edit-uncached",
+        "pipeline": "flux2-klein-4b/edit",
+        "batch_size": 1,
+        "seeds": [
+          42
+        ],
+        "size": 256,
+        "seconds": 8.218508667079732,
+        "hashes": [
+          "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076"
+        ],
+        "memory": {
+          "active_bytes": 4106706368,
+          "peak_bytes": 8421031400,
+          "rss_bytes": 2350022656
+        },
+        "cache_before": {
+          "entries": 2,
+          "bytes": 8151040,
+          "hits": 0,
+          "misses": 2,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 0,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 1,
+          "reference_entries": 1,
+          "reference_bytes": 278528,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 1,
+          "prediction_factory_reuses": 0
+        },
+        "cache_after": {
+          "entries": 2,
+          "bytes": 8151040,
+          "hits": 0,
+          "misses": 2,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 0,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 1,
+          "reference_entries": 1,
+          "reference_bytes": 278528,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 1,
+          "prediction_factory_reuses": 0
+        }
+      },
+      {
+        "label": "reference-edit-cached",
+        "pipeline": "flux2-klein-4b/edit",
+        "batch_size": 1,
+        "seeds": [
+          42
+        ],
+        "size": 256,
+        "seconds": 6.460537458071485,
+        "hashes": [
+          "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076"
+        ],
+        "memory": {
+          "active_bytes": 4106706404,
+          "peak_bytes": 6232702444,
+          "rss_bytes": 2350039040
+        },
+        "cache_before": {
+          "entries": 2,
+          "bytes": 8151040,
+          "hits": 0,
+          "misses": 2,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 0,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 1,
+          "reference_entries": 1,
+          "reference_bytes": 278528,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 1,
+          "prediction_factory_reuses": 0
+        },
+        "cache_after": {
+          "entries": 2,
+          "bytes": 8151040,
+          "hits": 2,
+          "misses": 2,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 1,
+          "prompt_misses": 1,
+          "reference_hits": 1,
+          "reference_misses": 1,
+          "reference_entries": 1,
+          "reference_bytes": 278528,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 1,
+          "prediction_factory_reuses": 1
+        }
+      },
+      {
+        "label": "reference-edit-reupload",
+        "pipeline": "flux2-klein-4b/edit",
+        "batch_size": 1,
+        "seeds": [
+          42
+        ],
+        "size": 256,
+        "seconds": 6.961451458046213,
+        "hashes": [
+          "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076"
+        ],
+        "memory": {
+          "active_bytes": 4106706440,
+          "peak_bytes": 6232702480,
+          "rss_bytes": 2350039040
+        },
+        "cache_before": {
+          "entries": 2,
+          "bytes": 8151040,
+          "hits": 2,
+          "misses": 2,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 1,
+          "prompt_misses": 1,
+          "reference_hits": 1,
+          "reference_misses": 1,
+          "reference_entries": 1,
+          "reference_bytes": 278528,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 1,
+          "prediction_factory_reuses": 1
+        },
+        "cache_after": {
+          "entries": 2,
+          "bytes": 8151040,
+          "hits": 4,
+          "misses": 2,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 2,
+          "prompt_misses": 1,
+          "reference_hits": 2,
+          "reference_misses": 1,
+          "reference_entries": 1,
+          "reference_bytes": 278528,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 1,
+          "prediction_factory_reuses": 2
+        }
+      }
+    ],
+    "reports": [
+      {
+        "operation": "txt2img",
+        "cache_stats": {
+          "entries": 1,
+          "bytes": 7872512,
+          "hits": 1,
+          "misses": 1,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 1,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 0,
+          "reference_entries": 0,
+          "reference_bytes": 0,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 1,
+          "prediction_factory_reuses": 1
+        },
+        "native_batch_memory_refused": true,
+        "cache_byte_identical": true
+      },
+      {
+        "operation": "reference-edit",
+        "cache_stats": {
+          "entries": 2,
+          "bytes": 8151040,
+          "hits": 4,
+          "misses": 2,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 2,
+          "prompt_misses": 1,
+          "reference_hits": 2,
+          "reference_misses": 1,
+          "reference_entries": 1,
+          "reference_bytes": 278528,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 1,
+          "prediction_factory_reuses": 2
+        },
+        "native_batch_memory_refused": true,
+        "cache_byte_identical": true
+      }
+    ],
+    "api": {
+      "txt2img_status": 200,
+      "edit_status": 200,
+      "txt2img_seeds": [
+        4294967295,
+        0
+      ],
+      "edit_seeds": [
+        42,
+        43
+      ],
+      "memory": {
+        "active_bytes": 6025038564,
+        "peak_bytes": 8381038428,
+        "rss_bytes": 4980981760
+      }
+    },
+    "cache_before_clear": {
+      "models": [
+        {
+          "model_id": "flux2-klein-4b-q4",
+          "stats": {
+            "entries": 2,
+            "bytes": 8151040,
+            "hits": 0,
+            "misses": 2,
+            "evictions": 0,
+            "max_entries": 32,
+            "max_bytes": 67108864,
+            "prompt_hits": 0,
+            "prompt_misses": 1,
+            "reference_hits": 0,
+            "reference_misses": 1,
+            "reference_entries": 1,
+            "reference_bytes": 278528,
+            "prediction_factory_entries": 1,
+            "prediction_factory_builds": 1,
+            "prediction_factory_reuses": 0
+          }
+        }
+      ],
+      "ssd_cache_dir": null
+    },
+    "cache_clear": {
+      "status": "ok",
+      "kind": "hot",
+      "total_cleared": 3
+    },
+    "cache_after_clear": {
+      "models": [
+        {
+          "model_id": "flux2-klein-4b-q4",
+          "stats": {
+            "entries": 0,
+            "bytes": 0,
+            "hits": 0,
+            "misses": 2,
+            "evictions": 0,
+            "max_entries": 32,
+            "max_bytes": 67108864,
+            "prompt_hits": 0,
+            "prompt_misses": 1,
+            "reference_hits": 0,
+            "reference_misses": 1,
+            "reference_entries": 0,
+            "reference_bytes": 0,
+            "prediction_factory_entries": 0,
+            "prediction_factory_builds": 1,
+            "prediction_factory_reuses": 0
+          }
+        }
+      ],
+      "ssd_cache_dir": null
+    },
+    "source_header_size_provenance_unchanged": true,
+    "after_shutdown_memory": {
+      "active_bytes": 1032,
+      "peak_bytes": 8381038428,
+      "rss_bytes": 483033088
+    }
+  },
+  "real_z_image_cache": {
+    "model": "/Users/abdllahdev/.cache/huggingface/hub/models--filipstrand--Z-Image-Turbo-mflux-4bit/snapshots/b3a8f31115a11f2f9e2fa0bfbc8d78dcc3e6568b",
+    "root": "/tmp/omlx-z-image-cache-1790828239049226000",
+    "offline": true,
+    "steps": 9,
+    "size": [
+      256,
+      256
+    ],
+    "seed": 42,
+    "runs": [
+      {
+        "label": "cold",
+        "seconds": 3.990021042060107,
+        "sha256": "d64e0fb3e18ebfa9204a9e541d2449cea2819e46044431552fa4d3ba2f84b60e",
+        "peak_bytes": 7358773048,
+        "cache": {
+          "entries": 1,
+          "bytes": 92160,
+          "hits": 0,
+          "misses": 1,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 0,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 0,
+          "reference_entries": 0,
+          "reference_bytes": 0,
+          "prediction_factory_entries": 0,
+          "prediction_factory_builds": 0,
+          "prediction_factory_reuses": 0
+        }
+      },
+      {
+        "label": "uncached",
+        "seconds": 3.699035417055711,
+        "sha256": "d64e0fb3e18ebfa9204a9e541d2449cea2819e46044431552fa4d3ba2f84b60e",
+        "peak_bytes": 7598736778,
+        "cache": {
+          "entries": 1,
+          "bytes": 92160,
+          "hits": 0,
+          "misses": 1,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 0,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 0,
+          "reference_entries": 0,
+          "reference_bytes": 0,
+          "prediction_factory_entries": 0,
+          "prediction_factory_builds": 0,
+          "prediction_factory_reuses": 0
+        }
+      },
+      {
+        "label": "cached",
+        "seconds": 3.3088942079339176,
+        "sha256": "d64e0fb3e18ebfa9204a9e541d2449cea2819e46044431552fa4d3ba2f84b60e",
+        "peak_bytes": 7793030802,
+        "cache": {
+          "entries": 1,
+          "bytes": 92160,
+          "hits": 1,
+          "misses": 1,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 1,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 0,
+          "reference_entries": 0,
+          "reference_bytes": 0,
+          "prediction_factory_entries": 0,
+          "prediction_factory_builds": 0,
+          "prediction_factory_reuses": 0
+        }
+      }
+    ],
+    "cache_byte_identical": true,
+    "source_header_size_provenance_unchanged": true,
+    "after_shutdown_active_bytes": 1040,
+    "scope": "Real Z-Image Turbo q4 on shared executor. One uncached/warm comparison; no general throughput claim."
+  },
+  "automated_tests": {
+    "command": ".venv/bin/python -m pytest -q tests/test_diffusion*.py tests/test_image_generation.py tests/test_model_discovery.py tests/test_engine_pool.py tests/test_management*.py tests/test_model_control.py tests/test_cli.py tests/test_oq.py tests/test_oq_manager.py tests/test_oqe_calibration_packaging.py tests/test_oq_combine.py",
+    "passed": 1347,
+    "seconds": 22.2,
+    "scope": "Final focused regression suite after specialization-bound fix, not the complete repository suite. Native batch tests include tiny random native Transformers on CPU; API/lifecycle tests use mocked backends. Separate real checkpoint results above.",
+    "activity_compatibility_followup": {
+      "passed": 58,
+      "seconds": 4.39,
+      "command": ".venv/bin/python -m pytest -q tests/test_diffusion_performance_serving.py tests/test_diffusion_serving.py tests/test_image_generation.py",
+      "scope": "Final seed metadata compatibility assertion; passed after the 1345-test regression suite."
+    }
+  },
+  "limitations": [
+    "Exploratory timings on one shared workstation with three alternating warm observations per operation. Absolute timings varied between runs and do not establish a general benchmark.",
+    "Cache control disables both embedding/reference admission and prediction-factory reuse; gains measure the combined optimization, not isolated prompt encoding.",
+    "Batch2 did not improve measured throughput: generation was slower, editing effectively equal. Default batch_size remains 1.",
+    "Preserving singleton seed draws does not guarantee identical serial/batch pixels. Real batch2 PNGs differed from serial, with mean absolute pixel error about 0.69-1.22 on an 8-bit channel scale; repeated batches were byte-identical.",
+    "Batch4 was generated at 256x256, not at maximum supported dimensions. Batch memory admission is an estimate, not a proof of universal fit.",
+    "Reference edit measurements used one 512x512 reference PNG. Multiple-reference batching and 9B/9B-KV checkpoints have no real generation proof.",
+    "The dedicated FLUX.2 9B-KV denoising reference-cache path remains installed-API and tiny mocked-component tested only; ordinary 4B/9B do not enable it.",
+    "Legacy Qwen-Image prompt caching is disabled due to ambiguous native positive/negative keys. Qwen-Image-2.1 and remaining families lack a real performance test.",
+    "Fresh full-model calibrated quantization and remaining untested operations retain the limits recorded in image-models.md. No missing weights were downloaded.",
+    "Timing medians and portable-driver proof preceded the final specialization-bound fix. The subsequent real B1/B2/B1 and aspect-ratio checks preserved all previous PNG hashes and retained one prediction signature; changed shapes now rebuild, with additional tracing cost. Stable-shape speedups remain workload-specific observations."
+  ],
+  "portable_driver_proof": {
+    "report_path": "/tmp/omlx-diffusion-portable-proof-2026-10-01/report.json",
+    "status": "complete",
+    "trials": 1,
+    "steps": 4,
+    "size": 256,
+    "reference_size": [
+      256,
+      256
+    ],
+    "native_runs": 14,
+    "api": [
+      {
+        "operation": "txt2img",
+        "status": 200,
+        "memory": {
+          "active_bytes": 4038914820,
+          "cache_bytes": 0,
+          "peak_bytes": 8712488280,
+          "rss_bytes": 4959780864
+        },
+        "seeds": [
+          4294967295,
+          0
+        ],
+        "hashes": [
+          "177a93451e9f1759d51d586cd2d5b7f9e262a01b19771c7c141bb5ddadeb5b50",
+          "2871e803ddc85c63a5b5d7bc078760ee2412077e9ddf6ba791ab670c82b72b5c"
+        ]
+      },
+      {
+        "operation": "edit",
+        "status": 200,
+        "memory": {
+          "active_bytes": 4106397700,
+          "cache_bytes": 0,
+          "peak_bytes": 8712488280,
+          "rss_bytes": 5114085376
+        },
+        "seeds": [
+          42,
+          43
+        ],
+        "hashes": [
+          "224c873f553924897c1c7d97d7e1ee3913a88d6661d364ac7d3fd56ca0b9226d",
+          "6160f82e2ab4e48ec9513f8ecb583cdd29c6cb51c89e748dd49bd867cfd54365"
+        ]
+      }
+    ],
+    "source_header_size_provenance_unchanged": true,
+    "after_shutdown_memory": {
+      "active_bytes": 1648,
+      "cache_bytes": 0,
+      "peak_bytes": 8712488280,
+      "rss_bytes": 548864000
+    },
+    "scope": "Real invocation of committed portable script before final specialization-bound fix; full default three-trial invocation and optional repeated batch4 flag not run. Separate earlier real B4 outputs were verified."
+  },
+  "real_prediction_shape_bound": {
+    "root": "/tmp/omlx-prediction-shapes-1790829790690837000",
+    "offline": true,
+    "model": "/tmp/omlx-diffusion-proof-2026-09-30/flux2-klein-4b-q4",
+    "scope": "Real FLUX.2 q4 changed B1/B2/B1, grid shape and same-token-count aspect ratio. Parity against pre-bound optimized PNG hashes and native factory-disabled control. Each predictor retains one invocation signature.",
+    "runs": [
+      {
+        "label": "txt-b1",
+        "pipeline": "flux2-klein-4b",
+        "seeds": [
+          42
+        ],
+        "width": 256,
+        "height": 256,
+        "seconds": 2.27744112489745,
+        "hashes": [
+          "d6f14ab6f72ab66b749b01ca4c645c5bcfe86cc602cdc6997b78a7a37fc8cbab"
+        ],
+        "active_bytes": 4038914168,
+        "peak_bytes": 5799890710,
+        "cache": {
+          "entries": 1,
+          "bytes": 7872512,
+          "hits": 0,
+          "misses": 1,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 0,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 0,
+          "reference_entries": 0,
+          "reference_bytes": 0,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 1,
+          "prediction_factory_reuses": 0,
+          "prediction_signatures": 1,
+          "prediction_shape_rebuilds": 0,
+          "prediction_signature_reuses": 3,
+          "prediction_signature_bypasses": 0
+        }
+      },
+      {
+        "label": "txt-b2",
+        "pipeline": "flux2-klein-4b",
+        "seeds": [
+          42,
+          43
+        ],
+        "width": 256,
+        "height": 256,
+        "seconds": 3.829892582958564,
+        "hashes": [
+          "0960a49d6ffb4e7fd508fefa4bf3d7301b24252c9d37651fc22a52474de748ba",
+          "aff238e67a3beba6e4de4abc198632b0470d2f033b316091fb7306b921d6f828"
+        ],
+        "active_bytes": 4038906216,
+        "peak_bytes": 6464842216,
+        "cache": {
+          "entries": 1,
+          "bytes": 7872512,
+          "hits": 1,
+          "misses": 1,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 1,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 0,
+          "reference_entries": 0,
+          "reference_bytes": 0,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 2,
+          "prediction_factory_reuses": 1,
+          "prediction_signatures": 1,
+          "prediction_shape_rebuilds": 1,
+          "prediction_signature_reuses": 6,
+          "prediction_signature_bypasses": 0
+        }
+      },
+      {
+        "label": "txt-b1-again",
+        "pipeline": "flux2-klein-4b",
+        "seeds": [
+          42
+        ],
+        "width": 256,
+        "height": 256,
+        "seconds": 1.977239334024489,
+        "hashes": [
+          "d6f14ab6f72ab66b749b01ca4c645c5bcfe86cc602cdc6997b78a7a37fc8cbab"
+        ],
+        "active_bytes": 4038910348,
+        "peak_bytes": 6033742308,
+        "cache": {
+          "entries": 1,
+          "bytes": 7872512,
+          "hits": 2,
+          "misses": 1,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 2,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 0,
+          "reference_entries": 0,
+          "reference_bytes": 0,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 3,
+          "prediction_factory_reuses": 2,
+          "prediction_signatures": 1,
+          "prediction_shape_rebuilds": 2,
+          "prediction_signature_reuses": 9,
+          "prediction_signature_bypasses": 0
+        }
+      },
+      {
+        "label": "txt-landscape",
+        "pipeline": "flux2-klein-4b",
+        "seeds": [
+          42
+        ],
+        "width": 384,
+        "height": 256,
+        "seconds": 2.4038152499124408,
+        "hashes": [
+          "ed30746042fc4454c5fc1fce0720822a5bb16f94e126e19f97c464503e8b9c0b"
+        ],
+        "active_bytes": 4038910348,
+        "peak_bytes": 6261126660,
+        "cache": {
+          "entries": 1,
+          "bytes": 7872512,
+          "hits": 3,
+          "misses": 1,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 3,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 0,
+          "reference_entries": 0,
+          "reference_bytes": 0,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 4,
+          "prediction_factory_reuses": 3,
+          "prediction_signatures": 1,
+          "prediction_shape_rebuilds": 3,
+          "prediction_signature_reuses": 12,
+          "prediction_signature_bypasses": 0
+        }
+      },
+      {
+        "label": "txt-portrait-baseline",
+        "pipeline": "flux2-klein-4b",
+        "seeds": [
+          42
+        ],
+        "width": 256,
+        "height": 384,
+        "seconds": 2.411027916939929,
+        "hashes": [
+          "b1a746080456a1b9319ed720865f9f4eb3b6ba3c0c584dc54fa2902f52495ee1"
+        ],
+        "active_bytes": 4038910384,
+        "peak_bytes": 8441147976,
+        "cache": {
+          "entries": 1,
+          "bytes": 7872512,
+          "hits": 4,
+          "misses": 1,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 4,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 0,
+          "reference_entries": 0,
+          "reference_bytes": 0,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 4,
+          "prediction_factory_reuses": 3,
+          "prediction_signatures": 1,
+          "prediction_shape_rebuilds": 3,
+          "prediction_signature_reuses": 12,
+          "prediction_signature_bypasses": 0
+        }
+      },
+      {
+        "label": "txt-portrait-cached",
+        "pipeline": "flux2-klein-4b",
+        "seeds": [
+          42
+        ],
+        "width": 256,
+        "height": 384,
+        "seconds": 2.36993775004521,
+        "hashes": [
+          "b1a746080456a1b9319ed720865f9f4eb3b6ba3c0c584dc54fa2902f52495ee1"
+        ],
+        "active_bytes": 4038910420,
+        "peak_bytes": 6261126732,
+        "cache": {
+          "entries": 1,
+          "bytes": 7872512,
+          "hits": 5,
+          "misses": 1,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 5,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 0,
+          "reference_entries": 0,
+          "reference_bytes": 0,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 4,
+          "prediction_factory_reuses": 4,
+          "prediction_signatures": 1,
+          "prediction_shape_rebuilds": 3,
+          "prediction_signature_reuses": 16,
+          "prediction_signature_bypasses": 0
+        }
+      },
+      {
+        "label": "edit-b1",
+        "pipeline": "flux2-klein-4b/edit",
+        "seeds": [
+          42
+        ],
+        "width": 256,
+        "height": 256,
+        "seconds": 6.046606458025053,
+        "hashes": [
+          "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076"
+        ],
+        "active_bytes": 4106706568,
+        "peak_bytes": 6134939464,
+        "cache": {
+          "entries": 2,
+          "bytes": 8151040,
+          "hits": 0,
+          "misses": 2,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 0,
+          "prompt_misses": 1,
+          "reference_hits": 0,
+          "reference_misses": 1,
+          "reference_entries": 1,
+          "reference_bytes": 278528,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 1,
+          "prediction_factory_reuses": 0,
+          "prediction_signatures": 1,
+          "prediction_shape_rebuilds": 0,
+          "prediction_signature_reuses": 3,
+          "prediction_signature_bypasses": 0
+        }
+      },
+      {
+        "label": "edit-b2",
+        "pipeline": "flux2-klein-4b/edit",
+        "seeds": [
+          42,
+          43
+        ],
+        "width": 256,
+        "height": 256,
+        "seconds": 10.035756457829848,
+        "hashes": [
+          "783628a1686adef7c74f12767170b739e25a2b86e8fac9809030b062fd69c33d",
+          "3353f48661fdbb9ce7a7dbc8715affd8fa04eccc918b61ab10ae26eefe3b536e"
+        ],
+        "active_bytes": 4106698380,
+        "peak_bytes": 6533158668,
+        "cache": {
+          "entries": 2,
+          "bytes": 8151040,
+          "hits": 2,
+          "misses": 2,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 1,
+          "prompt_misses": 1,
+          "reference_hits": 1,
+          "reference_misses": 1,
+          "reference_entries": 1,
+          "reference_bytes": 278528,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 2,
+          "prediction_factory_reuses": 1,
+          "prediction_signatures": 1,
+          "prediction_shape_rebuilds": 1,
+          "prediction_signature_reuses": 6,
+          "prediction_signature_bypasses": 0
+        }
+      },
+      {
+        "label": "edit-b1-again",
+        "pipeline": "flux2-klein-4b/edit",
+        "seeds": [
+          42
+        ],
+        "width": 256,
+        "height": 256,
+        "seconds": 5.163441292010248,
+        "hashes": [
+          "d52799ebf5a39e4e6258441b74a904451e21a8fe3cd3951585269b2d3a141076"
+        ],
+        "active_bytes": 4106698380,
+        "peak_bytes": 6232694420,
+        "cache": {
+          "entries": 2,
+          "bytes": 8151040,
+          "hits": 4,
+          "misses": 2,
+          "evictions": 0,
+          "max_entries": 32,
+          "max_bytes": 67108864,
+          "prompt_hits": 2,
+          "prompt_misses": 1,
+          "reference_hits": 2,
+          "reference_misses": 1,
+          "reference_entries": 1,
+          "reference_bytes": 278528,
+          "prediction_factory_entries": 1,
+          "prediction_factory_builds": 3,
+          "prediction_factory_reuses": 2,
+          "prediction_signatures": 1,
+          "prediction_shape_rebuilds": 2,
+          "prediction_signature_reuses": 9,
+          "prediction_signature_bypasses": 0
+        }
+      }
+    ],
+    "all_png_parity_passed": true,
+    "after_shutdown_active_bytes": 1276
+  }
+}
