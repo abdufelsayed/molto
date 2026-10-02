@@ -9,6 +9,8 @@ import socket
 import subprocess
 import sys
 import time
+from pathlib import Path
+from types import SimpleNamespace
 
 import psutil
 import pytest
@@ -79,7 +81,22 @@ server = http.server.HTTPServer((args.host, args.port), Handler)
 server.serve_forever()
 """)
     monkeypatch.chdir(root)
-    yield root
+    children = []
+    spawn = subprocess.Popen
+
+    def track(*args, **kwargs):
+        child = spawn(*args, **kwargs)
+        children.append(child)
+        return child
+
+    monkeypatch.setattr(subprocess, "Popen", track)
+    try:
+        yield root
+    finally:
+        for child in children:
+            if child.poll() is None:
+                child.kill()
+            child.wait(timeout=2)
 
 
 def test_real_start_status_stop_idempotent(harmless_cli, tmp_path):
@@ -197,6 +214,89 @@ def test_matching_pid_time_with_foreign_command_is_not_owned(tmp_path):
         "argv": lifecycle.serve_command(args(base), base.resolve()),
     }
     assert lifecycle.owned_process(record, base.resolve()) is None
+
+
+@pytest.fixture
+def framework_process(monkeypatch, tmp_path):
+    framework = tmp_path / "Python.framework" / "Versions" / "3.13"
+    launcher = framework / "bin" / "python3.13"
+    application = (
+        framework / "Resources" / "Python.app" / "Contents" / "MacOS" / "Python"
+    )
+    for executable in (launcher, application):
+        executable.parent.mkdir(parents=True, exist_ok=True)
+        executable.touch()
+    alias = tmp_path / "venv" / "bin" / "python"
+    alias.parent.mkdir(parents=True)
+    alias.symlink_to(launcher)
+    base = tmp_path.resolve()
+    process = psutil.Process()
+    record = {
+        "pid": process.pid,
+        "created": process.create_time(),
+        "argv": [str(alias), *lifecycle.serve_command(args(base), base)[1:]],
+    }
+    actual = [str(application), *record["argv"][1:]]
+    monkeypatch.setattr(psutil.Process, "cmdline", lambda self: actual)
+    monkeypatch.setattr(sys, "platform", "darwin")
+    return base, record, actual, launcher
+
+
+@pytest.mark.parametrize("executable", ["framework", "symlink"])
+def test_owned_process_accepts_equivalent_python_executables(
+    framework_process, executable
+):
+    base, record, actual, launcher = framework_process
+    if executable == "symlink":
+        actual[0] = str(launcher)
+    assert lifecycle.owned_process(record, base).pid == record["pid"]
+
+
+@pytest.mark.parametrize(
+    "mismatch",
+    [
+        "root",
+        "version",
+        "arguments",
+        "owner",
+        "created",
+        "zombie",
+        "platform",
+        "missing",
+        "launcher",
+    ],
+)
+def test_framework_process_still_requires_matching_identity(
+    framework_process, monkeypatch, tmp_path, mismatch
+):
+    base, record, actual, launcher = framework_process
+    if mismatch in ("root", "version"):
+        actual[0] = actual[0].replace(
+            str(tmp_path) if mismatch == "root" else "/Versions/3.13/",
+            str(tmp_path / "other") if mismatch == "root" else "/Versions/3.12/",
+        )
+        path = Path(actual[0])
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch()
+    elif mismatch == "arguments":
+        actual.extend(["--port", "9999"])
+    elif mismatch == "owner":
+        monkeypatch.setattr(
+            psutil.Process, "uids", lambda self: SimpleNamespace(real=os.getuid() + 1)
+        )
+    elif mismatch == "created":
+        record["created"] -= 60
+    elif mismatch == "zombie":
+        monkeypatch.setattr(psutil.Process, "status", lambda self: psutil.STATUS_ZOMBIE)
+    elif mismatch == "platform":
+        monkeypatch.setattr(sys, "platform", "linux")
+    elif mismatch == "missing":
+        launcher.unlink()
+    elif mismatch == "launcher":
+        foreign = launcher.with_name("pip3")
+        foreign.touch()
+        record["argv"][0] = str(foreign)
+    assert lifecycle.owned_process(record, base) is None
 
 
 def test_lock_timeout_is_bounded(tmp_path):

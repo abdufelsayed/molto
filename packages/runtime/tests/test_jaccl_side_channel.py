@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import socket
 import threading
+import time
 
 import pytest
 from molto_runtime.cluster.jaccl_side_channel import (
@@ -57,17 +58,23 @@ def test_socket_side_channel_orders_ranks_and_reuses_connections(monkeypatch):
     }
 
 
-def test_sidecar_orders_ranks_without_using_parent_network(monkeypatch, tmp_path):
+@pytest.mark.parametrize("startup_delay", [0, 3.25])
+def test_sidecar_orders_ranks_without_using_parent_network(
+    monkeypatch, tmp_path, startup_delay
+):
     port = _free_loopback_port()
     # Molto.app exports PYTHONHOME for its bundled interpreter.
     monkeypatch.setenv("PYTHONHOME", str(tmp_path))
     monkeypatch.setenv("MLX_JACCL_COORDINATOR", f"127.0.0.1:{port}")
-    monkeypatch.setenv("MOLTO_JACCL_SIDE_CHANNEL_TIMEOUT_SECONDS", "3")
+    # Use the production bootstrap budget: loaded CI hosts can stagger system
+    # Python startup beyond the previous three-second test-only deadline.
+    monkeypatch.delenv("MOLTO_JACCL_SIDE_CHANNEL_TIMEOUT_SECONDS", raising=False)
     monkeypatch.setenv("MOLTO_JACCL_SIDE_CHANNEL_TRANSPORT", "sidecar")
     results: dict[str, bytes] = {}
     errors: list[BaseException] = []
 
     first = jaccl_all_gather_factory(0, 2)
+    time.sleep(startup_delay)
     second = jaccl_all_gather_factory(1, 2)
 
     def rank_zero() -> None:
@@ -78,10 +85,14 @@ def test_sidecar_orders_ranks_without_using_parent_network(monkeypatch, tmp_path
 
     thread = threading.Thread(target=rank_zero)
     thread.start()
-    results["client"] = second(b"bb", 2)
-    thread.join(3)
-    first.close()
-    second.close()
+    try:
+        results["client"] = second(b"bb", 2)
+    except BaseException as exc:
+        errors.append(exc)
+    finally:
+        thread.join(first.timeout + 1)
+        first.close()
+        second.close()
 
     assert not thread.is_alive()
     assert not errors

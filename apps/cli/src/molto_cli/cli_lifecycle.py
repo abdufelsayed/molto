@@ -127,6 +127,33 @@ def write_record(path: Path, record: dict) -> None:
         Path(name).unlink(missing_ok=True)
 
 
+def matching_command(expected: list[str], actual: list[str]) -> bool:
+    if not actual or actual[1:] != expected[1:]:
+        return False
+    if actual[0] == expected[0]:
+        return True
+    try:
+        executable = Path(expected[0]).resolve(strict=True)
+        observed = Path(actual[0]).resolve(strict=True)
+        if executable == observed:
+            return True
+        # python.org's macOS launcher re-execs its framework's app executable.
+        framework = executable.parent.parent
+        return (
+            sys.platform == "darwin"
+            and executable.parent.name == "bin"
+            and framework.parent.name == "Versions"
+            and framework.parent.parent.name == "Python.framework"
+            and executable.name in ("python", "python3", f"python{framework.name}")
+            and observed
+            == (framework / "Resources/Python.app/Contents/MacOS/Python").resolve(
+                strict=True
+            )
+        )
+    except (OSError, RuntimeError):
+        return False
+
+
 def owned_process(record: dict | None, base: Path) -> psutil.Process | None:
     if record is None:
         return None
@@ -152,7 +179,9 @@ def owned_process(record: dict | None, base: Path) -> psutil.Process | None:
             return None
         if process.status() == psutil.STATUS_ZOMBIE:
             return None
-        if process.uids().real != os.getuid() or process.cmdline() != expected:
+        if process.uids().real != os.getuid() or not matching_command(
+            expected, process.cmdline()
+        ):
             return None
         return process
     except psutil.NoSuchProcess:
