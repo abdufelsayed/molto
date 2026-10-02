@@ -1,4 +1,5 @@
 import { useId, useState } from "react"
+import { formatJson, JsonView } from "./json-view"
 import { Check, ChevronRight, Copy } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -31,19 +32,10 @@ export type InspectorProps = {
   onNote: (note: string) => void
 }
 
-function json(value: unknown): string {
-  if (value === undefined) return "Not recorded"
-  try {
-    return JSON.stringify(value, null, 2) ?? "Not recorded"
-  } catch {
-    return "Unable to serialize this value."
-  }
-}
-
 function Raw({ value, label }: { value: unknown; label: string }) {
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState("")
-  const text = json(value)
+  const text = formatJson(value).text
   return (
     <div className="min-w-0">
       <div className="flex items-center justify-between gap-2 py-1.5">
@@ -80,12 +72,7 @@ function Raw({ value, label }: { value: unknown; label: string }) {
           {error}
         </p>
       )}
-      <pre
-        aria-label={label}
-        className="max-h-96 overflow-auto py-2 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap"
-      >
-        {text}
-      </pre>
+      <JsonView value={value} ariaLabel={label} />
     </div>
   )
 }

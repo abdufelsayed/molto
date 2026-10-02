@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query"
 import type { ModelMessage } from "ai"
 import {
   Copy,
-  ChevronDown,
   GitBranch,
   Pencil,
   PanelLeftClose,
@@ -23,11 +22,9 @@ import {
   Square,
   Trash2,
   Upload,
-  UserRound,
   X,
 } from "lucide-react"
 import { toast } from "sonner"
-import { cn } from "cn"
 import type { PanelImperativeHandle } from "react-resizable-panels"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,7 +35,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import {
   DropdownMenu,
@@ -199,7 +195,6 @@ export function Studio() {
   const [settingsTab, setSettingsTab] = useState("model")
   const [showSettings, setShowSettings] = useState(true)
   const observabilityPanel = useRef<PanelImperativeHandle | null>(null)
-  const observabilityHeight = useRef(320)
   const [showInspector, setShowInspector] = useState(false)
   const [showSessions, setShowSessions] = useState(true)
   const [mobile, setMobile] = useState<"sessions" | "settings" | null>(null)
@@ -223,12 +218,6 @@ export function Studio() {
     media.addEventListener("change", change)
     return () => media.removeEventListener("change", change)
   }, [])
-
-  useEffect(() => {
-    const panel = observabilityPanel.current
-    if (showInspector) panel?.resize(observabilityHeight.current)
-    else panel?.collapse()
-  }, [showInspector, wide])
 
   const updateSession = useCallback(
     (id: string, change: (session: StudioSession) => StudioSession) => {
@@ -581,7 +570,7 @@ export function Studio() {
     setSelectedRun(run.id)
     setSelectedEvent(event)
     setInspectorTab("trace")
-    setShowInspector(true)
+    observabilityPanel.current?.expand()
   }
   function openFiles() {
     setSettingsTab("sandbox")
@@ -929,11 +918,6 @@ export function Studio() {
                         <MessageContent>
                           <MessageHeader className="gap-2">
                             <span className="text-foreground">You</span>
-                            <Avatar size="sm">
-                              <AvatarFallback>
-                                <UserRound />
-                              </AvatarFallback>
-                            </Avatar>
                           </MessageHeader>
                           <Bubble
                             variant="tinted"
@@ -1080,9 +1064,6 @@ export function Studio() {
                         >
                           <MessageContent>
                             <MessageHeader className="gap-2">
-                              <Avatar size="sm">
-                                <AvatarFallback>AI</AvatarFallback>
-                              </Avatar>
                               <span className="text-foreground">Assistant</span>
                               <span className="min-w-0 truncate">
                                 {run.settings.model.split("/").at(-1)}
@@ -1372,90 +1353,29 @@ export function Studio() {
     <ResizablePanelGroup orientation="vertical" id="studio-center">
       <ResizablePanel
         id="studio-conversation"
-        defaultSize="100%"
+        defaultSize={wide ? "70%" : "100%"}
         minSize="220px"
       >
         {conversation}
       </ResizablePanel>
-      <ResizableHandle
-        disabled={!showInspector}
-        aria-label="Resize observability"
-      />
+      <ResizableHandle aria-label="Resize observability" />
       <ResizablePanel
         id="studio-observability"
         panelRef={observabilityPanel}
-        defaultSize="32px"
-        collapsedSize="32px"
+        defaultSize={wide ? "30%" : "0%"}
+        collapsedSize="0px"
         minSize="180px"
         maxSize="65%"
         collapsible
-        onResize={(size, _id, previous) => {
-          if (!previous) return
-          const open = size.inPixels > 40
-          if (open) observabilityHeight.current = size.inPixels
-          setShowInspector(open)
-        }}
+        onResize={(size) => setShowInspector(size.inPixels > 0)}
       >
         <section
-          className="flex h-full min-h-0 flex-col"
+          className="h-full min-h-0"
           aria-label="Observability"
+          aria-hidden={!showInspector}
+          inert={!showInspector}
         >
-          <div className="flex h-8 shrink-0 items-center px-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="min-w-0 flex-1 justify-start"
-              aria-label="Observability"
-              aria-expanded={showInspector}
-              aria-controls="observability-content"
-              onClick={() => setShowInspector((value) => !value)}
-            >
-              <ChevronDown
-                data-icon="inline-start"
-                className={cn(!showInspector && "-rotate-90")}
-              />
-              Observability
-            </Button>
-            {selected && (
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      aria-label="Select observed run"
-                    />
-                  }
-                >
-                  {selected.id === session.runs.at(-1)?.id
-                    ? "Latest run"
-                    : `Run ${session.runs.indexOf(selected) + 1}`}
-                  <ChevronDown data-icon="inline-end" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuGroup>
-                    {[...session.runs].reverse().map((run) => (
-                      <DropdownMenuItem
-                        key={run.id}
-                        onClick={() => {
-                          setSelectedRun(run.id)
-                          setSelectedEvent(undefined)
-                        }}
-                      >
-                        Run {session.runs.indexOf(run) + 1} ·{" "}
-                        {new Date(run.created).toLocaleTimeString()}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-          {showInspector && (
-            <div id="observability-content" className="min-h-0 flex-1">
-              {inspector}
-            </div>
-          )}
+          {inspector}
         </section>
       </ResizablePanel>
     </ResizablePanelGroup>

@@ -3,23 +3,16 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import {
   Check,
-  Brain,
   CircleAlert,
-  FileText,
-  Globe,
-  ListTree,
   LoaderCircle,
-  MessageCircle,
   PanelRightOpen,
   ChevronDown,
   Copy,
   FileCode,
   Search,
-  Terminal,
-  Wrench,
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { IconAction } from "./icon-action"
+import { formatJson, JsonView } from "./json-view"
 import {
   Collapsible,
   CollapsibleContent,
@@ -30,11 +23,6 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import type { Run, RunEvent, Source } from "../agent/types"
 
 function CodeBlock({
@@ -238,22 +226,58 @@ function eventSummary(event: RunEvent): string {
   return event.tool ?? "Tool call"
 }
 
-function ResultDisclosure({ label, value }: { label: string; value: unknown }) {
+const disclosureClassName =
+  "group/disclosure inline-flex min-w-0 items-center gap-1.5 py-1 text-left text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+const chevronClassName =
+  "size-3 shrink-0 -rotate-90 transition-transform group-aria-expanded/disclosure:rotate-0 motion-reduce:transition-none"
+const detailActions =
+  "[@media(hover:hover)]:opacity-0 group-hover/detail:opacity-100 group-focus-within/detail:opacity-100"
+
+function ResultDisclosure({
+  label,
+  value,
+  defaultOpen = true,
+}: {
+  label: string
+  value: unknown
+  defaultOpen?: boolean
+}) {
+  const [copied, setCopied] = useState(false)
+  const [error, setError] = useState("")
   if (value === undefined) return null
-  const text =
-    typeof value === "string" ? value : JSON.stringify(value, null, 2)
   return (
-    <Collapsible>
-      <CollapsibleTrigger
-        render={<Button variant="ghost" size="sm" className="justify-start" />}
-      >
-        <ChevronDown data-icon="inline-start" />
-        {label}
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <pre className="max-h-80 overflow-auto py-2 pl-3 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap">
-          {text}
-        </pre>
+    <Collapsible defaultOpen={defaultOpen}>
+      <div className="group/detail flex items-center gap-1">
+        <CollapsibleTrigger className={disclosureClassName}>
+          <ChevronDown className={chevronClassName} />
+          {label}
+        </CollapsibleTrigger>
+        <IconAction
+          label={copied ? `Copied ${label}` : `Copy ${label}`}
+          className={detailActions}
+          onClick={() => {
+            void navigator.clipboard
+              .writeText(formatJson(value).text)
+              .then(() => {
+                setCopied(true)
+                setError("")
+                setTimeout(() => setCopied(false), 1500)
+              })
+              .catch(() =>
+                setError("Copy failed. Select and copy the text below.")
+              )
+          }}
+        >
+          {copied ? <Check /> : <Copy />}
+        </IconAction>
+      </div>
+      <CollapsibleContent className="pl-4">
+        {error && (
+          <p role="alert" className="text-xs text-destructive">
+            {error}
+          </p>
+        )}
+        <JsonView value={value} ariaLabel={label} />
       </CollapsibleContent>
     </Collapsible>
   )
@@ -276,22 +300,6 @@ function Activity({
 }) {
   const [manual, setManual] = useState<boolean>()
   const open = manual ?? active
-  const Icon =
-    event.type === "reasoning"
-      ? Brain
-      : event.type === "text"
-        ? MessageCircle
-        : event.tool === "bash"
-          ? Terminal
-          : event.tool === "web_search"
-            ? Search
-            : event.tool === "fetch_url"
-              ? Globe
-              : ["read", "write", "edit"].includes(event.tool ?? "")
-                ? FileText
-                : event.tool === "ask_question"
-                  ? MessageCircle
-                  : Wrench
   const failed =
     event.type === "error" ||
     event.state === "error" ||
@@ -302,19 +310,14 @@ function Activity({
   return (
     <Collapsible open={open} onOpenChange={setManual} className="min-w-0">
       <div
-        className="group flex min-w-0 items-center gap-1 rounded-md hover:bg-muted/50 data-[selected=true]:bg-muted/50"
+        className="group/activity flex min-w-0 items-center gap-1 text-muted-foreground hover:text-foreground data-[selected=true]:text-foreground"
+        data-slot="activity-step"
         data-selected={selected}
       >
         <CollapsibleTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-auto min-w-0 flex-1 justify-start py-2 text-left"
-            />
-          }
+          className={`${disclosureClassName} flex-1 group-hover/activity:text-foreground group-data-[selected=true]/activity:text-foreground`}
         >
-          <Icon data-icon="inline-start" />
+          <ChevronDown className={chevronClassName} />
           <span className="min-w-0 flex-1 truncate text-xs">
             {event.type === "tool" && (
               <span className="mr-2 font-medium">{event.tool}</span>
@@ -322,47 +325,33 @@ function Activity({
             {eventSummary(event)}
           </span>
           {failed ? (
-            <CircleAlert data-icon="inline-end" />
+            <CircleAlert className="size-3 shrink-0 text-destructive" />
           ) : (
             active && (
-              <LoaderCircle
-                data-icon="inline-end"
-                className="animate-spin motion-reduce:animate-none"
-              />
+              <LoaderCircle className="size-3 shrink-0 animate-spin motion-reduce:animate-none" />
             )
           )}
-          {state && (
-            <span className="text-xs text-muted-foreground">{state}</span>
-          )}
+          {state && <span className="shrink-0 text-xs">{state}</span>}
           {event.duration !== undefined && (
-            <span className="text-xs text-muted-foreground">
+            <span className="shrink-0 text-xs">
               {event.duration.toFixed(2)}s
             </span>
           )}
-          <ChevronDown data-icon="inline-end" />
         </CollapsibleTrigger>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label={`Inspect ${event.tool ?? event.type}`}
-                onClick={inspect}
-              />
-            }
-          >
-            <PanelRightOpen />
-          </TooltipTrigger>
-          <TooltipContent>Inspect {event.tool ?? event.type}</TooltipContent>
-        </Tooltip>
+        <IconAction
+          label={`Inspect ${event.tool ?? event.type}`}
+          onClick={inspect}
+          className="group-focus-within/activity:opacity-100 group-hover/activity:opacity-100 hover:bg-transparent dark:hover:bg-transparent [@media(hover:hover)]:opacity-0"
+        >
+          <PanelRightOpen />
+        </IconAction>
       </div>
-      <CollapsibleContent className="flex min-w-0 flex-col gap-1 py-1 pl-5">
+      <CollapsibleContent className="flex min-w-0 flex-col gap-1 pb-2 pl-4">
         {event.type === "reasoning" || event.type === "text" ? (
           <Markdown text={event.text ?? ""} save={save} sources={sources} />
         ) : (
           <>
-            {event.text && (
+            {event.text && event.type !== "tool" && (
               <p
                 className={
                   failed
@@ -373,7 +362,14 @@ function Activity({
                 {event.text}
               </p>
             )}
-            <ResultDisclosure label="Arguments" value={event.input} />
+            <ResultDisclosure
+              label="Arguments"
+              value={
+                event.input === undefined && event.type === "tool"
+                  ? event.text || undefined
+                  : event.input
+              }
+            />
             <ResultDisclosure
               label={failed ? "Error" : "Result"}
               value={event.output}
@@ -381,11 +377,14 @@ function Activity({
             <ResultDisclosure
               label="Model-visible result (limited)"
               value={event.modelOutput}
+              defaultOpen={false}
             />
             {!!event.changes?.length && (
-              <p className="px-2 py-1 text-xs text-muted-foreground">
-                {event.changes.map((change) => change.path).join(", ")}
-              </p>
+              <ResultDisclosure
+                label={`File changes (${event.changes.length})`}
+                value={event.changes}
+                defaultOpen={false}
+              />
             )}
           </>
         )}
@@ -429,21 +428,13 @@ export function ResponseContent({
             setChainState((previous) => ({ ...previous, [run.id]: open }))
           }
         >
-          <CollapsibleTrigger
-            render={
-              <Button variant="ghost" size="sm" className="justify-start" />
-            }
-          >
-            {running ? (
-              <LoaderCircle
-                data-icon="inline-start"
-                className="animate-spin motion-reduce:animate-none"
-              />
-            ) : (
-              <ListTree data-icon="inline-start" />
-            )}
+          <CollapsibleTrigger className={disclosureClassName}>
+            <ChevronDown className={chevronClassName} />
             <span>Activity</span>
-            <span className="text-xs text-muted-foreground">
+            {running ? (
+              <LoaderCircle className="size-3 animate-spin motion-reduce:animate-none" />
+            ) : null}
+            <span className="text-xs">
               {[
                 reasoning ? "Reasoning" : "",
                 tools.length
@@ -454,9 +445,8 @@ export function ResponseContent({
                 .filter(Boolean)
                 .join(" · ")}
             </span>
-            <ChevronDown data-icon="inline-end" />
           </CollapsibleTrigger>
-          <CollapsibleContent className="flex min-w-0 flex-col gap-1 py-1">
+          <CollapsibleContent className="flex min-w-0 flex-col gap-0.5 pl-4">
             {chain.map((event, index) => (
               <Activity
                 key={`${run.id}:${event.id}`}
@@ -507,10 +497,10 @@ export function ResponseContent({
       )}
       {run.sources.length > 0 && (
         <Collapsible>
-          <CollapsibleTrigger render={<Button variant="ghost" size="sm" />}>
-            <Search data-icon="inline-start" />
+          <CollapsibleTrigger className={disclosureClassName}>
+            <ChevronDown className={chevronClassName} />
+            <Search className="size-3" />
             {run.sources.length} sources
-            <ChevronDown data-icon="inline-end" />
           </CollapsibleTrigger>
           <CollapsibleContent className="flex flex-col gap-1 py-1">
             {run.sources.map((source) => (
@@ -519,7 +509,7 @@ export function ResponseContent({
                 href={source.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-md px-2 py-1.5 text-xs hover:bg-muted/50"
+                className="py-1 pl-4 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground"
               >
                 <span className="mr-2 text-muted-foreground">
                   [{source.id}]

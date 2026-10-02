@@ -37,13 +37,34 @@ async function experimentAction(page: Page, label: string) {
     .click()
   await page.getByRole("menuitem", { name: label, exact: true }).click()
 }
-async function observability(page: Page, tab: string) {
-  const toggle = page.getByRole("button", {
-    name: "Observability",
+async function resizeObservability(
+  page: Page,
+  direction: "collapse" | "restore"
+) {
+  const divider = page.getByRole("separator", {
+    name: "Resize observability",
     exact: true,
   })
-  if ((await toggle.getAttribute("aria-expanded")) !== "true")
-    await toggle.click()
+  const box = await divider.boundingBox()
+  if (!box) throw new Error("The observability divider is unavailable.")
+  const x = box.x + box.width / 2
+  await page.mouse.move(x, box.y + box.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(
+    x,
+    direction === "collapse" ? page.viewportSize()!.height - 1 : box.y - 220,
+    { steps: 8 }
+  )
+  await page.mouse.up()
+}
+async function observability(page: Page, tab: string) {
+  const region = page.locator('section[aria-label="Observability"]')
+  if (
+    (await region.evaluate(
+      (element) => element.getBoundingClientRect().height
+    )) <= 1
+  )
+    await resizeObservability(page, "restore")
   await page
     .getByRole("tablist", { name: "Observability views" })
     .getByRole("tab", { name: tab, exact: true })
@@ -825,64 +846,93 @@ test("activity collapses after completion and preserves manual streaming visibil
   await expect(streamingActivity).toHaveAttribute("aria-expanded", "false")
 })
 
-test("observability starts closed below the composer and can resize without hiding the prompt", async ({
+test("observability collapses to zero by dragging, restores its state, and opens historical inspection", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 1440, height: 1100 })
   await connect(page)
-  const toggle = page.getByRole("button", {
-    name: "Observability",
-    exact: true,
-  })
-  await expect(toggle).toHaveAttribute("aria-expanded", "false")
+  const region = page.locator('section[aria-label="Observability"]')
   await expect(
-    page.getByRole("tablist", { name: "Observability views" })
+    page.getByRole("button", { name: "Observability", exact: true })
   ).toHaveCount(0)
+  await expect(
+    page.getByRole("button", { name: "Select observed run", exact: true })
+  ).toHaveCount(0)
+  const views = page.getByRole("tablist", { name: "Observability views" })
+  await expect(views.getByRole("tab")).toHaveText([
+    "Trace",
+    "Request",
+    "Response",
+    "Usage",
+    "Runs",
+  ])
   const prompt = await page
     .getByRole("textbox", { name: "Prompt", exact: true })
     .boundingBox()
-  const header = await toggle.boundingBox()
-  expect(header!.y).toBeGreaterThan(prompt!.y + prompt!.height)
-  await run(page, "observability experiment")
-  await finished(page)
-  await expect(toggle).toHaveAttribute("aria-expanded", "false")
-  await observability(page, "Request")
-  await page.getByRole("button", { name: "Model call 1", exact: true }).click()
-  await expect(page.getByLabel("Request 1", { exact: true })).toBeVisible()
-  const region = page.getByRole("region", {
-    name: "Observability",
-    exact: true,
-  })
-  const before = await region.boundingBox()
-  const separator = await page
+  const divider = await page
     .getByRole("separator", { name: "Resize observability", exact: true })
     .boundingBox()
-  await page.mouse.move(
-    separator!.x + separator!.width / 2,
-    separator!.y + separator!.height / 2
+  expect(divider!.y).toBeGreaterThan(prompt!.y + prompt!.height)
+  await run(page, "first observability experiment")
+  await finished(page)
+  await run(page, "second observability experiment")
+  await finished(page)
+  await observability(page, "Usage")
+  await page
+    .getByRole("textbox", { name: "Research note", exact: true })
+    .fill("Preserve this note and selected tab.")
+  await resizeObservability(page, "collapse")
+  await expect
+    .poll(() =>
+      region.evaluate((element) => element.getBoundingClientRect().height)
+    )
+    .toBeLessThanOrEqual(1)
+  await expect(
+    page.getByRole("separator", { name: "Resize observability", exact: true })
+  ).toBeVisible()
+  await resizeObservability(page, "restore")
+  await expect(
+    views.getByRole("tab", { name: "Usage", exact: true })
+  ).toHaveAttribute("aria-selected", "true")
+  await expect(
+    page.getByRole("textbox", { name: "Research note", exact: true })
+  ).toHaveValue("Preserve this note and selected tab.")
+  await expect(
+    page.getByRole("textbox", { name: "Prompt", exact: true })
+  ).toBeVisible()
+  await resizeObservability(page, "collapse")
+  await expect
+    .poll(() =>
+      region.evaluate((element) => element.getBoundingClientRect().height)
+    )
+    .toBeLessThanOrEqual(1)
+  const first = page.getByRole("article", {
+    name: "Assistant message, turn 1",
+    exact: true,
+  })
+  await first.hover()
+  await first
+    .getByRole("button", { name: "Inspect this run", exact: true })
+    .click()
+  await expect
+    .poll(() =>
+      region.evaluate((element) => element.getBoundingClientRect().height)
+    )
+    .toBeGreaterThan(100)
+  await expect(
+    views.getByRole("tab", { name: "Trace", exact: true })
+  ).toHaveAttribute("aria-selected", "true")
+  await observability(page, "Request")
+  await page.getByRole("button", { name: "Model call 1", exact: true }).click()
+  await expect(page.getByLabel("Request 1", { exact: true })).toContainText(
+    "first observability experiment"
   )
-  await page.mouse.down()
-  await page.mouse.move(
-    separator!.x + separator!.width / 2,
-    separator!.y - 80,
-    { steps: 5 }
-  )
-  await page.mouse.up()
-  const after = await region.boundingBox()
-  expect(after!.height).toBeGreaterThan(before!.height + 40)
   await observability(page, "Trace")
   await page.screenshot({
     path: "/tmp/molto-studio-minimal-observability.png",
     fullPage: true,
     animations: "disabled",
   })
-  await expect(
-    page.getByRole("textbox", { name: "Prompt", exact: true })
-  ).toBeVisible()
-  await toggle.click()
-  await expect(toggle).toHaveAttribute("aria-expanded", "false")
-  await expect(
-    page.getByRole("tablist", { name: "Observability views" })
-  ).toHaveCount(0)
 })
 
 test("minimal studio distinguishes roles, exposes keyboard and touch actions, and keeps panels independent", async ({
@@ -941,8 +991,21 @@ test("minimal studio distinguishes roles, exposes keyboard and touch actions, an
   await expect(user.getByText("You", { exact: true })).toBeVisible()
   await expect(assistant.getByText("Assistant", { exact: true })).toBeVisible()
   await expect(
+    page
+      .getByRole("region", { name: "Messages" })
+      .locator('[data-slot="avatar"]')
+  ).toHaveCount(0)
+  await expect(
     page.getByRole("button", { name: "Observability", exact: true })
-  ).toHaveAttribute("aria-expanded", "false")
+  ).toHaveCount(0)
+  await resizeObservability(page, "collapse")
+  await expect
+    .poll(() =>
+      page
+        .locator('section[aria-label="Observability"]')
+        .evaluate((element) => element.getBoundingClientRect().height)
+    )
+    .toBeLessThanOrEqual(1)
   await expect(
     page
       .getByRole("tablist", { name: "Session configuration" })
@@ -1105,4 +1168,173 @@ test("keyboard file controls open attachment, sandbox upload and experiment impo
   await expect
     .poll(() => stored(page).then((sessions) => sessions.length))
     .toBe(2)
+})
+
+test("compact tool disclosures render highlighted JSON and keep step inspection working", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1400 })
+  await connect(page)
+  await run(page, "sandbox JSON presentation experiment")
+  await finished(page)
+  await expect
+    .poll(() => stored(page).then((sessions) => sessions[0]?.runs[0]?.status))
+    .toBe("complete")
+  const value = (await stored(page))[0]
+  const tool = value.runs[0].events.find((event: any) => event.tool === "bash")
+  tool.input = {
+    command: "printf 'structured JSON'",
+    arguments: JSON.stringify({ nested: { enabled: true, count: 2 } }),
+  }
+  tool.output = {
+    ok: true,
+    payload: JSON.stringify({ files: ["experiment.txt"], value: 42 }),
+  }
+  value.runs[0].steps[0].request = {
+    method: "POST",
+    body: JSON.stringify(
+      JSON.stringify({
+        model: "mlx-community/test-model",
+        messages: [{ role: "user", content: "a readable request body" }],
+        options: { temperature: 0.27 },
+      })
+    ),
+  }
+  await page.evaluate(async (session) => {
+    const opening = indexedDB.open("molto-studio", 1)
+    const db = await new Promise<IDBDatabase>((resolve) => {
+      opening.onsuccess = () => resolve(opening.result)
+    })
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction("sessions", "readwrite")
+      tx.objectStore("sessions").put(session)
+      tx.oncomplete = () => resolve()
+    })
+    db.close()
+  }, value)
+  await page.reload()
+  const assistant = page.getByRole("article", {
+    name: "Assistant message, turn 1",
+    exact: true,
+  })
+  await assistant.getByRole("button", { name: /^Activity/ }).click()
+  const step = assistant.getByRole("button", {
+    name: /bash.*printf 'structured JSON'/,
+  })
+  await step.hover()
+  await expect(step).toHaveCSS("background-color", "rgba(0, 0, 0, 0)")
+  await expect(step.locator("..")).toHaveCSS(
+    "background-color",
+    "rgba(0, 0, 0, 0)"
+  )
+  await step.click()
+  await expect(
+    assistant.locator("p").filter({ hasText: tool.text })
+  ).toHaveCount(0)
+  expect(
+    (await stored(page))[0].runs[0].events.find(
+      (event: any) => event.tool === "bash"
+    ).text
+  ).toBe(tool.text)
+  const argumentsToggle = assistant.getByRole("button", {
+    name: /^(Args|Arguments)$/,
+  })
+  if ((await argumentsToggle.getAttribute("aria-expanded")) === "false")
+    await argumentsToggle.click()
+  const argumentsContent = assistant.getByLabel("Arguments", { exact: true })
+  await expect(argumentsContent.locator("pre")).toContainText('"nested": {')
+  await expect(argumentsContent.locator("pre")).toHaveClass(/shiki/)
+  expect(
+    JSON.parse((await argumentsContent.locator("pre").textContent())!).arguments
+      .nested
+  ).toEqual({ enabled: true, count: 2 })
+  const resultToggle = assistant.getByRole("button", {
+    name: /^(Result|Results)$/,
+  })
+  if ((await resultToggle.getAttribute("aria-expanded")) === "false")
+    await resultToggle.click()
+  const resultContent = assistant.getByLabel("Result", { exact: true })
+  await expect(resultContent.locator("pre")).toHaveClass(/shiki/)
+  expect(
+    JSON.parse((await resultContent.locator("pre").textContent())!).payload
+  ).toEqual({ files: ["experiment.txt"], value: 42 })
+  const changesLabel = `File changes (${tool.changes.length})`
+  const changesToggle = assistant.getByRole("button", {
+    name: changesLabel,
+    exact: true,
+  })
+  await expect(changesToggle).toHaveAttribute("aria-expanded", "false")
+  await expect(
+    assistant.getByRole("button", {
+      name: "Model-visible result (limited)",
+      exact: true,
+    })
+  ).toHaveAttribute("aria-expanded", "false")
+  await changesToggle.click()
+  const changesContent = assistant.getByLabel(changesLabel, { exact: true })
+  await expect(changesContent).toContainText('"/workspace/experiment.txt"')
+  const formattedChanges = JSON.stringify(tool.changes, null, 2)
+  await expect(changesContent).toHaveText(formattedChanges.slice(0, 200_000))
+  if (formattedChanges.length <= 50_000)
+    await expect(changesContent.locator("pre")).toHaveClass(/shiki/)
+  await changesToggle.click()
+  await expect(changesContent).toBeHidden()
+  expect(
+    (await stored(page))[0].runs[0].events.find(
+      (event: any) => event.tool === "bash"
+    ).changes
+  ).toEqual(tool.changes)
+  await resizeObservability(page, "collapse")
+  await step.hover()
+  const inspect = assistant.getByRole("button", {
+    name: "Inspect bash",
+    exact: true,
+  })
+  await inspect.focus()
+  await page.keyboard.press("Tab")
+  await page.keyboard.press("Shift+Tab")
+  await expect(inspect).toBeFocused()
+  await expect(
+    page
+      .locator('[data-slot="tooltip-content"]')
+      .filter({ hasText: /^Inspect bash$/ })
+  ).toBeVisible()
+  await inspect.click()
+  await expect(
+    page
+      .getByRole("tablist", { name: "Observability views" })
+      .getByRole("tab", { name: "Trace", exact: true })
+  ).toHaveAttribute("aria-selected", "true")
+  await expect(page.getByLabel("Tool input", { exact: true })).toContainText(
+    '"nested": {'
+  )
+  await observability(page, "Request")
+  await page.getByRole("button", { name: "Model call 1", exact: true }).click()
+  const request = page.getByLabel("Request 1", { exact: true })
+  await expect(request.locator("pre")).toHaveClass(/shiki/)
+  const displayed = JSON.parse((await request.textContent())!)
+  expect(displayed.body.options.temperature).toBe(0.27)
+  expect(displayed.body.messages).toEqual([
+    { role: "user", content: "a readable request body" },
+  ])
+  await page.mouse.move(0, 0)
+  await expect(page.locator('[data-slot="tooltip-content"]')).toHaveCount(0)
+  const divider = page.getByRole("separator", {
+    name: "Resize observability",
+  })
+  const dividerBox = (await divider.boundingBox())!
+  await page.mouse.move(dividerBox.x + dividerBox.width / 2, dividerBox.y + 2)
+  await page.mouse.down()
+  await page.mouse.move(
+    dividerBox.x + dividerBox.width / 2,
+    dividerBox.y - 160,
+    { steps: 8 }
+  )
+  await page.mouse.up()
+  await request.scrollIntoViewIfNeeded()
+  await page.screenshot({
+    path: "/tmp/molto-studio-compact-json.png",
+    fullPage: true,
+    animations: "disabled",
+  })
 })

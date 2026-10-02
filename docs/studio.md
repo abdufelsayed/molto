@@ -15,17 +15,24 @@ right sidebar's **Prompt** tab. **Model**, **Tools**, and **Sandbox** hold the o
 session controls; virtual files live under **Sandbox**. Both sidebars can collapse.
 Controls remain editable during generation and take effect on the next run.
 
-User messages align right; assistant answers align left. Message actions use
+User messages align right with **You** labels; assistant answers align left with
+**Assistant** labels. Messages have no avatars. Message actions use
 icons with tooltips and appear on hover or keyboard focus, while remaining
 visible on touch devices. Reasoning appears only when supplied by the model.
 The entire reasoning and tool chain expands as one disclosure with individual
-steps inside. It opens during generation and collapses after completion unless
-you changed its open state manually.
+compact text disclosures inside, with hover highlights and inspect icons on each
+step. Expanding a tool shows its arguments and results, with formatted,
+syntax-highlighted JSON and copy actions. The chain opens during generation and
+collapses after completion unless you changed its open state manually.
 
-Expand **Observability** below the chat input to inspect a run. Its resizable
-drawer has **Trace**, **Request**, **Response**, **Usage**, and **Runs** tabs.
+Observability is a resizable panel below the chat input with **Trace**, **Request**,
+**Response**, **Usage**, and **Runs** tabs. Drag its divider down to minimize it
+completely, or up to restore it. The selected tab and expanded details stay intact.
 **Usage** includes research notes, recorded settings, and historical file changes.
 The inspect icon on a response or activity step opens the matching run and event.
+Structured payloads are parsed and syntax-highlighted, including JSON encoded
+inside request bodies or tool results. Plain text and partial JSON stay readable;
+formatting changes only the display, while recorded data remains unchanged.
 
 Every run records its requested settings, input conversation, raw model requests
 and streamed responses, token usage, timings, starting and ending files, and
