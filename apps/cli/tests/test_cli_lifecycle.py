@@ -57,7 +57,7 @@ def harmless_cli(monkeypatch, tmp_path):
     package.mkdir(parents=True)
     (package / "__init__.py").touch()
     (package / "cli.py").write_text("""
-import argparse, http.server, os, signal, sys
+import argparse, http.server, os, signal, socketserver, sys
 parser = argparse.ArgumentParser()
 parser.add_argument('command')
 parser.add_argument('--base-path')
@@ -74,11 +74,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(b'{}')
     def log_message(self, *args):
         pass
+class Server(socketserver.TCPServer):
+    allow_reuse_address = True
 signal.signal(signal.SIGTERM, lambda *args: sys.exit(0))
 if os.environ.get('FAKE_IGNORE_TERM'):
     signal.signal(signal.SIGTERM, signal.SIG_IGN)
-server = http.server.HTTPServer((args.host, args.port), Handler)
-print('Synthetic server listening', args.host, args.port, flush=True)
+# HTTPServer performs reverse DNS during bind; this loopback fixture needs no DNS.
+server = Server((args.host, args.port), Handler)
 server.serve_forever()
 """)
     monkeypatch.chdir(root)
@@ -94,28 +96,8 @@ server.serve_forever()
     try:
         yield root
     finally:
-        record_path = tmp_path / "base" / "run" / "application.json"
-        if record_path.exists():
-            record = json.loads(record_path.read_text())
-            print(
-                "Synthetic server health:",
-                lifecycle.health_status(
-                    lifecycle.server_url(record["host"], record["port"])
-                ),
-            )
         for child in children:
             if child.poll() is None:
-                try:
-                    process = psutil.Process(child.pid)
-                    print(
-                        "Synthetic server process:", process.cmdline(), process.status()
-                    )
-                    print(
-                        "Synthetic server connections:",
-                        process.net_connections(kind="tcp"),
-                    )
-                except psutil.Error as exc:
-                    print("Synthetic server connections failed:", repr(exc))
                 child.kill()
             child.wait(timeout=2)
         log_path = tmp_path / "base" / "logs" / "application.log"
@@ -142,6 +124,23 @@ def test_real_start_status_stop_idempotent(harmless_cli, tmp_path):
     assert stopped["state"] == "stopped"
     assert not record.exists()
     assert lifecycle.run(args(base, "stop"))["already_stopped"] is True
+
+
+def test_detached_lifecycle_fixture_does_not_require_dns(harmless_cli, tmp_path):
+    script = harmless_cli / "molto_cli" / "cli.py"
+    script.write_text(
+        "import socket\n"
+        "def forbidden_lookup(host):\n"
+        "    raise AssertionError('Loopback fixture attempted reverse DNS')\n"
+        "socket.getfqdn = forbidden_lookup\n" + script.read_text()
+    )
+    base = tmp_path / "base"
+    started = lifecycle.run(args(base, port=free_port()))
+    try:
+        assert started["state"] == "running"
+        assert lifecycle.run(args(base, "status"))["healthy"] is True
+    finally:
+        assert lifecycle.run(args(base, "stop"))["state"] == "stopped"
 
 
 def test_real_restart_changes_owned_pid(harmless_cli, tmp_path):
