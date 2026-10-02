@@ -78,6 +78,7 @@ signal.signal(signal.SIGTERM, lambda *args: sys.exit(0))
 if os.environ.get('FAKE_IGNORE_TERM'):
     signal.signal(signal.SIGTERM, signal.SIG_IGN)
 server = http.server.HTTPServer((args.host, args.port), Handler)
+print('Synthetic server listening', args.host, args.port, flush=True)
 server.serve_forever()
 """)
     monkeypatch.chdir(root)
@@ -93,10 +94,33 @@ server.serve_forever()
     try:
         yield root
     finally:
+        record_path = tmp_path / "base" / "run" / "application.json"
+        if record_path.exists():
+            record = json.loads(record_path.read_text())
+            print(
+                "Synthetic server health:",
+                lifecycle.health_status(
+                    lifecycle.server_url(record["host"], record["port"])
+                ),
+            )
         for child in children:
             if child.poll() is None:
+                try:
+                    process = psutil.Process(child.pid)
+                    print(
+                        "Synthetic server process:", process.cmdline(), process.status()
+                    )
+                    print(
+                        "Synthetic server connections:",
+                        process.net_connections(kind="tcp"),
+                    )
+                except psutil.Error as exc:
+                    print("Synthetic server connections failed:", repr(exc))
                 child.kill()
             child.wait(timeout=2)
+        log_path = tmp_path / "base" / "logs" / "application.log"
+        if log_path.exists():
+            print("Synthetic server log:", log_path.read_text()[-4096:])
 
 
 def test_real_start_status_stop_idempotent(harmless_cli, tmp_path):

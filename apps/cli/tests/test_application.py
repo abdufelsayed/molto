@@ -532,7 +532,12 @@ def test_stale_instance_after_dashboard_respawn_never_starts_backend(
         # The public listener keeps reporting the identity of the first process.
         payload["instance"] = identities[0]
         if len(identities) == 1:
-            command = child_command("import time; time.sleep(0.05)")
+            # Interpreter startup can exceed the supervisor's readiness guard
+            # on loaded hosts. Observe actual exit so the first identity cannot
+            # legitimately become ready before this respawn regression begins.
+            child = original(child_command("raise SystemExit(0)"), **kwargs)
+            child.wait(timeout=10)
+            return child
         return original(command, **kwargs)
 
     monkeypatch.setattr(application.subprocess, "Popen", spawn)

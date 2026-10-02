@@ -39,6 +39,12 @@ jobs:
       - name: Sync locked dependencies
         run: uv sync --all-packages --locked --python "${{ matrix.python-version }}" --extra mcp
 
+      - name: Test detached CLI lifecycle
+        run: >-
+          uv run --all-packages --locked --inexact pytest
+          apps/cli/tests/test_cli_lifecycle.py --maxfail=1
+          --junitxml=cli-test-results.xml
+
       - name: Run unit tests
         run: >-
           uv run --all-packages --locked --inexact pytest
@@ -49,7 +55,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-results-py${{ matrix.python-version }}
-          path: test-results.xml
+          path: |
+            cli-test-results.xml
+            test-results.xml
           retention-days: 14
 
   quality:
