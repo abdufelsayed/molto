@@ -2,14 +2,19 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import type { ModelMessage } from "ai"
 import {
-  ChevronDown,
   Copy,
+  ChevronDown,
+  GitBranch,
+  Pencil,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
   Download,
   FlaskConical,
-  Folder,
-  History,
   LoaderCircle,
-  PanelRight,
+  ListTree,
+  MoreHorizontal,
   Play,
   Plus,
   RotateCcw,
@@ -18,19 +23,39 @@ import {
   Square,
   Trash2,
   Upload,
+  UserRound,
   X,
 } from "lucide-react"
 import { toast } from "sonner"
+import { cn } from "cn"
+import type { PanelImperativeHandle } from "react-resizable-panels"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Field, FieldLabel } from "@/components/ui/field"
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Bubble, BubbleContent } from "@/components/ui/bubble"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from "@/components/ui/empty"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
   ResizableHandle,
   ResizablePanel,
@@ -70,7 +95,6 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
-import { Marker, MarkerContent } from "@/components/ui/marker"
 import { connectionQuery, useManagement } from "@/features/management/queries"
 import { detail } from "@/features/management/api"
 import { defaults, newSession, settingsSchema, modelBody } from "./agent/types"
@@ -85,9 +109,13 @@ import {
   download,
 } from "./store"
 import { SettingsPanel } from "./components/settings-panel"
-import { Inspector } from "./components/inspector"
+import { Inspector, type InspectorProps } from "./components/inspector"
+import { IconAction } from "./components/icon-action"
 import { FilesPanel, filePath, putFile } from "./components/files"
 import { Markdown, ResponseContent } from "./components/response"
+
+const messageActions =
+  "flex items-center gap-0.5 [@media(hover:hover)]:opacity-0 group-hover/message:opacity-100 group-focus-within/message:opacity-100"
 
 async function jsonRequest(path: string, body?: unknown, signal?: AbortSignal) {
   const response = await fetch(`/api/studio/${path}`, {
@@ -167,10 +195,14 @@ export function Studio() {
   const [selectedRun, setSelectedRun] = useState<string>()
   const [selectedEvent, setSelectedEvent] = useState<string>()
   const [selectedPath, setSelectedPath] = useState<string>()
-  const [inspectorTab, setInspectorTab] = useState("run")
-  const [mobile, setMobile] = useState<
-    "sessions" | "settings" | "inspect" | null
-  >(null)
+  const [inspectorTab, setInspectorTab] = useState("trace")
+  const [settingsTab, setSettingsTab] = useState("model")
+  const [showSettings, setShowSettings] = useState(true)
+  const observabilityPanel = useRef<PanelImperativeHandle | null>(null)
+  const observabilityHeight = useRef(320)
+  const [showInspector, setShowInspector] = useState(false)
+  const [showSessions, setShowSessions] = useState(true)
+  const [mobile, setMobile] = useState<"sessions" | "settings" | null>(null)
   const [editing, setEditing] = useState<{ id: string; text: string }>()
   const [attachments, setAttachments] = useState<string[]>([])
   const [interaction, setInteraction] = useState<Interaction>()
@@ -183,11 +215,20 @@ export function Studio() {
 
   useEffect(() => {
     const media = window.matchMedia("(min-width: 1024px)")
-    const change = () => setWide(media.matches)
+    const change = () => {
+      setWide(media.matches)
+      if (media.matches) setMobile(null)
+    }
     change()
     media.addEventListener("change", change)
     return () => media.removeEventListener("change", change)
   }, [])
+
+  useEffect(() => {
+    const panel = observabilityPanel.current
+    if (showInspector) panel?.resize(observabilityHeight.current)
+    else panel?.collapse()
+  }, [showInspector, wide])
 
   const updateSession = useCallback(
     (id: string, change: (session: StudioSession) => StudioSession) => {
@@ -496,7 +537,7 @@ export function Studio() {
       if (attach) setAttachments((previous) => [...previous, ...paths])
       else {
         setSelectedPath(paths[0])
-        setInspectorTab("files")
+        openFiles()
       }
     } catch (error) {
       toast.error(String(error))
@@ -520,7 +561,7 @@ export function Studio() {
         } as Record<string, string>
       )[language] ?? "txt"
     const path = filePath(
-      `snippet-${Date.now()}.${extension}`,
+      `snippet-${crypto.randomUUID()}.${extension}`,
       session.settings.cwd
     )
     const files = putFile(session.files, path, code)
@@ -533,13 +574,61 @@ export function Studio() {
     }
     updateSession(session.id, (s) => ({ ...s, files }))
     setSelectedPath(path)
-    setInspectorTab("files")
+    openFiles()
     toast.success(`Saved ${path}`)
   }
   function inspect(run: Run, event?: string) {
     setSelectedRun(run.id)
     setSelectedEvent(event)
-    setInspectorTab("run")
+    setInspectorTab("trace")
+    setShowInspector(true)
+  }
+  function openFiles() {
+    setSettingsTab("sandbox")
+    if (wide) setShowSettings(true)
+    else setMobile("settings")
+  }
+  function fork(run: Run, index: number) {
+    if (!session) return
+    const clone = newSession(structuredClone(run.settings))
+    clone.title = `${session.title} (fork)`
+    clone.files = structuredClone(run.after)
+    clone.turns = structuredClone(session.turns.slice(0, index + 1))
+    const ids = new Set(clone.turns.flatMap((turn) => turn.runIds))
+    clone.runs = structuredClone(
+      session.runs.filter((value) => ids.has(value.id))
+    )
+    add(clone)
+  }
+  function activateVariant(turn: Turn, index: number, id: string) {
+    if (!session || turn.selected === id) return
+    updateSession(session.id, (s) => {
+      const chosen = s.runs.find((run) => run.id === id)
+      if (!chosen) return s
+      return {
+        ...s,
+        branches: [
+          ...(s.branches ?? []),
+          {
+            id: crypto.randomUUID(),
+            title: `Before selecting run ${turn.runIds.indexOf(id) + 1} · ${new Date().toLocaleTimeString()}`,
+            turns: structuredClone(s.turns),
+            files: structuredClone(s.files),
+          },
+        ],
+        files: structuredClone(chosen.after),
+        turns: s.turns
+          .slice(0, index + 1)
+          .map((value) =>
+            value.id === turn.id
+              ? { ...value, ...recordedPrompt(chosen, value), selected: id }
+              : value
+          ),
+      }
+    })
+    setSelectedRun(id)
+    setSelectedEvent(undefined)
+    setEditing(undefined)
   }
   function duplicate(setupOnly = false) {
     if (!session) return
@@ -553,8 +642,8 @@ export function Studio() {
     add(next)
   }
   const sessionsPanel = (
-    <div className="flex h-full min-h-0 flex-col border-r bg-muted/15">
-      <div className="flex items-center justify-between border-b px-3 py-3">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex items-center justify-between px-3 py-3">
         <span className="text-xs font-medium">Experiments</span>
         <Button
           size="icon-xs"
@@ -605,6 +694,7 @@ export function Studio() {
           variant="ghost"
           className="w-full justify-start"
           disabled={running}
+          nativeButton={false}
           render={
             <label
               aria-label="Import experiment file"
@@ -639,63 +729,73 @@ export function Studio() {
       </div>
     </div>
   )
+  const sandboxFiles = session && (
+    <FilesPanel
+      files={session.files}
+      onChange={(files) => updateSession(session.id, (s) => ({ ...s, files }))}
+      disabled={running}
+      cwd={session.settings.cwd}
+      maxBytes={session.settings.maxFileBytes}
+      upload={(files) => {
+        void uploadFiles(files)
+      }}
+      selectedPath={selectedPath}
+      onSelectPath={setSelectedPath}
+    />
+  )
+  const settingsPanel = session && (
+    <SettingsPanel
+      settings={session.settings}
+      onChange={(settings) =>
+        updateSession(session.id, (s) => ({ ...s, settings }))
+      }
+      models={models.data ?? []}
+      running={running}
+      tab={settingsTab}
+      onTabChange={setSettingsTab}
+      sandboxFiles={sandboxFiles}
+    />
+  )
   const inspector = session && (
     <Tabs
       value={inspectorTab}
-      onValueChange={(value) => setInspectorTab(value)}
+      onValueChange={setInspectorTab}
       className="flex h-full min-h-0 flex-col gap-0"
     >
-      <div className="flex items-center gap-2 border-b px-3 py-1">
-        <TabsList variant="line">
-          <TabsTrigger value="run">
-            <PanelRight />
-            Inspector
-          </TabsTrigger>
-          <TabsTrigger value="files">
-            <Folder />
-            Files
-          </TabsTrigger>
-          <TabsTrigger value="history">
-            <History />
-            Runs
-          </TabsTrigger>
-        </TabsList>
-        <span className="ml-auto truncate text-[10px] text-muted-foreground">
-          {selected ? selected.id.slice(0, 8) : "Select a response"}
-        </span>
-      </div>
-      <TabsContent value="run" className="min-h-0 flex-1 overflow-auto">
-        <Inspector
-          run={selected}
-          selectedEvent={selectedEvent}
-          onSelectEvent={setSelectedEvent}
-          onNote={(note) => {
-            if (selected)
-              updateSession(session.id, (s) => ({
-                ...s,
-                runs: s.runs.map((r) =>
-                  r.id === selected.id ? { ...r, note } : r
-                ),
-              }))
-          }}
-        />
-      </TabsContent>
-      <TabsContent value="files" className="min-h-0 flex-1">
-        <FilesPanel
-          files={session.files}
-          onChange={(files) =>
-            updateSession(session.id, (s) => ({ ...s, files }))
-          }
-          disabled={running}
-          cwd={session.settings.cwd}
-          maxBytes={session.settings.maxFileBytes}
-          upload={(files) => {
-            void uploadFiles(files)
-          }}
-          selectedPath={selectedPath}
-          onSelectPath={setSelectedPath}
-        />
-      </TabsContent>
+      <TabsList
+        variant="line"
+        aria-label="Observability views"
+        className="mx-3 w-auto shrink-0"
+      >
+        <TabsTrigger value="trace">Trace</TabsTrigger>
+        <TabsTrigger value="request">Request</TabsTrigger>
+        <TabsTrigger value="response">Response</TabsTrigger>
+        <TabsTrigger value="usage">Usage</TabsTrigger>
+        <TabsTrigger value="history">Runs</TabsTrigger>
+      </TabsList>
+      {(["trace", "request", "response", "usage"] as const).map((tab) => (
+        <TabsContent
+          key={tab}
+          value={tab}
+          className="min-h-0 flex-1 overflow-auto"
+        >
+          <Inspector
+            tab={tab satisfies InspectorProps["tab"]}
+            run={selected}
+            selectedEvent={selectedEvent}
+            onSelectEvent={setSelectedEvent}
+            onNote={(note) => {
+              if (selected)
+                updateSession(session.id, (s) => ({
+                  ...s,
+                  runs: s.runs.map((r) =>
+                    r.id === selected.id ? { ...r, note } : r
+                  ),
+                }))
+            }}
+          />
+        </TabsContent>
+      ))}
       <TabsContent value="history" className="min-h-0 flex-1 overflow-auto p-3">
         <div className="flex flex-col gap-2">
           {(session.branches ?? []).map((branch) => (
@@ -728,7 +828,7 @@ export function Studio() {
           {[...session.runs].reverse().map((run) => (
             <div
               key={run.id}
-              className="flex flex-wrap items-center gap-2 rounded-lg border p-3"
+              className="group/run flex flex-wrap items-center gap-2 rounded-md px-2 py-1 focus-within:bg-muted/40 hover:bg-muted/40"
             >
               <Button
                 variant="ghost"
@@ -738,12 +838,14 @@ export function Studio() {
               >
                 {new Date(run.created).toLocaleTimeString()} ·{" "}
                 {run.settings.model.split("/").at(-1)}
-                <Badge variant="outline">{run.status}</Badge>
-                <Badge variant="secondary">{run.mode}</Badge>
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {run.status}
+                  {run.mode === "replay" ? " · replay" : ""}
+                </span>
               </Button>
               <Button
                 size="sm"
-                variant="outline"
+                variant="ghost"
                 disabled={running}
                 onClick={() =>
                   updateSession(session.id, (s) => ({
@@ -787,66 +889,23 @@ export function Studio() {
     )
   const conversation = (
     <div className="flex h-full min-h-0 flex-col">
-      <Collapsible className="shrink-0 border-b" defaultOpen={false}>
-        <CollapsibleTrigger
-          render={
-            <Button
-              variant="ghost"
-              className="h-10 w-full justify-start rounded-none px-4"
-            />
-          }
-        >
-          <ChevronDown />
-          <span className="text-xs">System prompt</span>
-          <span className="ml-auto text-xs text-muted-foreground">
-            {session.settings.system
-              ? `${session.settings.system.length} characters`
-              : "Empty"}
-          </span>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="p-4 pt-0">
-          <Field>
-            <FieldLabel htmlFor="studio-system" className="sr-only">
-              System prompt
-            </FieldLabel>
-            <Textarea
-              id="studio-system"
-              value={session.settings.system}
-              placeholder="No system prompt. Add one to experiment."
-              className="max-h-64 min-h-32 resize-y font-mono text-xs"
-              onChange={(event) =>
-                updateSession(session.id, (s) => ({
-                  ...s,
-                  settings: { ...s.settings, system: event.target.value },
-                }))
-              }
-            />
-          </Field>
-          {running && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Changes apply to the next run.
-            </p>
-          )}
-        </CollapsibleContent>
-      </Collapsible>
       <MessageScrollerProvider autoScroll>
         <MessageScroller className="flex-1">
           <MessageScrollerViewport>
-            <MessageScrollerContent className="gap-6 p-4 lg:px-6">
+            <MessageScrollerContent className="gap-8 p-4 lg:p-6">
               {!session.turns.length && (
                 <MessageScrollerItem messageId="empty">
-                  <div className="flex min-h-56 flex-col items-center justify-center gap-3 text-center">
-                    <FlaskConical className="size-7 text-muted-foreground" />
-                    <h1 className="text-lg font-medium">Start an experiment</h1>
-                    <p className="max-w-sm text-sm text-muted-foreground">
-                      An empty system prompt, inherited generation settings, and
-                      all tools enabled. Change the setup, run a prompt, then
-                      inspect what happened.
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      ⌘/Ctrl + Enter to run · Esc to stop
-                    </p>
-                  </div>
+                  <Empty className="min-h-72">
+                    <EmptyHeader>
+                      <EmptyMedia variant="icon">
+                        <FlaskConical />
+                      </EmptyMedia>
+                      <EmptyTitle>Start an experiment</EmptyTitle>
+                      <EmptyDescription>
+                        Choose a model, adjust its settings, and run a prompt.
+                      </EmptyDescription>
+                    </EmptyHeader>
+                  </Empty>
                 </MessageScrollerItem>
               )}
               {session.turns.map((turn, index) => {
@@ -859,227 +918,256 @@ export function Studio() {
                     key={turn.id}
                     messageId={turn.id}
                     scrollAnchor
+                    className="mx-auto w-full max-w-3xl"
                   >
-                    <div className="flex flex-col gap-5">
-                      <Message>
+                    <div className="flex flex-col gap-6">
+                      <Message
+                        align="end"
+                        role="article"
+                        aria-label={`User message, turn ${index + 1}`}
+                      >
                         <MessageContent>
-                          <MessageHeader>
-                            <span>USER</span>
-                            <span className="ml-auto">Turn {index + 1}</span>
+                          <MessageHeader className="gap-2">
+                            <span className="text-foreground">You</span>
+                            <Avatar size="sm">
+                              <AvatarFallback>
+                                <UserRound />
+                              </AvatarFallback>
+                            </Avatar>
                           </MessageHeader>
-                          {editing?.id === turn.id ? (
-                            <div className="flex flex-col gap-2">
-                              <Textarea
-                                aria-label="Edit message"
-                                value={editing.text}
-                                onChange={(event) =>
-                                  setEditing({
-                                    id: turn.id,
-                                    text: event.target.value,
-                                  })
-                                }
-                              />
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  onClick={() => {
-                                    void start(turn, "live", editing.text)
-                                  }}
-                                >
-                                  <Play />
-                                  Run edited message
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => setEditing(undefined)}
-                                >
-                                  Cancel
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
-                            <Markdown text={prompt.text} save={saveCode} />
-                          )}
+                          <Bubble
+                            variant="tinted"
+                            align="end"
+                            className={
+                              editing?.id === turn.id ? "w-full" : undefined
+                            }
+                          >
+                            <BubbleContent
+                              className={
+                                editing?.id === turn.id ? "w-full" : undefined
+                              }
+                            >
+                              {editing?.id === turn.id ? (
+                                <div className="flex flex-col gap-2">
+                                  <Textarea
+                                    aria-label="Edit message"
+                                    value={editing.text}
+                                    onChange={(event) =>
+                                      setEditing({
+                                        id: turn.id,
+                                        text: event.target.value,
+                                      })
+                                    }
+                                  />
+                                  <div className="flex justify-end gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => setEditing(undefined)}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        void start(turn, "live", editing.text)
+                                      }}
+                                    >
+                                      <Play data-icon="inline-start" />
+                                      Run edited message
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <Markdown text={prompt.text} save={saveCode} />
+                              )}
+                            </BubbleContent>
+                          </Bubble>
                           {!!prompt.attachments?.length && (
-                            <div className="flex flex-wrap gap-1">
+                            <div className="flex flex-wrap justify-end gap-2">
                               {prompt.attachments.map((path) => (
-                                <Badge
-                                  key={path}
-                                  variant="outline"
-                                  className="font-mono text-xs"
-                                >
-                                  {path}
-                                </Badge>
+                                <Attachment key={path} size="xs" state="done">
+                                  <AttachmentContent>
+                                    <AttachmentTitle title={path}>
+                                      {path.split("/").at(-1)}
+                                    </AttachmentTitle>
+                                  </AttachmentContent>
+                                </Attachment>
                               ))}
                             </div>
                           )}
-                          <MessageFooter>
-                            <Button
-                              size="xs"
-                              variant="ghost"
+                          <MessageFooter className={messageActions}>
+                            <IconAction
+                              label="Copy message"
+                              onClick={() => {
+                                void navigator.clipboard.writeText(prompt.text)
+                              }}
+                            >
+                              <Copy />
+                            </IconAction>
+                            <IconAction
+                              label="Edit message"
                               disabled={running}
                               onClick={() =>
                                 setEditing({ id: turn.id, text: prompt.text })
                               }
                             >
-                              Edit + rerun
-                            </Button>
-                            <Button
-                              size="xs"
-                              variant="ghost"
+                              <Pencil />
+                            </IconAction>
+                            <IconAction
+                              label="Rerun live"
                               disabled={running}
                               onClick={() => {
                                 void start(turn)
                               }}
                             >
                               <RotateCcw />
-                              Rerun live
-                            </Button>
-                            <Button
-                              size="xs"
-                              variant="ghost"
+                            </IconAction>
+                            <IconAction
+                              label="Fork here"
                               disabled={running || !run}
                               onClick={() => {
-                                void start(turn, "replay")
+                                if (run) fork(run, index)
                               }}
                             >
-                              Replay tools
-                            </Button>
+                              <GitBranch />
+                            </IconAction>
+                            <DropdownMenu>
+                              <Tooltip>
+                                <TooltipTrigger
+                                  render={
+                                    <DropdownMenuTrigger
+                                      render={
+                                        <Button
+                                          variant="ghost"
+                                          size="icon-xs"
+                                          aria-label={`Turn ${index + 1} actions`}
+                                          disabled={running}
+                                        />
+                                      }
+                                    />
+                                  }
+                                >
+                                  <MoreHorizontal />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  More message actions
+                                </TooltipContent>
+                              </Tooltip>
+                              <DropdownMenuContent
+                                align="end"
+                                className="min-w-44"
+                              >
+                                <DropdownMenuGroup>
+                                  <DropdownMenuItem
+                                    disabled={!run}
+                                    onClick={() => {
+                                      void start(turn, "replay")
+                                    }}
+                                  >
+                                    Replay tools
+                                  </DropdownMenuItem>
+                                </DropdownMenuGroup>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </MessageFooter>
                         </MessageContent>
                       </Message>
                       {run && (
-                        <Message>
+                        <Message
+                          role="article"
+                          aria-label={`Assistant message, turn ${index + 1}`}
+                        >
                           <MessageContent>
-                            <MessageHeader>
-                              <span>
+                            <MessageHeader className="gap-2">
+                              <Avatar size="sm">
+                                <AvatarFallback>AI</AvatarFallback>
+                              </Avatar>
+                              <span className="text-foreground">Assistant</span>
+                              <span className="min-w-0 truncate">
                                 {run.settings.model.split("/").at(-1)}
                               </span>
-                              <Badge className="ml-2" variant="outline">
-                                {run.mode}
-                              </Badge>
-                              <Button
-                                size="xs"
-                                variant="ghost"
-                                className="ml-auto"
-                                onClick={() => inspect(run)}
-                              >
-                                Inspect
-                              </Button>
+                              {run.mode === "replay" && (
+                                <Badge variant="outline">Replay</Badge>
+                              )}
                             </MessageHeader>
                             {turn.runIds.length > 1 && (
-                              <div className="flex flex-wrap gap-1">
+                              <ToggleGroup
+                                aria-label="Response variants"
+                                value={[run.id]}
+                                size="sm"
+                                variant="default"
+                                spacing={1}
+                                disabled={running}
+                                className="flex-wrap"
+                                onValueChange={(ids) => {
+                                  if (ids[0])
+                                    activateVariant(turn, index, ids[0])
+                                }}
+                              >
                                 {turn.runIds.map((id, variant) => (
-                                  <Button
+                                  <ToggleGroupItem
                                     key={id}
-                                    size="xs"
-                                    variant={
-                                      run.id === id ? "secondary" : "ghost"
-                                    }
-                                    disabled={running}
-                                    onClick={() => {
-                                      updateSession(session.id, (s) => {
-                                        if (run.id === id) return s
-                                        const chosen = s.runs.find(
-                                          (r) => r.id === id
-                                        )
-                                        if (!chosen) return s
-                                        return {
-                                          ...s,
-                                          branches: [
-                                            ...(s.branches ?? []),
-                                            {
-                                              id: crypto.randomUUID(),
-                                              title: `Before selecting run ${variant + 1} · ${new Date().toLocaleTimeString()}`,
-                                              turns: structuredClone(s.turns),
-                                              files: structuredClone(s.files),
-                                            },
-                                          ],
-                                          files: structuredClone(chosen.after),
-                                          turns: s.turns
-                                            .slice(0, index + 1)
-                                            .map((t) =>
-                                              t.id === turn.id
-                                                ? {
-                                                    ...t,
-                                                    ...recordedPrompt(
-                                                      chosen,
-                                                      t
-                                                    ),
-                                                    selected: id,
-                                                  }
-                                                : t
-                                            ),
-                                        }
-                                      })
-                                      setSelectedRun(id)
-                                      setSelectedEvent(undefined)
-                                      setEditing(undefined)
-                                    }}
+                                    value={id}
+                                    aria-label={`Run ${variant + 1}`}
                                   >
                                     Run {variant + 1}
-                                  </Button>
+                                  </ToggleGroupItem>
                                 ))}
-                              </div>
+                              </ToggleGroup>
                             )}
-                            <ResponseContent
-                              run={run}
-                              selectedEvent={selectedEvent}
-                              inspect={(event) => inspect(run, event)}
-                              save={saveCode}
-                            />
-                            <MessageFooter className="flex-wrap gap-2">
-                              <span>
-                                {run.status} · {run.steps.length} model calls
-                              </span>
-                              <Button
-                                size="xs"
-                                variant="ghost"
-                                aria-label="Copy response"
+                            <Bubble variant="ghost" className="w-full">
+                              <BubbleContent className="w-full">
+                                <ResponseContent
+                                  run={run}
+                                  selectedEvent={selectedEvent}
+                                  inspect={(event) => inspect(run, event)}
+                                  save={saveCode}
+                                />
+                              </BubbleContent>
+                            </Bubble>
+                            <MessageFooter className={messageActions}>
+                              <IconAction
+                                label="Copy response"
                                 onClick={() => {
                                   void navigator.clipboard.writeText(
                                     run.events
-                                      .filter((e) => e.type === "text")
-                                      .map((e) => e.text)
+                                      .filter((event) => event.type === "text")
+                                      .map((event) => event.text)
                                       .join("\n")
                                   )
                                 }}
                               >
                                 <Copy />
-                              </Button>
-                              <Button
-                                size="xs"
-                                variant="ghost"
+                              </IconAction>
+                              <IconAction
+                                label="Rerun response"
                                 disabled={running}
                                 onClick={() => {
-                                  const clone = newSession(
-                                    structuredClone(run.settings)
-                                  )
-                                  clone.title = `${session.title} (fork)`
-                                  clone.files = structuredClone(run.after)
-                                  clone.turns = structuredClone(
-                                    session.turns.slice(0, index + 1)
-                                  )
-                                  const ids = new Set(
-                                    clone.turns.flatMap((t) => t.runIds)
-                                  )
-                                  clone.runs = structuredClone(
-                                    session.runs.filter((r) => ids.has(r.id))
-                                  )
-                                  add(clone)
+                                  void start(turn)
                                 }}
                               >
-                                Fork here
-                              </Button>
+                                <RotateCcw />
+                              </IconAction>
+                              <IconAction
+                                label="Fork response"
+                                disabled={running}
+                                onClick={() => fork(run, index)}
+                              >
+                                <GitBranch />
+                              </IconAction>
+                              <IconAction
+                                label="Inspect this run"
+                                onClick={() => inspect(run)}
+                              >
+                                <ListTree />
+                              </IconAction>
+                              <span className="ml-1 text-[10px] font-normal text-muted-foreground">
+                                {run.status} · {run.steps.length} model calls
+                              </span>
                             </MessageFooter>
                           </MessageContent>
                         </Message>
-                      )}
-                      {index < session.turns.length - 1 && (
-                        <Marker variant="separator">
-                          <MarkerContent>Turn {index + 2}</MarkerContent>
-                        </Marker>
                       )}
                     </div>
                   </MessageScrollerItem>
@@ -1215,6 +1303,7 @@ export function Studio() {
               size="icon-sm"
               variant="ghost"
               aria-label="Attach files"
+              nativeButton={false}
               disabled={running}
               render={
                 <label
@@ -1239,11 +1328,12 @@ export function Studio() {
               />
             </InputGroupButton>
             <span className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground">
-              {session.settings.model.split("/").at(-1) || "Choose a model"} ·{" "}
-              {session.settings.tools.length} tools ·{" "}
               {running
                 ? "Settings apply next run"
-                : "Enter to run · Shift+Enter for newline"}
+                : `${session.settings.tools.length} tools enabled`}
+              <span className="ml-2 hidden sm:inline">
+                Shift+Enter for newline
+              </span>
             </span>
             {running ? (
               <InputGroupButton
@@ -1278,18 +1368,112 @@ export function Studio() {
       </div>
     </div>
   )
+  const workspace = (
+    <ResizablePanelGroup orientation="vertical" id="studio-center">
+      <ResizablePanel
+        id="studio-conversation"
+        defaultSize="100%"
+        minSize="220px"
+      >
+        {conversation}
+      </ResizablePanel>
+      <ResizableHandle
+        disabled={!showInspector}
+        aria-label="Resize observability"
+      />
+      <ResizablePanel
+        id="studio-observability"
+        panelRef={observabilityPanel}
+        defaultSize="32px"
+        collapsedSize="32px"
+        minSize="180px"
+        maxSize="65%"
+        collapsible
+        onResize={(size, _id, previous) => {
+          if (!previous) return
+          const open = size.inPixels > 40
+          if (open) observabilityHeight.current = size.inPixels
+          setShowInspector(open)
+        }}
+      >
+        <section
+          className="flex h-full min-h-0 flex-col"
+          aria-label="Observability"
+        >
+          <div className="flex h-8 shrink-0 items-center px-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="min-w-0 flex-1 justify-start"
+              aria-label="Observability"
+              aria-expanded={showInspector}
+              aria-controls="observability-content"
+              onClick={() => setShowInspector((value) => !value)}
+            >
+              <ChevronDown
+                data-icon="inline-start"
+                className={cn(!showInspector && "-rotate-90")}
+              />
+              Observability
+            </Button>
+            {selected && (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      aria-label="Select observed run"
+                    />
+                  }
+                >
+                  {selected.id === session.runs.at(-1)?.id
+                    ? "Latest run"
+                    : `Run ${session.runs.indexOf(selected) + 1}`}
+                  <ChevronDown data-icon="inline-end" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuGroup>
+                    {[...session.runs].reverse().map((run) => (
+                      <DropdownMenuItem
+                        key={run.id}
+                        onClick={() => {
+                          setSelectedRun(run.id)
+                          setSelectedEvent(undefined)
+                        }}
+                      >
+                        Run {session.runs.indexOf(run) + 1} ·{" "}
+                        {new Date(run.created).toLocaleTimeString()}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+          {showInspector && (
+            <div id="observability-content" className="min-h-0 flex-1">
+              {inspector}
+            </div>
+          )}
+        </section>
+      </ResizablePanel>
+    </ResizablePanelGroup>
+  )
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
-        <Button
-          className="lg:hidden"
+        <IconAction
+          label="Show experiments"
           size="icon-sm"
-          variant="ghost"
-          aria-label="Show experiments"
-          onClick={() => setMobile("sessions")}
+          aria-expanded={wide ? showSessions : mobile === "sessions"}
+          onClick={() => {
+            if (wide) setShowSessions((value) => !value)
+            else setMobile("sessions")
+          }}
         >
-          <History />
-        </Button>
+          {showSessions && wide ? <PanelLeftClose /> : <PanelLeftOpen />}
+        </IconAction>
         <Input
           aria-label="Experiment title"
           className="h-7 w-auto min-w-0 flex-1 border-transparent bg-transparent text-xs shadow-none"
@@ -1301,77 +1485,94 @@ export function Studio() {
             }))
           }
         />
-        <Badge variant={running ? "secondary" : "outline"}>
-          {running ? "Running" : storageError ? "Unsaved" : "Local studio"}
-        </Badge>
-        <Button
-          aria-label="Duplicate experiment"
+        {(running || storageError) && (
+          <Badge variant="secondary">{running ? "Running" : "Unsaved"}</Badge>
+        )}
+        <IconAction
+          label="Show controls"
           size="icon-sm"
-          variant="ghost"
-          disabled={running}
-          onClick={() => duplicate()}
-        >
-          <Copy />
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="hidden md:inline-flex"
-          disabled={running}
-          onClick={() => duplicate(true)}
-        >
-          Copy setup
-        </Button>
-        <Button
-          aria-label="Export experiment"
-          size="icon-sm"
-          variant="ghost"
-          onClick={() =>
-            download(
-              `molto-${session.id}.json`,
-              JSON.stringify(session, null, 2)
-            )
-          }
-        >
-          <Download />
-        </Button>
-        <Button
-          aria-label="Delete experiment"
-          size="icon-sm"
-          variant="ghost"
-          disabled={running}
+          aria-expanded={wide ? showSettings : mobile === "settings"}
           onClick={() => {
-            dirty.current.delete(session.id)
-            void removeSession(session.id).catch((error: unknown) =>
-              toast.error(String(error))
-            )
-            const next = sessions.filter((s) => s.id !== session.id)
-            setSessions(next)
-            sessionsRef.current = next
-            if (next.length) setActive(next[0]!.id)
-            else add(newSession())
+            if (wide) setShowSettings((value) => !value)
+            else setMobile("settings")
           }}
         >
-          <Trash2 />
-        </Button>
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          className="lg:hidden"
-          aria-label="Show controls"
-          onClick={() => setMobile("settings")}
-        >
-          <Settings2 />
-        </Button>
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          className="lg:hidden"
-          aria-label="Show inspector"
-          onClick={() => setMobile("inspect")}
-        >
-          <PanelRight />
-        </Button>
+          {wide ? (
+            showSettings ? (
+              <PanelRightClose />
+            ) : (
+              <PanelRightOpen />
+            )
+          ) : (
+            <Settings2 />
+          )}
+        </IconAction>
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      aria-label="Experiment actions"
+                      size="icon-sm"
+                      variant="ghost"
+                    />
+                  }
+                />
+              }
+            >
+              <MoreHorizontal />
+            </TooltipTrigger>
+            <TooltipContent>Experiment actions</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="end" className="min-w-48">
+            <DropdownMenuGroup>
+              <DropdownMenuItem disabled={running} onClick={() => duplicate()}>
+                <Copy />
+                Duplicate experiment
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={running}
+                onClick={() => duplicate(true)}
+              >
+                Copy setup
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  download(
+                    `molto-${session.id}.json`,
+                    JSON.stringify(session, null, 2)
+                  )
+                }
+              >
+                <Download />
+                Export experiment
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                disabled={running}
+                variant="destructive"
+                onClick={() => {
+                  dirty.current.delete(session.id)
+                  void removeSession(session.id).catch((error: unknown) =>
+                    toast.error(String(error))
+                  )
+                  const next = sessions.filter((s) => s.id !== session.id)
+                  setSessions(next)
+                  sessionsRef.current = next
+                  if (next.length) setActive(next[0]!.id)
+                  else add(newSession())
+                }}
+              >
+                <Trash2 />
+                Delete experiment
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       {storageError && (
         <p role="alert" className="border-b px-4 py-2 text-xs text-destructive">
@@ -1394,38 +1595,29 @@ export function Studio() {
       {wide ? (
         <div className="min-h-0 flex-1">
           <ResizablePanelGroup orientation="horizontal">
-            <ResizablePanel defaultSize="17%" minSize="150px" maxSize="25%">
-              {sessionsPanel}
-            </ResizablePanel>
-            <ResizableHandle />
-            <ResizablePanel defaultSize="59%" minSize="300px">
-              <ResizablePanelGroup orientation="vertical">
-                <ResizablePanel defaultSize="70%" minSize="220px">
-                  {conversation}
+            {showSessions && (
+              <>
+                <ResizablePanel defaultSize="15%" minSize="150px" maxSize="25%">
+                  {sessionsPanel}
                 </ResizablePanel>
                 <ResizableHandle />
-                <ResizablePanel defaultSize="30%" minSize="100px">
-                  {inspector}
+              </>
+            )}
+            <ResizablePanel defaultSize="60%" minSize="300px">
+              {workspace}
+            </ResizablePanel>
+            {showSettings && (
+              <>
+                <ResizableHandle />
+                <ResizablePanel defaultSize="28%" minSize="280px" maxSize="45%">
+                  {settingsPanel}
                 </ResizablePanel>
-              </ResizablePanelGroup>
-            </ResizablePanel>
-            <ResizableHandle />
-            <ResizablePanel defaultSize="24%" minSize="260px" maxSize="40%">
-              <div className="h-full overflow-auto">
-                <SettingsPanel
-                  settings={session.settings}
-                  onChange={(settings) =>
-                    updateSession(session.id, (s) => ({ ...s, settings }))
-                  }
-                  models={models.data ?? []}
-                  running={running}
-                />
-              </div>
-            </ResizablePanel>
+              </>
+            )}
           </ResizablePanelGroup>
         </div>
       ) : (
-        <div className="min-h-0 flex-1">{conversation}</div>
+        <div className="min-h-0 flex-1">{workspace}</div>
       )}
       <Sheet
         open={mobile !== null}
@@ -1436,28 +1628,11 @@ export function Studio() {
         <SheetContent className="w-full sm:max-w-lg">
           <SheetHeader>
             <SheetTitle>
-              {mobile === "sessions"
-                ? "Experiments"
-                : mobile === "settings"
-                  ? "Session controls"
-                  : "Run inspector"}
+              {mobile === "sessions" ? "Experiments" : "Session controls"}
             </SheetTitle>
           </SheetHeader>
-          <div className="min-h-0 flex-1 overflow-auto">
-            {mobile === "sessions" ? (
-              sessionsPanel
-            ) : mobile === "settings" ? (
-              <SettingsPanel
-                settings={session.settings}
-                onChange={(settings) =>
-                  updateSession(session.id, (s) => ({ ...s, settings }))
-                }
-                models={models.data ?? []}
-                running={running}
-              />
-            ) : (
-              inspector
-            )}
+          <div className="min-h-0 flex-1 overflow-hidden">
+            {mobile === "sessions" ? sessionsPanel : settingsPanel}
           </div>
         </SheetContent>
       </Sheet>

@@ -10,10 +10,22 @@ session value takes precedence over forced sampling settings for that request.
 ## Running experiments
 
 Choose a local model and enter a prompt. Enter runs it; Shift+Enter inserts a
-newline. Cmd/Ctrl+Enter also runs, and Escape stops. Expand **System prompt** to
-edit it. Controls remain editable during generation and take effect on the next
-run. Reasoning appears only when supplied by the model. Tool calls, results,
-errors, and reasoning appear in their received order.
+newline. Cmd/Ctrl+Enter also runs, and Escape stops. Edit the system prompt in the
+right sidebar's **Prompt** tab. **Model**, **Tools**, and **Sandbox** hold the other
+session controls; virtual files live under **Sandbox**. Both sidebars can collapse.
+Controls remain editable during generation and take effect on the next run.
+
+User messages align right; assistant answers align left. Message actions use
+icons with tooltips and appear on hover or keyboard focus, while remaining
+visible on touch devices. Reasoning appears only when supplied by the model.
+The entire reasoning and tool chain expands as one disclosure with individual
+steps inside. It opens during generation and collapses after completion unless
+you changed its open state manually.
+
+Expand **Observability** below the chat input to inspect a run. Its resizable
+drawer has **Trace**, **Request**, **Response**, **Usage**, and **Runs** tabs.
+**Usage** includes research notes, recorded settings, and historical file changes.
+The inspect icon on a response or activity step opens the matching run and event.
 
 Every run records its requested settings, input conversation, raw model requests
 and streamed responses, token usage, timings, starting and ending files, and
@@ -22,7 +34,7 @@ at run start. Those values record saved defaults; model templates can contribute
 further defaults. Thinking controls depend on the model's template, and a seed
 is best effort rather than a promise of identical output.
 
-Use **Edit + rerun** or **Rerun live** on any user message. Previous responses
+Use the **Edit message** or **Rerun live** icon on any user message. Previous responses
 remain selectable as run variants. Selecting a variant restores its prompt and
 ending files, saves the current conversation as a branch, and starts a continuation
 from that turn. Rerunning an earlier turn saves the old
@@ -31,7 +43,7 @@ continuation as a branch and starts a new continuation. Restore branches in
 settings, conversation, and ending files. **Copy setup** copies settings and
 current files; duplicating an experiment copies its complete history.
 
-**Replay tools** reruns the model using recorded tool results and recorded file
+**Replay tools**, in the message actions menu, reruns the model using recorded tool results and recorded file
 changes. Calls must match the recorded tool name, arguments, and order. A
 divergence stops replay; it never falls back to live execution. The model still
 performs new inference during replay. **Rerun live** executes tools anew.

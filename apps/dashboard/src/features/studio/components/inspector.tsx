@@ -1,10 +1,15 @@
 import { useId, useState } from "react"
-import { Check, Copy } from "lucide-react"
+import { Check, ChevronRight, Copy } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Textarea } from "@/components/ui/textarea"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { cn } from "cn"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import {
   Collapsible,
   CollapsibleContent,
@@ -19,6 +24,7 @@ import {
 } from "../agent/types"
 
 export type InspectorProps = {
+  tab: "trace" | "request" | "response" | "usage"
   run?: Run
   selectedEvent?: string
   onSelectEvent: (id: string) => void
@@ -39,32 +45,35 @@ function Raw({ value, label }: { value: unknown; label: string }) {
   const [error, setError] = useState("")
   const text = json(value)
   return (
-    <div className="min-w-0 rounded-md border">
-      <div className="flex items-center justify-between border-b px-3 py-1.5">
+    <div className="min-w-0">
+      <div className="flex items-center justify-between gap-2 py-1.5">
         <span className="text-xs font-medium">{label}</span>
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label={`Copy ${label}`}
-          onClick={() => {
-            void navigator.clipboard
-              .writeText(text)
-              .then(() => {
-                setCopied(true)
-                setError("")
-                setTimeout(() => setCopied(false), 1500)
-              })
-              .catch(() =>
-                setError("Copy failed. Select and copy the text below.")
-              )
-          }}
-        >
-          {copied ? (
-            <Check className="size-3.5" />
-          ) : (
-            <Copy className="size-3.5" />
-          )}
-        </Button>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label={`Copy ${label}`}
+                onClick={() => {
+                  void navigator.clipboard
+                    .writeText(text)
+                    .then(() => {
+                      setCopied(true)
+                      setError("")
+                      setTimeout(() => setCopied(false), 1500)
+                    })
+                    .catch(() =>
+                      setError("Copy failed. Select and copy the text below.")
+                    )
+                }}
+              />
+            }
+          >
+            {copied ? <Check /> : <Copy />}
+          </TooltipTrigger>
+          <TooltipContent>{copied ? "Copied" : `Copy ${label}`}</TooltipContent>
+        </Tooltip>
       </div>
       {error && (
         <p role="alert" className="px-3 text-xs text-destructive">
@@ -73,7 +82,7 @@ function Raw({ value, label }: { value: unknown; label: string }) {
       )}
       <pre
         aria-label={label}
-        className="max-h-96 overflow-auto p-3 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap"
+        className="max-h-96 overflow-auto py-2 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap"
       >
         {text}
       </pre>
@@ -90,7 +99,7 @@ function elapsed(seconds: number | undefined): string {
 
 function EventDetails({ event }: { event: RunEvent }) {
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <Badge variant="outline">Step {event.step}</Badge>
         <Badge
@@ -170,17 +179,17 @@ function content(file: VirtualFile | undefined): string {
 
 function Changes({ changes }: { changes: FileChange[] }) {
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       <h3 className="text-xs font-semibold">File changes · {changes.length}</h3>
       {changes.map((change) => (
-        <Collapsible key={change.path} className="rounded-md border">
-          <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 p-2 text-left text-xs">
+        <Collapsible key={change.path} className="border-b border-border/50">
+          <CollapsibleTrigger className="group flex w-full items-center justify-between gap-2 py-2 text-left text-xs hover:bg-muted/40">
             <span className="min-w-0 font-mono break-all">{change.path}</span>
             <Badge variant="outline">
               {!change.before ? "Added" : !change.after ? "Removed" : "Changed"}
             </Badge>
           </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-2 px-2 pb-2">
+          <CollapsibleContent className="flex flex-col gap-2 pb-2">
             <Raw label="Before" value={content(change.before)} />
             <Raw label="After" value={content(change.after)} />
           </CollapsibleContent>
@@ -204,7 +213,28 @@ function usageSummary(usage: unknown): [string, string][] {
   )
 }
 
+function Disclosure({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <Collapsible className="border-b border-border/50">
+      <CollapsibleTrigger className="group flex w-full items-center gap-2 py-2 text-left text-xs font-medium hover:bg-muted/40">
+        <ChevronRight className="size-3.5 text-muted-foreground group-data-open:rotate-90" />
+        {label}
+      </CollapsibleTrigger>
+      <CollapsibleContent className="flex flex-col gap-3 pb-3">
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
+  )
+}
+
 export function Inspector({
+  tab,
   run,
   selectedEvent,
   onSelectEvent,
@@ -213,75 +243,119 @@ export function Inspector({
   const noteId = useId()
   if (!run)
     return (
-      <div className="flex min-h-40 items-center justify-center p-6 text-center text-sm text-muted-foreground">
-        Run an experiment or select a previous response to inspect its settings,
-        requests, tools, and files.
-      </div>
+      <p className="p-4 text-sm text-muted-foreground">
+        Select a response to inspect its run.
+      </p>
     )
   const event = run.events.find((entry) => entry.id === selectedEvent)
   const changes = diffFiles(run.before, run.after)
   return (
-    <div className="min-w-0 p-4">
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <h2 className="text-sm font-semibold">Run inspector</h2>
-        <Badge variant={run.status === "error" ? "destructive" : "secondary"}>
-          {run.status}
-        </Badge>
-        <Badge variant="outline">
-          {run.mode === "replay" ? "Recorded tools" : "Live tools"}
-        </Badge>
-        <span className="text-xs text-muted-foreground">
-          {new Date(run.created).toLocaleString()}
-        </span>
-      </div>
+    <div className="flex min-w-0 flex-col gap-4 p-4">
       {run.error && (
-        <p role="alert" className="mb-3 text-sm text-destructive">
+        <p role="alert" className="text-sm text-destructive">
           {run.error}
         </p>
       )}
-      <Tabs defaultValue="overview">
-        <TabsList className="w-full">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="trace">Trace</TabsTrigger>
-          <TabsTrigger value="request">Request</TabsTrigger>
-          <TabsTrigger value="files">Files</TabsTrigger>
-        </TabsList>
-        <TabsContent value="overview" className="space-y-4 pt-3">
-          <div className="space-y-1 text-xs">
-            <p>
-              <span className="text-muted-foreground">Model </span>
-              <span className="font-mono break-all">{run.settings.model}</span>
-            </p>
-            <p className="text-muted-foreground">
-              {run.steps.length} model calls ·{" "}
-              {run.events.filter((entry) => entry.type === "tool").length} tool
-              calls · {changes.length} changed files
-            </p>
-            {run.replayOf && (
-              <p className="break-all text-muted-foreground">
-                Replaying results from {run.replayOf}
+      {tab === "trace" && (
+        <div className="grid gap-4 md:grid-cols-[minmax(180px,1fr)_minmax(0,2fr)]">
+          <div
+            aria-label="Run events"
+            className="flex min-w-0 flex-col gap-0.5"
+          >
+            {run.events.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No events recorded yet.
+              </p>
+            )}
+            {run.events.map((entry, index) => (
+              <Button
+                key={entry.id}
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "h-auto w-full justify-start gap-2 py-2 text-left",
+                  entry.id === selectedEvent && "bg-muted"
+                )}
+                onClick={() => onSelectEvent(entry.id)}
+                aria-pressed={entry.id === selectedEvent}
+              >
+                <span className="font-mono text-xs text-muted-foreground">
+                  {index + 1}
+                </span>
+                <span className="truncate text-xs">
+                  {entry.tool ?? entry.type}
+                </span>
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {entry.replayed ? "replayed" : entry.state}
+                </span>
+              </Button>
+            ))}
+          </div>
+          <div className="min-w-0">
+            {event ? (
+              <EventDetails event={event} />
+            ) : (
+              <p className="py-2 text-xs text-muted-foreground">
+                Select an event to inspect its details.
               </p>
             )}
           </div>
-          <Field className="gap-1.5">
-            <FieldLabel htmlFor={noteId}>Research note</FieldLabel>
-            <Textarea
-              id={noteId}
-              value={run.note}
-              onChange={(change) => onNote(change.target.value)}
-              placeholder="What did this run show?"
-              className="min-h-20"
-            />
-          </Field>
+        </div>
+      )}
+      {tab === "request" && (
+        <>
+          <Raw label="Input conversation" value={run.input} />
           {run.steps.map((step, index) => (
-            <div key={index} className="space-y-2 rounded-md border p-3">
-              <div className="flex items-center justify-between gap-2 text-xs">
-                <h3 className="font-semibold">Model call {index + 1}</h3>
+            <Disclosure key={index} label={`Model call ${index + 1}`}>
+              <Raw label={`Request ${index + 1}`} value={step.request} />
+            </Disclosure>
+          ))}
+        </>
+      )}
+      {tab === "response" && (
+        <>
+          <Raw label="Result conversation" value={run.messages} />
+          {run.steps.map((step, index) => (
+            <Disclosure key={index} label={`Model call ${index + 1}`}>
+              <Raw label={`Response ${index + 1}`} value={step.response} />
+            </Disclosure>
+          ))}
+        </>
+      )}
+      {tab === "usage" && (
+        <>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <span className="font-mono break-all text-foreground">
+              {run.settings.model}
+            </span>
+            <span>{run.status}</span>
+            <span>
+              {run.mode === "replay" ? "Recorded tools" : "Live tools"}
+            </span>
+            <span>{new Date(run.created).toLocaleString()}</span>
+            <span>
+              {run.steps.length} model calls ·{" "}
+              {run.events.filter((entry) => entry.type === "tool").length} tool
+              calls
+            </span>
+            {run.replayOf && (
+              <span className="break-all">
+                Replaying results from {run.replayOf}
+              </span>
+            )}
+          </div>
+          {run.steps.map((step, index) => (
+            <div
+              key={index}
+              className="flex flex-col gap-2 border-b border-border/50 pb-3"
+            >
+              <div className="flex justify-between gap-2 text-xs">
+                <h3 className="font-medium">Model call {index + 1}</h3>
                 <span className="text-muted-foreground">
                   {step.finishReason ?? "In progress"}
                 </span>
               </div>
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+              <dl className="grid gap-x-6 gap-y-1 text-xs sm:grid-cols-2">
                 {[
                   ["Duration", elapsed(step.duration)],
                   ["First token", elapsed(step.firstToken)],
@@ -294,137 +368,47 @@ export function Inspector({
                 ))}
               </dl>
               {(step.usage !== undefined || step.metadata !== undefined) && (
-                <Collapsible>
-                  <CollapsibleTrigger className="text-xs text-muted-foreground underline underline-offset-4">
-                    Full usage and timing
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-2 pt-2">
-                    <Raw label="Usage" value={step.usage} />
-                    <Raw label="Provider metadata" value={step.metadata} />
-                  </CollapsibleContent>
-                </Collapsible>
+                <Disclosure label="Full usage and timing">
+                  <Raw label="Usage" value={step.usage} />
+                  <Raw label="Provider metadata" value={step.metadata} />
+                </Disclosure>
               )}
             </div>
           ))}
-          {run.sources.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="text-xs font-semibold">
-                Sources · {run.sources.length}
-              </h3>
-              {run.sources.map((source) => (
-                <a
-                  key={source.id}
-                  href={source.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block rounded-md border p-3 text-xs hover:bg-muted/50"
-                >
-                  <span className="font-medium">
-                    {source.title || source.url}
-                  </span>
-                  <span className="mt-1 block truncate text-muted-foreground">
-                    {source.url}
-                  </span>
-                  {source.snippet && (
-                    <span className="mt-1 block text-muted-foreground">
-                      {source.snippet}
-                    </span>
-                  )}
-                </a>
-              ))}
-            </div>
-          )}
-          <Collapsible>
-            <CollapsibleTrigger className="text-xs font-medium underline underline-offset-4">
-              Recorded settings for this run
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-3 pt-2">
-              <p className="text-xs text-muted-foreground">
-                Requested controls and inherited configuration were saved at run
-                start. These records do not claim every runtime setting was
-                resolved.
-              </p>
-              <Raw label="Requested session controls" value={run.settings} />
-              <Raw
-                label="Inherited configuration at run start"
-                value={run.environment}
-              />
-            </CollapsibleContent>
-          </Collapsible>
-        </TabsContent>
-        <TabsContent value="trace" className="space-y-3 pt-3">
-          <p className="text-xs text-muted-foreground">
-            Model output and tool activity in recorded order. Select an event to
-            inspect it.
-          </p>
-          {run.events.length === 0 ? (
+          <Field className="gap-1.5">
+            <FieldLabel htmlFor={noteId}>Research note</FieldLabel>
+            <Textarea
+              id={noteId}
+              value={run.note}
+              onChange={(change) => onNote(change.target.value)}
+              placeholder="What did this run show?"
+              className="min-h-20"
+            />
+          </Field>
+          <Disclosure label="Recorded settings for this run">
             <p className="text-xs text-muted-foreground">
-              No events recorded yet.
+              Requested controls and inherited configuration were saved at run
+              start. These records do not claim every runtime setting was
+              resolved.
             </p>
-          ) : (
-            <div
-              className="max-h-52 space-y-1 overflow-auto"
-              aria-label="Run events"
-            >
-              {run.events.map((entry, index) => (
-                <Button
-                  key={entry.id}
-                  variant={entry.id === selectedEvent ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-auto w-full justify-start gap-2 py-2 text-left"
-                  onClick={() => onSelectEvent(entry.id)}
-                  aria-pressed={entry.id === selectedEvent}
-                >
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {index + 1}
-                  </span>
-                  <span className="truncate text-xs">
-                    {entry.tool ?? entry.type}
-                  </span>
-                  <span className="ml-auto text-xs text-muted-foreground">
-                    {entry.replayed ? "replayed" : (entry.state ?? "")}
-                  </span>
-                </Button>
-              ))}
-            </div>
-          )}
-          {event && <EventDetails event={event} />}
-        </TabsContent>
-        <TabsContent value="request" className="space-y-3 pt-3">
-          <Raw label="Input conversation" value={run.input} />
-          {run.steps.map((step, index) => (
-            <Collapsible
-              key={index}
-              defaultOpen={index === 0}
-              className="rounded-md border"
-            >
-              <CollapsibleTrigger className="w-full p-3 text-left text-xs font-semibold">
-                Model call {index + 1} · request and response
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-3 px-3 pb-3">
-                <Raw label={`Request ${index + 1}`} value={step.request} />
-                <Raw label={`Response ${index + 1}`} value={step.response} />
-              </CollapsibleContent>
-            </Collapsible>
-          ))}
-          <Raw label="Result conversation" value={run.messages} />
-        </TabsContent>
-        <TabsContent value="files" className="space-y-3 pt-3">
-          <p className="text-xs text-muted-foreground">
-            This run started with {run.before.length} filesystem entries and
-            ended with {run.after.length}. Historical snapshots belong to this
-            run.
-          </p>
-          {changes.length ? (
-            <Changes changes={changes} />
-          ) : (
-            <p className="text-xs text-muted-foreground">No file changes.</p>
-          )}
-          <Collapsible>
-            <CollapsibleTrigger className="text-xs font-medium underline underline-offset-4">
-              Snapshot manifest
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-3 pt-3">
+            <Raw label="Requested session controls" value={run.settings} />
+            <Raw
+              label="Inherited configuration at run start"
+              value={run.environment}
+            />
+          </Disclosure>
+          <Disclosure label={`File changes · ${changes.length}`}>
+            <p className="text-xs text-muted-foreground">
+              This run started with {run.before.length} filesystem entries and
+              ended with {run.after.length}. Historical snapshots belong to this
+              run.
+            </p>
+            {changes.length ? (
+              <Changes changes={changes} />
+            ) : (
+              <p className="text-xs text-muted-foreground">No file changes.</p>
+            )}
+            <Disclosure label="Snapshot manifest">
               <Raw
                 label="Before manifest"
                 value={run.before.map(({ content: bytes, ...file }) => ({
@@ -439,10 +423,35 @@ export function Inspector({
                   base64Length: bytes?.length,
                 }))}
               />
-            </CollapsibleContent>
-          </Collapsible>
-        </TabsContent>
-      </Tabs>
+            </Disclosure>
+          </Disclosure>
+          {run.sources.length > 0 && (
+            <Disclosure label={`Sources · ${run.sources.length}`}>
+              {run.sources.map((source) => (
+                <a
+                  key={source.id}
+                  href={source.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block py-2 text-xs hover:bg-muted/40"
+                >
+                  <span className="font-medium">
+                    {source.title || source.url}
+                  </span>
+                  <span className="mt-1 block truncate text-muted-foreground">
+                    {source.url}
+                  </span>
+                  {source.snippet && (
+                    <span className="mt-1 block text-muted-foreground">
+                      {source.snippet}
+                    </span>
+                  )}
+                </a>
+              ))}
+            </Disclosure>
+          )}
+        </>
+      )}
     </div>
   )
 }

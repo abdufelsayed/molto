@@ -10,9 +10,44 @@ async function connect(page: Page) {
     page.getByRole("dialog", { name: "Connect to Molto" })
   ).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Run prompt" })).toBeDisabled()
-  await expect(page.getByLabel("Model", { exact: true })).toContainText(
-    "test-model"
-  )
+  await expect(
+    page.getByRole("combobox", { name: "Model", exact: true })
+  ).toContainText("test-model")
+}
+async function configuration(
+  page: Page,
+  tab: "Prompt" | "Model" | "Tools" | "Sandbox"
+) {
+  await page
+    .getByRole("tablist", { name: "Session configuration" })
+    .getByRole("tab", { name: tab, exact: true })
+    .click()
+}
+async function userAction(page: Page, label: string, turn = 1) {
+  const article = page.getByRole("article", {
+    name: `User message, turn ${turn}`,
+    exact: true,
+  })
+  await article.hover()
+  await article.getByRole("button", { name: label, exact: true }).click()
+}
+async function experimentAction(page: Page, label: string) {
+  await page
+    .getByRole("button", { name: "Experiment actions", exact: true })
+    .click()
+  await page.getByRole("menuitem", { name: label, exact: true }).click()
+}
+async function observability(page: Page, tab: string) {
+  const toggle = page.getByRole("button", {
+    name: "Observability",
+    exact: true,
+  })
+  if ((await toggle.getAttribute("aria-expanded")) !== "true")
+    await toggle.click()
+  await page
+    .getByRole("tablist", { name: "Observability views" })
+    .getByRole("tab", { name: tab, exact: true })
+    .click()
 }
 async function run(page: Page, prompt: string) {
   await page.getByRole("textbox", { name: "Prompt", exact: true }).fill(prompt)
@@ -20,7 +55,9 @@ async function run(page: Page, prompt: string) {
 }
 async function finished(page: Page) {
   await expect(page.getByRole("button", { name: "Stop run" })).toHaveCount(0)
-  await expect(page.getByText(/complete · \d+ model calls/)).toBeVisible()
+  await expect(
+    page.getByText(/complete · \d+ model calls/).last()
+  ).toBeVisible()
 }
 async function stored(page: Page) {
   return page.evaluate(async () => {
@@ -92,18 +129,19 @@ test("exact numeric and system settings are recorded immutably across reruns", a
   request,
 }) => {
   await connect(page)
-  await page
-    .getByRole("button", { name: "System prompt", exact: false })
-    .click()
+  await configuration(page, "Prompt")
   await page
     .getByRole("textbox", { name: "System prompt", exact: true })
     .fill("Be precise.")
+  await configuration(page, "Model")
   await page.getByLabel("Temperature", { exact: true }).fill("0.27")
+  await configuration(page, "Tools")
   await page.getByRole("switch", { name: "read", exact: true }).uncheck()
   await run(page, "numeric experiment")
   await finished(page)
+  await configuration(page, "Model")
   await page.getByLabel("Temperature", { exact: true }).fill("0.81")
-  await page.getByRole("button", { name: "Rerun live" }).click()
+  await userAction(page, "Rerun live")
   await expect(
     page.getByRole("button", { name: "Run 2", exact: true })
   ).toBeVisible()
@@ -141,6 +179,7 @@ test("real browser worker executes bash and persists its filesystem after reload
   await run(page, "sandbox experiment")
   await finished(page)
   expect(workers.some((url) => url.includes("worker"))).toBe(true)
+  await observability(page, "Usage")
   await page
     .getByRole("button", { name: "Recorded settings for this run" })
     .click()
@@ -155,7 +194,7 @@ test("real browser worker executes bash and persists its filesystem after reload
     )
     .toBe(true)
   await page.reload()
-  await page.getByRole("tab", { name: "Files", exact: true }).first().click()
+  await configuration(page, "Sandbox")
   await page.getByRole("button", { name: /\/experiment.txt/ }).click()
   await expect(page.getByRole("textbox", { name: "File content" })).toHaveValue(
     "worker persisted"
@@ -166,7 +205,10 @@ test("read-only filesystem rejects writes performed through bash", async ({
   page,
 }) => {
   await connect(page)
-  await page.getByRole("button", { name: "Sandbox", exact: true }).click()
+  await configuration(page, "Sandbox")
+  await page
+    .getByRole("button", { name: "Sandbox settings", exact: true })
+    .click()
   await page.getByRole("switch", { name: "Read-only filesystem" }).check()
   await run(page, "sandbox experiment")
   await finished(page)
@@ -204,6 +246,7 @@ test("denied confirmation resumes with a denial and never writes the file", asyn
   page,
 }) => {
   await connect(page)
+  await configuration(page, "Tools")
   await page.getByLabel("Tool execution", { exact: true }).click()
   await page.getByRole("option", { name: /confirm/i }).click()
   await run(page, "confirmation experiment")
@@ -255,7 +298,7 @@ test("editing retains prior variants and exported experiments can be imported in
   await connect(page)
   await run(page, "original experiment")
   await finished(page)
-  await page.getByRole("button", { name: "Edit + rerun" }).click()
+  await userAction(page, "Edit message")
   await page
     .getByRole("textbox", { name: "Edit message" })
     .fill("edited experiment")
@@ -269,7 +312,7 @@ test("editing retains prior variants and exported experiments can be imported in
     page.getByText("Fixture response: original experiment", { exact: true })
   ).toBeVisible()
   const downloadPromise = page.waitForEvent("download")
-  await page.getByRole("button", { name: "Export experiment" }).click()
+  await experimentAction(page, "Export experiment")
   const download = await downloadPromise
   const path = await download.path()
   expect(path).toBeTruthy()
@@ -324,7 +367,10 @@ test("recorded web results replay without another live web request", async ({
   await run(page, "web replay experiment")
   await finished(page)
   expect(searches).toBe(1)
-  await page.getByRole("button", { name: "Replay tools" }).click()
+  await userAction(page, "Turn 1 actions")
+  await page
+    .getByRole("menuitem", { name: "Replay tools", exact: true })
+    .click()
   await expect(
     page.getByRole("button", { name: "Run 2", exact: true })
   ).toBeVisible()
@@ -347,7 +393,7 @@ test("duplicate experiment and copy setup retain independent filesystem snapshot
   await connect(page)
   await run(page, "sandbox experiment")
   await finished(page)
-  await page.getByRole("button", { name: "Duplicate experiment" }).click()
+  await experimentAction(page, "Duplicate experiment")
   await expect(page.getByLabel("Experiment title")).toHaveValue(/\(copy\)$/)
   await expect
     .poll(() => stored(page).then((sessions) => sessions.length))
@@ -358,8 +404,8 @@ test("duplicate experiment and copy setup retain independent filesystem snapshot
       session.files.some((file: any) => file.path.endsWith("/experiment.txt"))
     )
   ).toBe(true)
-  await page.getByRole("tab", { name: "Files", exact: true }).first().click()
-  await page.getByRole("button", { name: "Reset files" }).click()
+  await configuration(page, "Sandbox")
+  await page.getByRole("button", { name: "Reset sandbox files" }).click()
   await expect
     .poll(() =>
       stored(page).then(
@@ -374,7 +420,7 @@ test("duplicate experiment and copy setup retain independent filesystem snapshot
       .find((session: any) => !session.title.endsWith("(copy)"))
       .files.some((file: any) => file.path.endsWith("/experiment.txt"))
   ).toBe(true)
-  await page.getByRole("button", { name: "Copy setup", exact: true }).click()
+  await experimentAction(page, "Copy setup")
   await expect(page.getByLabel("Experiment title")).toHaveValue(/\(setup\)$/)
   await expect(page.getByRole("button", { name: "Rerun live" })).toHaveCount(0)
 })
@@ -389,7 +435,7 @@ test("editing an earlier turn archives and restores its original continuation", 
   await expect(
     page.getByText("Fixture response: original second turn", { exact: true })
   ).toBeVisible()
-  await page.getByRole("button", { name: "Edit + rerun" }).first().click()
+  await userAction(page, "Edit message")
   await page
     .getByRole("textbox", { name: "Edit message" })
     .fill("sandbox revised first turn")
@@ -414,7 +460,7 @@ test("editing an earlier turn archives and restores its original continuation", 
       file.path.endsWith("/experiment.txt")
     )
   ).toBe(true)
-  await page.getByRole("tab", { name: "Runs", exact: true }).click()
+  await observability(page, "Runs")
   await page.getByRole("button", { name: /^Restore branch:/ }).click()
   await expect(
     page.getByText("original second turn", { exact: true })
@@ -447,10 +493,7 @@ test("mobile studio exposes session controls in a usable sheet and runs a prompt
       )
     )
     .toBe(0.39)
-  await page.getByRole("button", { name: "Show inspector" }).click()
-  await expect(
-    page.getByRole("dialog", { name: "Run inspector" })
-  ).toBeVisible()
+  await observability(page, "Usage")
   await expect(
     page.getByRole("textbox", { name: "Research note" })
   ).toBeVisible()
@@ -589,9 +632,7 @@ test("activating a historical variant restores its prompt, attachments, files an
   await expect(
     page.getByText("descendant prompt", { exact: true })
   ).toHaveCount(0)
-  await expect(
-    page.getByText("/workspace/old.txt", { exact: true })
-  ).toBeVisible()
+  await expect(page.getByText("old.txt", { exact: true })).toBeVisible()
   await expect
     .poll(() => stored(page).then((sessions) => sessions[0]?.turns.length))
     .toBe(1)
@@ -741,4 +782,327 @@ test("citations link recorded sources without rewriting code, unknown citations 
   await expect(
     messages.getByRole("link", { name: "Existing link [1]", exact: true })
   ).toHaveAttribute("href", "https://example.com/other")
+})
+
+test("activity collapses after completion and preserves manual streaming visibility", async ({
+  page,
+}) => {
+  await connect(page)
+  await run(page, "sandbox activity experiment")
+  await finished(page)
+  const first = page.getByRole("article", {
+    name: "Assistant message, turn 1",
+    exact: true,
+  })
+  const activity = first.getByRole("button", { name: /^Activity/ })
+  await expect(activity).toHaveAttribute("aria-expanded", "false")
+  await activity.click()
+  await first
+    .getByRole("button", { name: "Model reasoning", exact: true })
+    .first()
+    .click()
+  await expect(
+    first.getByText("Inspecting the experiment.", { exact: true }).first()
+  ).toBeVisible()
+  await expect(activity).toHaveAttribute("aria-expanded", "true")
+  await activity.click()
+  await run(page, "long stream activity experiment")
+  const second = page.getByRole("article", {
+    name: "Assistant message, turn 2",
+    exact: true,
+  })
+  const streamingActivity = second.getByRole("button", { name: /^Activity/ })
+  await expect(streamingActivity).toHaveAttribute("aria-expanded", "true")
+  await streamingActivity.click()
+  await expect(
+    second.getByText("Fixture response: long stream activity experiment", {
+      exact: true,
+    })
+  ).toBeVisible()
+  await expect(streamingActivity).toHaveAttribute("aria-expanded", "false")
+  await page.getByRole("button", { name: "Stop run" }).click()
+  await expect(page.getByRole("button", { name: "Stop run" })).toHaveCount(0)
+  await expect(streamingActivity).toHaveAttribute("aria-expanded", "false")
+})
+
+test("observability starts closed below the composer and can resize without hiding the prompt", async ({
+  page,
+}) => {
+  await connect(page)
+  const toggle = page.getByRole("button", {
+    name: "Observability",
+    exact: true,
+  })
+  await expect(toggle).toHaveAttribute("aria-expanded", "false")
+  await expect(
+    page.getByRole("tablist", { name: "Observability views" })
+  ).toHaveCount(0)
+  const prompt = await page
+    .getByRole("textbox", { name: "Prompt", exact: true })
+    .boundingBox()
+  const header = await toggle.boundingBox()
+  expect(header!.y).toBeGreaterThan(prompt!.y + prompt!.height)
+  await run(page, "observability experiment")
+  await finished(page)
+  await expect(toggle).toHaveAttribute("aria-expanded", "false")
+  await observability(page, "Request")
+  await page.getByRole("button", { name: "Model call 1", exact: true }).click()
+  await expect(page.getByLabel("Request 1", { exact: true })).toBeVisible()
+  const region = page.getByRole("region", {
+    name: "Observability",
+    exact: true,
+  })
+  const before = await region.boundingBox()
+  const separator = await page
+    .getByRole("separator", { name: "Resize observability", exact: true })
+    .boundingBox()
+  await page.mouse.move(
+    separator!.x + separator!.width / 2,
+    separator!.y + separator!.height / 2
+  )
+  await page.mouse.down()
+  await page.mouse.move(
+    separator!.x + separator!.width / 2,
+    separator!.y - 80,
+    { steps: 5 }
+  )
+  await page.mouse.up()
+  const after = await region.boundingBox()
+  expect(after!.height).toBeGreaterThan(before!.height + 40)
+  await observability(page, "Trace")
+  await page.screenshot({
+    path: "/tmp/molto-studio-minimal-observability.png",
+    fullPage: true,
+    animations: "disabled",
+  })
+  await expect(
+    page.getByRole("textbox", { name: "Prompt", exact: true })
+  ).toBeVisible()
+  await toggle.click()
+  await expect(toggle).toHaveAttribute("aria-expanded", "false")
+  await expect(
+    page.getByRole("tablist", { name: "Observability views" })
+  ).toHaveCount(0)
+})
+
+test("minimal studio distinguishes roles, exposes keyboard and touch actions, and keeps panels independent", async ({
+  page,
+  browser,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1100 })
+  await connect(page)
+  await run(page, "sandbox: create a file and inspect its contents")
+  await finished(page)
+  await run(page, "Summarize the result and show the command.")
+  await expect(
+    page.getByText(
+      "Fixture response: Summarize the result and show the command.",
+      { exact: true }
+    )
+  ).toBeVisible()
+  await expect
+    .poll(() => stored(page).then((sessions) => sessions[0]?.runs.length))
+    .toBe(2)
+  const value = (await stored(page))[0]
+  value.title = "Browser sandbox research"
+  const firstText = value.runs[0].events
+    .filter((event: any) => event.type === "text")
+    .at(-1)
+  firstText.text =
+    "Created `/workspace/experiment.txt` and verified its contents: **worker persisted**."
+  const lastText = value.runs[1].events
+    .filter((event: any) => event.type === "text")
+    .at(-1)
+  lastText.text =
+    "The file remains in the session's virtual filesystem. The command wrote the text, then read it back.\n\n```bash\nprintf 'worker persisted' > experiment.txt\ncat experiment.txt\n```"
+  await page.evaluate(async (session) => {
+    const opening = indexedDB.open("molto-studio", 1)
+    const db = await new Promise<IDBDatabase>((resolve) => {
+      opening.onsuccess = () => resolve(opening.result)
+    })
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction("sessions", "readwrite")
+      tx.objectStore("sessions").put(session)
+      tx.oncomplete = () => resolve()
+    })
+    db.close()
+  }, value)
+  await page.reload()
+  const user = page.getByRole("article", {
+    name: "User message, turn 2",
+    exact: true,
+  })
+  const assistant = page.getByRole("article", {
+    name: "Assistant message, turn 2",
+    exact: true,
+  })
+  await expect(user).toHaveAttribute("data-align", "end")
+  await expect(assistant).toHaveAttribute("data-align", "start")
+  await expect(user.getByText("You", { exact: true })).toBeVisible()
+  await expect(assistant.getByText("Assistant", { exact: true })).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: "Observability", exact: true })
+  ).toHaveAttribute("aria-expanded", "false")
+  await expect(
+    page
+      .getByRole("tablist", { name: "Session configuration" })
+      .getByRole("tab")
+  ).toHaveCount(4)
+  await expect(page.getByRole("menuitem")).toHaveCount(0)
+  await user.hover()
+  await user.getByRole("button", { name: "Copy message", exact: true }).focus()
+  await page.keyboard.press("Tab")
+  const edit = user.getByRole("button", { name: "Edit message", exact: true })
+  await expect(edit).toBeFocused()
+  await expect(
+    page
+      .locator('[data-slot="tooltip-content"]')
+      .filter({ hasText: /^Edit message$/ })
+  ).toBeVisible()
+  await page.keyboard.press("Escape")
+  await page.getByRole("textbox", { name: "Prompt", exact: true }).focus()
+  await page.mouse.move(0, 0)
+  await expect(page.locator('[data-slot="tooltip-content"]')).toHaveCount(0)
+  await page.screenshot({
+    path: "/tmp/molto-studio-minimal-desktop.png",
+    fullPage: true,
+    animations: "disabled",
+  })
+  await page
+    .getByRole("button", { name: "Show experiments", exact: true })
+    .click()
+  await expect(
+    page.getByRole("button", { name: "New experiment", exact: true })
+  ).toHaveCount(0)
+  await expect(
+    page.getByRole("tablist", { name: "Session configuration" })
+  ).toBeVisible()
+  await page.getByRole("button", { name: "Show controls", exact: true }).click()
+  await expect(
+    page.getByRole("tablist", { name: "Session configuration" })
+  ).toHaveCount(0)
+  await page
+    .getByRole("button", { name: "Show experiments", exact: true })
+    .click()
+  await expect(
+    page.getByRole("button", { name: "New experiment", exact: true })
+  ).toBeVisible()
+  const touchContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  })
+  await touchContext.addCookies(await page.context().cookies())
+  const touchPage = await touchContext.newPage()
+  await touchPage.goto("/studio")
+  await touchPage
+    .getByRole("button", { name: "Show experiments", exact: true })
+    .tap()
+  await touchPage
+    .getByLabel("Import experiment", { exact: true })
+    .setInputFiles({
+      name: "research.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(value)),
+    })
+  await touchPage.keyboard.press("Escape")
+  const touchUser = touchPage.getByRole("article", {
+    name: "User message, turn 2",
+    exact: true,
+  })
+  await expect(
+    touchUser.getByRole("button", { name: "Edit message", exact: true })
+  ).toBeVisible()
+  await touchUser
+    .getByRole("button", { name: "Turn 2 actions", exact: true })
+    .tap()
+  await expect(
+    touchPage.getByRole("menuitem", { name: "Replay tools", exact: true })
+  ).toBeVisible()
+  await touchPage.keyboard.press("Escape")
+  await expect(touchPage.getByRole("menuitem")).toHaveCount(0)
+  await touchPage.getByRole("textbox", { name: "Prompt", exact: true }).tap()
+  await expect(touchPage.locator('[data-slot="tooltip-content"]')).toHaveCount(
+    0
+  )
+  expect(
+    await touchPage.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth
+    )
+  ).toBe(true)
+  await touchPage.screenshot({
+    path: "/tmp/molto-studio-minimal-mobile.png",
+    fullPage: true,
+    animations: "disabled",
+  })
+  await touchContext.close()
+})
+
+test("keyboard file controls open attachment, sandbox upload and experiment import choosers", async ({
+  page,
+}) => {
+  await connect(page)
+  const attach = page.getByRole("button", {
+    name: "Attach files to prompt",
+    exact: true,
+  })
+  await attach.focus()
+  const chooserPromise = page.waitForEvent("filechooser")
+  await page.keyboard.press("Enter")
+  const chooser = await chooserPromise
+  await chooser.setFiles({
+    name: "keyboard.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("keyboard attachment"),
+  })
+  await expect(
+    page.getByRole("button", {
+      name: "Remove attachment /workspace/keyboard.txt",
+      exact: true,
+    })
+  ).toBeVisible()
+  await expect
+    .poll(() =>
+      stored(page).then((sessions) =>
+        sessions[0]?.files.some(
+          (file: any) => file.path === "/workspace/keyboard.txt"
+        )
+      )
+    )
+    .toBe(true)
+  await configuration(page, "Sandbox")
+  await page.getByRole("button", { name: "Upload files", exact: true }).focus()
+  const uploadPromise = page.waitForEvent("filechooser")
+  await page.keyboard.press("Enter")
+  const upload = await uploadPromise
+  await upload.setFiles({
+    name: "keyboard-upload.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("keyboard sandbox upload"),
+  })
+  await expect
+    .poll(() =>
+      stored(page).then((sessions) =>
+        sessions[0]?.files.some(
+          (file: any) => file.path === "/workspace/keyboard-upload.txt"
+        )
+      )
+    )
+    .toBe(true)
+  const exported = (await stored(page))[0]
+  await page
+    .getByRole("button", { name: "Import experiment file", exact: true })
+    .focus()
+  const importPromise = page.waitForEvent("filechooser")
+  await page.keyboard.press("Enter")
+  const importing = await importPromise
+  await importing.setFiles({
+    name: "keyboard-experiment.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(exported)),
+  })
+  await expect(page.getByLabel("Experiment title")).toHaveValue(/\(imported\)$/)
+  await expect
+    .poll(() => stored(page).then((sessions) => sessions.length))
+    .toBe(2)
 })
