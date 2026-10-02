@@ -1,4 +1,10 @@
-import { Link, createFileRoute } from "@tanstack/react-router"
+import { useEffect, useRef } from "react"
+import {
+  usePreference,
+  usePreferencesReady,
+} from "@/features/preferences/provider"
+import { modelTabSchema } from "@/features/preferences/app-schema"
+import { Link, createFileRoute, useRouterState } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { z } from "zod"
 import {
@@ -40,14 +46,63 @@ export const Route = createFileRoute("/models_/$modelId")({
     tab: z
       .enum(["summary", "settings", "profiles", "workspace"])
       .catch("summary")
-      .default("summary"),
+      .optional(),
   }),
   component: ModelPage,
 })
 function ModelPage() {
   const { modelId } = Route.useParams()
-  const { tab } = Route.useSearch()
+  const { tab = "summary" } = Route.useSearch()
   const navigate = Route.useNavigate()
+  const [rememberedTabs, setRememberedTabs] = usePreference("models.tabs")
+  const preferencesReady = usePreferencesReady()
+  const hydratedModel = useRef<string | undefined>(undefined)
+  const restoringTab = useRef<string | undefined>(undefined)
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
+  const rawSearch = useRouterState({
+    select: (state) => state.location.search,
+  })
+  useEffect(() => {
+    if (
+      !preferencesReady ||
+      pathname !== decodeURI(`/models/${encodeURIComponent(modelId)}`)
+    )
+      return
+    const rawTab = modelTabSchema.safeParse(rawSearch.tab)
+    if ((rawTab.success ? rawTab.data : "summary") !== tab) return
+    if (
+      hydratedModel.current === modelId &&
+      restoringTab.current !== undefined
+    ) {
+      if (tab !== restoringTab.current) return
+      restoringTab.current = undefined
+    }
+    if (hydratedModel.current !== modelId) {
+      hydratedModel.current = modelId
+      const explicit = modelTabSchema.safeParse(rawSearch.tab)
+      const restored = explicit.success
+        ? explicit.data
+        : (rememberedTabs[modelId] ?? "summary")
+      if (restored !== tab) {
+        restoringTab.current = restored
+        void navigate({ search: { tab: restored }, replace: true })
+        return
+      }
+    }
+    if (rememberedTabs[modelId] !== tab)
+      setRememberedTabs((previous) => ({ ...previous, [modelId]: tab }))
+  }, [
+    preferencesReady,
+    pathname,
+    modelId,
+    tab,
+    rawSearch,
+    rememberedTabs,
+    navigate,
+    setRememberedTabs,
+  ])
   const { api, queryClient } = useManagement()
   const inventory = useQuery(modelsQuery(api))
   const query = useQuery(modelSettingsQuery(api, modelId))

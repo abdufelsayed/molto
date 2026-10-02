@@ -95,6 +95,11 @@ import {
 } from "@/components/ui/message-scroller"
 import { connectionQuery, useManagement } from "@/features/management/queries"
 import { detail } from "@/features/management/api"
+import {
+  usePreference,
+  usePreferences,
+  usePreferencesReady,
+} from "@/features/preferences/provider"
 import { defaults, newSession, settingsSchema, modelBody } from "./agent/types"
 import type { Run, StudioSession, Turn } from "./agent/types"
 import { runAgent } from "./agent/run"
@@ -184,28 +189,46 @@ export function Studio() {
   })
   const [sessions, setSessions] = useState<StudioSession[]>([])
   const sessionsRef = useRef(sessions)
-  const [active, setActive] = useState("")
+  const preferences = usePreferences()
+  const preferencesReady = usePreferencesReady()
+  const [active, setActive] = usePreference("studio.active")
   const [ready, setReady] = useState(false)
   const [wide, setWide] = useState(true)
   const [storageError, setStorageError] = useState("")
   const [running, setRunning] = useState(false)
   const abort = useRef<AbortController | null>(null)
-  const [selectedRun, setSelectedRun] = useState<string>()
-  const [selectedEvent, setSelectedEvent] = useState<string>()
-  const [selectedPath, setSelectedPath] = useState<string>()
-  const [inspectorTab, setInspectorTab] = useState("trace")
-  const [settingsTab, setSettingsTab] = useState("model")
-  const [showSettings, setShowSettings] = useState(true)
+  const [selectedRun, setSelectedRun] = usePreference("studio.run", active)
+  const [selectedEvent, setSelectedEvent] = usePreference(
+    "studio.event",
+    active
+  )
+  const [selectedPath, setSelectedPath] = usePreference("studio.path", active)
+  const [inspectorTab, setInspectorTab] = usePreference("studio.inspectorTab")
+  const [settingsTab, setSettingsTab] = usePreference("studio.settingsTab")
+  const [showSettings, setShowSettings] = usePreference("studio.settings")
   const observabilityPanel = useRef<PanelImperativeHandle | null>(null)
   const [showInspector, setShowInspector] = useState(false)
-  const [showSessions, setShowSessions] = useState(true)
+  const [showSessions, setShowSessions] = usePreference("studio.sessions")
+  const layoutScope = `${showSessions ? "sessions" : "hidden"}-${showSettings ? "settings" : "hidden"}`
+  const [horizontalLayout, setHorizontalLayout] = usePreference(
+    "studio.layout",
+    layoutScope
+  )
+  const [observability, setObservability] = usePreference(
+    "studio.observability"
+  )
+  const observabilityIntent = useRef(false)
   const [mobile, setMobile] = useState<"sessions" | "settings" | null>(null)
   const [editing, setEditing] = useState<{ id: string; text: string }>()
-  const [attachments, setAttachments] = useState<string[]>([])
+  const [attachments, setAttachments] = usePreference(
+    "studio.attachments",
+    active
+  )
   const [interaction, setInteraction] = useState<Interaction>()
   const reply = useRef<((answer: string) => void) | null>(null)
   const [answer, setAnswer] = useState("")
   const dirty = useRef(new Set<string>())
+  const checkpoint = useRef<(() => Promise<void>) | null>(null)
   const session = sessions.find((s) => s.id === active)
   const selected =
     session?.runs.find((r) => r.id === selectedRun) ?? session?.runs.at(-1)
@@ -234,20 +257,21 @@ export function Studio() {
     },
     []
   )
-  const add = useCallback((value: StudioSession) => {
-    setSessions((previous) => {
-      const next = [value, ...previous]
-      sessionsRef.current = next
-      return next
-    })
-    dirty.current.add(value.id)
-    setActive(value.id)
-    setSelectedRun(undefined)
-    setSelectedEvent(undefined)
-    setAttachments([])
-    setEditing(undefined)
-  }, [])
+  const add = useCallback(
+    (value: StudioSession) => {
+      setSessions((previous) => {
+        const next = [value, ...previous]
+        sessionsRef.current = next
+        return next
+      })
+      dirty.current.add(value.id)
+      setActive(value.id)
+      setEditing(undefined)
+    },
+    [setActive]
+  )
   useEffect(() => {
+    if (!preferencesReady) return
     let live = true
     void loadSessions()
       .then((saved) => {
@@ -255,7 +279,12 @@ export function Studio() {
         const values = saved.length ? saved : [newSession()]
         sessionsRef.current = values
         setSessions(values)
-        setActive(values[0]!.id)
+        const remembered = preferences.get("studio.active")
+        setActive(
+          values.some((value) => value.id === remembered)
+            ? remembered
+            : values[0]!.id
+        )
         setReady(true)
         if (!saved.length) dirty.current.add(values[0]!.id)
       })
@@ -271,6 +300,7 @@ export function Studio() {
     const flush = async () => {
       if (saving) return
       saving = true
+      let failed = false
       // Failed writes are retried on the next checkpoint, not within this batch.
       const pendingIds = [...dirty.current]
       for (const id of pendingIds) {
@@ -281,13 +311,18 @@ export function Studio() {
             await saveSession(value)
             if (live) setStorageError("")
           } catch (error) {
+            failed = true
             dirty.current.add(id)
             if (live)
               setStorageError(`Changes could not be saved: ${String(error)}`)
           }
       }
       saving = false
+      // An idle edit may arrive during an IndexedDB write. Save its newer value
+      // promptly while streaming and failed writes keep the checkpoint cadence.
+      if (!failed && !abort.current && dirty.current.size) await flush()
     }
+    checkpoint.current = flush
     const timer = setInterval(() => {
       void flush()
     }, 500)
@@ -299,10 +334,46 @@ export function Studio() {
       live = false
       clearInterval(timer)
       document.removeEventListener("visibilitychange", visibility)
+      checkpoint.current = null
       abort.current?.abort()
       void flush()
     }
-  }, [add])
+  }, [add, preferencesReady, preferences, setActive])
+  useEffect(() => {
+    if (ready && !running) void checkpoint.current?.()
+  }, [sessions, ready, running])
+  useEffect(() => {
+    if (!ready || !session) return
+    // References can become stale after importing, deleting files, or restoring a branch.
+    if (selectedRun && !session.runs.some((run) => run.id === selectedRun))
+      setSelectedRun(undefined)
+    if (
+      selectedEvent &&
+      !selected?.events.some((event) => event.id === selectedEvent)
+    )
+      setSelectedEvent(undefined)
+    if (
+      selectedPath &&
+      !session.files.some((file) => file.path === selectedPath)
+    )
+      setSelectedPath(undefined)
+    const existing = attachments.filter((path) =>
+      session.files.some((file) => file.path === path)
+    )
+    if (existing.length !== attachments.length) setAttachments(existing)
+  }, [
+    ready,
+    session,
+    selected,
+    selectedRun,
+    selectedEvent,
+    selectedPath,
+    attachments,
+    setSelectedRun,
+    setSelectedEvent,
+    setSelectedPath,
+    setAttachments,
+  ])
   useEffect(() => {
     if (session && !session.settings.model && models.data?.length)
       updateSession(session.id, (s) => ({
@@ -488,7 +559,16 @@ export function Studio() {
         reply.current = null
       }
     },
-    [active, access.data?.connected, attachments, updateSession, api]
+    [
+      active,
+      access.data?.connected,
+      attachments,
+      updateSession,
+      api,
+      setAttachments,
+      setSelectedRun,
+      setSelectedEvent,
+    ]
   )
 
   useEffect(() => {
@@ -572,12 +652,21 @@ export function Studio() {
     setSelectedRun(run.id)
     setSelectedEvent(event)
     setInspectorTab("trace")
-    observabilityPanel.current?.expand()
+    openObservability()
+  }
+  function openObservability() {
+    const panel = observabilityPanel.current
+    if (!panel?.isCollapsed()) return
+    observabilityIntent.current = true
+    panel.resize(`${observability.size}%`)
   }
   function toggleObservability() {
     const panel = observabilityPanel.current
-    if (panel?.isCollapsed()) panel.expand()
-    else panel?.collapse()
+    if (panel?.isCollapsed()) openObservability()
+    else {
+      observabilityIntent.current = true
+      panel?.collapse()
+    }
   }
   function openFiles() {
     setSettingsTab("sandbox")
@@ -667,9 +756,6 @@ export function Studio() {
             className="mb-1 h-auto w-full justify-start py-2.5 text-left"
             onClick={() => {
               setActive(item.id)
-              setSelectedRun(undefined)
-              setSelectedEvent(undefined)
-              setAttachments([])
               setEditing(undefined)
               setMobile(null)
             }}
@@ -727,6 +813,14 @@ export function Studio() {
   )
   const sandboxFiles = session && (
     <FilesPanel
+      key={session.id}
+      editor={session.fileEditor ?? { newPath: "" }}
+      onEditorChange={(change) =>
+        updateSession(session.id, (s) => ({
+          ...s,
+          fileEditor: change(s.fileEditor ?? { newPath: "" }),
+        }))
+      }
       files={session.files}
       onChange={(files) => updateSession(session.id, (s) => ({ ...s, files }))}
       disabled={running}
@@ -757,7 +851,7 @@ export function Studio() {
       value={inspectorTab}
       onValueChange={(tab) => {
         setInspectorTab(tab)
-        observabilityPanel.current?.expand()
+        openObservability()
       }}
       className="flex h-full min-h-0 flex-col gap-0"
     >
@@ -774,11 +868,7 @@ export function Studio() {
             ["usage", "Usage"],
             ["history", "Runs"],
           ].map(([value, label]) => (
-            <TabsTrigger
-              key={value}
-              value={value!}
-              onClick={() => observabilityPanel.current?.expand()}
-            >
+            <TabsTrigger key={value} value={value!} onClick={openObservability}>
               {label}
             </TabsTrigger>
           ))}
@@ -809,6 +899,7 @@ export function Studio() {
             className="min-h-0 flex-1 overflow-auto"
           >
             <Inspector
+              sessionId={session.id}
               tab={tab satisfies InspectorProps["tab"]}
               run={selected}
               selectedEvent={selectedEvent}
@@ -910,7 +1001,7 @@ export function Studio() {
     </Tabs>
   )
 
-  if (!ready || !session)
+  if (!ready || !preferencesReady || !session)
     return (
       <div
         role="status"
@@ -1144,6 +1235,7 @@ export function Studio() {
                             <Bubble variant="ghost" className="w-full">
                               <BubbleContent className="w-full">
                                 <ResponseContent
+                                  sessionId={session.id}
                                   run={run}
                                   selectedEvent={selectedEvent}
                                   inspect={(event) => inspect(run, event)}
@@ -1394,7 +1486,21 @@ export function Studio() {
     </div>
   )
   const workspace = (
-    <ResizablePanelGroup orientation="vertical" id="studio-center">
+    <ResizablePanelGroup
+      orientation="vertical"
+      id="studio-center"
+      onLayoutChanged={(layout, meta) => {
+        if (!meta.isUserInteraction && !observabilityIntent.current) return
+        observabilityIntent.current = false
+        const expanded = !observabilityPanel.current?.isCollapsed()
+        const size = (meta.requestedLayout ?? layout)["studio-observability"]
+        setObservability((previous) => ({
+          expanded,
+          size:
+            expanded && size !== undefined ? Math.min(65, size) : previous.size,
+        }))
+      }}
+    >
       <ResizablePanel
         id="studio-conversation"
         defaultSize="100%"
@@ -1422,7 +1528,7 @@ export function Studio() {
       <ResizablePanel
         id="studio-observability"
         panelRef={observabilityPanel}
-        defaultSize="36px"
+        defaultSize={observability.expanded ? `${observability.size}%` : "36px"}
         collapsedSize="36px"
         minSize="180px"
         maxSize="65%"
@@ -1532,6 +1638,7 @@ export function Studio() {
                 variant="destructive"
                 onClick={() => {
                   dirty.current.delete(session.id)
+                  preferences.removeScope(session.id)
                   void removeSession(session.id).catch((error: unknown) =>
                     toast.error(String(error))
                   )
@@ -1569,22 +1676,41 @@ export function Studio() {
       )}
       {wide ? (
         <div className="min-h-0 flex-1">
-          <ResizablePanelGroup orientation="horizontal">
+          <ResizablePanelGroup
+            orientation="horizontal"
+            key={layoutScope}
+            id="studio-workspace"
+            defaultLayout={horizontalLayout}
+            onLayoutChanged={(layout, meta) => {
+              if (meta.isUserInteraction)
+                setHorizontalLayout(meta.requestedLayout ?? layout)
+            }}
+          >
             {showSessions && (
               <>
-                <ResizablePanel defaultSize="15%" minSize="150px" maxSize="25%">
+                <ResizablePanel
+                  id="studio-sessions"
+                  defaultSize="15%"
+                  minSize="150px"
+                  maxSize="25%"
+                >
                   {sessionsPanel}
                 </ResizablePanel>
                 <ResizableHandle />
               </>
             )}
-            <ResizablePanel defaultSize="60%" minSize="300px">
+            <ResizablePanel id="studio-main" defaultSize="60%" minSize="300px">
               {workspace}
             </ResizablePanel>
             {showSettings && (
               <>
                 <ResizableHandle />
-                <ResizablePanel defaultSize="28%" minSize="280px" maxSize="45%">
+                <ResizablePanel
+                  id="studio-settings"
+                  defaultSize="28%"
+                  minSize="280px"
+                  maxSize="45%"
+                >
                   {settingsPanel}
                 </ResizablePanel>
               </>

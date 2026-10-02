@@ -1,3 +1,4 @@
+import { usePreference } from "@/features/preferences/provider"
 import { createFileRoute } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
@@ -29,8 +30,8 @@ export const Route = createFileRoute("/monitoring")({
   component: MonitoringPage,
 })
 function MonitoringPage() {
-  const [period, setPeriod] = useState("7d")
-  const [model, setModel] = useState("")
+  const [period, setPeriod] = usePreference("monitoring.period")
+  const [model, setModel] = usePreference("monitoring.model")
   const [resetScope, setResetScope] = useState("session")
   const [confirmReset, setConfirmReset] = useState(false)
   const client = useQueryClient()

@@ -1,5 +1,10 @@
-import { useState } from "react"
-import { Link, getRouteApi } from "@tanstack/react-router"
+import {
+  usePreference,
+  usePreferencesReady,
+} from "@/features/preferences/provider"
+import { libraryFiltersSchema } from "@/features/preferences/app-schema"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Link, getRouteApi, useRouterState } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { managementRequest } from "@/features/management/request"
 import {
@@ -38,8 +43,59 @@ export function LibraryPanel() {
   const storage = useQuery(storageQuery())
   const models = useQuery(modelsQuery(api))
   const state = useQuery(stateQuery(api))
-  const search = libraryRoute.useSearch()
+  const routeSearch = libraryRoute.useSearch()
+  const search = useMemo(
+    () => libraryFiltersSchema.parse(routeSearch),
+    [routeSearch]
+  )
   const navigate = libraryRoute.useNavigate()
+  const [rememberedFilters, setRememberedFilters] =
+    usePreference("models.filters")
+  const preferencesReady = usePreferencesReady()
+  const hydratedFilters = useRef(false)
+  const restoringFilters = useRef<string | undefined>(undefined)
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
+  const rawSearch = useRouterState({
+    select: (state) => state.location.search,
+  })
+  useEffect(() => {
+    if (!preferencesReady || pathname !== "/models") return
+    const current = JSON.stringify(search)
+    const url = libraryFiltersSchema.parse(rawSearch)
+    if (JSON.stringify(url) !== current) return
+    if (restoringFilters.current !== undefined) {
+      if (current !== restoringFilters.current) return
+      restoringFilters.current = undefined
+    }
+    if (!hydratedFilters.current) {
+      hydratedFilters.current = true
+      const restored = { ...rememberedFilters }
+      for (const key of ["q", "state", "task", "health", "type"] as const) {
+        if (!Object.hasOwn(rawSearch, key)) continue
+        const raw = rawSearch[key]
+        const parsed = libraryFiltersSchema.shape[key].safeParse(raw)
+        if (parsed.success && parsed.data === raw)
+          Object.assign(restored, { [key]: parsed.data })
+      }
+      if (JSON.stringify(restored) !== current) {
+        restoringFilters.current = JSON.stringify(restored)
+        void navigate({ search: restored, replace: true })
+        return
+      }
+    }
+    if (JSON.stringify(rememberedFilters) !== JSON.stringify(search))
+      setRememberedFilters(search)
+  }, [
+    preferencesReady,
+    pathname,
+    rememberedFilters,
+    search,
+    rawSearch,
+    navigate,
+    setRememberedFilters,
+  ])
   const query = search.q
   const task = search.task
   const health = search.health

@@ -1,4 +1,10 @@
-import { Link, createFileRoute } from "@tanstack/react-router"
+import { useEffect, useRef } from "react"
+import {
+  usePreference,
+  usePreferencesReady,
+} from "@/features/preferences/provider"
+import { overviewScopeSchema } from "@/features/preferences/app-schema"
+import { Link, createFileRoute, useRouterState } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { z } from "zod"
 import {
@@ -26,19 +32,58 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  SelectGroup,
 } from "@/components/ui/select"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 
 export const Route = createFileRoute("/")({
   validateSearch: z.object({
-    scope: z.enum(["session", "alltime"]).catch("session").default("session"),
+    scope: z.enum(["session", "alltime"]).catch("session").optional(),
   }),
   component: Overview,
 })
 function Overview() {
   const { api } = useManagement()
-  const { scope } = Route.useSearch()
+  const { scope = "session" } = Route.useSearch()
   const navigate = Route.useNavigate()
+  const [rememberedScope, setRememberedScope] = usePreference("overview.scope")
+  const preferencesReady = usePreferencesReady()
+  const hydratedScope = useRef(false)
+  const restoringScope = useRef<string | undefined>(undefined)
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
+  const rawSearch = useRouterState({
+    select: (state) => state.location.search,
+  })
+  useEffect(() => {
+    if (!preferencesReady || pathname !== "/") return
+    const rawScope = overviewScopeSchema.safeParse(rawSearch.scope)
+    if ((rawScope.success ? rawScope.data : "session") !== scope) return
+    if (restoringScope.current !== undefined) {
+      if (scope !== restoringScope.current) return
+      restoringScope.current = undefined
+    }
+    if (!hydratedScope.current) {
+      hydratedScope.current = true
+      const explicit = overviewScopeSchema.safeParse(rawSearch.scope)
+      const restored = explicit.success ? explicit.data : rememberedScope
+      if (restored !== scope) {
+        restoringScope.current = restored
+        void navigate({ search: { scope: restored }, replace: true })
+        return
+      }
+    }
+    if (rememberedScope !== scope) setRememberedScope(scope)
+  }, [
+    preferencesReady,
+    pathname,
+    scope,
+    rawSearch,
+    rememberedScope,
+    navigate,
+    setRememberedScope,
+  ])
   const state = useQuery(stateQuery(api))
   const stats = useQuery(statsQuery(api, scope))
   const models = useQuery(modelsQuery(api))
@@ -148,6 +193,10 @@ function Overview() {
             }
           >
             <Select
+              items={[
+                { value: "session", label: "This session" },
+                { value: "alltime", label: "All time" },
+              ]}
               value={scope}
               onValueChange={(value) =>
                 void navigate({
@@ -160,8 +209,10 @@ function Overview() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="session">This session</SelectItem>
-                <SelectItem value="alltime">All time</SelectItem>
+                <SelectGroup>
+                  <SelectItem value="session">This session</SelectItem>
+                  <SelectItem value="alltime">All time</SelectItem>
+                </SelectGroup>
               </SelectContent>
             </Select>
           </PageTitle>

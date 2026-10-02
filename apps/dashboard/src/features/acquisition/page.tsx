@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { usePreference } from "@/features/preferences/provider"
 import { PageTitle } from "@/components/page-state"
 import { Button } from "@/components/ui/button"
 import { AcquisitionConfiguration } from "./configuration"
@@ -6,7 +6,7 @@ import { Discover } from "./discover"
 import { Prepare } from "./prepare"
 import { Publish } from "./publish"
 export function AddModelPage() {
-  const [step, setStep] = useState("discover")
+  const [step, setStep] = usePreference("acquisition.step")
   return (
     <>
       <PageTitle

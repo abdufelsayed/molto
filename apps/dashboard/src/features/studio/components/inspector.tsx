@@ -1,4 +1,5 @@
-import { useId, useState } from "react"
+import { createContext, useContext, useId, useState } from "react"
+import { usePreference } from "@/features/preferences/provider"
 import { formatJson, JsonView } from "./json-view"
 import { Check, ChevronRight, Copy } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -24,7 +25,10 @@ import {
   type VirtualFile,
 } from "../agent/types"
 
+const DisclosureScope = createContext("")
+
 export type InspectorProps = {
+  sessionId: string
   tab: "trace" | "request" | "response" | "usage"
   run?: Run
   selectedEvent?: string
@@ -169,20 +173,35 @@ function Changes({ changes }: { changes: FileChange[] }) {
     <div className="flex flex-col gap-2">
       <h3 className="text-xs font-semibold">File changes · {changes.length}</h3>
       {changes.map((change) => (
-        <Collapsible key={change.path} className="border-b border-border/50">
-          <CollapsibleTrigger className="group flex w-full items-center justify-between gap-2 py-2 text-left text-xs hover:bg-muted/40">
-            <span className="min-w-0 font-mono break-all">{change.path}</span>
-            <Badge variant="outline">
-              {!change.before ? "Added" : !change.after ? "Removed" : "Changed"}
-            </Badge>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="flex flex-col gap-2 pb-2">
-            <Raw label="Before" value={content(change.before)} />
-            <Raw label="After" value={content(change.after)} />
-          </CollapsibleContent>
-        </Collapsible>
+        <FileDisclosure key={change.path} change={change} />
       ))}
     </div>
+  )
+}
+
+function FileDisclosure({ change }: { change: FileChange }) {
+  const scope = useContext(DisclosureScope)
+  const [open, setOpen] = usePreference(
+    "studio.disclosure",
+    `${scope}:file:${change.path}`
+  )
+  return (
+    <Collapsible
+      open={open ?? false}
+      onOpenChange={setOpen}
+      className="border-b border-border/50"
+    >
+      <CollapsibleTrigger className="group flex w-full items-center justify-between gap-2 py-2 text-left text-xs hover:bg-muted/40">
+        <span className="min-w-0 font-mono break-all">{change.path}</span>
+        <Badge variant="outline">
+          {!change.before ? "Added" : !change.after ? "Removed" : "Changed"}
+        </Badge>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="flex flex-col gap-2 pb-2">
+        <Raw label="Before" value={content(change.before)} />
+        <Raw label="After" value={content(change.after)} />
+      </CollapsibleContent>
+    </Collapsible>
   )
 }
 
@@ -201,26 +220,38 @@ function usageSummary(usage: unknown): [string, string][] {
 }
 
 function Disclosure({
+  id,
   label,
   children,
 }: {
+  id?: string
   label: string
   children: React.ReactNode
 }) {
+  const parentScope = useContext(DisclosureScope)
+  const scope = `${parentScope}:${id ?? label}`
+  const [open, setOpen] = usePreference("studio.disclosure", scope)
   return (
-    <Collapsible className="border-b border-border/50">
-      <CollapsibleTrigger className="group flex w-full items-center gap-2 py-2 text-left text-xs font-medium hover:bg-muted/40">
-        <ChevronRight className="size-3.5 text-muted-foreground group-data-open:rotate-90" />
-        {label}
-      </CollapsibleTrigger>
-      <CollapsibleContent className="flex flex-col gap-3 pb-3">
-        {children}
-      </CollapsibleContent>
-    </Collapsible>
+    <DisclosureScope value={scope}>
+      <Collapsible
+        open={open ?? false}
+        onOpenChange={setOpen}
+        className="border-b border-border/50"
+      >
+        <CollapsibleTrigger className="group flex w-full items-center gap-2 py-2 text-left text-xs font-medium hover:bg-muted/40">
+          <ChevronRight className="size-3.5 text-muted-foreground group-data-open:rotate-90" />
+          {label}
+        </CollapsibleTrigger>
+        <CollapsibleContent className="flex flex-col gap-3 pb-3">
+          {children}
+        </CollapsibleContent>
+      </Collapsible>
+    </DisclosureScope>
   )
 }
 
 export function Inspector({
+  sessionId,
   tab,
   run,
   selectedEvent,
@@ -237,208 +268,217 @@ export function Inspector({
   const event = run.events.find((entry) => entry.id === selectedEvent)
   const changes = diffFiles(run.before, run.after)
   return (
-    <div className="flex min-w-0 flex-col gap-4 p-4">
-      {run.error && (
-        <p role="alert" className="text-sm text-destructive">
-          {run.error}
-        </p>
-      )}
-      {tab === "trace" && (
-        <div className="grid gap-4 md:grid-cols-[minmax(180px,1fr)_minmax(0,2fr)]">
-          <div
-            aria-label="Run events"
-            className="flex min-w-0 flex-col gap-0.5"
-          >
-            {run.events.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                No events recorded yet.
-              </p>
-            )}
-            {run.events.map((entry, index) => (
-              <Button
-                key={entry.id}
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "h-auto w-full justify-start gap-2 py-2 text-left",
-                  entry.id === selectedEvent && "bg-muted"
-                )}
-                onClick={() => onSelectEvent(entry.id)}
-                aria-pressed={entry.id === selectedEvent}
-              >
-                <span className="font-mono text-xs text-muted-foreground">
-                  {index + 1}
-                </span>
-                <span className="truncate text-xs">
-                  {entry.tool ?? entry.type}
-                </span>
-                <span className="ml-auto text-xs text-muted-foreground">
-                  {entry.replayed ? "replayed" : entry.state}
-                </span>
-              </Button>
-            ))}
-          </div>
-          <div className="min-w-0">
-            {event ? (
-              <EventDetails event={event} />
-            ) : (
-              <p className="py-2 text-xs text-muted-foreground">
-                Select an event to inspect its details.
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-      {tab === "request" && (
-        <>
-          <Raw label="Input conversation" value={run.input} />
-          {run.steps.map((step, index) => (
-            <Disclosure key={index} label={`Model call ${index + 1}`}>
-              <Raw label={`Request ${index + 1}`} value={step.request} />
-            </Disclosure>
-          ))}
-        </>
-      )}
-      {tab === "response" && (
-        <>
-          <Raw label="Result conversation" value={run.messages} />
-          {run.steps.map((step, index) => (
-            <Disclosure key={index} label={`Model call ${index + 1}`}>
-              <Raw label={`Response ${index + 1}`} value={step.response} />
-            </Disclosure>
-          ))}
-        </>
-      )}
-      {tab === "usage" && (
-        <>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-            <span className="font-mono break-all text-foreground">
-              {run.settings.model}
-            </span>
-            <span>{run.status}</span>
-            <span>
-              {run.mode === "replay" ? "Recorded tools" : "Live tools"}
-            </span>
-            <span>{new Date(run.created).toLocaleString()}</span>
-            <span>
-              {run.steps.length} model calls ·{" "}
-              {run.events.filter((entry) => entry.type === "tool").length} tool
-              calls
-            </span>
-            {run.replayOf && (
-              <span className="break-all">
-                Replaying results from {run.replayOf}
-              </span>
-            )}
-          </div>
-          {run.steps.map((step, index) => (
+    <DisclosureScope
+      value={`${sessionId}:${run.id}:inspector:${tab}:${tab === "trace" ? (selectedEvent ?? "") : ""}`}
+    >
+      <div className="flex min-w-0 flex-col gap-4 p-4">
+        {run.error && (
+          <p role="alert" className="text-sm text-destructive">
+            {run.error}
+          </p>
+        )}
+        {tab === "trace" && (
+          <div className="grid gap-4 md:grid-cols-[minmax(180px,1fr)_minmax(0,2fr)]">
             <div
-              key={index}
-              className="flex flex-col gap-2 border-b border-border/50 pb-3"
+              aria-label="Run events"
+              className="flex min-w-0 flex-col gap-0.5"
             >
-              <div className="flex justify-between gap-2 text-xs">
-                <h3 className="font-medium">Model call {index + 1}</h3>
-                <span className="text-muted-foreground">
-                  {step.finishReason ?? "In progress"}
-                </span>
-              </div>
-              <dl className="grid gap-x-6 gap-y-1 text-xs sm:grid-cols-2">
-                {[
-                  ["Duration", elapsed(step.duration)],
-                  ["First token", elapsed(step.firstToken)],
-                  ...usageSummary(step.usage),
-                ].map(([label, value]) => (
-                  <div key={label} className="flex justify-between gap-2">
-                    <dt className="text-muted-foreground">{label}</dt>
-                    <dd className="font-mono">{value}</dd>
-                  </div>
-                ))}
-              </dl>
-              {(step.usage !== undefined || step.metadata !== undefined) && (
-                <Disclosure label="Full usage and timing">
-                  <Raw label="Usage" value={step.usage} />
-                  <Raw label="Provider metadata" value={step.metadata} />
-                </Disclosure>
+              {run.events.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No events recorded yet.
+                </p>
+              )}
+              {run.events.map((entry, index) => (
+                <Button
+                  key={entry.id}
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "h-auto w-full justify-start gap-2 py-2 text-left",
+                    entry.id === selectedEvent && "bg-muted"
+                  )}
+                  onClick={() => onSelectEvent(entry.id)}
+                  aria-pressed={entry.id === selectedEvent}
+                >
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {index + 1}
+                  </span>
+                  <span className="truncate text-xs">
+                    {entry.tool ?? entry.type}
+                  </span>
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {entry.replayed ? "replayed" : entry.state}
+                  </span>
+                </Button>
+              ))}
+            </div>
+            <div className="min-w-0">
+              {event ? (
+                <EventDetails event={event} />
+              ) : (
+                <p className="py-2 text-xs text-muted-foreground">
+                  Select an event to inspect its details.
+                </p>
               )}
             </div>
-          ))}
-          <Field className="gap-1.5">
-            <FieldLabel htmlFor={noteId}>Research note</FieldLabel>
-            <Textarea
-              id={noteId}
-              value={run.note}
-              onChange={(change) => onNote(change.target.value)}
-              placeholder="What did this run show?"
-              className="min-h-20"
-            />
-          </Field>
-          <Disclosure label="Recorded settings for this run">
-            <p className="text-xs text-muted-foreground">
-              Requested controls and inherited configuration were saved at run
-              start. These records do not claim every runtime setting was
-              resolved.
-            </p>
-            <Raw label="Requested session controls" value={run.settings} />
-            <Raw
-              label="Inherited configuration at run start"
-              value={run.environment}
-            />
-          </Disclosure>
-          <Disclosure label={`File changes · ${changes.length}`}>
-            <p className="text-xs text-muted-foreground">
-              This run started with {run.before.length} filesystem entries and
-              ended with {run.after.length}. Historical snapshots belong to this
-              run.
-            </p>
-            {changes.length ? (
-              <Changes changes={changes} />
-            ) : (
-              <p className="text-xs text-muted-foreground">No file changes.</p>
-            )}
-            <Disclosure label="Snapshot manifest">
-              <Raw
-                label="Before manifest"
-                value={run.before.map(({ content: bytes, ...file }) => ({
-                  ...file,
-                  base64Length: bytes?.length,
-                }))}
+          </div>
+        )}
+        {tab === "request" && (
+          <>
+            <Raw label="Input conversation" value={run.input} />
+            {run.steps.map((step, index) => (
+              <Disclosure key={index} label={`Model call ${index + 1}`}>
+                <Raw label={`Request ${index + 1}`} value={step.request} />
+              </Disclosure>
+            ))}
+          </>
+        )}
+        {tab === "response" && (
+          <>
+            <Raw label="Result conversation" value={run.messages} />
+            {run.steps.map((step, index) => (
+              <Disclosure key={index} label={`Model call ${index + 1}`}>
+                <Raw label={`Response ${index + 1}`} value={step.response} />
+              </Disclosure>
+            ))}
+          </>
+        )}
+        {tab === "usage" && (
+          <>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <span className="font-mono break-all text-foreground">
+                {run.settings.model}
+              </span>
+              <span>{run.status}</span>
+              <span>
+                {run.mode === "replay" ? "Recorded tools" : "Live tools"}
+              </span>
+              <span>{new Date(run.created).toLocaleString()}</span>
+              <span>
+                {run.steps.length} model calls ·{" "}
+                {run.events.filter((entry) => entry.type === "tool").length}{" "}
+                tool calls
+              </span>
+              {run.replayOf && (
+                <span className="break-all">
+                  Replaying results from {run.replayOf}
+                </span>
+              )}
+            </div>
+            {run.steps.map((step, index) => (
+              <div
+                key={index}
+                className="flex flex-col gap-2 border-b border-border/50 pb-3"
+              >
+                <div className="flex justify-between gap-2 text-xs">
+                  <h3 className="font-medium">Model call {index + 1}</h3>
+                  <span className="text-muted-foreground">
+                    {step.finishReason ?? "In progress"}
+                  </span>
+                </div>
+                <dl className="grid gap-x-6 gap-y-1 text-xs sm:grid-cols-2">
+                  {[
+                    ["Duration", elapsed(step.duration)],
+                    ["First token", elapsed(step.firstToken)],
+                    ...usageSummary(step.usage),
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex justify-between gap-2">
+                      <dt className="text-muted-foreground">{label}</dt>
+                      <dd className="font-mono">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {(step.usage !== undefined || step.metadata !== undefined) && (
+                  <Disclosure
+                    id={`usage:${index}`}
+                    label="Full usage and timing"
+                  >
+                    <Raw label="Usage" value={step.usage} />
+                    <Raw label="Provider metadata" value={step.metadata} />
+                  </Disclosure>
+                )}
+              </div>
+            ))}
+            <Field className="gap-1.5">
+              <FieldLabel htmlFor={noteId}>Research note</FieldLabel>
+              <Textarea
+                id={noteId}
+                value={run.note}
+                onChange={(change) => onNote(change.target.value)}
+                placeholder="What did this run show?"
+                className="min-h-20"
               />
+            </Field>
+            <Disclosure label="Recorded settings for this run">
+              <p className="text-xs text-muted-foreground">
+                Requested controls and inherited configuration were saved at run
+                start. These records do not claim every runtime setting was
+                resolved.
+              </p>
+              <Raw label="Requested session controls" value={run.settings} />
               <Raw
-                label="After manifest"
-                value={run.after.map(({ content: bytes, ...file }) => ({
-                  ...file,
-                  base64Length: bytes?.length,
-                }))}
+                label="Inherited configuration at run start"
+                value={run.environment}
               />
             </Disclosure>
-          </Disclosure>
-          {run.sources.length > 0 && (
-            <Disclosure label={`Sources · ${run.sources.length}`}>
-              {run.sources.map((source) => (
-                <a
-                  key={source.id}
-                  href={source.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block py-2 text-xs hover:bg-muted/40"
-                >
-                  <span className="font-medium">
-                    {source.title || source.url}
-                  </span>
-                  <span className="mt-1 block truncate text-muted-foreground">
-                    {source.url}
-                  </span>
-                  {source.snippet && (
-                    <span className="mt-1 block text-muted-foreground">
-                      {source.snippet}
+            <Disclosure label={`File changes · ${changes.length}`}>
+              <p className="text-xs text-muted-foreground">
+                This run started with {run.before.length} filesystem entries and
+                ended with {run.after.length}. Historical snapshots belong to
+                this run.
+              </p>
+              {changes.length ? (
+                <Changes changes={changes} />
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  No file changes.
+                </p>
+              )}
+              <Disclosure label="Snapshot manifest">
+                <Raw
+                  label="Before manifest"
+                  value={run.before.map(({ content: bytes, ...file }) => ({
+                    ...file,
+                    base64Length: bytes?.length,
+                  }))}
+                />
+                <Raw
+                  label="After manifest"
+                  value={run.after.map(({ content: bytes, ...file }) => ({
+                    ...file,
+                    base64Length: bytes?.length,
+                  }))}
+                />
+              </Disclosure>
+            </Disclosure>
+            {run.sources.length > 0 && (
+              <Disclosure label={`Sources · ${run.sources.length}`}>
+                {run.sources.map((source) => (
+                  <a
+                    key={source.id}
+                    href={source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block py-2 text-xs hover:bg-muted/40"
+                  >
+                    <span className="font-medium">
+                      {source.title || source.url}
                     </span>
-                  )}
-                </a>
-              ))}
-            </Disclosure>
-          )}
-        </>
-      )}
-    </div>
+                    <span className="mt-1 block truncate text-muted-foreground">
+                      {source.url}
+                    </span>
+                    {source.snippet && (
+                      <span className="mt-1 block text-muted-foreground">
+                        {source.snippet}
+                      </span>
+                    )}
+                  </a>
+                ))}
+              </Disclosure>
+            )}
+          </>
+        )}
+      </div>
+    </DisclosureScope>
   )
 }

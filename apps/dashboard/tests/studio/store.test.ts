@@ -36,6 +36,10 @@ hooks.deregister()
 
 void test("import repairs interrupted tool context and activity while preserving the exported record", () => {
   const session = newSession()
+  session.fileEditor = {
+    newPath: "next.txt",
+    draft: { path: "/workspace/kept", text: "Unsaved editor text" },
+  }
   const run: Run = {
     id: "run",
     created: 1,
@@ -109,6 +113,7 @@ void test("import repairs interrupted tool context and activity while preserving
   assert.deepEqual(recovered.prompt, run.prompt)
   assert.deepEqual(recovered.after, run.after)
   assert.deepEqual(imported.files, session.files)
+  assert.deepEqual(imported.fileEditor, session.fileEditor)
   assert.deepEqual(session, original)
   // A second import must not duplicate recovery results or error events.
   const again = importSession(JSON.stringify(imported)).runs[0]!

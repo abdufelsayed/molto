@@ -109,11 +109,34 @@ sources and do not establish that an answer is supported by them.
 
 ## Persistence and ownership
 
-Experiments are saved in the dashboard browser's IndexedDB, with periodic
-checkpoints during streaming. Reloaded unfinished runs are marked interrupted.
+Experiments are saved in the dashboard browser's IndexedDB. Idle edits start a
+save immediately; streaming uses periodic checkpoints. Reloaded unfinished runs
+are marked interrupted.
 Storage failures are shown in the workspace. JSON exports/imports include
 settings, history, branches, notes, and virtual file snapshots. Persistence is
 local to this browser and origin and is not synced between devices.
+
+Browser view preferences use TanStack Store with versioned, validated
+localStorage under `molto.ui.preferences`. Reloading restores the selected
+experiment, per-experiment run/event/file selections and prompt attachments,
+configuration and observability tabs, sidebar visibility, panel sizes, and
+manually opened activity details. Observability content starts minimized when
+there is no saved preference; its tab strip always stays visible. Unsaved file
+editor text and the new-file path are checkpointed with the experiment in
+IndexedDB. Restoring an editor draft does not apply it to the virtual filesystem.
+
+The dashboard also remembers model-library filters, model detail tabs,
+Overview scope, Logs and Monitoring filters, Activity filters, Add model tabs
+and discovery filters, and the Settings tab/search. Explicit URL parameters
+take precedence over remembered model views. Restoring discovery controls does
+not submit a search. Themes keep their existing browser persistence.
+
+Only known view preferences are restored. Invalid entries fall back to defaults
+without discarding valid entries; unavailable or full localStorage leaves the
+current view usable in memory. Credentials, confirmations, active requests,
+operation selections, and unsaved server configuration are not saved by this
+preference store. Clearing browser site data removes local experiments and
+preferences.
 
 The agent lives in `apps/dashboard/src/features/studio/agent`. It receives
 settings, messages, snapshots, and transport callbacks. It owns no storage and

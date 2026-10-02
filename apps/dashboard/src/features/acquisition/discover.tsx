@@ -1,3 +1,4 @@
+import { usePreference } from "@/features/preferences/provider"
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { managementQuery } from "@/features/management/request"
@@ -18,16 +19,20 @@ import type { HubInfo, HubResults } from "./types"
 import { bytes, count } from "@/lib/format"
 import type { Operation } from "@/features/operations/page"
 export function Discover() {
-  const [provider, setProvider] = useState("hf")
-  const [search, setSearch] = useState("")
-  const [sort, setSort] = useState("trending")
-  const [mlx, setMlx] = useState("true")
-  const [minimumSize, setMinimumSize] = useState("")
-  const [maximumSize, setMaximumSize] = useState("")
-  const [minimumParams, setMinimumParams] = useState("")
-  const [maximumParams, setMaximumParams] = useState("")
-  const [sizeSort, setSizeSort] = useState("off")
-  const [budget, setBudget] = useState("16")
+  const [provider, setProvider] = usePreference("discover.provider")
+  const [search, setSearch] = usePreference("discover.search")
+  const [sort, setSort] = usePreference("discover.sort")
+  const [mlx, setMlx] = usePreference("discover.mlx")
+  const [minimumSize, setMinimumSize] = usePreference("discover.minimumSize")
+  const [maximumSize, setMaximumSize] = usePreference("discover.maximumSize")
+  const [minimumParams, setMinimumParams] = usePreference(
+    "discover.minimumParams"
+  )
+  const [maximumParams, setMaximumParams] = usePreference(
+    "discover.maximumParams"
+  )
+  const [sizeSort, setSizeSort] = usePreference("discover.sizeSort")
+  const [budget, setBudget] = usePreference("discover.budget")
   const [request, setRequest] = useState<{
     provider: string
     path: string

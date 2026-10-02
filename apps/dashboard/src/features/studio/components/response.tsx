@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { usePreference } from "@/features/preferences/provider"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import {
@@ -234,19 +235,25 @@ const detailActions =
   "[@media(hover:hover)]:opacity-0 group-hover/detail:opacity-100 group-focus-within/detail:opacity-100"
 
 function ResultDisclosure({
+  scope,
   label,
   value,
   defaultOpen = true,
 }: {
+  scope: string
   label: string
   value: unknown
   defaultOpen?: boolean
 }) {
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState("")
+  const [manual, setManual] = usePreference(
+    "studio.disclosure",
+    `${scope}:${label}`
+  )
   if (value === undefined) return null
   return (
-    <Collapsible defaultOpen={defaultOpen}>
+    <Collapsible open={manual ?? defaultOpen} onOpenChange={setManual}>
       <div className="group/detail flex items-center gap-1">
         <CollapsibleTrigger className={disclosureClassName}>
           <ChevronDown className={chevronClassName} />
@@ -284,6 +291,7 @@ function ResultDisclosure({
 }
 
 function Activity({
+  scope,
   event,
   active,
   selected,
@@ -291,6 +299,7 @@ function Activity({
   save,
   sources,
 }: {
+  scope: string
   event: RunEvent
   active: boolean
   selected: boolean
@@ -298,7 +307,7 @@ function Activity({
   save: (code: string, language: string) => void
   sources: Source[]
 }) {
-  const [manual, setManual] = useState<boolean>()
+  const [manual, setManual] = usePreference("studio.disclosure", scope)
   const open = manual ?? active
   const failed =
     event.type === "error" ||
@@ -363,6 +372,7 @@ function Activity({
               </p>
             )}
             <ResultDisclosure
+              scope={scope}
               label="Arguments"
               value={
                 event.input === undefined && event.type === "tool"
@@ -371,16 +381,19 @@ function Activity({
               }
             />
             <ResultDisclosure
+              scope={scope}
               label={failed ? "Error" : "Result"}
               value={event.output}
             />
             <ResultDisclosure
+              scope={scope}
               label="Model-visible result (limited)"
               value={event.modelOutput}
               defaultOpen={false}
             />
             {!!event.changes?.length && (
               <ResultDisclosure
+                scope={scope}
                 label={`File changes (${event.changes.length})`}
                 value={event.changes}
                 defaultOpen={false}
@@ -394,19 +407,29 @@ function Activity({
 }
 
 export function ResponseContent({
+  sessionId,
   run,
   selectedEvent,
   inspect,
   save,
 }: {
+  sessionId: string
   run: Run
   selectedEvent?: string
   inspect: (event?: string) => void
   save: (code: string, language: string) => void
 }) {
-  const [chainState, setChainState] = useState<Record<string, boolean>>({})
+  const scope = `${sessionId}:${run.id}`
+  const [chainOpenChoice, setChainOpen] = usePreference(
+    "studio.disclosure",
+    `${scope}:chain`
+  )
+  const [sourcesOpen, setSourcesOpen] = usePreference(
+    "studio.disclosure",
+    `${scope}:sources`
+  )
   const running = run.status === "running"
-  const chainOpen = chainState[run.id] ?? running
+  const chainOpen = chainOpenChoice ?? running
   const technical = (event: RunEvent) =>
     event.type === "tool" || event.type === "reasoning"
   let lastTechnical = -1
@@ -422,12 +445,7 @@ export function ResponseContent({
   return (
     <div className="flex min-w-0 flex-col gap-3">
       {chain.length > 0 && (
-        <Collapsible
-          open={chainOpen}
-          onOpenChange={(open) =>
-            setChainState((previous) => ({ ...previous, [run.id]: open }))
-          }
-        >
+        <Collapsible open={chainOpen} onOpenChange={setChainOpen}>
           <CollapsibleTrigger className={disclosureClassName}>
             <ChevronDown className={chevronClassName} />
             <span>Activity</span>
@@ -450,6 +468,7 @@ export function ResponseContent({
             {chain.map((event, index) => (
               <Activity
                 key={`${run.id}:${event.id}`}
+                scope={`${scope}:${event.id}`}
                 event={event}
                 active={
                   running &&
@@ -496,7 +515,7 @@ export function ResponseContent({
         </span>
       )}
       {run.sources.length > 0 && (
-        <Collapsible>
+        <Collapsible open={sourcesOpen ?? false} onOpenChange={setSourcesOpen}>
           <CollapsibleTrigger className={disclosureClassName}>
             <ChevronDown className={chevronClassName} />
             <Search className="size-3" />

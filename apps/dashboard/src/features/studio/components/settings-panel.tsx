@@ -1,3 +1,4 @@
+import { usePreference } from "@/features/preferences/provider"
 import { useId, useState, type ReactNode } from "react"
 import { ChevronDown, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -42,8 +43,8 @@ export type SettingsPanelProps = {
   onChange: (settings: AgentSettings) => void
   models: string[]
   running: boolean
-  tab?: string
-  onTabChange?: (tab: string) => void
+  tab?: "prompt" | "model" | "tools" | "sandbox"
+  onTabChange?: (tab: "prompt" | "model" | "tools" | "sandbox") => void
   sandboxFiles?: ReactNode
 }
 
@@ -223,8 +224,16 @@ function Section({
   children: ReactNode
   open?: boolean
 }) {
+  const [manual, setManual] = usePreference(
+    "studio.disclosure",
+    `settings:${title}`
+  )
   return (
-    <Collapsible defaultOpen={open} className="border-b pb-3">
+    <Collapsible
+      open={manual ?? open}
+      onOpenChange={setManual}
+      className="border-b pb-3"
+    >
       <CollapsibleTrigger className="group flex w-full items-center justify-between py-3 text-left text-sm font-medium">
         {title}
         <ChevronDown className="size-4 text-muted-foreground transition-transform group-data-open:rotate-180 motion-reduce:transition-none" />
@@ -388,7 +397,15 @@ export function SettingsPanel({
       <Tabs
         defaultValue="model"
         value={tab}
-        onValueChange={onTabChange}
+        onValueChange={(value) => {
+          if (
+            value === "prompt" ||
+            value === "model" ||
+            value === "tools" ||
+            value === "sandbox"
+          )
+            onTabChange?.(value)
+        }}
         className="min-h-0 flex-1 overflow-hidden"
       >
         <TabsList

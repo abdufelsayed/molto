@@ -9,7 +9,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Field, FieldLabel } from "@/components/ui/field"
-import type { Snapshot, VirtualFile } from "../agent/types"
+import type { Snapshot, StudioSession, VirtualFile } from "../agent/types"
 import { decodeBytes, encodeBytes } from "../agent/encoding"
 import { download } from "../store"
 
@@ -54,6 +54,8 @@ export function FilesPanel({
   upload,
   selectedPath,
   onSelectPath,
+  editor,
+  onEditorChange,
 }: {
   files: Snapshot
   onChange: (files: Snapshot) => void
@@ -63,9 +65,18 @@ export function FilesPanel({
   upload: (files: FileList) => void
   selectedPath?: string
   onSelectPath: (path: string) => void
+  editor: NonNullable<StudioSession["fileEditor"]>
+  onEditorChange: (
+    change: (
+      previous: NonNullable<StudioSession["fileEditor"]>
+    ) => NonNullable<StudioSession["fileEditor"]>
+  ) => void
 }) {
-  const [draft, setDraft] = useState<{ path: string; text: string }>()
-  const [newPath, setNewPath] = useState("")
+  const { draft, newPath } = editor
+  const setDraft = (value: typeof draft) =>
+    onEditorChange((previous) => ({ ...previous, draft: value }))
+  const setNewPath = (value: string) =>
+    onEditorChange((previous) => ({ ...previous, newPath: value }))
   const [error, setError] = useState("")
   const file = files.find((f) => f.path === selectedPath)
   const text =

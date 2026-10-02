@@ -10,7 +10,7 @@
     "typecheck": "pnpm --workspace-root typecheck:typescript",
     "generate-api": "uv run --project ../.. --all-packages --inexact python ../../tooling/export_management_schema.py && openapi-typescript ../../packages/contracts/generated/openapi.json -o ../../packages/contracts/generated/api-types.ts",
     "test": "pnpm build && pnpm test:unit && playwright test",
-    "test:unit": "node --test tests/proxy*.mjs tests/studio/*.test.ts",
+    "test:unit": "node --test tests/proxy*.mjs tests/studio/*.test.ts tests/preferences/*.test.ts",
     "start": "HOST=${HOST:-127.0.0.1} PORT=${PORT:-17389} node .output/server/index.mjs"
   },
   "dependencies": {
@@ -24,6 +24,7 @@
     "@tanstack/react-router": "latest",
     "@tanstack/react-router-ssr-query": "^1.167.3",
     "@tanstack/react-start": "latest",
+    "@tanstack/react-store": "^0.11.2",
     "ai": "^7.0.127",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",

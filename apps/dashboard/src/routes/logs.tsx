@@ -1,6 +1,10 @@
+import {
+  usePreference,
+  usePreferencesReady,
+} from "@/features/preferences/provider"
 import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { managementQuery } from "@/features/management/request"
 import { PageTitle, QueryState } from "@/components/page-state"
@@ -12,9 +16,9 @@ import { Card, CardContent } from "@/components/ui/card"
 export const Route = createFileRoute("/logs")({ component: LogsPage })
 function LogsPage() {
   const [paused, setPaused] = useState(false)
-  const [file, setFile] = useState("")
-  const [level, setLevel] = useState("")
-  const [lines, setLines] = useState("500")
+  const [file, setFile] = usePreference("logs.file")
+  const [level, setLevel] = usePreference("logs.level")
+  const [lines, setLines] = usePreference("logs.lines")
   const query = useQuery(
     managementQuery<Logs>(
       ["logs", file, level, lines],
@@ -22,6 +26,23 @@ function LogsPage() {
       paused ? undefined : 5000
     )
   )
+  const preferencesReady = usePreferencesReady()
+  const fallback = useQuery({
+    ...managementQuery<Logs>(
+      ["logs", "available-files"],
+      "monitoring/logs?lines=100"
+    ),
+    enabled: preferencesReady && !!file && query.isError,
+  })
+  useEffect(() => {
+    if (
+      preferencesReady &&
+      file &&
+      fallback.data &&
+      !fallback.data.available_files.includes(file)
+    )
+      setFile("")
+  }, [preferencesReady, file, fallback.data, setFile])
   const content = query.data
     ? typeof query.data.logs === "string"
       ? query.data.logs

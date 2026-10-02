@@ -156,6 +156,10 @@ export type StudioSession = {
   runs: Run[]
   files: Snapshot
   draft: string
+  fileEditor?: {
+    newPath: string
+    draft?: { path: string; text: string }
+  }
   branches?: Array<{
     id: string
     title: string

@@ -132,6 +132,17 @@ const importedSchema = z.object({
     .max(10_000),
   files: z.array(fileSchema).max(100_000),
   draft: z.string().default(""),
+  fileEditor: z
+    .object({
+      newPath: z.string().max(4096),
+      draft: z
+        .object({
+          path: z.string().max(4096),
+          text: z.string().max(100_000_000),
+        })
+        .optional(),
+    })
+    .optional(),
   branches: z
     .array(
       z.object({

@@ -1,3 +1,4 @@
+import { usePreference } from "@/features/preferences/provider"
 import { useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { managementRequest } from "@/features/management/request"
@@ -287,7 +288,7 @@ export function ServerEditor({
 }) {
   const queryClient = useQueryClient()
   const [edits, setEdits] = useState<Sections>({})
-  const [search, setSearch] = useState("")
+  const [search, setSearch] = usePreference("server.search")
   const [notice, setNotice] = useState<SettingsResult | null>(null)
   const [preview, setPreview] = useState(false)
   const patch = editedPatch(edits, data.sections)

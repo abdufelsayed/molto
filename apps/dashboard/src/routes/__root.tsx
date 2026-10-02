@@ -8,6 +8,7 @@ import { ThemeProvider } from "next-themes"
 import type { QueryClient } from "@tanstack/react-query"
 import type { ManagementClient } from "@/features/management/api"
 import { AppShell } from "@/components/app-shell"
+import { PreferencesProvider } from "@/features/preferences/provider"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import {
@@ -38,9 +39,11 @@ export const Route = createRootRouteWithContext<{
     ],
   }),
   component: () => (
-    <AppShell>
-      <Outlet />
-    </AppShell>
+    <PreferencesProvider>
+      <AppShell>
+        <Outlet />
+      </AppShell>
+    </PreferencesProvider>
   ),
   notFoundComponent: () => (
     <Empty>

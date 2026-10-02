@@ -18,6 +18,7 @@ import {
   PackagePlusIcon,
 } from "lucide-react"
 import { ConnectionDialog } from "@/components/connection-dialog"
+import { usePreference } from "@/features/preferences/provider"
 import {
   stateQuery,
   connectionQuery,
@@ -61,6 +62,7 @@ const navigation = [
 ] as const
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const [sidebarOpen, setSidebarOpen] = usePreference("app.sidebar")
   const { api, queryClient } = useManagement()
   const access = useQuery(connectionQuery(api))
   const status = useQuery({
@@ -83,7 +85,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         : "Disconnected"
 
   return (
-    <SidebarProvider>
+    <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
       <DashboardSidebar
         pathname={pathname}
         connected={connected}

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { usePreference } from "@/features/preferences/provider"
 import { useQuery } from "@tanstack/react-query"
 import { PageTitle, QueryState } from "@/components/page-state"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -9,7 +9,7 @@ import { ConnectionPanel, IntegrationsPanel } from "./operations"
 import type { ServerSettings } from "./types"
 
 export function ServerSettingsPage() {
-  const [active, setActive] = useState("connection")
+  const [active, setActive] = usePreference("server.tab")
   const settings = useQuery(
     managementQuery<ServerSettings>(["server", "settings"], "server/settings")
   )

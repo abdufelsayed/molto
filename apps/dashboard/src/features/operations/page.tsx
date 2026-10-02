@@ -1,3 +1,4 @@
+import { usePreference } from "@/features/preferences/provider"
 import type { components } from "@molto/contracts"
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
@@ -83,7 +84,7 @@ export function ActivityPage() {
   ]
   const action = useAction()
   const [retryToken, setRetryToken] = useState("")
-  const [filter, setFilter] = useState("all")
+  const [filter, setFilter] = usePreference("activity.filter")
   const [confirmation, setConfirmation] = useState<{
     operation: Operation
     action: string
