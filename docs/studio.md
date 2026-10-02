@@ -26,8 +26,11 @@ syntax-highlighted JSON and copy actions. The chain opens during generation and
 collapses after completion unless you changed its open state manually.
 
 Observability is a resizable panel below the chat input with **Trace**, **Request**,
-**Response**, **Usage**, and **Runs** tabs. Drag its divider down to minimize it
-completely, or up to restore it. The selected tab and expanded details stay intact.
+**Response**, **Usage**, and **Runs** tabs. Its content starts minimized; the tabs
+always stay visible. Click any tab to open its content, or use the arrow in the
+tab strip to minimize or restore it. Drag the divider up to resize the panel or
+down to minimize its content. Double-clicking or pressing Enter on the divider
+also toggles the content. The selected tab and expanded details stay intact.
 **Usage** includes research notes, recorded settings, and historical file changes.
 The inspect icon on a response or activity step opens the matching run and event.
 Structured payloads are parsed and syntax-highlighted, including JSON encoded

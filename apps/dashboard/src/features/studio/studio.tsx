@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query"
 import type { ModelMessage } from "ai"
 import {
   Copy,
+  ChevronDown,
+  ChevronUp,
   GitBranch,
   Pencil,
   PanelLeftClose,
@@ -572,6 +574,11 @@ export function Studio() {
     setInspectorTab("trace")
     observabilityPanel.current?.expand()
   }
+  function toggleObservability() {
+    const panel = observabilityPanel.current
+    if (panel?.isCollapsed()) panel.expand()
+    else panel?.collapse()
+  }
   function openFiles() {
     setSettingsTab("sandbox")
     if (wide) setShowSettings(true)
@@ -748,121 +755,158 @@ export function Studio() {
   const inspector = session && (
     <Tabs
       value={inspectorTab}
-      onValueChange={setInspectorTab}
+      onValueChange={(tab) => {
+        setInspectorTab(tab)
+        observabilityPanel.current?.expand()
+      }}
       className="flex h-full min-h-0 flex-col gap-0"
     >
-      <TabsList
-        variant="line"
-        aria-label="Observability views"
-        className="mx-3 w-auto shrink-0"
-      >
-        <TabsTrigger value="trace">Trace</TabsTrigger>
-        <TabsTrigger value="request">Request</TabsTrigger>
-        <TabsTrigger value="response">Response</TabsTrigger>
-        <TabsTrigger value="usage">Usage</TabsTrigger>
-        <TabsTrigger value="history">Runs</TabsTrigger>
-      </TabsList>
-      {(["trace", "request", "response", "usage"] as const).map((tab) => (
-        <TabsContent
-          key={tab}
-          value={tab}
-          className="min-h-0 flex-1 overflow-auto"
+      <div className="flex h-9 shrink-0 items-center gap-1 px-3">
+        <TabsList
+          variant="line"
+          aria-label="Observability views"
+          className="min-w-0 flex-1"
         >
-          <Inspector
-            tab={tab satisfies InspectorProps["tab"]}
-            run={selected}
-            selectedEvent={selectedEvent}
-            onSelectEvent={setSelectedEvent}
-            onNote={(note) => {
-              if (selected)
-                updateSession(session.id, (s) => ({
-                  ...s,
-                  runs: s.runs.map((r) =>
-                    r.id === selected.id ? { ...r, note } : r
-                  ),
-                }))
-            }}
-          />
-        </TabsContent>
-      ))}
-      <TabsContent value="history" className="min-h-0 flex-1 overflow-auto p-3">
-        <div className="flex flex-col gap-2">
-          {(session.branches ?? []).map((branch) => (
-            <Button
-              key={branch.id}
-              size="sm"
-              variant="outline"
-              disabled={running}
-              onClick={() => {
-                updateSession(session.id, (s) => ({
-                  ...s,
-                  turns: structuredClone(branch.turns),
-                  files: structuredClone(branch.files),
-                  branches: [
-                    ...(s.branches ?? []).filter((b) => b.id !== branch.id),
-                    {
-                      id: crypto.randomUUID(),
-                      title: `Previous branch · ${new Date().toLocaleTimeString()}`,
-                      turns: structuredClone(s.turns),
-                      files: structuredClone(s.files),
-                    },
-                  ],
-                }))
-                setSelectedRun(undefined)
-              }}
+          {[
+            ["trace", "Trace"],
+            ["request", "Request"],
+            ["response", "Response"],
+            ["usage", "Usage"],
+            ["history", "Runs"],
+          ].map(([value, label]) => (
+            <TabsTrigger
+              key={value}
+              value={value!}
+              onClick={() => observabilityPanel.current?.expand()}
             >
-              Restore branch: {branch.title}
-            </Button>
+              {label}
+            </TabsTrigger>
           ))}
-          {[...session.runs].reverse().map((run) => (
-            <div
-              key={run.id}
-              className="group/run flex flex-wrap items-center gap-2 rounded-md px-2 py-1 focus-within:bg-muted/40 hover:bg-muted/40"
-            >
-              <Button
-                variant="ghost"
-                size="sm"
-                className="flex-1 justify-start"
-                onClick={() => inspect(run)}
-              >
-                {new Date(run.created).toLocaleTimeString()} ·{" "}
-                {run.settings.model.split("/").at(-1)}
-                <span className="ml-auto text-xs text-muted-foreground">
-                  {run.status}
-                  {run.mode === "replay" ? " · replay" : ""}
-                </span>
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={running}
-                onClick={() =>
+        </TabsList>
+        <IconAction
+          label={
+            showInspector ? "Minimize observability" : "Expand observability"
+          }
+          aria-expanded={showInspector}
+          aria-controls="observability-content"
+          onClick={toggleObservability}
+        >
+          {showInspector ? <ChevronDown /> : <ChevronUp />}
+        </IconAction>
+      </div>
+      <div
+        id="observability-content"
+        role="region"
+        aria-label="Observability content"
+        aria-hidden={!showInspector}
+        inert={!showInspector}
+        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+      >
+        {(["trace", "request", "response", "usage"] as const).map((tab) => (
+          <TabsContent
+            key={tab}
+            value={tab}
+            className="min-h-0 flex-1 overflow-auto"
+          >
+            <Inspector
+              tab={tab satisfies InspectorProps["tab"]}
+              run={selected}
+              selectedEvent={selectedEvent}
+              onSelectEvent={setSelectedEvent}
+              onNote={(note) => {
+                if (selected)
                   updateSession(session.id, (s) => ({
                     ...s,
-                    settings: structuredClone(run.settings),
-                    files: structuredClone(run.before),
+                    runs: s.runs.map((r) =>
+                      r.id === selected.id ? { ...r, note } : r
+                    ),
                   }))
-                }
-              >
-                Restore setup + starting files
-              </Button>
+              }}
+            />
+          </TabsContent>
+        ))}
+        <TabsContent
+          value="history"
+          className="min-h-0 flex-1 overflow-auto p-3"
+        >
+          <div className="flex flex-col gap-2">
+            {(session.branches ?? []).map((branch) => (
               <Button
-                size="icon-sm"
-                aria-label="Export run"
-                variant="ghost"
-                onClick={() =>
-                  download(
-                    `molto-run-${run.id}.json`,
-                    JSON.stringify(run, null, 2)
-                  )
-                }
+                key={branch.id}
+                size="sm"
+                variant="outline"
+                disabled={running}
+                onClick={() => {
+                  updateSession(session.id, (s) => ({
+                    ...s,
+                    turns: structuredClone(branch.turns),
+                    files: structuredClone(branch.files),
+                    branches: [
+                      ...(s.branches ?? []).filter((b) => b.id !== branch.id),
+                      {
+                        id: crypto.randomUUID(),
+                        title: `Previous branch · ${new Date().toLocaleTimeString()}`,
+                        turns: structuredClone(s.turns),
+                        files: structuredClone(s.files),
+                      },
+                    ],
+                  }))
+                  setSelectedRun(undefined)
+                }}
               >
-                <Download />
+                Restore branch: {branch.title}
               </Button>
-            </div>
-          ))}
-        </div>
-      </TabsContent>
+            ))}
+            {[...session.runs].reverse().map((run) => (
+              <div
+                key={run.id}
+                className="group/run flex flex-wrap items-center gap-2 rounded-md px-2 py-1 focus-within:bg-muted/40 hover:bg-muted/40"
+              >
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex-1 justify-start"
+                  onClick={() => inspect(run)}
+                >
+                  {new Date(run.created).toLocaleTimeString()} ·{" "}
+                  {run.settings.model.split("/").at(-1)}
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {run.status}
+                    {run.mode === "replay" ? " · replay" : ""}
+                  </span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={running}
+                  onClick={() =>
+                    updateSession(session.id, (s) => ({
+                      ...s,
+                      settings: structuredClone(run.settings),
+                      files: structuredClone(run.before),
+                    }))
+                  }
+                >
+                  Restore setup + starting files
+                </Button>
+                <Button
+                  size="icon-sm"
+                  aria-label="Export run"
+                  variant="ghost"
+                  onClick={() =>
+                    download(
+                      `molto-run-${run.id}.json`,
+                      JSON.stringify(run, null, 2)
+                    )
+                  }
+                >
+                  <Download />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+      </div>
     </Tabs>
   )
 
@@ -1353,28 +1397,39 @@ export function Studio() {
     <ResizablePanelGroup orientation="vertical" id="studio-center">
       <ResizablePanel
         id="studio-conversation"
-        defaultSize={wide ? "70%" : "100%"}
+        defaultSize="100%"
         minSize="220px"
       >
         {conversation}
       </ResizablePanel>
-      <ResizableHandle aria-label="Resize observability" />
+      <ResizableHandle
+        withHandle
+        disableDoubleClick
+        aria-label="Resize observability"
+        aria-valuetext={
+          showInspector ? "Observability open" : "Observability closed"
+        }
+        title="Drag to resize observability. Double-click or press Enter to minimize or restore its content."
+        className="hover:bg-muted-foreground/30"
+        onDoubleClick={toggleObservability}
+        onKeyDownCapture={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault()
+            toggleObservability()
+          }
+        }}
+      />
       <ResizablePanel
         id="studio-observability"
         panelRef={observabilityPanel}
-        defaultSize={wide ? "30%" : "0%"}
-        collapsedSize="0px"
+        defaultSize="36px"
+        collapsedSize="36px"
         minSize="180px"
         maxSize="65%"
         collapsible
-        onResize={(size) => setShowInspector(size.inPixels > 0)}
+        onResize={(size) => setShowInspector(size.inPixels > 36.5)}
       >
-        <section
-          className="h-full min-h-0"
-          aria-label="Observability"
-          aria-hidden={!showInspector}
-          inert={!showInspector}
-        >
+        <section className="h-full min-h-0" aria-label="Observability">
           {inspector}
         </section>
       </ResizablePanel>

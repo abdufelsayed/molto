@@ -58,13 +58,6 @@ async function resizeObservability(
   await page.mouse.up()
 }
 async function observability(page: Page, tab: string) {
-  const region = page.locator('section[aria-label="Observability"]')
-  if (
-    (await region.evaluate(
-      (element) => element.getBoundingClientRect().height
-    )) <= 1
-  )
-    await resizeObservability(page, "restore")
   await page
     .getByRole("tablist", { name: "Observability views" })
     .getByRole("tab", { name: tab, exact: true })
@@ -499,6 +492,15 @@ test("mobile studio exposes session controls in a usable sheet and runs a prompt
 }) => {
   await connect(page)
   await page.setViewportSize({ width: 390, height: 844 })
+  const body = page.locator('div[aria-label="Observability content"]')
+  await expect
+    .poll(() =>
+      body.evaluate((element) => element.getBoundingClientRect().height)
+    )
+    .toBeLessThanOrEqual(1)
+  await expect(
+    page.getByRole("tablist", { name: "Observability views" }).getByRole("tab")
+  ).toHaveCount(5)
   await page.getByRole("button", { name: "Show controls" }).click()
   const sheet = page.getByRole("dialog", { name: "Session controls" })
   await expect(sheet).toBeVisible()
@@ -851,7 +853,7 @@ test("observability collapses to zero by dragging, restores its state, and opens
 }) => {
   await page.setViewportSize({ width: 1440, height: 1100 })
   await connect(page)
-  const region = page.locator('section[aria-label="Observability"]')
+  const region = page.locator('div[aria-label="Observability content"]')
   await expect(
     page.getByRole("button", { name: "Observability", exact: true })
   ).toHaveCount(0)
@@ -866,6 +868,39 @@ test("observability collapses to zero by dragging, restores its state, and opens
     "Usage",
     "Runs",
   ])
+  await expect
+    .poll(() =>
+      region.evaluate((element) => element.getBoundingClientRect().height)
+    )
+    .toBeLessThanOrEqual(1)
+  await expect(region).toHaveAttribute("aria-hidden", "true")
+  const handle = page.getByRole("separator", {
+    name: "Resize observability",
+    exact: true,
+  })
+  await expect(handle).toBeVisible()
+  await expect(handle.locator(":scope > div")).toBeVisible()
+  await views.getByRole("tab", { name: "Trace", exact: true }).click()
+  await expect
+    .poll(() =>
+      region.evaluate((element) => element.getBoundingClientRect().height)
+    )
+    .toBeGreaterThan(100)
+  await page
+    .getByRole("button", { name: "Minimize observability", exact: true })
+    .click()
+  await expect
+    .poll(() =>
+      region.evaluate((element) => element.getBoundingClientRect().height)
+    )
+    .toBeLessThanOrEqual(1)
+  await expect(views.getByRole("tab")).toHaveCount(5)
+  await views.getByRole("tab", { name: "Trace", exact: true }).click()
+  await expect
+    .poll(() =>
+      region.evaluate((element) => element.getBoundingClientRect().height)
+    )
+    .toBeGreaterThan(100)
   const prompt = await page
     .getByRole("textbox", { name: "Prompt", exact: true })
     .boundingBox()
@@ -900,6 +935,21 @@ test("observability collapses to zero by dragging, restores its state, and opens
   await expect(
     page.getByRole("textbox", { name: "Prompt", exact: true })
   ).toBeVisible()
+  await handle.focus()
+  await page.keyboard.press("Enter")
+  await expect(views.getByRole("tab")).toHaveCount(5)
+  await expect
+    .poll(() =>
+      region.evaluate((element) => element.getBoundingClientRect().height)
+    )
+    .toBeLessThanOrEqual(1)
+  await page.keyboard.press("Space")
+  await expect(
+    views.getByRole("tab", { name: "Usage", exact: true })
+  ).toHaveAttribute("aria-selected", "true")
+  await expect(
+    page.getByRole("textbox", { name: "Research note", exact: true })
+  ).toHaveValue("Preserve this note and selected tab.")
   await resizeObservability(page, "collapse")
   await expect
     .poll(() =>
@@ -1002,7 +1052,7 @@ test("minimal studio distinguishes roles, exposes keyboard and touch actions, an
   await expect
     .poll(() =>
       page
-        .locator('section[aria-label="Observability"]')
+        .locator('div[aria-label="Observability content"]')
         .evaluate((element) => element.getBoundingClientRect().height)
     )
     .toBeLessThanOrEqual(1)
